@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @State private var store = SettingsStore()
     @State private var launchAtLogin = LoginItem.isEnabled
+    @State private var updater = UpdateChecker.shared
 
     var body: some View {
         Form {
@@ -11,6 +12,7 @@ struct SettingsView: View {
             engineSection
             if store.authMode == .apiKey { apiKeySection }
             startupSection
+            updatesSection
         }
         .formStyle(.grouped)
         .frame(width: 500, height: 640)
@@ -123,6 +125,24 @@ struct SettingsView: View {
             Text("Startup")
         } footer: {
             Text("Start Translate Like Me automatically when you log in to your Mac.")
+        }
+    }
+
+    // MARK: - Updates
+
+    private var updatesSection: some View {
+        Section {
+            LabeledContent("Version", value: updater.version)
+            Button {
+                updater.checkForUpdates(manual: true)
+            } label: {
+                Text(updater.isChecking ? "Checking…" : "Check for updates…")
+            }
+            .disabled(updater.isChecking)
+        } header: {
+            Text("Updates")
+        } footer: {
+            Text("Checks GitHub for a newer version on launch and offers to open the download page.")
         }
     }
 }

@@ -44,6 +44,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         registerHotKeys()
         ensureAccessibilityPermission()
         openSettingsOnFirstRun()
+        checkForUpdatesOnLaunch()
+    }
+
+    // A short delay keeps launch snappy and avoids a modal racing the first-run
+    // Settings window. Silent when already on the latest version.
+    private func checkForUpdatesOnLaunch() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            UpdateChecker.shared.checkForUpdates()
+        }
     }
 
     // On the very first launch, open Settings so the user picks a provider and

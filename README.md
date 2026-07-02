@@ -66,6 +66,9 @@ open "Translate Like Me.app"
   (subscription or API key).
 - **API key** — stored per provider; shown only in API-key mode.
 - **Launch at login** — toggle to start the app automatically.
+- **Updates** — shows the current version and a "Check for updates…" button. The
+  app also checks GitHub Releases on launch and, when a newer version is tagged,
+  offers to open its download page (it does not install in place).
 
 Languages are picked on the main panel (click the menu bar icon), not in Settings.
 
