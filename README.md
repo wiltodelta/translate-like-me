@@ -13,11 +13,10 @@ It supports two providers (Anthropic / OpenAI), each in two modes:
 
 - Detects the language automatically between the two languages you pick in the
   panel (no need to choose a direction).
-- A global, configurable shortcut (default **⌥⌘R**) translates the current
+- A global, configurable shortcut (default **⌥⌘F**) translates the current
   selection and replaces it in place.
-- If the selection can't be replaced in place (read-only text, e.g. a Slack
-  message you're reading rather than composing), the translation opens in a
-  small popup near the cursor with a **Copy** button instead.
+- If something goes wrong (no text selected, or the translation fails), a small
+  popup near the cursor shows the message instead of replacing anything.
 - A custom writing style from Settings is applied to the translation.
 
 ### Provider × auth matrix
@@ -75,7 +74,7 @@ Languages are picked on the main panel (click the menu bar icon), not in Setting
 ## Notes
 
 - The original clipboard is preserved: it's restored shortly after a successful
-  paste, or immediately when the popup fallback is shown instead.
+  paste, or immediately if the translation can't proceed.
 - Subscription (CLI) calls add a few seconds of latency per translation (CLI start
   + one model turn). API-key mode is faster.
 - For the `codex` CLI, run `codex login` once (ChatGPT account) before using
