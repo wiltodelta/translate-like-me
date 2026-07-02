@@ -1,0 +1,6 @@
+.build/
+Translate Like Me.app/
+*.app/
+.DS_Store
+*.xcodeproj
+.swiftpm/
