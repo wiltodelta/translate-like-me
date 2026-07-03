@@ -7,10 +7,10 @@ cd "$(dirname "$0")"
 APP="Translate Like Me.app"
 BIN="TranslateLikeMe"
 
-echo "Building (release)…"
+echo "Building (release)..."
 swift build -c release
 
-echo "Assembling $APP…"
+echo "Assembling $APP..."
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp ".build/release/$BIN" "$APP/Contents/MacOS/$BIN"
