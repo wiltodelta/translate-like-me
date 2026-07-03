@@ -26,14 +26,13 @@ struct MenuContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             VStack(spacing: 12) {
-                intro
                 languagesCard
                 shortcutCard
                 if !hasStyle { styleTipCard }
                 statusCard
             }
             .padding(.horizontal, 20)
-            .padding(.top, 12)
+            .padding(.top, 16)
             .padding(.bottom, 16)
 
             Divider()
@@ -65,22 +64,6 @@ struct MenuContentView: View {
             let result = await Task.detached { EngineStatus.check() }.value
             await MainActor.run { engineReady = result }
         }
-    }
-
-    // MARK: - Intro
-
-    private var intro: some View {
-        VStack(spacing: 6) {
-            Text("Translate Like Me")
-                .font(.headline)
-            Text("Detects which language you're using and translates to the other, in your writing style.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.bottom, 4)
     }
 
     // MARK: - Languages (on the first screen, not in Settings)
