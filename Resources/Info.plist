@@ -2,27 +2,27 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key>
-    <string>TranslateLikeMe</string>
-    <key>CFBundleDisplayName</key>
-    <string>Translate Like Me</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.wiltodelta.translatelikeme</string>
-    <key>CFBundleVersion</key>
-    <string>3</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.2</string>
-    <key>CFBundleExecutable</key>
-    <string>TranslateLikeMe</string>
-    <key>CFBundleIconFile</key>
-    <string>AppIcon</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>13.0</string>
-    <key>LSUIElement</key>
-    <true/>
-    <key>NSHumanReadableCopyright</key>
-    <string>Copyright 2026 Victor Kuznetsov. Licensed under Apache-2.0.</string>
+	<key>CFBundleDisplayName</key>
+	<string>Translate Like Me</string>
+	<key>CFBundleExecutable</key>
+	<string>TranslateLikeMe</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.wiltodelta.translatelikeme</string>
+	<key>CFBundleName</key>
+	<string>TranslateLikeMe</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.2</string>
+	<key>CFBundleVersion</key>
+	<string>3</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright 2026 Victor Kuznetsov. Licensed under Apache-2.0.</string>
 </dict>
 </plist>

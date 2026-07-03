@@ -28,7 +28,7 @@ there is nothing to switch: type in one, get the other.
 
 ## Requirements
 
-- macOS 13 or later.
+- macOS 14 (Sonoma) or later.
 - For subscription mode: the provider's official CLI installed and signed in
   (`claude` for Claude, `codex` for ChatGPT). For API-key mode: an API key.
 
