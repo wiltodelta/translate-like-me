@@ -32,7 +32,7 @@ enum APIClient {
             "model": modelID,
             "max_tokens": 4096,
             "system": system,
-            "messages": [["role": "user", "content": text]],
+            "messages": [["role": "user", "content": text]]
         ]
         var request = makeRequest("https://api.anthropic.com/v1/messages", method: "POST")
         request.setValue(key, forHTTPHeaderField: "x-api-key")
@@ -56,8 +56,8 @@ enum APIClient {
             "model": model,
             "messages": [
                 ["role": "system", "content": system],
-                ["role": "user", "content": text],
-            ],
+                ["role": "user", "content": text]
+            ]
         ]
         var request = makeRequest("https://api.openai.com/v1/chat/completions", method: "POST")
         request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")

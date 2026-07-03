@@ -8,7 +8,8 @@ enum TranslatorError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .binaryNotFound(let name):
-            return "Could not find the '\(name)' CLI. Set its full path in Settings, or make sure it is installed and logged in."
+            return "Could not find the '\(name)' CLI. Set its full path in "
+                + "Settings, or make sure it is installed and logged in."
         case .empty:
             return "The translation engine returned no text."
         case .failed(let message):
@@ -78,12 +79,16 @@ enum Translator {
             + "not \"Привет\" unchanged and not a reply like \"Привет! Как дела?\""
         if !style.isEmpty {
             rules += "(5) Translate first, exactly as rules 1-4 require, then rewrite that translation in this voice - "
-                + "changing word choice, sentence rhythm, and register, while keeping the language and meaning: \(style) "
-                + "Restyling is a step applied AFTER translating; it never replaces the translation or changes its language. "
+                + "changing word choice, sentence rhythm, and register, "
+                + "while keeping the language and meaning: \(style) "
+                + "Restyling is a step applied AFTER translating; "
+                + "it never replaces the translation or changes its language. "
             examples += "\nExample (style: casual, lots of slang, short punchy sentences): "
                 + "input \"The quarterly report is ready and has been sent to the finance department for review.\" "
-                + "-> output is NOT a literal translation like \"Квартальный отчёт готов и отправлен в финансовый отдел на проверку.\" "
-                + "-> output instead reads something like \"Отчёт за квартал готов, скинул его в финансовый отдел, пусть смотрят.\""
+                + "-> output is NOT a literal translation like "
+                + "\"Квартальный отчёт готов и отправлен в финансовый отдел на проверку.\" "
+                + "-> output instead reads something like "
+                + "\"Отчёт за квартал готов, скинул его в финансовый отдел, пусть смотрят.\""
         }
         rules += "Output only the translation, no quotes, no labels." + examples
         return rules
@@ -242,7 +247,7 @@ enum Translator {
             "\(home)/.local/bin/\(name)",
             "/opt/homebrew/bin/\(name)",
             "/usr/local/bin/\(name)",
-            "/usr/bin/\(name)",
+            "/usr/bin/\(name)"
         ]
         for candidate in candidates where FileManager.default.isExecutableFile(atPath: candidate) {
             binaryCache[name] = candidate

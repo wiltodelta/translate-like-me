@@ -12,7 +12,8 @@ struct MenuContentView: View {
     @State private var authMode = Settings.authMode
     @State private var langA = Settings.languageA
     @State private var langB = Settings.languageB
-    @State private var shortcut = Shortcut.display(keyCode: Settings.replaceKeyCode, modifiers: Settings.replaceModifiers)
+    @State private var shortcut = Shortcut.display(keyCode: Settings.replaceKeyCode,
+                                                   modifiers: Settings.replaceModifiers)
     @State private var hasStyle = !Settings.style.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     @State private var engineReady: EngineStatus.Readiness?
     @State private var engineCheckKey = ""

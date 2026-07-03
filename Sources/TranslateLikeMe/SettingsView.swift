@@ -40,7 +40,9 @@ struct SettingsView: View {
         } header: {
             Text("Keyboard shortcut")
         } footer: {
-            Text("Select text in any app, then press the shortcut to replace it with the translation. Click the shortcut to change it. Needs Accessibility permission (macOS will ask).")
+            Text("Select text in any app, then press the shortcut to replace it with the "
+                 + "translation. Click the shortcut to change it. Needs Accessibility "
+                 + "permission (macOS will ask).")
         }
     }
 
@@ -68,7 +70,9 @@ struct SettingsView: View {
         } header: {
             Text("Your writing style")
         } footer: {
-            Text("Applied to every translation so it sounds like you. Describe the tone, for example: \"Casual and friendly, short sentences.\" Leave empty for a plain translation.")
+            Text("Applied to every translation so it sounds like you. Describe the tone, "
+                 + "for example: \"Casual and friendly, short sentences.\" "
+                 + "Leave empty for a plain translation.")
         }
     }
 
@@ -95,9 +99,11 @@ struct SettingsView: View {
         let cli = store.provider == .anthropic ? "Claude Code" : "Codex"
         let latest = store.provider == .anthropic ? "Sonnet" : "GPT mini"
         if store.authMode == .subscription {
-            return "Runs the \(cli) command-line tool you are signed in to (not the desktop app). No extra cost beyond your plan. Always picks the latest \(latest) automatically."
+            return "Runs the \(cli) command-line tool you are signed in to (not the desktop app). "
+                + "No extra cost beyond your plan. Always picks the latest \(latest) automatically."
         }
-        return "Connects directly with your own API key (you pay the provider per use). Always picks the latest \(latest) automatically."
+        return "Connects directly with your own API key (you pay the provider per use). "
+            + "Always picks the latest \(latest) automatically."
     }
 
     // MARK: - API key

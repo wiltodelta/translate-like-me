@@ -38,7 +38,7 @@ enum Languages {
         Language(code: "cs", name: "Czech"),
         Language(code: "el", name: "Greek"),
         Language(code: "ro", name: "Romanian"),
-        Language(code: "hu", name: "Hungarian"),
+        Language(code: "hu", name: "Hungarian")
     ]
 
     static func name(for code: String) -> String {
