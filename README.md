@@ -61,7 +61,7 @@ after every rebuild.
 
 1. A small icon appears in the menu bar (there is no Dock icon). Settings opens
    automatically on first launch so you can pick a provider and languages.
-2. Grant **Accessibility** in **System Settings ▸ Privacy & Security ▸
+2. Grant **Accessibility** in **System Settings > Privacy & Security >
    Accessibility**. It is required to read the selection (synthesized ⌘C) and to
    paste the replacement (⌘V).
 
@@ -124,7 +124,7 @@ The model is always resolved live, not pinned in the app:
 
 The app checks GitHub Releases a few seconds after launch and offers to open the
 download page when a newer version is tagged. You can also check on demand from
-Settings ▸ Updates. It is a check-and-notify updater, not a silent in-place
+Settings > Updates. It is a check-and-notify updater, not a silent in-place
 installer: you download the new build and replace the app yourself.
 
 ## Notes
@@ -139,6 +139,19 @@ installer: you download the new build and replace the app yourself.
   fast models occasionally "answer" question-shaped input instead of translating
   it. It is a known, recurring failure mode rather than a fully solved problem; if
   you see it, note which input triggered it.
+
+## Troubleshooting
+
+- **"Translate Like Me is damaged and can't be opened", or an unidentified-developer
+  warning:** Gatekeeper blocking a non-notarized app. Right-click the app and
+  choose **Open** to confirm once, or clear the quarantine flag with
+  `xattr -cr "/Applications/Translate Like Me.app"`.
+- **The shortcut does nothing, or the translation doesn't replace the text:**
+  grant **Accessibility** in System Settings > Privacy & Security > Accessibility,
+  then relaunch the app. It is required to read the selection and paste the result.
+- **macOS asks for Accessibility again after a rebuild:** the stable signing
+  identity is missing, so `build.sh` fell back to ad-hoc. Recreate the identity
+  (see the comment in `build.sh`) to keep the grant across rebuilds.
 
 ## Building and releasing
 
@@ -163,7 +176,7 @@ Cut a release (self-signed, for personal use):
      --title "Translate Like Me 1.1" --target main --notes "What changed"
    ```
 
-The tag must match the version (`v1.1` ↔ `1.1`), and the `.zip` must be attached,
+The tag must match the version (`v1.1` for `1.1`), and the `.zip` must be attached,
 or the in-app updater has nothing to offer.
 
 ## License
