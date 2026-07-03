@@ -50,7 +50,10 @@ dependencies.
 ## Code quality
 
 - Lint: `swiftlint` (config in `.swiftlint.yml`, scans `Sources/`, 120-column
-  lines). Build check: `swift build -c release`. Both must be clean before a
-  commit.
+  lines). Build check: `swift build -c release`. Tests: `swift test`. All three
+  must be clean before a commit.
+- Tests cover the pure logic (`UpdateChecker.isNewer`, `Shortcut` formatting,
+  `ModelResolver` model selection). UI, Accessibility, CGEvent, and CLI-subprocess
+  code is not unit-tested.
 - The build is self-signed for personal use, not notarized. Gatekeeper warns on
   other machines; fine for personal installs.

@@ -65,7 +65,8 @@ enum ModelResolver {
     }
 
     // ids are newest-first; return the newest one matching the tier.
-    private static func pick(provider: Provider, from ids: [String]) -> String? {
+    // Internal (not private) so the tier-selection logic can be unit-tested.
+    static func pick(provider: Provider, from ids: [String]) -> String? {
         switch provider {
         case .anthropic:
             return ids.first { $0.lowercased().contains("sonnet") }
