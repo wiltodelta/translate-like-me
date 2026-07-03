@@ -39,13 +39,19 @@ dependencies.
 
 ## Release process
 
-1. Bump `CFBundleShortVersionString` in `Resources/Info.plist` (the single source
-   of the app version) and `CFBundleVersion`.
-2. `./build.sh`, then
-   `ditto -c -k --sequesterRsrc --keepParent "Translate Like Me.app" "Translate Like Me.zip"`.
-3. `gh release create vX.Y "Translate Like Me.zip" --title "Translate Like Me X.Y" --target main --notes "..."`.
-4. The tag must match the version (`v1.2` <-> `1.2`) and the `.zip` must be
-   attached, or the in-app updater has nothing to offer.
+Automated via GitHub Actions (`.github/workflows/build.yml`), same as the Watch
+Me While I Fall Asleep app. The version comes from the git tag, not a manual
+Info.plist bump:
+
+1. `git tag -a vX.Y -m "Translate Like Me X.Y"` then `git push origin vX.Y`.
+2. The workflow stamps `X.Y` into `Info.plist` (`CFBundleShortVersionString` and
+   `CFBundleVersion`), runs SwiftLint and tests, builds via `build.sh`, zips as
+   `TranslateLikeMe-vX.Y-macOS.zip`, and publishes a GitHub Release with it
+   attached. `UpdateChecker` compares that tag to the installed version.
+
+Local `./build.sh` bundles keep whatever version is committed in `Info.plist`;
+they are for local use, not distribution. CI signs ad-hoc (the stable identity
+is absent on the runner), which is expected.
 
 ## Code quality
 

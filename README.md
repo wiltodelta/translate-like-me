@@ -1,5 +1,7 @@
 # Translate Like Me
 
+[![Build Translate Like Me App](https://github.com/wiltodelta/translate-like-me/actions/workflows/build.yml/badge.svg)](https://github.com/wiltodelta/translate-like-me/actions/workflows/build.yml)
+
 A tiny macOS menu-bar app that translates the current selection with a global
 hotkey and rewrites it in your own writing style. Select text in any app, press
 the shortcut, and the selection is replaced in place with the translation.
@@ -155,29 +157,25 @@ installer: you download the new build and replace the app yourself.
 
 ## Building and releasing
 
-Build a bundle:
+Build a bundle locally:
 
 ```bash
 ./build.sh
 ```
 
-Cut a release (self-signed, for personal use):
+Releases are automated. The app version comes from the git tag, so cutting a
+release is just tagging and pushing:
 
-1. Bump `CFBundleShortVersionString` in `Resources/Info.plist` (for example
-   `1.0` to `1.1`). This is the single source of the app version.
-2. Build and package:
-   ```bash
-   ./build.sh
-   ditto -c -k --sequesterRsrc --keepParent "Translate Like Me.app" "Translate Like Me.zip"
-   ```
-3. Create the release, matching the tag to the version:
-   ```bash
-   gh release create v1.1 "Translate Like Me.zip" \
-     --title "Translate Like Me 1.1" --target main --notes "What changed"
-   ```
+```bash
+git tag -a v1.3 -m "Translate Like Me 1.3"
+git push origin v1.3
+```
 
-The tag must match the version (`v1.1` for `1.1`), and the `.zip` must be attached,
-or the in-app updater has nothing to offer.
+GitHub Actions then stamps the version into `Info.plist`, builds the app,
+and publishes a Release with `TranslateLikeMe-vX.Y-macOS.zip` attached. Use
+`vMAJOR.MINOR` tags; the in-app updater compares the tag to the installed
+version. Local `./build.sh` bundles keep whatever version is in `Info.plist`
+and are not meant for distribution.
 
 ## License
 

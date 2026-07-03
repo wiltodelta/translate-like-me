@@ -1,0 +1,91 @@
+name: Build Translate Like Me App
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: macos-15
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+
+    - name: Select latest Xcode
+      run: |
+        LATEST_XCODE=$(ls /Applications | grep "Xcode" | sort -V | tail -1)
+        echo "Using: $LATEST_XCODE"
+        sudo xcode-select -s /Applications/$LATEST_XCODE/Contents/Developer
+
+    - name: Display build environment
+      run: |
+        xcodebuild -version
+        swift --version
+
+    - name: Determine version
+      run: |
+        if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+          VERSION="${GITHUB_REF_NAME#v}"
+        else
+          VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)
+        fi
+        echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+        echo "Building version: $VERSION"
+
+    - name: Clean build cache
+      run: |
+        rm -rf .build
+        rm -rf ~/Library/Caches/org.swift.swiftpm
+        rm -rf ~/Library/Developer/Xcode/DerivedData
+
+    - name: Lint with SwiftLint
+      run: |
+        if ! command -v swiftlint >/dev/null 2>&1; then
+          brew install swiftlint
+        fi
+        swiftlint lint
+
+    - name: Run tests
+      run: swift test
+
+    - name: Stamp version into Info.plist
+      run: |
+        /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" Resources/Info.plist
+        /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${VERSION}" Resources/Info.plist
+
+    - name: Build app bundle
+      run: |
+        chmod +x build.sh
+        ./build.sh
+
+    - name: Create ZIP archive
+      run: |
+        ZIP_NAME="TranslateLikeMe-v${VERSION}-macOS.zip"
+        zip -r -y "$ZIP_NAME" "Translate Like Me.app"
+
+    - name: Upload app bundle
+      uses: actions/upload-artifact@v7
+      with:
+        name: TranslateLikeMe-macOS
+        path: TranslateLikeMe-v*-macOS.zip
+        retention-days: 30
+
+    - name: Create release (on tag)
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v3
+      with:
+        files: TranslateLikeMe-v*-macOS.zip
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
