@@ -49,6 +49,9 @@ dependencies.
 
 ## Code quality
 
+- `bash maintain.sh` runs the full gate: `swiftlint lint --fix`, `swift test`,
+  `swift build -c release` (same script and shared `.swiftlint.yml` rule set as
+  the Watch Me While I Fall Asleep app).
 - Lint: `swiftlint` (config in `.swiftlint.yml`, scans `Sources/`, 120-column
   lines). Build check: `swift build -c release`. Tests: `swift test`. All three
   must be clean before a commit.

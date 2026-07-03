@@ -1,13 +1,46 @@
-# SwiftLint configuration for Translate Like Me.
-# Run from the repo root: swiftlint
+# SwiftLint Configuration
 
 included:
   - Sources
 
-# Build output and the assembled app bundle contain no first-party sources.
 excluded:
   - .build
+  - .swiftpm
 
+# Disable some rules
+disabled_rules:
+  - trailing_comma
+
+# Configure rules
 line_length:
   warning: 120
   error: 200
+
+file_length:
+  warning: 500
+  error: 1000
+
+function_body_length:
+  warning: 50
+  error: 100
+
+type_body_length:
+  warning: 300
+  error: 400
+
+identifier_name:
+  min_length:
+    warning: 2
+  excluded:
+    - id
+    - x
+    - y
+    - h
+    - m
+
+# Opt-in rules
+opt_in_rules:
+  - empty_count
+  - empty_string
+  - toggle_bool
+  - sorted_first_last
