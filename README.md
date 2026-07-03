@@ -7,6 +7,11 @@ the shortcut, and the selection is replaced in place with the translation.
 It detects the direction automatically between the two languages you choose, so
 there is nothing to switch: type in one, get the other.
 
+<p align="center">
+  <img src="screenshots/panel.png" alt="Translate Like Me - Menu bar panel" width="280">
+  <img src="screenshots/settings.png" alt="Translate Like Me - Settings" width="280">
+</p>
+
 ## Features
 
 - **Translate in place**: replaces the selected text directly, in any app.
