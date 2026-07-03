@@ -56,7 +56,7 @@ struct SettingsView: View {
     private var styleSection: some View {
         Section {
             TextEditor(text: $store.style)
-                .font(.body)
+                .font(.system(.body, design: .monospaced))
                 .frame(minHeight: 110)
             if store.style.trimmingCharacters(in: .whitespaces).isEmpty {
                 Button("Insert a starter template") {
