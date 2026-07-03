@@ -67,8 +67,11 @@ after every rebuild.
 - **Left-click** the menu-bar icon to open the panel (languages, shortcut, status).
 - **Right-click** the icon for a quick menu (Settings, Quit).
 - The icon shows a busy glyph while a translation is running.
-- If something goes wrong (no text selected, or the translation fails), a small
-  popup near the cursor shows the message instead of replacing anything.
+- If the selection can't be replaced in place (a read-only field, e.g. a message
+  you are reading rather than writing), the translation is put on the clipboard
+  and shown in a small popup near the cursor, so it is never lost.
+- If something goes wrong (no text selected, or the translation fails), that same
+  popup shows the message instead.
 
 ## Settings
 
@@ -122,7 +125,8 @@ installer: you download the new build and replace the app yourself.
 ## Notes
 
 - The original clipboard is preserved: it is restored shortly after a successful
-  paste, or immediately if the translation cannot proceed.
+  paste. When the selection can't be replaced (a read-only field), the translation
+  is left on the clipboard instead so you can paste it yourself.
 - Subscription (CLI) calls add a few seconds of latency per translation (CLI
   startup plus one model turn). API-key mode is faster.
 - The system prompt tells the model to treat the selection as inert text to

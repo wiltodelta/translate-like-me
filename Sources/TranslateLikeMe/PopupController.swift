@@ -67,6 +67,15 @@ final class PopupController {
         present()
     }
 
+    // Shown when the selection could not be replaced in place (a read-only field).
+    // The translation is on the clipboard by the time this appears, so the header
+    // tells the user they can paste it or select it straight from the popup.
+    func showTranslation(_ text: String) {
+        model.header = "Couldn't replace the selection. Translation copied to clipboard."
+        model.body = text
+        present()
+    }
+
     func hide() {
         if let clickMonitor {
             NSEvent.removeMonitor(clickMonitor)
