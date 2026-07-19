@@ -1,9 +1,9 @@
 # Translate Like Me
 
-macOS menu-bar app that translates the current selection via a global hotkey,
-auto-detecting the direction between two configured languages and applying the
-user's writing style. Swift, SwiftUI + AppKit, SwiftPM, macOS 14+, no external
-dependencies.
+You are a **principal Swift/macOS engineer** maintaining a menu-bar app that
+translates the current selection via a global hotkey, auto-detecting the
+direction between two configured languages and applying the user's writing
+style. SwiftUI + AppKit, SwiftPM, macOS 14+, no external dependencies.
 
 ## How to run / build
 
@@ -16,9 +16,8 @@ dependencies.
 - **Install for local use:** quit the running app, replace
   `/Applications/Translate Like Me.app`, relaunch. It is a menu-bar accessory
   (no Dock icon).
-- Code signing uses a stable self-signed identity ("Translate Like Me Dev", see
-  the comment in `build.sh`) so the Accessibility (TCC) grant survives rebuilds.
-  If the identity is missing, it falls back to ad-hoc and macOS re-prompts.
+- The stable signing identity here is "Translate Like Me Dev" (see the comment in
+  `build.sh`); the TCC grant it preserves is Accessibility.
 
 ## Architecture
 
@@ -39,9 +38,7 @@ dependencies.
 
 ## Release process
 
-Automated via GitHub Actions (`.github/workflows/build.yml`), same as the Watch
-Me While I Fall Asleep app. The version comes from the git tag, not a manual
-Info.plist bump:
+Automated via GitHub Actions (`.github/workflows/build.yml`):
 
 1. `git tag -a vX.Y -m "Translate Like Me X.Y"` then `git push origin vX.Y`.
 2. The workflow stamps `X.Y` into `Info.plist` (`CFBundleShortVersionString` and
@@ -55,12 +52,8 @@ is absent on the runner), which is expected.
 
 ## Code quality
 
-- `bash maintain.sh` runs the full gate: `swiftlint lint --fix`, `swift test`,
-  `swift build -c release` (same script and shared `.swiftlint.yml` rule set as
-  the Watch Me While I Fall Asleep app).
-- Lint: `swiftlint` (config in `.swiftlint.yml`, scans `Sources/`, 120-column
-  lines). Build check: `swift build -c release`. Tests: `swift test`. All three
-  must be clean before a commit.
+- `bash maintain.sh` runs the canonical Swift gate.
+- Lint config in `.swiftlint.yml` scans `Sources/` at 120-column lines.
 - Tests cover the pure logic (`UpdateChecker.isNewer`, `Shortcut` formatting,
   `ModelResolver` model selection). UI, Accessibility, CGEvent, and CLI-subprocess
   code is not unit-tested.
