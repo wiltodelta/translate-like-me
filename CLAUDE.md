@@ -5,50 +5,12 @@ translates the current selection via a global hotkey, auto-detecting the
 direction between two configured languages and applying the user's writing
 style. SwiftUI + AppKit, SwiftPM, macOS 14+, no external dependencies.
 
-## How to run / build
+## Build and release
 
-- **Build and assemble the app bundle:** `./build.sh`. It runs `swift build -c
-  release`, copies the binary and `Resources/` into `Translate Like Me.app`, and
-  code-signs it.
-- **CRITICAL:** `swift build` alone updates only `.build/release/`; it does NOT
-  refresh the binary inside `Translate Like Me.app`. Always run `./build.sh`
-  before installing or testing the bundle, otherwise you run a stale binary.
-- **Install for local use:** quit the running app, replace
-  `/Applications/Translate Like Me.app`, relaunch. It is a menu-bar accessory
-  (no Dock icon).
-- The stable signing identity here is "Translate Like Me Dev" (see the comment in
-  `build.sh`); the TCC grant it preserves is Accessibility.
-
-## Architecture
-
-- `AppDelegate` owns a custom `NSStatusItem`. A custom status item is used
-  instead of SwiftUI's `MenuBarExtra` because MenuBarExtra cannot show a separate
-  right-click menu. Left click opens a borderless `NSPanel` (`MenuBarPanel`);
-  right click pops up an `NSMenu`.
-- Global hotkey via Carbon `RegisterEventHotKey` (`HotKeyManager`), default
-  ⌥⌘F. `TranslationController` copies the selection, translates, and pastes back.
-- `SelectionService.pasteLanded` decides editability *after* the paste (re-copy
-  the selection; if it still holds the original text, the field is read-only).
-  Read-only targets get the translation on the clipboard plus a `PopupController`
-  popup instead of a silent lost paste.
-- Providers: Claude (`claude` CLI or Anthropic API) and ChatGPT (`codex` CLI or
-  OpenAI API), selected in Settings. `ModelResolver` resolves the model live; it
-  is never pinned in the app.
-- `UpdateChecker` checks GitHub Releases on launch and from Settings.
-
-## Release process
-
-Automated via GitHub Actions (`.github/workflows/build.yml`):
-
-1. `git tag -a vX.Y -m "Translate Like Me X.Y"` then `git push origin vX.Y`.
-2. The workflow stamps `X.Y` into `Info.plist` (`CFBundleShortVersionString` and
-   `CFBundleVersion`), runs SwiftLint and tests, builds via `build.sh`, zips as
-   `TranslateLikeMe-vX.Y-macOS.zip`, and publishes a GitHub Release with it
-   attached. `UpdateChecker` compares that tag to the installed version.
-
-Local `./build.sh` bundles keep whatever version is committed in `Info.plist`;
-they are for local use, not distribution. CI signs ad-hoc (the stable identity
-is absent on the runner), which is expected.
+Always assemble the bundle with `./build.sh`; `swift build` alone leaves a stale
+binary inside `Translate Like Me.app`. Releases are driven by `vX.Y` git tags
+through GitHub Actions. Full detail, including the stable signing identity and
+the workflow steps: `docs/build-and-release.md`.
 
 ## Code quality
 
@@ -57,5 +19,12 @@ is absent on the runner), which is expected.
 - Tests cover the pure logic (`UpdateChecker.isNewer`, `Shortcut` formatting,
   `ModelResolver` model selection). UI, Accessibility, CGEvent, and CLI-subprocess
   code is not unit-tested.
-- The build is self-signed for personal use, not notarized. Gatekeeper warns on
-  other machines; fine for personal installs.
+
+## Rules and conventions
+
+Topic-specific rules live in `.claude/rules/*.md` and are auto-loaded when
+matching files are touched.
+
+| File | Covers |
+|------|--------|
+| `architecture.md` | Status item, global hotkey, paste-landed editability detection, providers, and update checking |
