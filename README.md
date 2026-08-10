@@ -177,6 +177,17 @@ and publishes a Release with `TranslateLikeMe-vX.Y-macOS.zip` attached. Use
 version. Local `./build.sh` bundles keep whatever version is in `Info.plist`
 and are not meant for distribution.
 
+### The bundle identifier is not a local label
+
+`CFBundleIdentifier` in `Resources/Info.plist` is `com.wiltodelta.translatelikeme`,
+and macOS keys durable per-app state to it. Two things here depend on that: the
+`UserDefaults.standard` domain behind `Settings`, which holds every persisted
+setting including the API key, and the Accessibility grant that
+`ensureAccessibilityPermission` relies on. Changing the identifier migrates
+neither. An existing install would come up as a stranger, with its settings
+gone and Accessibility needing to be granted again, so treat it as fixed rather
+than as a string to tidy up.
+
 ## License
 
 Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the
