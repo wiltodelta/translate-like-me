@@ -4,3 +4,15 @@ Translate Like Me.app/
 .DS_Store
 *.xcodeproj
 .swiftpm/
+
+# Other harnesses' generated config. Claude's sync owns these; a committed copy
+# is a second source nobody reconciles. Anchored so a same-named source file
+# deeper in the tree is not caught.
+/.agents/
+/.codex/
+/.opencode/
+/opencode.json
+/opencode.jsonc
+
+# Local Claude Code settings, never shared
+.claude/settings.local.json
