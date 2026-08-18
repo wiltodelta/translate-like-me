@@ -187,6 +187,12 @@ and publishes a Release with `TranslateLikeMe-vX.Y-macOS.zip` attached. Use
 version. Local `./build.sh` bundles keep whatever version is in `Info.plist`
 and are not meant for distribution.
 
+One manual step remains after each release: the CI zip is ad-hoc signed, while
+the Accessibility grant is keyed to the stable local signing identity. Re-sign
+and replace the release asset locally so installs keep their permissions
+(the exact commands are in
+[`docs/build-and-release.md`](docs/build-and-release.md)).
+
 ### The bundle identifier is not a local label
 
 `CFBundleIdentifier` in `Resources/Info.plist` is `com.wiltodelta.translatelikeme`,

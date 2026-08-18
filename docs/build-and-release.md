@@ -33,3 +33,34 @@ Automated via GitHub Actions ([`.github/workflows/build.yml`](../.github/workflo
 Local `./build.sh` bundles keep whatever version is committed in `Info.plist`;
 they are for local use, not distribution. CI signs ad-hoc (the stable identity
 is absent on the runner), which is expected.
+
+## Re-sign the release asset locally (every release)
+
+CI-built release zips are ad-hoc signed (see above), but the Accessibility
+grant is keyed to the stable "Translate Like Me Dev" identity. Installing a
+CI-built zip therefore loses Accessibility and re-prompts. After every tagged
+release, replace the asset with a locally signed build of the same tag:
+
+```bash
+git checkout vX.Y                 # exactly the released commit
+# build.sh reads Resources/Info.plist, and CI stamps the tag version into it,
+# so mirror that locally (X.Y in both keys):
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString X.Y" Resources/Info.plist
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion X.Y" Resources/Info.plist
+./build.sh                         # signs with the stable identity when present
+zip -r -y TranslateLikeMe-vX.Y-macOS.zip "Translate Like Me.app"
+gh release upload vX.Y TranslateLikeMe-vX.Y-macOS.zip --clobber
+git checkout -- Resources/Info.plist && git switch main
+```
+
+Verify before moving on (re-download, then check the identity is NOT ad-hoc):
+
+```bash
+gh release download vX.Y -p "*.zip" -D /tmp/asset-check && \
+  ditto -x -k /tmp/asset-check/*.zip /tmp/asset-check/app && \
+  codesign -dvv "/tmp/asset-check/app/Translate Like Me.app" 2>&1 | grep Authority
+```
+
+The long-term fix is Developer ID signing + notarization in CI (secrets-based
+identity import), which removes this manual step entirely; until then this
+re-sign is part of releasing.

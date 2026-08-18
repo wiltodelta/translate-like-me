@@ -9,8 +9,10 @@ style. SwiftUI + AppKit, SwiftPM, macOS 14+, no external dependencies.
 
 Always assemble the bundle with `./build.sh`; `swift build` alone leaves a stale
 binary inside `Translate Like Me.app`. Releases are driven by `vX.Y` git tags
-through GitHub Actions. Full detail, including the stable signing identity and
-the workflow steps: `docs/build-and-release.md`.
+through GitHub Actions, and every release must then be re-signed locally
+(`gh release upload --clobber`, see the release doc) so the Accessibility grant
+survives installs. Full detail, including the stable signing identity and the
+workflow steps: `docs/build-and-release.md`.
 
 ## Code quality
 
