@@ -44,14 +44,18 @@ enum ModelResolver {
         return Double(number) ?? 0
     }
 
-    // The OpenCode engine's model, "opencode/<id>". big-pickle is the zen
-    // gateway's own tuned default - a stable alias the vendor rotates, like the
-    // `sonnet` CLI alias - and it answers without any sign-in. If it vanishes
-    // from the cache, the newest "-free" zen model is used instead; both were
-    // verified to run anonymously on 2026-08-17. Read live from opencode's own
-    // models.dev cache (~/.cache/opencode/models.json), which opencode refreshes.
-    // Cached per launch like apiModel: the file only changes when the opencode
-    // CLI itself refreshes it.
+    // The OpenCode engine's model, "opencode/<id>". Priority, set by the
+    // 2026-08-18 translation benchmark (app's real prompt, ru<->en: register,
+    // question-form preservation, idiom handling, latency):
+    //   1. deepseek-v4-flash-free - best quality and fastest of the alive set
+    //   2. big-pickle - the zen gateway's vendor-rotated tuned default
+    //   3. the newest "-free" zen model by release_date
+    // The zen tier also rotates availability: models that 500 today may answer
+    // tomorrow, so the picker falls through rather than pinning one id. All
+    // read live from opencode's own models.dev cache
+    // (~/.cache/opencode/models.json), which opencode refreshes. Cached per
+    // launch like apiModel: the file only changes when the opencode CLI
+    // itself refreshes it.
     static func opencodeModel() -> String {
         if let cached = cache[.opencode] { return cached }
         let picked = readJSONCache(NSHomeDirectory() + "/.cache/opencode/models.json")
@@ -65,6 +69,9 @@ enum ModelResolver {
     static func pickZenModel(from cache: [String: Any]) -> String? {
         guard let zen = cache["opencode"] as? [String: Any],
               let models = zen["models"] as? [String: Any] else { return nil }
+        if models["deepseek-v4-flash-free"] != nil {
+            return "opencode/deepseek-v4-flash-free"
+        }
         if models["big-pickle"] != nil { return opencodeFallback }
         // ISO dates sort lexicographically, newest release_date wins.
         let frees = models.compactMap { id, value -> (String, String)? in

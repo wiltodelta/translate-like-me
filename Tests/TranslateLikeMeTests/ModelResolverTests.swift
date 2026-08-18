@@ -69,13 +69,24 @@ final class ModelResolverTests: XCTestCase {
     // MARK: - OpenCode zen picking
     // The cache shape mirrors the real ~/.cache/opencode/models.json captured
     // 2026-08-17: [provider: ["models": [id: ["release_date": ISO, ...]]]].
+    // Priority comes from the 2026-08-18 benchmark: deepseek-v4-flash-free,
+    // then big-pickle, then the newest "-free".
 
     private func zenCache(_ models: String) -> [String: Any] {
         let data = ("{\"opencode\":{\"models\":\(models)}}").data(using: .utf8)!
         return try! JSONSerialization.jsonObject(with: data) as! [String: Any]
     }
 
-    func testZenPrefersBigPickleWhenPresent() {
+    func testZenPrefersDeepSeekFlashWhenPresent() {
+        let cache = zenCache("""
+        {"deepseek-v4-flash-free":{"release_date":"2026-07-31"},
+         "big-pickle":{"release_date":"2026-06-01"},
+         "nemotron-3.5-lightning-free":{"release_date":"2026-08-11"}}
+        """)
+        XCTAssertEqual(ModelResolver.pickZenModel(from: cache), "opencode/deepseek-v4-flash-free")
+    }
+
+    func testZenPrefersBigPickleWithoutDeepSeek() {
         let cache = zenCache("""
         {"big-pickle":{"release_date":"2026-06-01"},
          "nemotron-3.5-lightning-free":{"release_date":"2026-08-11"}}
@@ -83,7 +94,7 @@ final class ModelResolverTests: XCTestCase {
         XCTAssertEqual(ModelResolver.pickZenModel(from: cache), "opencode/big-pickle")
     }
 
-    func testZenPicksNewestFreeWithoutBigPickle() {
+    func testZenPicksNewestFreeWithoutPreferredModels() {
         let cache = zenCache("""
         {"gemini-3-pro":{"release_date":"2025-11-18"},
          "ling-3.0-flash-free":{"release_date":"2026-07-23"},

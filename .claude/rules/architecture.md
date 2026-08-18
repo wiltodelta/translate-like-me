@@ -23,7 +23,9 @@ Relocated verbatim from the repo root `CLAUDE.md`. Read before editing this doma
   (`displayName`, `shortName`, `cliBinaryName`, and the `supportsAPIKey` /
   `requiresSignIn` capabilities that views and checks gate on), not as
   `== .opencode` special cases. `ModelResolver` resolves the model live; it is
-  never pinned in the app. OpenCode: `big-pickle` from opencode's models.dev
+  never pinned in the app. OpenCode: benchmark-picked priority (2026-08-18)
+  `deepseek-v4-flash-free` -> `big-pickle` -> newest `-free`, read live from
+  opencode's models.dev
   cache, falling back to the newest `-free` zen model; auth mode is ignored for
   it (zen answers anonymously, verified 2026-08-17), and the child env is
   stripped of `OPENCODE_*`/`SUPERCONDUCTOR_*` so a harness wrapper cannot

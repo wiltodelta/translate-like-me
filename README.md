@@ -128,9 +128,9 @@ The model is always resolved live, not pinned in the app:
 
 - Subscription: the `sonnet` alias (Claude) or your account's default (Codex).
 - API key: the newest matching model from the provider's live `/models` list.
-- OpenCode: `big-pickle`, the zen gateway's vendor-rotated default (read live
-  from opencode's models cache; falls back to the newest free zen model if it
-  disappears).
+- OpenCode: benchmark-picked priority (2026-08-18) `deepseek-v4-flash-free`
+  -> `big-pickle` -> newest `-free` zen model (read live
+  from opencode's models cache, so the ranking follows updates).
 
 ## Updates
 
