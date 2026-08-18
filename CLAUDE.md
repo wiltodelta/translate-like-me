@@ -17,8 +17,9 @@ the workflow steps: `docs/build-and-release.md`.
 - `bash maintain.sh` runs the canonical Swift gate.
 - Lint config in `.swiftlint.yml` scans `Sources/` at 120-column lines.
 - Tests cover the pure logic (`UpdateChecker.isNewer`, `Shortcut` formatting,
-  `ModelResolver` model selection). UI, Accessibility, CGEvent, and CLI-subprocess
-  code is not unit-tested.
+  `ModelResolver` model selection, `LimitDetector`/`JSONErrorMessage` engine
+  payload parsing). UI, Accessibility, CGEvent, and CLI-subprocess code is not
+  unit-tested.
 
 ## Rules and conventions
 

@@ -22,7 +22,8 @@ there is nothing to switch: type in one, get the other.
 - **Your writing style**: an optional style description is applied to every
   translation so the result sounds like you.
 - **Bring your own engine**: Claude or ChatGPT, each via your existing
-  subscription (official CLI) or your own API key.
+  subscription (official CLI) or your own API key, plus OpenCode with free
+  models that need no account at all.
 - **Always the latest model**: resolved live, never pinned in the app.
 - **Menu-bar only**: no Dock icon, no window in the way. Left-click for the
   panel, right-click for a quick menu.
@@ -33,6 +34,7 @@ there is nothing to switch: type in one, get the other.
 - macOS 14 (Sonoma) or later.
 - For subscription mode: the provider's official CLI installed and signed in
   (`claude` for Claude, `codex` for ChatGPT). For API-key mode: an API key.
+  For OpenCode: just the `opencode` CLI - its free models need no sign-in.
 
 ## Install
 
@@ -96,12 +98,17 @@ Languages are picked on the main panel (left-click the icon), not in Settings.
 
 ## Providers and connection modes
 
-Two providers, each in two modes:
+Three providers; the first two each in two modes:
 
 | Provider           | Subscription            | API key                     |
 |--------------------|-------------------------|-----------------------------|
 | Anthropic (Claude) | `claude -p` (Pro/Max)   | `POST /v1/messages`         |
 | OpenAI (ChatGPT)   | `codex exec` (ChatGPT)  | `POST /v1/chat/completions` |
+
+OpenCode is a third, account-free engine: `opencode run --pure` against the
+free zen models. No sign-in, no API key, no cost - a useful fallback when a
+subscription limit runs out, at the price of noticeably higher latency
+(the anonymous zen tier queues; expect 15-60s per translation).
 
 **Subscription** runs the provider's official CLI as a subprocess, using the plan
 you are already signed in to. No API key and no per-token billing beyond your
@@ -121,6 +128,9 @@ The model is always resolved live, not pinned in the app:
 
 - Subscription: the `sonnet` alias (Claude) or your account's default (Codex).
 - API key: the newest matching model from the provider's live `/models` list.
+- OpenCode: `big-pickle`, the zen gateway's vendor-rotated default (read live
+  from opencode's models cache; falls back to the newest free zen model if it
+  disappears).
 
 ## Updates
 

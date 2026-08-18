@@ -35,6 +35,10 @@ final class SettingsStore {
     // MARK: - Actions
 
     func save() {
+        // Engines without an API-key mode (OpenCode) ignore the auth-mode split
+        // (zen models need no sign-in), so normalize the stored mode to keep the
+        // setting coherent for later switches back to Claude/ChatGPT.
+        if !provider.supportsAPIKey { authMode = .subscription }
         Settings.provider = provider
         Settings.authMode = authMode
         Settings.style = style

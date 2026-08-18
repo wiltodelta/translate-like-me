@@ -151,19 +151,22 @@ struct MenuContentView: View {
         .card()
     }
 
-    private var providerName: String { provider == .anthropic ? "Claude" : "ChatGPT" }
+    private var providerName: String { provider.shortName }
 
     // Single combined engine row: the provider plus its proactive readiness (signed-
     // in check for subscription mode, key presence for API mode). Green when ready,
     // orange with a fix when not.
     @ViewBuilder private var engineRow: some View {
-        let cli = provider == .anthropic ? "claude" : "codex"
+        let cli = provider.cliBinaryName
         let using = authMode == .subscription ? "using your subscription" : "using your API key"
         switch engineReady {
         case .ready:
+            let detail = provider.supportsAPIKey
+                ? "Signed in and ready, \(using)."
+                : "Free models via the opencode CLI, no sign-in needed. Slower than the paid engines."
             statusRow(icon: "checkmark.circle.fill", color: .green,
                       title: providerName,
-                      detail: "Signed in and ready, \(using).")
+                      detail: detail)
         case .notLoggedIn(let service):
             statusRow(icon: "exclamationmark.triangle.fill", color: .orange,
                       title: providerName,

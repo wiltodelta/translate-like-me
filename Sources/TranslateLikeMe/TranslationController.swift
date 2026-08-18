@@ -66,7 +66,11 @@ final class TranslationController {
                 }
             } catch {
                 await offMain { SelectionService.restoreClipboard(original) }
-                PopupController.shared.showError(error.localizedDescription)
+                if let limit = error as? LimitReachedError {
+                    PopupController.shared.showLimitReached(limit.message)
+                } else {
+                    PopupController.shared.showError(error.localizedDescription)
+                }
             }
         }
     }

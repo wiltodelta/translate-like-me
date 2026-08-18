@@ -4,11 +4,22 @@ import Foundation
 enum Provider: String, CaseIterable {
     case anthropic
     case openai
+    case opencode
 
     var displayName: String {
         switch self {
         case .anthropic: return "Anthropic (Claude)"
         case .openai: return "OpenAI"
+        case .opencode: return "OpenCode"
+        }
+    }
+
+    // Short friendly name for status rows ("Claude", not "Anthropic (Claude)").
+    var shortName: String {
+        switch self {
+        case .anthropic: return "Claude"
+        case .openai: return "ChatGPT"
+        case .opencode: return "OpenCode"
         }
     }
 
@@ -16,8 +27,15 @@ enum Provider: String, CaseIterable {
         switch self {
         case .anthropic: return "claude"
         case .openai: return "codex"
+        case .opencode: return "opencode"
         }
     }
+
+    // Engine capabilities, so views and checks gate on the provider instead of
+    // special-casing it by name. OpenCode's zen models answer without any
+    // sign-in (verified 2026-08-17) and take no API key.
+    var supportsAPIKey: Bool { self != .opencode }
+    var requiresSignIn: Bool { self != .opencode }
 }
 
 enum AuthMode: String, CaseIterable {

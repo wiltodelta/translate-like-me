@@ -10,7 +10,7 @@ struct SettingsView: View {
             shortcutSection
             styleSection
             engineSection
-            if store.authMode == .apiKey { apiKeySection }
+            if store.authMode == .apiKey && store.provider.supportsAPIKey { apiKeySection }
             startupSection
             updatesSection
         }
@@ -83,10 +83,13 @@ struct SettingsView: View {
             Picker("Service", selection: $store.provider) {
                 Text("Claude").tag(Provider.anthropic)
                 Text("ChatGPT").tag(Provider.openai)
+                Text("OpenCode").tag(Provider.opencode)
             }
-            Picker("How to connect", selection: $store.authMode) {
-                Text("Use my subscription").tag(AuthMode.subscription)
-                Text("Use an API key").tag(AuthMode.apiKey)
+            if store.provider.supportsAPIKey {
+                Picker("How to connect", selection: $store.authMode) {
+                    Text("Use my subscription").tag(AuthMode.subscription)
+                    Text("Use an API key").tag(AuthMode.apiKey)
+                }
             }
         } header: {
             Text("Translation engine")
@@ -96,6 +99,11 @@ struct SettingsView: View {
     }
 
     private var engineFooter: String {
+        if store.provider == .opencode {
+            return "Runs the free opencode zen models - no account, no API key, no cost. "
+                + "Handy as a fallback when a subscription limit runs out, but noticeably "
+                + "slower than the paid engines."
+        }
         let cli = store.provider == .anthropic ? "Claude Code" : "Codex"
         let latest = store.provider == .anthropic ? "Sonnet" : "GPT mini"
         if store.authMode == .subscription {

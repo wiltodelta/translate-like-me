@@ -65,4 +65,50 @@ final class ModelResolverTests: XCTestCase {
         let ids = ["gpt-5.4-audio-mini", "gpt-5.4-realtime-mini", "gpt-5.4-mini", "gpt-5.4"]
         XCTAssertEqual(ModelResolver.pick(provider: .openai, from: ids), "gpt-5.4-mini")
     }
+
+    // MARK: - OpenCode zen picking
+    // The cache shape mirrors the real ~/.cache/opencode/models.json captured
+    // 2026-08-17: [provider: ["models": [id: ["release_date": ISO, ...]]]].
+
+    private func zenCache(_ models: String) -> [String: Any] {
+        let data = ("{\"opencode\":{\"models\":\(models)}}").data(using: .utf8)!
+        return try! JSONSerialization.jsonObject(with: data) as! [String: Any]
+    }
+
+    func testZenPrefersBigPickleWhenPresent() {
+        let cache = zenCache("""
+        {"big-pickle":{"release_date":"2026-06-01"},
+         "nemotron-3.5-lightning-free":{"release_date":"2026-08-11"}}
+        """)
+        XCTAssertEqual(ModelResolver.pickZenModel(from: cache), "opencode/big-pickle")
+    }
+
+    func testZenPicksNewestFreeWithoutBigPickle() {
+        let cache = zenCache("""
+        {"gemini-3-pro":{"release_date":"2025-11-18"},
+         "ling-3.0-flash-free":{"release_date":"2026-07-23"},
+         "laguna-s-2.1-free":{"release_date":"2026-07-21"},
+         "nemotron-3.5-lightning-free":{"release_date":"2026-08-11"}}
+        """)
+        XCTAssertEqual(ModelResolver.pickZenModel(from: cache), "opencode/nemotron-3.5-lightning-free")
+    }
+
+    func testZenSkipsFreeEntriesWithoutReleaseDate() {
+        let cache = zenCache("""
+        {"mystery-free":{},"laguna-s-2.1-free":{"release_date":"2026-07-21"}}
+        """)
+        XCTAssertEqual(ModelResolver.pickZenModel(from: cache), "opencode/laguna-s-2.1-free")
+    }
+
+    func testZenReturnsNilWithoutFreeModels() {
+        let cache = zenCache("""
+        {"gemini-3-pro":{"release_date":"2025-11-18"}}
+        """)
+        XCTAssertNil(ModelResolver.pickZenModel(from: cache))
+    }
+
+    func testZenReturnsNilOnWrongShape() {
+        XCTAssertNil(ModelResolver.pickZenModel(from: ["opencode": ["models": "nope"]]))
+        XCTAssertNil(ModelResolver.pickZenModel(from: ["other": [:]]))
+    }
 }

@@ -32,6 +32,10 @@ enum Translator {
             return try await runClaude(system: system, text: text)
         case (.openai, .subscription):
             return try await runCodex(system: system, text: text)
+        case (.opencode, _):
+            // Auth mode is ignored: the zen models answer without any sign-in,
+            // and own-key providers are managed inside the opencode CLI itself.
+            return try await runOpencode(system: system, text: text)
         case (.anthropic, .apiKey):
             let model = await ModelResolver.apiModel(provider: .anthropic, key: Settings.anthropicKey)
             let result = try await APIClient.anthropicTranslate(
@@ -124,7 +128,6 @@ enum Translator {
 
     private static func runCodex(system: String, text: String) async throws -> String {
         let binary = try resolveBinary(name: "codex")
-        let prompt = system + "\n\nInput: " + text + "\nOutput:"
 
         // Codex prints a header and a trace to stdout; -o writes only the final
         // message to a file, which is the clean result we want.
@@ -144,32 +147,67 @@ enum Translator {
         //                          model supports the "low" reasoning level.
         //   model_reasoning_effort=low   minimal isn't supported by these models
         // Together: ~4s and correct output.
-        var args = ["exec", "--skip-git-repo-check",
+        let args = ["exec", "--skip-git-repo-check",
                     "--ignore-user-config", "--ignore-rules",
                     "-m", ModelResolver.codexModel(),
                     "-c", "model_reasoning_effort=low",
-                    "-o", outFile]
-        args.append(prompt)
+                    "-o", outFile,
+                    promptEnvelope(system: system, text: text)]
 
         _ = try await runProcess(binary: binary, args: args, stdin: nil)
         let result = (try? String(contentsOfFile: outFile, encoding: .utf8)) ?? ""
         return try cleaned(result)
     }
 
+    private static func runOpencode(system: String, text: String) async throws -> String {
+        let binary = try resolveBinary(name: "opencode")
+
+        // Measured 2026-08-17 (opencode 1.18.18): stdout carries only the final
+        // message, the trace goes to stderr. `--pure` skips external plugins;
+        // `--title` suppresses the extra title-generation LLM call; an empty
+        // dedicated cwd keeps the project-copy snapshot trivial. The env vars
+        // are stripped defensively so a harness that wraps this process (which
+        // sets OPENCODE_*/SUPERCONDUCTOR_*) cannot inject its config or server
+        // into the translation. Expect 30-60s: the anonymous zen tier queues.
+        let args = ["run", "--pure", "--title", "translation",
+                    "-m", ModelResolver.opencodeModel(),
+                    promptEnvelope(system: system, text: text)]
+
+        let result = try await runProcess(binary: binary, args: args, stdin: nil,
+                                          cwd: opencodeWorkDir,
+                                          dropEnvPrefixes: ["OPENCODE_", "SUPERCONDUCTOR_"])
+        return try cleaned(result)
+    }
+
+    // CLIs without a system-prompt flag carry it inside the single prompt.
+    private static func promptEnvelope(system: String, text: String) -> String {
+        system + "\n\nInput: " + text + "\nOutput:"
+    }
+
+    // Created once per launch; opencode snapshots its cwd per run, so an empty
+    // dedicated directory keeps that snapshot trivial.
+    private static let opencodeWorkDir: String = {
+        let dir = NSTemporaryDirectory() + "tlm-opencode"
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        return dir
+    }()
+
     // MARK: - Process
 
-    private static func runProcess(binary: String, args: [String], stdin: String?) async throws -> String {
+    private static func runProcess(binary: String, args: [String], stdin: String?,
+                                   cwd: String? = nil, dropEnvPrefixes: [String] = []) async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
             let process = Process()
             process.executableURL = URL(fileURLWithPath: binary)
             process.arguments = args
-            process.currentDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            process.currentDirectoryURL = URL(fileURLWithPath: cwd ?? NSTemporaryDirectory())
 
             var env = ProcessInfo.processInfo.environment
             let home = NSHomeDirectory()
             let extraPaths = ["\(home)/.local/bin", "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
             env["PATH"] = (extraPaths + [env["PATH"] ?? ""]).joined(separator: ":")
             env["HOME"] = home
+            env = env.filter { key, _ in !dropEnvPrefixes.contains { key.hasPrefix($0) } }
             process.environment = env
 
             let outPipe = Pipe()
@@ -211,11 +249,26 @@ enum Translator {
         let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
         let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
         let stdout = String(data: outData, encoding: .utf8) ?? ""
+        let stderr = String(data: errData, encoding: .utf8) ?? ""
         if process.terminationStatus != 0 {
-            let stderr = String(data: errData, encoding: .utf8)?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            continuation.resume(throwing: TranslatorError.failed(
-                stderr.isEmpty ? "Engine exited with status \(process.terminationStatus)." : stderr))
+            // Limit failures print on stdout for claude and on stderr (after a
+            // session header) for codex, so both streams are scanned. Other
+            // failures prefer stderr and fall back to stdout, because claude
+            // prints some errors, including its limit line, on stdout only.
+            if let limit = LimitDetector.message(in: stderr + "\n" + stdout) {
+                continuation.resume(throwing: LimitReachedError(message: limit))
+            } else if let jsonMessage = JSONErrorMessage.extract(from: stderr)
+                ?? JSONErrorMessage.extract(from: stdout) {
+                // opencode prints failures as `Error: {json}` with the human
+                // text nested under data.message; show that instead of raw JSON.
+                continuation.resume(throwing: TranslatorError.failed(jsonMessage))
+            } else {
+                let detail = [stderr, stdout]
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .first { !$0.isEmpty }
+                continuation.resume(throwing: TranslatorError.failed(
+                    detail ?? "Engine exited with status \(process.terminationStatus)."))
+            }
         } else {
             continuation.resume(returning: stdout)
         }
@@ -242,9 +295,14 @@ enum Translator {
     private static func resolveBinary(name: String) throws -> String {
         if let cached = binaryCache[name] { return cached }
 
+        // Only tool-owned or system directories here. Machine-specific harness
+        // paths are deliberately absent: if the user's login shell PATH carries
+        // one (e.g. a wrapper script), loginShellWhich finds it - and it stays
+        // out of the trust boundary for claude/codex resolution.
         let home = NSHomeDirectory()
         let candidates = [
             "\(home)/.local/bin/\(name)",
+            "\(home)/.opencode/bin/\(name)", // opencode's official installer dir
             "/opt/homebrew/bin/\(name)",
             "/usr/local/bin/\(name)",
             "/usr/bin/\(name)"

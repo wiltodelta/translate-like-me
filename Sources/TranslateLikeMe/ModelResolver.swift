@@ -16,6 +16,7 @@ enum ModelResolver {
     // a network hiccup doesn't break translation outright.
     private static let anthropicFallback = "claude-sonnet-4-6"
     private static let openaiFallback = "gpt-5.4-mini"
+    private static let opencodeFallback = "opencode/big-pickle"
 
     // The newest "mini" model the Codex/ChatGPT account can use, read from codex's
     // own on-disk model cache. Codex maintains and refreshes this file as new
@@ -25,9 +26,7 @@ enum ModelResolver {
     static func codexModel() -> String {
         let home = ProcessInfo.processInfo.environment["CODEX_HOME"]
             ?? (NSHomeDirectory() + "/.codex")
-        let url = URL(fileURLWithPath: home).appendingPathComponent("models_cache.json")
-        guard let data = try? Data(contentsOf: url),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        guard let json = readJSONCache(home + "/models_cache.json"),
               let models = json["models"] as? [[String: Any]] else {
             return openaiFallback
         }
@@ -43,6 +42,46 @@ enum ModelResolver {
         let start = slug.drop { !$0.isNumber }
         let number = start.prefix { $0.isNumber || $0 == "." }
         return Double(number) ?? 0
+    }
+
+    // The OpenCode engine's model, "opencode/<id>". big-pickle is the zen
+    // gateway's own tuned default - a stable alias the vendor rotates, like the
+    // `sonnet` CLI alias - and it answers without any sign-in. If it vanishes
+    // from the cache, the newest "-free" zen model is used instead; both were
+    // verified to run anonymously on 2026-08-17. Read live from opencode's own
+    // models.dev cache (~/.cache/opencode/models.json), which opencode refreshes.
+    // Cached per launch like apiModel: the file only changes when the opencode
+    // CLI itself refreshes it.
+    static func opencodeModel() -> String {
+        if let cached = cache[.opencode] { return cached }
+        let picked = readJSONCache(NSHomeDirectory() + "/.cache/opencode/models.json")
+            .flatMap { pickZenModel(from: $0) } ?? opencodeFallback
+        cache[.opencode] = picked
+        return picked
+    }
+
+    // Internal (not private) so the zen-picking logic can be unit-tested.
+    // The cache shape is [provider: ["models": [id: ["release_date": ISO, ...]]]].
+    static func pickZenModel(from cache: [String: Any]) -> String? {
+        guard let zen = cache["opencode"] as? [String: Any],
+              let models = zen["models"] as? [String: Any] else { return nil }
+        if models["big-pickle"] != nil { return opencodeFallback }
+        // ISO dates sort lexicographically, newest release_date wins.
+        let frees = models.compactMap { id, value -> (String, String)? in
+            guard let info = value as? [String: Any],
+                  let date = info["release_date"] as? String else { return nil }
+            return (id, date)
+        }.filter { $0.0.hasSuffix("-free") }
+        return frees.max { $0.1 < $1.1 }.map { "opencode/" + $0.0 }
+    }
+
+    // Shared disk-cache reader for the per-engine model caches.
+    private static func readJSONCache(_ path: String) -> [String: Any]? {
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+        return json
     }
 
     private static var cache: [Provider: String] = [:]
@@ -76,6 +115,10 @@ enum ModelResolver {
                 return id.hasPrefix("gpt-") && id.contains("mini") && !id.contains("audio")
                     && !id.contains("realtime") && !id.contains("transcribe") && !id.contains("tts")
             }
+        case .opencode:
+            // OpenCode has no API-key mode; zen models are picked by
+            // pickZenModel(from:) from opencode's own on-disk cache instead.
+            return nil
         }
     }
 }

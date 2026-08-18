@@ -7,6 +7,9 @@ import Observation
 final class PopupModel {
     var header: String = ""
     var body: String = ""
+    // Optional trailing action (e.g. "Open Settings" on a limit error). Set and
+    // cleared as one value so the title and handler cannot drift apart.
+    var action: (title: String, handler: () -> Void)?
 }
 
 // A floating, cursor-anchored popup for error messages, rendered in SwiftUI with
@@ -23,6 +26,11 @@ struct PopupView: View {
                 Text(model.body)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if let action = model.action {
+                Button(action.title, action: action.handler)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
             }
         }
         .padding(12)
@@ -58,12 +66,29 @@ final class PopupController {
     private let width: CGFloat = 460
     private let minHeight: CGFloat = 160
     private let maxHeight: CGFloat = 520
+    // Vertical chrome around the body text, without / with the action row.
+    private let bodyChrome: CGFloat = 44
+    private let bodyChromeWithAction: CGFloat = 80
 
     private init() {}
 
     func showError(_ message: String) {
         model.header = "Error"
         model.body = message
+        model.action = nil
+        present()
+    }
+
+    // A dedicated presentation for exhausted engine limits: the reset time
+    // from the engine, plus a direct route to Settings where the engine can
+    // be switched to the other provider or auth mode.
+    func showLimitReached(_ message: String) {
+        model.header = "Limit reached"
+        model.body = message + "\n\nSwitch engines in Settings, or wait for the limit to reset."
+        model.action = ("Open Settings", { [weak self] in
+            self?.hide()
+            NotificationCenter.default.post(name: .openSettings, object: nil)
+        })
         present()
     }
 
@@ -73,6 +98,7 @@ final class PopupController {
     func showTranslation(_ text: String) {
         model.header = "Couldn't replace the selection. Translation copied to clipboard."
         model.body = text
+        model.action = nil
         present()
     }
 
@@ -88,7 +114,8 @@ final class PopupController {
         let panel = ensurePanel()
 
         let bodyHeight = measuredBodyHeight(model.body)
-        let total = min(max(bodyHeight + 44, minHeight), maxHeight)
+        let chrome = model.action == nil ? bodyChrome : bodyChromeWithAction
+        let total = min(max(bodyHeight + chrome, minHeight), maxHeight)
         panel.setContentSize(NSSize(width: width, height: total))
 
         positionNearCursor(panel)

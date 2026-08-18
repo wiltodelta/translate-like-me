@@ -120,11 +120,24 @@ enum APIClient {
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw APIError.badResponse }
         guard (200..<300).contains(http.statusCode) else {
+            if http.statusCode == 429, let limit = limitReached(bodyData: data) {
+                throw limit
+            }
             throw APIError.http(http.statusCode, String(data: data, encoding: .utf8) ?? "")
         }
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw APIError.badResponse
         }
         return json
+    }
+
+    // A 429 whose body confirms an exhausted quota or rate limit becomes a
+    // LimitReachedError (with the provider's own message); any other 429
+    // stays a plain API error.
+    private static func limitReached(bodyData: Data) -> LimitReachedError? {
+        guard let text = String(data: bodyData, encoding: .utf8) else { return nil }
+        // Prefer the structured message when the body is JSON, else scan raw.
+        let message = JSONErrorMessage.extract(from: text) ?? text
+        return LimitDetector.message(in: message).map { LimitReachedError(message: $0) }
     }
 }

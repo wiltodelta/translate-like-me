@@ -16,17 +16,21 @@ enum EngineStatus {
 
     static func check() -> Readiness {
         let provider = Settings.provider
+        // Engines that need no sign-in (OpenCode's zen models) only require the
+        // binary; auth mode is ignored for them.
+        if !provider.requiresSignIn {
+            let cli = provider.cliBinaryName
+            return Translator.binaryPath(name: cli) == nil ? .notInstalled(cli: cli) : .ready
+        }
         switch Settings.authMode {
         case .apiKey:
             return Settings.apiKey(for: provider).isEmpty ? .noKey : .ready
         case .subscription:
-            let cli = provider == .anthropic ? "claude" : "codex"
-            guard let binary = Translator.binaryPath(name: cli) else {
-                return .notInstalled(cli: cli)
+            guard let binary = Translator.binaryPath(name: provider.cliBinaryName) else {
+                return .notInstalled(cli: provider.cliBinaryName)
             }
-            let service = provider == .anthropic ? "Claude" : "ChatGPT"
             return isSignedIn(binary: binary, provider: provider) ? .ready
-                                                                  : .notLoggedIn(service: service)
+                                                                  : .notLoggedIn(service: provider.shortName)
         }
     }
 
@@ -55,13 +59,11 @@ enum EngineStatus {
         let text = ((String(data: outData, encoding: .utf8) ?? "")
                     + (String(data: errData, encoding: .utf8) ?? "")).lowercased()
 
-        switch provider {
-        case .anthropic:
+        if provider == .anthropic {
             return text.replacingOccurrences(of: " ", with: "").contains("\"loggedin\":true")
-        case .openai:
-            return process.terminationStatus == 0
-                && text.contains("logged in")
-                && !text.contains("not logged in")
         }
+        return process.terminationStatus == 0
+            && text.contains("logged in")
+            && !text.contains("not logged in")
     }
 }
