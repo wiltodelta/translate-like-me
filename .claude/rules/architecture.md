@@ -1,5 +1,8 @@
 ---
-globs: Sources/**, Resources/**, Tests/**
+paths:
+  - "Sources/**"
+  - "Resources/**"
+  - "Tests/**"
 description: App architecture -- custom NSStatusItem versus MenuBarExtra, the Carbon global hotkey path, paste-landed editability detection, provider and model resolution, and update checking
 ---
 
