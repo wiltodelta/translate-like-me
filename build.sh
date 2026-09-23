@@ -7,15 +7,37 @@ cd "$(dirname "$0")"
 APP="Translate Like Me.app"
 BIN="TranslateLikeMe"
 
-echo "Building (release)..."
-swift build -c release
+# Apple silicon only: macOS 27 dropped Intel, and the app supports the three
+# latest macOS releases (15+).
+#
+# The native build system is used on purpose: SwiftPM's default swiftbuild (Xcode
+# 27, measured 2026-09-23) stamps the binary's LC_BUILD_VERSION sdk with the
+# deployment target (15.0) instead of the SDK it compiled against (27.0), and
+# AppKit reads that stamp to decide which SDK the app was linked on - an old stamp
+# risks the pre-Liquid Glass compatibility look on macOS 26+.
+BUILD=(swift build -c release --arch arm64 --build-system native)
+echo "Building (release, arm64)..."
+"${BUILD[@]}" 2> >(grep -v "build-system native' has been deprecated" >&2)
+BIN_DIR="$("${BUILD[@]}" --show-bin-path 2>/dev/null)"
 
 echo "Assembling $APP..."
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp ".build/release/$BIN" "$APP/Contents/MacOS/$BIN"
+cp "$BIN_DIR/$BIN" "$APP/Contents/MacOS/$BIN"
+# Fail loudly, before anything is signed, if the linked-on SDK ever drops back
+# to the deployment target.
+SDK_STAMP="$(vtool -show-build "$APP/Contents/MacOS/$BIN" | awk '/ sdk /{print $2}')"
+if [[ "$SDK_STAMP" != "$(xcrun --show-sdk-version)" ]]; then
+    echo "error: binary is stamped sdk $SDK_STAMP, expected $(xcrun --show-sdk-version)" >&2
+    exit 1
+fi
 cp "Resources/Info.plist" "$APP/Contents/Info.plist"
-cp "Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+# The Icon Composer icon: Assets.car for macOS 26+ (system glass, dark and tinted
+# appearances) plus a flat AppIcon.icns for macOS 15. Needs Xcode 26+ (actool).
+# Regenerate its foreground layer with scripts/make-icon-layers.py.
+xcrun actool "Resources/AppIcon.icon" --compile "$APP/Contents/Resources" \
+    --platform macosx --minimum-deployment-target 15.0 --app-icon AppIcon \
+    --output-partial-info-plist "$(mktemp -t tlm-icon)" >/dev/null
 cp "Resources/MenuBarIcon.png" "$APP/Contents/Resources/MenuBarIcon.png"
 cp "Resources/MenuBarBusy.png" "$APP/Contents/Resources/MenuBarBusy.png"
 

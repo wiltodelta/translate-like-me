@@ -10,25 +10,57 @@ struct LimitReachedError: LocalizedError {
     var errorDescription: String? { message }
 }
 
-// Pulls a human message out of a JSON error object embedded in engine output
-// (any `{...}` span), trying data.message, error.message, and message.
-// Shared by the CLI layer (Translator) and the API layer (APIClient).
+// Pulls a human message out of the first JSON error object embedded in engine
+// output, trying error.message, then message. It scans for balanced `{...}`
+// objects (skipping braces inside strings), so an API body, a pretty-printed
+// object, and codex's `ERROR: {json}` line printed twice all parse the same
+// way. Shared by the CLI layer (Translator) and the API layer (APIClient).
 enum JSONErrorMessage {
     static func extract(from text: String) -> String? {
-        guard let start = text.firstIndex(of: "{"), let end = text.lastIndex(of: "}"), start < end else {
-            return nil
+        let chars = Array(text.utf8)
+        var start = 0
+        while start < chars.count, let open = chars[start...].firstIndex(of: UInt8(ascii: "{")) {
+            if let close = matchingBrace(in: chars, from: open),
+               let message = message(in: Data(chars[open...close])) {
+                return message
+            }
+            // Not a parseable error object: resume inside it, so a valid object
+            // nested in (or following) prose braces is still found.
+            start = open + 1
         }
-        let slice = String(text[start...end])
-        guard let json = try? JSONSerialization.jsonObject(with: Data(slice.utf8)) as? [String: Any] else {
-            return nil
+        return nil
+    }
+
+    private static func matchingBrace(in chars: [UInt8], from open: Int) -> Int? {
+        var depth = 0, inString = false, escaped = false
+        for index in open..<chars.count {
+            let char = chars[index]
+            if inString {
+                if escaped {
+                    escaped = false
+                } else if char == UInt8(ascii: "\\") {
+                    escaped = true
+                } else if char == UInt8(ascii: "\"") {
+                    inString = false
+                }
+            } else if char == UInt8(ascii: "\"") {
+                inString = true
+            } else if char == UInt8(ascii: "{") {
+                depth += 1
+            } else if char == UInt8(ascii: "}") {
+                depth -= 1
+                if depth == 0 { return index }
+            }
         }
-        if let data = json["data"] as? [String: Any], let message = data["message"] as? String {
-            return message
-        }
+        return nil
+    }
+
+    private static func message(in data: Data) -> String? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         if let error = json["error"] as? [String: Any], let message = error["message"] as? String {
             return message
         }
-        return (json["message"] as? String)
+        return json["message"] as? String
     }
 }
 

@@ -2,20 +2,34 @@ import XCTest
 @testable import TranslateLikeMe
 
 final class TranslatorErrorParsingTests: XCTestCase {
-    // Captured 2026-08-17: opencode prints failures as `Error: {json}` on
-    // stderr (ANSI-colored prefix), with the human text under data.message.
-    private let opencodeStderr = "\u{1B}[91m\u{1B}[1mError: \u{1B}[0m{\n"
-        + "  \"name\": \"UnknownError\",\n"
-        + "  \"data\": {\n"
-        + "    \"message\": \"Unexpected server error. Check server logs for details.\",\n"
-        + "    \"ref\": \"err_f8255830\"\n"
-        + "  }\n"
-        + "}\n"
+    // Captured 2026-09-22 (codex-cli 0.156.0, `-m gpt-5.4-mini` on a ChatGPT
+    // account): stderr tail, exit 1, the JSON line printed twice.
+    private let codexStderr = """
+        codex
+        ERROR: {"type":"error","status":400,"error":{"type":"invalid_request_error",\
+        "message":"The 'gpt-5.4-mini' model is not supported when using Codex with a ChatGPT account."}}
+        ERROR: {"type":"error","status":400,"error":{"type":"invalid_request_error",\
+        "message":"The 'gpt-5.4-mini' model is not supported when using Codex with a ChatGPT account."}}
+        """
 
-    func testOpencodeJSONErrorYieldsDataMessage() {
+    func testCodexRepeatedJSONErrorLineYieldsMessage() {
         XCTAssertEqual(
-            JSONErrorMessage.extract(from: opencodeStderr),
-            "Unexpected server error. Check server logs for details.")
+            JSONErrorMessage.extract(from: codexStderr),
+            "The 'gpt-5.4-mini' model is not supported when using Codex with a ChatGPT account.")
+    }
+
+    func testPrettyPrintedObjectAndBracesInStrings() {
+        let text = """
+            Error: {
+              "error": {"message": "bad {brace} inside", "type": "server_error"}
+            }
+            """
+        XCTAssertEqual(JSONErrorMessage.extract(from: text), "bad {brace} inside")
+    }
+
+    func testObjectAfterUnparseableProseBraces() {
+        let text = "note {not json} then {\"message\":\"real\"}"
+        XCTAssertEqual(JSONErrorMessage.extract(from: text), "real")
     }
 
     func testAPIStyleErrorDotMessage() {

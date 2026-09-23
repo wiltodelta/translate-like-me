@@ -44,4 +44,22 @@ enum Shortcut {
     static func keyName(_ code: Int) -> String {
         names[code] ?? "Key \(code)"
     }
+
+    // The NSMenuItem key equivalent that shows the binding in a menu, or nil for
+    // keys a menu cannot show as one printable character (Space, F1, arrows).
+    static func menuKeyEquivalent(keyCode: Int, modifiers: Int) -> (key: String, flags: NSEvent.ModifierFlags)? {
+        guard let name = names[keyCode], name.count == 1, name.first?.isASCII == true else { return nil }
+        return (name.lowercased(), modifierFlags(fromCarbon: modifiers))
+    }
+
+    // The inverse of carbonModifiers(from:).
+    static func modifierFlags(fromCarbon modifiers: Int) -> NSEvent.ModifierFlags {
+        let mods = UInt32(modifiers)
+        var flags: NSEvent.ModifierFlags = []
+        if mods & UInt32(controlKey) != 0 { flags.insert(.control) }
+        if mods & UInt32(optionKey) != 0 { flags.insert(.option) }
+        if mods & UInt32(shiftKey) != 0 { flags.insert(.shift) }
+        if mods & UInt32(cmdKey) != 0 { flags.insert(.command) }
+        return flags
+    }
 }

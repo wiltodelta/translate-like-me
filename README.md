@@ -10,8 +10,8 @@ It detects the direction automatically between the two languages you choose, so
 there is nothing to switch: type in one, get the other.
 
 <p align="center">
-  <img src="screenshots/panel.png" alt="Translate Like Me - Menu bar panel" width="280">
-  <img src="screenshots/settings.png" alt="Translate Like Me - Settings" width="280">
+  <img src="screenshots/menu.png" alt="Translate Like Me - Menu bar menu" width="250">
+  <img src="screenshots/settings.png" alt="Translate Like Me - Settings, Translation pane" width="400">
 </p>
 
 ## Features
@@ -22,19 +22,21 @@ there is nothing to switch: type in one, get the other.
 - **Your writing style**: an optional style description is applied to every
   translation so the result sounds like you.
 - **Bring your own engine**: Claude or ChatGPT, each via your existing
-  subscription (official CLI) or your own API key, plus OpenCode with free
-  models that need no account at all.
+  subscription (official CLI) or your own API key, or Grok via its official
+  CLI and your grok.com account.
 - **Always the latest model**: resolved live, never pinned in the app.
-- **Menu-bar only**: no Dock icon, no window in the way. Left-click for the
-  panel, right-click for a quick menu.
+- **Menu-bar only**: no Dock icon, no window in the way. Click the icon for a
+  standard menu with status, languages, and settings.
+- **Native macOS design**: built to Apple's Human Interface Guidelines, with
+  Liquid Glass on macOS 26 and later.
 - **Update checks**: checks GitHub Releases on launch and from Settings.
 
 ## Requirements
 
-- macOS 14 (Sonoma) or later.
+- macOS 15 (Sequoia) or later, on a Mac with Apple silicon.
 - For subscription mode: the provider's official CLI installed and signed in
-  (`claude` for Claude, `codex` for ChatGPT). For API-key mode: an API key.
-  For OpenCode: just the `opencode` CLI - its free models need no sign-in.
+  (`claude` for Claude, `codex` for ChatGPT, `grok` for Grok). For API-key
+  mode: an API key.
 
 ## Install
 
@@ -64,7 +66,8 @@ after every rebuild.
 ## First run
 
 1. A small icon appears in the menu bar (there is no Dock icon). Settings opens
-   automatically on first launch so you can pick a provider and languages.
+   on the Translation pane at first launch so you can pick an engine; pick the
+   two languages in the menu-bar menu.
 2. Grant **Accessibility** in **System Settings > Privacy & Security >
    Accessibility**. It is required to read the selection (synthesized ⌘C) and to
    paste the replacement (⌘V).
@@ -73,49 +76,51 @@ after every rebuild.
 
 - Select text in any app, then press the shortcut (default **⌥⌘F**) to replace it
   with the translation.
-- **Left-click** the menu-bar icon to open the panel (languages, shortcut, status).
-- **Right-click** the icon for a quick menu (Settings, Quit).
+- Click the menu-bar icon for the menu: engine and Accessibility status,
+  **Translate Selection**, the two languages (each a submenu), Settings, updates,
+  and Quit. Clicking the engine row opens its settings.
 - The icon shows a busy glyph while a translation is running.
 - If the selection can't be replaced in place (a read-only field, e.g. a message
   you are reading rather than writing), the translation is put on the clipboard
-  and shown in a small popup near the cursor, so it is never lost.
+  and shown in a small popup near the cursor with a **Copy** button (in case you
+  copy something else before pasting it), so it is never lost.
 - If something goes wrong (no text selected, or the translation fails), that same
   popup shows the message instead.
 
 ## Settings
 
+Two panes, **General** and **Translation**. Changes apply immediately.
+
 - **Keyboard shortcut**: click the field and press a new combo to change it (must
   include a modifier).
 - **Your writing style**: free text applied to the translation. Paste a full
   voice guide or a short distilled version. Leave empty for a plain translation.
-- **Translation engine**: provider (Claude / ChatGPT) and how to connect
-  (subscription or API key).
+- **Translation engine**: provider (Claude / ChatGPT / Grok) and, for Claude and
+  ChatGPT, how to connect (subscription or API key).
 - **API key**: stored per provider; shown only in API-key mode.
 - **Launch at login**: start the app automatically when you log in.
-- **Updates**: current version and a "Check for updates…" button.
+- **Updates**: current version and a "Check for Updates…" button.
 
-Languages are picked on the main panel (left-click the icon), not in Settings.
+Languages are picked in the menu-bar menu, not in Settings.
 
 ## Providers and connection modes
 
-Three providers; the first two each in two modes:
+Three providers; Claude and ChatGPT each in two modes, Grok in subscription
+mode only:
 
 | Provider           | Subscription            | API key                     |
 |--------------------|-------------------------|-----------------------------|
 | Anthropic (Claude) | `claude -p` (Pro/Max)   | `POST /v1/messages`         |
 | OpenAI (ChatGPT)   | `codex exec` (ChatGPT)  | `POST /v1/chat/completions` |
-
-OpenCode is a third, account-free engine: `opencode run --pure` against the
-free zen models. No sign-in, no API key, no cost - a useful fallback when a
-subscription limit runs out, at the price of noticeably higher latency
-(the anonymous zen tier queues; expect 15-60s per translation).
+| xAI (Grok)         | `grok -p` (grok.com)    | -                           |
 
 **Subscription** runs the provider's official CLI as a subprocess, using the plan
 you are already signed in to. No API key and no per-token billing beyond your
-plan. For `codex`, run `codex login` once (ChatGPT account) before using it.
+plan. For `codex`, run `codex login` once (ChatGPT account) before using it;
+for `grok`, run `grok login` once.
 
 Using the official CLIs with a subscription is an intended, supported way to run
-Claude / Codex programmatically. Extracting a subscription OAuth token and using
+Claude / Codex / Grok programmatically. Extracting a subscription OAuth token and using
 it in your own API client is not allowed; this app never does that. It only
 invokes the official binary as a subprocess.
 
@@ -124,13 +129,14 @@ provider per use). Keys are stored per provider and only used for that provider.
 
 ### Model selection
 
-The model is always resolved live, not pinned in the app:
+The app never pins a model:
 
-- Subscription: the `sonnet` alias (Claude) or your account's default (Codex).
-- API key: the newest matching model from the provider's live `/models` list.
-- OpenCode: benchmark-picked priority (2026-08-18) `deepseek-v4-flash-free`
-  -> `big-pickle` -> newest `-free` zen model (read live
-  from opencode's models cache, so the ranking follows updates).
+- Subscription: each CLI runs with your own default model and effort, the ones
+  set in Claude Code's `settings.json` (`model`, `effortLevel`), codex's
+  `config.toml` (`model`, `model_reasoning_effort`), or grok's config; where
+  none is set, the CLI's built-in default applies.
+- API key: the newest matching model (Sonnet, or OpenAI's fast tier) from the
+  provider's live `/models` list.
 
 ## Updates
 

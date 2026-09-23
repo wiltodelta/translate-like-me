@@ -8,6 +8,8 @@
 	<string>TranslateLikeMe</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.wiltodelta.translatelikeme</string>
 	<key>CFBundleName</key>
@@ -19,7 +21,7 @@
 	<key>CFBundleVersion</key>
 	<string>4</string>
 	<key>LSMinimumSystemVersion</key>
-	<string>14.0</string>
+	<string>15.0</string>
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>

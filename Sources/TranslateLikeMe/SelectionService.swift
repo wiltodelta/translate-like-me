@@ -6,6 +6,13 @@ import Cocoa
 // All methods here block briefly (polling the pasteboard), so call them off the
 // main thread.
 enum SelectionService {
+    // The system's Accessibility prompt (it offers to open System Settings);
+    // does nothing once access is granted.
+    static func promptForAccessibility() {
+        let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+        _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
+    }
+
     private static let pasteboard = NSPasteboard.general
 
     private enum KeyCode {

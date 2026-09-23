@@ -98,8 +98,8 @@ final class UpdateChecker {
         alert.informativeText = body
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Download")
-        alert.addButton(withTitle: "Skip this version")
-        alert.addButton(withTitle: "Remind me later")
+        alert.addButton(withTitle: "Skip This Version")
+        alert.addButton(withTitle: "Remind Me Later")
 
         switch runModal(alert) {
         case .alertFirstButtonReturn:

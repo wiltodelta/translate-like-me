@@ -1,0 +1,31 @@
+{
+  "fill" : {
+    "linear-gradient" : [
+      "extended-srgb:0.98039,0.70588,0.46667,1.00000",
+      "extended-srgb:0.97255,0.18824,0.56471,1.00000"
+    ]
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "image-name" : "face.png",
+          "name" : "face"
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : [
+      "macOS"
+    ]
+  }
+}

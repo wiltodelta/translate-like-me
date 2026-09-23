@@ -4,13 +4,13 @@ import Foundation
 enum Provider: String, CaseIterable {
     case anthropic
     case openai
-    case opencode
+    case grok
 
     var displayName: String {
         switch self {
         case .anthropic: return "Anthropic (Claude)"
         case .openai: return "OpenAI"
-        case .opencode: return "OpenCode"
+        case .grok: return "xAI (Grok)"
         }
     }
 
@@ -19,7 +19,7 @@ enum Provider: String, CaseIterable {
         switch self {
         case .anthropic: return "Claude"
         case .openai: return "ChatGPT"
-        case .opencode: return "OpenCode"
+        case .grok: return "Grok"
         }
     }
 
@@ -27,27 +27,119 @@ enum Provider: String, CaseIterable {
         switch self {
         case .anthropic: return "claude"
         case .openai: return "codex"
-        case .opencode: return "opencode"
+        case .grok: return "grok"
+        }
+    }
+
+    // The CLI's product name as users know it, for Settings copy.
+    var cliProductName: String {
+        switch self {
+        case .anthropic: return "Claude Code"
+        case .openai: return "Codex"
+        case .grok: return "Grok"
+        }
+    }
+
+    // How subscription mode picks the model, for Settings copy (HarnessDefaults).
+    var subscriptionModelSummary: String {
+        switch self {
+        case .anthropic: return "Uses the default model and effort from your Claude Code settings."
+        case .openai: return "Uses the default model and reasoning effort from your Codex config."
+        case .grok: return "Uses the default model from your Grok config."
+        }
+    }
+
+    // How to sign in to the CLI, for the status menu's hint (verified against
+    // each CLI's --help, 2026-09-23).
+    var loginCommand: String {
+        switch self {
+        case .anthropic: return "claude auth login"
+        case .openai: return "codex login"
+        case .grok: return "grok login"
+        }
+    }
+
+    // The API-key mode's settings copy, or nil for engines that run only through
+    // their signed-in CLI (Grok has no direct xAI API mode here).
+    // modelSummary says how API-key mode picks the model (ModelResolver).
+    var apiKeyCopy: APIKeyCopy? {
+        switch self {
+        case .anthropic:
+            return APIKeyCopy(header: "Claude API key", placeholder: "sk-ant-…",
+                              help: "Create one at console.anthropic.com under API Keys.",
+                              modelSummary: "Always picks the latest Sonnet automatically.")
+        case .openai:
+            return APIKeyCopy(header: "OpenAI API key", placeholder: "sk-…",
+                              help: "Create one at platform.openai.com under API Keys.",
+                              modelSummary: "Always picks the latest fast GPT automatically.")
+        case .grok:
+            return nil
         }
     }
 
     // Engine capabilities, so views and checks gate on the provider instead of
-    // special-casing it by name. OpenCode's zen models answer without any
-    // sign-in (verified 2026-08-17) and take no API key.
-    var supportsAPIKey: Bool { self != .opencode }
-    var requiresSignIn: Bool { self != .opencode }
+    // special-casing it by name.
+    var supportsAPIKey: Bool { apiKeyCopy != nil }
+
+    // The auth mode that applies: CLI-only engines ignore a stored API-key mode.
+    func effectiveAuthMode(_ stored: AuthMode) -> AuthMode {
+        supportsAPIKey ? stored : .subscription
+    }
+
+    // Extra environment for every run of this provider's CLI, translations and
+    // status checks alike. grok (1.0.41, measured 2026-09-22) otherwise imports
+    // ~/.claude and ~/.cursor rules, CLAUDE.md, skills, MCP servers and hooks,
+    // injects memory and workflows, and may self-update mid-run; with the other
+    // runGrok flags in place, switching these off cut input tokens from ~17k to
+    // ~5.7k and latency from ~7s to ~3.4s.
+    var cliEnvironment: [String: String] {
+        guard self == .grok else { return [:] }
+        var env = ["GROK_MEMORY": "0", "GROK_WORKFLOWS": "0", "GROK_DISABLE_AUTOUPDATER": "1"]
+        for vendor in ["CLAUDE", "CURSOR"] {
+            for cell in ["AGENTS", "HOOKS", "MCPS", "RULES", "SKILLS"] {
+                env["GROK_\(vendor)_\(cell)_ENABLED"] = "false"
+            }
+        }
+        return env
+    }
+
+    // The CLI's sign-in probe (each fast, run off the main thread):
+    //   claude: `auth status` prints JSON with "loggedIn": true on stdout.
+    //   codex:  `login status` prints "Logged in ..." on STDERR, exit 0.
+    //   grok:   has no status command; `models` prints "You are logged in with
+    //           grok.com." or "You are not authenticated.", exit 0 either way
+    //           (grok 1.0.41, ~0.9s).
+    var statusArguments: [String] {
+        switch self {
+        case .anthropic: return ["auth", "status"]
+        case .openai: return ["login", "status"]
+        case .grok: return ["models"]
+        }
+    }
+
+    // `output` is stdout + stderr, lowercased.
+    func isSignedIn(statusOutput output: String, exitCode: Int32) -> Bool {
+        switch self {
+        case .anthropic:
+            return output.replacingOccurrences(of: " ", with: "").contains("\"loggedin\":true")
+        case .openai:
+            return exitCode == 0 && output.contains("logged in") && !output.contains("not logged in")
+        case .grok:
+            return exitCode == 0 && output.contains("you are logged in")
+        }
+    }
+}
+
+struct APIKeyCopy {
+    let header: String
+    let placeholder: String
+    let help: String
+    let modelSummary: String
 }
 
 enum AuthMode: String, CaseIterable {
     case subscription
     case apiKey
-
-    var displayName: String {
-        switch self {
-        case .subscription: return "Subscription (official CLI)"
-        case .apiKey: return "API key (direct API)"
-        }
-    }
 }
 
 // Thin wrapper over UserDefaults for the persisted settings.
@@ -124,11 +216,13 @@ enum Settings {
 
     // MARK: - Derived accessors keyed by the active/selected provider
 
-    static func apiKey(for provider: Provider) -> String {
-        provider == .anthropic ? anthropicKey : openaiKey
-    }
+    static var effectiveAuthMode: AuthMode { provider.effectiveAuthMode(authMode) }
 
-    static func setAPIKey(_ value: String, for provider: Provider) {
-        if provider == .anthropic { anthropicKey = value } else { openaiKey = value }
+    static func apiKey(for provider: Provider) -> String {
+        switch provider {
+        case .anthropic: return anthropicKey
+        case .openai: return openaiKey
+        case .grok: return ""
+        }
     }
 }

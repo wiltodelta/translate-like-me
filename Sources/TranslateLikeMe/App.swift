@@ -5,10 +5,9 @@ import AppKit
 struct TranslateLikeMeApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
-    // The app is a menu-bar accessory: the status item, its click-through panel,
-    // and the settings window are all created and owned by AppDelegate (a custom
-    // NSStatusItem is used instead of MenuBarExtra so a right-click can show its
-    // own NSMenu). This scene only satisfies the App requirement.
+    // The app is a menu-bar accessory: the status item, its menu, and the
+    // settings window are all created and owned by AppDelegate. This scene only
+    // satisfies the App requirement.
     var body: some Scene {
         // Fully qualified: the app also has its own `Settings` (a UserDefaults
         // wrapper), which would otherwise shadow SwiftUI.Settings here.

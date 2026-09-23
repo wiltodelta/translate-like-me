@@ -26,7 +26,7 @@ enum APIClient {
     static func anthropicTranslate(key: String, model: String, system: String, text: String) async throws -> String {
         guard !key.isEmpty else { throw APIError.missingKey("Anthropic") }
         // Default to the latest Sonnet when the user hasn't picked a model.
-        let modelID = model.isEmpty ? "claude-sonnet-4-6" : model
+        let modelID = model.isEmpty ? ModelResolver.anthropicFallback : model
 
         let body: [String: Any] = [
             "model": modelID,

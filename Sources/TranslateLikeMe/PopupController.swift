@@ -12,8 +12,9 @@ final class PopupModel {
     var action: (title: String, handler: () -> Void)?
 }
 
-// A floating, cursor-anchored popup for error messages, rendered in SwiftUI with
-// a Liquid Glass background (falls back to a material on older macOS).
+// A floating, cursor-anchored popup for errors and for a translation that could
+// not replace a read-only selection, rendered in SwiftUI with a Liquid Glass
+// background (falls back to a material on macOS 15).
 struct PopupView: View {
     let model: PopupModel
 
@@ -43,7 +44,9 @@ private extension View {
     @ViewBuilder
     func glassy() -> some View {
         if #available(macOS 26.0, *) {
-            self.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 14))
+            // The radius a system NSPopover draws on macOS 26 (measured
+            // 2026-09-22 from its window alpha), so the popup matches popovers.
+            self.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         } else {
             self.background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
         }
@@ -64,7 +67,6 @@ final class PopupController {
     private var clickMonitor: Any?
 
     private let width: CGFloat = 460
-    private let minHeight: CGFloat = 160
     private let maxHeight: CGFloat = 520
     // Vertical chrome around the body text, without / with the action row.
     private let bodyChrome: CGFloat = 44
@@ -95,10 +97,15 @@ final class PopupController {
     // Shown when the selection could not be replaced in place (a read-only field).
     // The translation is on the clipboard by the time this appears, so the header
     // tells the user they can paste it or select it straight from the popup.
+    // The Copy button puts the translation back on the clipboard if something
+    // else was copied since; its title turns to "Copied" as feedback.
     func showTranslation(_ text: String) {
         model.header = "Couldn't replace the selection. Translation copied to clipboard."
         model.body = text
-        model.action = nil
+        model.action = ("Copy", { [weak self] in
+            SelectionService.copyToClipboard(text)
+            self?.model.action = ("Copied", {})
+        })
         present()
     }
 
@@ -115,7 +122,9 @@ final class PopupController {
 
         let bodyHeight = measuredBodyHeight(model.body)
         let chrome = model.action == nil ? bodyChrome : bodyChromeWithAction
-        let total = min(max(bodyHeight + chrome, minHeight), maxHeight)
+        // Only as tall as the content (HIG Popovers: "Avoid making a popover too
+        // big"), capped so a long translation scrolls.
+        let total = min(bodyHeight + chrome, maxHeight)
         panel.setContentSize(NSSize(width: width, height: total))
 
         positionNearCursor(panel)

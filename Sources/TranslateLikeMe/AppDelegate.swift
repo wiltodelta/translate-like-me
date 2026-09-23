@@ -2,29 +2,20 @@ import AppKit
 import SwiftUI
 import ApplicationServices
 
-// Owns the AppKit pieces: the status-bar item and its click-through panel, the
-// right-click quick menu, global hotkeys (Carbon), the Accessibility prompt, and
-// the settings window.
-//
-// A custom NSStatusItem is used instead of SwiftUI's MenuBarExtra because
-// MenuBarExtra cannot show a separate context menu on a right-click - the status
-// item swallows the click to open its window. With a plain NSStatusItem a left
-// click opens the panel and a right click pops up an NSMenu.
+// Owns the AppKit pieces: the status-bar item and its menu (StatusMenu), global
+// hotkeys (Carbon), the Accessibility prompt, and the settings window.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
-    static var shared: AppDelegate?
 
     private var statusItem: NSStatusItem!
-    private var panel: MenuBarPanelController!
+    private let statusMenu = StatusMenu()
     private var settingsWindow: NSWindow?
+    private var settingsTabs: SettingsTabViewController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        AppDelegate.shared = self
         NSApp.setActivationPolicy(.accessory)
 
         setUpStatusItem()
-        panel = MenuBarPanelController(rootView: MenuContentView(),
-                                       size: NSSize(width: 320, height: 420))
 
         // Swap the icon when a translation starts or finishes.
         NotificationCenter.default.addObserver(
@@ -33,12 +24,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             MainActor.assumeIsolated { self?.updateStatusItem() }
         }
 
-        // The panel posts this instead of dismissing itself (there is no
-        // MenuBarExtra dismiss now); showSettings() closes the panel first.
+        // Posted by the status menu and the popup's Open Settings action.
         NotificationCenter.default.addObserver(
             forName: .openSettings, object: nil, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.showSettings() }
+        ) { [weak self] note in
+            let pane = note.object as? SettingsPane
+            MainActor.assumeIsolated { self?.showSettings(pane: pane) }
         }
 
         registerHotKeys()
@@ -55,24 +46,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
-    // On the very first launch, open Settings so the user picks a provider and
-    // languages before using the hotkeys.
+    // On the very first launch, open Settings on the Translation pane so the
+    // user picks an engine before using the hotkeys.
     private func openSettingsOnFirstRun() {
         let key = "didCompleteFirstRun"
         guard !UserDefaults.standard.bool(forKey: key) else { return }
         UserDefaults.standard.set(true, forKey: key)
-        DispatchQueue.main.async { [weak self] in self?.showSettings() }
+        DispatchQueue.main.async { [weak self] in self?.showSettings(pane: .translation) }
     }
 
     // MARK: - Status item
 
     private func setUpStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        if let button = statusItem.button {
-            button.action = #selector(togglePanel)
-            button.target = self
-            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        }
+        statusItem.button?.setAccessibilityLabel("Translate Like Me")
+        statusItem.menu = statusMenu.menu
         updateStatusItem()
     }
 
@@ -83,74 +71,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             : MenuBarIcon.image
     }
 
-    @objc private func togglePanel() {
-        // Right-click shows the quick menu instead of the panel.
-        if NSApp.currentEvent?.type == .rightMouseUp {
-            panel.close()
-            showQuickMenu()
-            return
-        }
-        guard let button = statusItem.button else { return }
-        if panel.isShown {
-            panel.close()
-        } else {
-            panel.show(relativeTo: button)
-        }
-    }
-
-    // MARK: - Right-click quick menu
-
-    private func showQuickMenu() {
-        guard let button = statusItem.button else { return }
-        let menu = NSMenu()
-
-        let settings = NSMenuItem(title: "Settings…", action: #selector(showSettingsFromMenu),
-                                  keyEquivalent: ",")
-        settings.target = self
-        menu.addItem(settings)
-
-        let quit = NSMenuItem(title: "Quit Translate Like Me", action: #selector(quit),
-                              keyEquivalent: "q")
-        quit.target = self
-        menu.addItem(quit)
-
-        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height + 4), in: button)
-    }
-
-    @objc private func showSettingsFromMenu() { showSettings() }
-
-    @objc private func quit() { NSApp.terminate(nil) }
-
     // MARK: - Hotkeys
 
     private func registerHotKeys() {
         HotKeyManager.shared.reload()
     }
 
-    // MARK: - Settings window (SwiftUI content hosted in an AppKit window)
+    // MARK: - Settings window
 
-    func showSettings() {
-        // Close the dropdown so it doesn't linger behind the settings window.
-        panel?.close()
-
+    // `pane` is the pane to show, or nil for the last viewed one.
+    func showSettings(pane: SettingsPane? = nil) {
         if settingsWindow == nil {
-            let hosting = NSHostingController(rootView: SettingsView())
-            let window = NSWindow(contentViewController: hosting)
-            window.title = "Translate Like Me — Settings"
-            window.styleMask = [.titled, .closable]
+            let (window, tabs) = SettingsTabViewController.makeWindow()
             window.isReleasedWhenClosed = false
             window.delegate = self
             window.center()
             settingsWindow = window
+            settingsTabs = tabs
         }
+        settingsTabs?.select(pane)
         // An accessory app must briefly become regular to show and focus a window.
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         settingsWindow?.makeKeyAndOrderFront(nil)
-    }
-
-    func closeSettings() {
-        settingsWindow?.close()
     }
 
     func windowWillClose(_ notification: Notification) {
@@ -162,8 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func ensureAccessibilityPermission() {
         // Triggers the system Accessibility prompt when not yet trusted. Kept
         // non-blocking: a modal here would stall app launch (and the status item)
-        // until dismissed. The panel's Status card surfaces the same need.
-        let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-        _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
+        // until dismissed. The status menu surfaces the same need.
+        SelectionService.promptForAccessibility()
     }
 }

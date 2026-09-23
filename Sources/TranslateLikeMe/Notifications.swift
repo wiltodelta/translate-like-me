@@ -1,8 +1,8 @@
 import Foundation
 
 extension Notification.Name {
-    // Posted by the panel content when the user asks for Settings, so the app
-    // delegate can close the panel first and then open the settings window.
+    // Posted by the status menu and the popup when the user asks for Settings;
+    // the object, when set, is the SettingsPane to show.
     static let openSettings = Notification.Name("TranslateLikeMe.openSettings")
 
     // Posted whenever a translation starts or finishes, so the status item can

@@ -27,4 +27,18 @@ final class ShortcutTests: XCTestCase {
         let carbon = Shortcut.carbonModifiers(from: [.command, .option])
         XCTAssertEqual(carbon, UInt32(cmdKey | optionKey))
     }
+
+    func testMenuKeyEquivalentForDefaultBinding() {
+        let equivalent = Shortcut.menuKeyEquivalent(keyCode: 3, modifiers: Int(cmdKey | optionKey))
+        XCTAssertEqual(equivalent?.key, "f")
+        XCTAssertEqual(equivalent?.flags, [.command, .option])
+    }
+
+    func testMenuKeyEquivalentSkipsNamedAndArrowKeys() {
+        let mods = Int(cmdKey)
+        XCTAssertNil(Shortcut.menuKeyEquivalent(keyCode: 49, modifiers: mods)) // Space
+        XCTAssertNil(Shortcut.menuKeyEquivalent(keyCode: 122, modifiers: mods)) // F1
+        XCTAssertNil(Shortcut.menuKeyEquivalent(keyCode: 123, modifiers: mods)) // Left arrow
+        XCTAssertNil(Shortcut.menuKeyEquivalent(keyCode: 999, modifiers: mods)) // Unknown
+    }
 }

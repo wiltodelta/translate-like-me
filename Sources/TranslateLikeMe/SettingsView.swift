@@ -1,33 +1,20 @@
 import SwiftUI
 
-struct SettingsView: View {
-    @State private var store = SettingsStore()
+// The settings panes. HIG (Settings, macOS): a toolbar switches between panes,
+// the window title follows the visible pane, and the window fits the pane, so
+// nothing scrolls. Changes apply immediately (SettingsStore).
+struct GeneralSettingsView: View {
+    @Bindable var store: SettingsStore
     @State private var launchAtLogin = LoginItem.isEnabled
     @State private var updater = UpdateChecker.shared
 
     var body: some View {
         Form {
             shortcutSection
-            styleSection
-            engineSection
-            if store.authMode == .apiKey && store.provider.supportsAPIKey { apiKeySection }
             startupSection
             updatesSection
         }
-        .formStyle(.grouped)
-        .frame(width: 500, height: 640)
-        .safeAreaInset(edge: .bottom) {
-            HStack {
-                Spacer()
-                Button("Save") {
-                    store.save()
-                    AppDelegate.shared?.closeSettings()
-                }
-                .keyboardShortcut(.defaultAction)
-            }
-            .padding()
-            .background(.bar)
-        }
+        .settingsPane()
     }
 
     // MARK: - Shortcut
@@ -46,6 +33,56 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Startup
+
+    private var startupSection: some View {
+        Section {
+            // HIG (Toggles, macOS): a mini switch for a single-row setting in a
+            // grouped form keeps the row height consistent with other controls.
+            Toggle("Launch at login", isOn: $launchAtLogin)
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                .onChange(of: launchAtLogin) { LoginItem.set(launchAtLogin) }
+        } header: {
+            Text("Startup")
+        } footer: {
+            Text("Start Translate Like Me automatically when you log in to your Mac.")
+        }
+    }
+
+    // MARK: - Updates
+
+    private var updatesSection: some View {
+        Section {
+            LabeledContent("Version", value: updater.version)
+            Button {
+                updater.checkForUpdates(manual: true)
+            } label: {
+                Text(updater.isChecking ? "Checking…" : "Check for Updates…")
+            }
+            .disabled(updater.isChecking)
+        } header: {
+            Text("Updates")
+        } footer: {
+            Text("Checks GitHub for a newer version on launch and offers to open the download page.")
+        }
+    }
+}
+
+struct TranslationSettingsView: View {
+    @Bindable var store: SettingsStore
+
+    var body: some View {
+        Form {
+            styleSection
+            engineSection
+            if store.effectiveAuthMode == .apiKey, let copy = store.provider.apiKeyCopy {
+                apiKeySection(copy)
+            }
+        }
+        .settingsPane()
+    }
+
     // MARK: - Writing style
 
     // A simple, neutral starter so the box isn't empty. Intentionally generic -
@@ -58,10 +95,10 @@ struct SettingsView: View {
     private var styleSection: some View {
         Section {
             TextEditor(text: $store.style)
-                .font(.system(.body, design: .monospaced))
-                .frame(minHeight: 110)
+                .font(.body)
+                .frame(minHeight: 110, maxHeight: 220)
             if store.style.trimmingCharacters(in: .whitespaces).isEmpty {
-                Button("Insert a starter template") {
+                Button("Insert Starter Template") {
                     store.style = Self.styleTemplate
                 }
                 .buttonStyle(.link)
@@ -83,12 +120,12 @@ struct SettingsView: View {
             Picker("Service", selection: $store.provider) {
                 Text("Claude").tag(Provider.anthropic)
                 Text("ChatGPT").tag(Provider.openai)
-                Text("OpenCode").tag(Provider.opencode)
+                Text("Grok").tag(Provider.grok)
             }
             if store.provider.supportsAPIKey {
                 Picker("How to connect", selection: $store.authMode) {
-                    Text("Use my subscription").tag(AuthMode.subscription)
-                    Text("Use an API key").tag(AuthMode.apiKey)
+                    Text("Subscription").tag(AuthMode.subscription)
+                    Text("API Key").tag(AuthMode.apiKey)
                 }
             }
         } header: {
@@ -99,64 +136,34 @@ struct SettingsView: View {
     }
 
     private var engineFooter: String {
-        if store.provider == .opencode {
-            return "Runs the free opencode zen models - no account, no API key, no cost. "
-                + "Handy as a fallback when a subscription limit runs out, but noticeably "
-                + "slower than the paid engines."
-        }
-        let cli = store.provider == .anthropic ? "Claude Code" : "Codex"
-        let latest = store.provider == .anthropic ? "Sonnet" : "GPT mini"
-        if store.authMode == .subscription {
-            return "Runs the \(cli) command-line tool you are signed in to (not the desktop app). "
-                + "No extra cost beyond your plan. Always picks the latest \(latest) automatically."
+        let provider = store.provider
+        if store.effectiveAuthMode == .subscription {
+            return "Runs the \(provider.cliProductName) command-line tool you are signed in to "
+                + "(not the desktop app). No extra cost beyond your plan. \(provider.subscriptionModelSummary)"
         }
         return "Connects directly with your own API key (you pay the provider per use). "
-            + "Always picks the latest \(latest) automatically."
+            + (provider.apiKeyCopy?.modelSummary ?? "")
     }
 
     // MARK: - API key
 
-    private var apiKeySection: some View {
+    private func apiKeySection(_ copy: APIKeyCopy) -> some View {
         Section {
-            SecureField(store.provider == .anthropic ? "sk-ant-…" : "sk-…", text: $store.currentKey)
-                .textFieldStyle(.roundedBorder)
+            // HIG (Writing, text fields): label the field, hint the format.
+            SecureField("Key", text: $store.currentKey, prompt: Text(copy.placeholder))
         } header: {
-            Text("\(store.provider == .anthropic ? "Claude" : "OpenAI") API key")
+            Text(copy.header)
         } footer: {
-            Text(store.provider == .anthropic
-                 ? "Create one at console.anthropic.com under API Keys."
-                 : "Create one at platform.openai.com under API Keys.")
+            Text(copy.help)
         }
     }
+}
 
-    // MARK: - Startup
-
-    private var startupSection: some View {
-        Section {
-            Toggle("Launch at login", isOn: $launchAtLogin)
-                .onChange(of: launchAtLogin) { LoginItem.set(launchAtLogin) }
-        } header: {
-            Text("Startup")
-        } footer: {
-            Text("Start Translate Like Me automatically when you log in to your Mac.")
-        }
-    }
-
-    // MARK: - Updates
-
-    private var updatesSection: some View {
-        Section {
-            LabeledContent("Version", value: updater.version)
-            Button {
-                updater.checkForUpdates(manual: true)
-            } label: {
-                Text(updater.isChecking ? "Checking…" : "Check for updates…")
-            }
-            .disabled(updater.isChecking)
-        } header: {
-            Text("Updates")
-        } footer: {
-            Text("Checks GitHub for a newer version on launch and offers to open the download page.")
-        }
+private extension View {
+    // A grouped form sized to its content at the settings window's width.
+    func settingsPane() -> some View {
+        formStyle(.grouped)
+            .frame(width: 500)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }

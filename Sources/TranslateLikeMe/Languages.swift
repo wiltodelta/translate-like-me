@@ -44,4 +44,18 @@ enum Languages {
     static func name(for code: String) -> String {
         all.first { $0.code == code }?.name ?? code
     }
+
+    // The pair after setting one side to `code`. The two sides stay distinct:
+    // picking the language already on the other side moves that side to the
+    // first other language in the list.
+    static func pair(settingFirst isFirst: Bool, to code: String,
+                     current: (first: String, second: String)) -> (first: String, second: String) {
+        var pair = current
+        if isFirst { pair.first = code } else { pair.second = code }
+        if pair.first == pair.second {
+            let other = all.first { $0.code != code }?.code ?? code
+            if isFirst { pair.second = other } else { pair.first = other }
+        }
+        return pair
+    }
 }

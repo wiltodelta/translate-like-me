@@ -1,11 +1,12 @@
 import Foundation
 
 // Proactively checks whether the currently selected engine is ready to translate,
-// so the panel can warn about a missing CLI or a signed-out account BEFORE the
+// so the status menu can warn about a missing CLI or a signed-out account BEFORE the
 // user hits the shortcut, instead of only surfacing it as an error afterwards.
 //
 // The checks are cheap: a filesystem lookup for the CLI, and `claude auth status`
-// / `codex login status` (each ~0.1-0.2s). Run off the main thread.
+// / `codex login status` (each ~0.1-0.2s) / `grok models` (~0.9s). Run off the
+// main thread.
 enum EngineStatus {
     enum Readiness: Equatable {
         case ready
@@ -16,13 +17,7 @@ enum EngineStatus {
 
     static func check() -> Readiness {
         let provider = Settings.provider
-        // Engines that need no sign-in (OpenCode's zen models) only require the
-        // binary; auth mode is ignored for them.
-        if !provider.requiresSignIn {
-            let cli = provider.cliBinaryName
-            return Translator.binaryPath(name: cli) == nil ? .notInstalled(cli: cli) : .ready
-        }
-        switch Settings.authMode {
+        switch Settings.effectiveAuthMode {
         case .apiKey:
             return Settings.apiKey(for: provider).isEmpty ? .noKey : .ready
         case .subscription:
@@ -35,14 +30,10 @@ enum EngineStatus {
     }
 
     private static func isSignedIn(binary: String, provider: Provider) -> Bool {
-        // claude: `auth status` prints JSON with "loggedIn": true on stdout.
-        // codex:  `login status` prints "Logged in ..." on STDERR (stdout is empty),
-        //         exit 0. So both streams are read and combined before matching.
-        let args = provider == .anthropic ? ["auth", "status"] : ["login", "status"]
         let process = Process()
         process.executableURL = URL(fileURLWithPath: binary)
-        process.arguments = args
-        process.environment = Translator.toolEnvironment()
+        process.arguments = provider.statusArguments
+        process.environment = Translator.toolEnvironment(adding: provider.cliEnvironment)
         process.standardInput = FileHandle.nullDevice
         let out = Pipe(), err = Pipe()
         process.standardOutput = out
@@ -53,17 +44,12 @@ enum EngineStatus {
             return false
         }
         // Read before waitUntilExit to avoid a full-pipe deadlock on large output.
+        // Both streams are combined: codex prints its status on stderr.
         let outData = out.fileHandleForReading.readDataToEndOfFile()
         let errData = err.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
         let text = ((String(data: outData, encoding: .utf8) ?? "")
                     + (String(data: errData, encoding: .utf8) ?? "")).lowercased()
-
-        if provider == .anthropic {
-            return text.replacingOccurrences(of: " ", with: "").contains("\"loggedin\":true")
-        }
-        return process.terminationStatus == 0
-            && text.contains("logged in")
-            && !text.contains("not logged in")
+        return provider.isSignedIn(statusOutput: text, exitCode: process.terminationStatus)
     }
 }

@@ -14,15 +14,25 @@ struct ShortcutField: View {
     @State private var recording = false
     @State private var monitor: Any?
 
-    var body: some View {
-        // Stacked, not side-by-side: the hint/Reset line has its own row below
-        // the button instead of competing for LabeledContent's narrow trailing
-        // width, which used to wrap it mid-sentence.
-        VStack(alignment: .trailing, spacing: 4) {
+    private var label: some View {
+        Text(recording ? "Press keys…" : Shortcut.display(keyCode: keyCode, modifiers: modifiers))
+            .font(.body.monospaced())
+            .frame(minWidth: 90)
+    }
+
+    // macOS 26: a standard bordered button, so the system draws the Liquid Glass
+    // control shape; recording switches to the prominent (accent) style. Earlier
+    // versions keep the original custom field look.
+    @ViewBuilder private var recorderButton: some View {
+        if #available(macOS 26.0, *) {
+            if recording {
+                Button(action: toggle) { label }.buttonStyle(.borderedProminent)
+            } else {
+                Button(action: toggle) { label }.buttonStyle(.bordered)
+            }
+        } else {
             Button(action: toggle) {
-                Text(recording ? "Press keys…" : Shortcut.display(keyCode: keyCode, modifiers: modifiers))
-                    .font(.body.monospaced())
-                    .frame(minWidth: 90)
+                label
                     .padding(.vertical, 4)
                     .padding(.horizontal, 10)
                     .background(recording ? Color.accentColor.opacity(0.18) : Color(nsColor: .controlColor),
@@ -34,6 +44,15 @@ struct ShortcutField: View {
                     )
             }
             .buttonStyle(.plain)
+        }
+    }
+
+    var body: some View {
+        // Stacked, not side-by-side: the hint/Reset line has its own row below
+        // the button instead of competing for LabeledContent's narrow trailing
+        // width, which used to wrap it mid-sentence.
+        VStack(alignment: .trailing, spacing: 4) {
+            recorderButton
 
             if recording {
                 Text("Needs ⌘, ⌥, or ⌃ (⇧ alone doesn't work). Esc cancels.")
@@ -83,7 +102,7 @@ struct ShortcutField: View {
             NSEvent.removeMonitor(monitor)
             self.monitor = nil
         }
-        // Re-arm the global hotkey (still the persisted one until Save is pressed).
+        // Re-arm the global hotkey with the persisted (possibly just recorded) one.
         HotKeyManager.shared.resume()
     }
 }

@@ -23,7 +23,7 @@ enum TranslatorError: LocalizedError {
 enum Translator {
     static func translate(_ text: String) async throws -> String {
         let provider = Settings.provider
-        let auth = Settings.authMode
+        let auth = Settings.effectiveAuthMode
         let style = Settings.style.trimmingCharacters(in: .whitespacesAndNewlines)
         let system = systemPrompt(style: style)
 
@@ -32,10 +32,9 @@ enum Translator {
             return try await runClaude(system: system, text: text)
         case (.openai, .subscription):
             return try await runCodex(system: system, text: text)
-        case (.opencode, _):
-            // Auth mode is ignored: the zen models answer without any sign-in,
-            // and own-key providers are managed inside the opencode CLI itself.
-            return try await runOpencode(system: system, text: text)
+        case (.grok, _):
+            // effectiveAuthMode is always .subscription here (no xAI API mode).
+            return try await runGrok(system: system, text: text)
         case (.anthropic, .apiKey):
             let model = await ModelResolver.apiModel(provider: .anthropic, key: Settings.anthropicKey)
             let result = try await APIClient.anthropicTranslate(
@@ -112,7 +111,8 @@ enum Translator {
         // prepends ~20-30k tokens on every invocation - tool definitions, all of the
         // user's MCP server schemas, and their global/project CLAUDE.md - to what is
         // a tiny translation, adding several seconds of latency. Measured input drops
-        // from ~10k+ tokens (~5-8s) to ~150 tokens (~2.4s) with all three stripped:
+        // from ~10k+ tokens (~5-8s) to ~150 tokens (~2.4s, on Sonnet) with all three
+        // stripped:
         //   --tools ""            no built-in tool schemas
         //   --strict-mcp-config   no MCP servers (none passed via --mcp-config)
         //   --setting-sources ""  no settings and, crucially, no CLAUDE.md
@@ -121,7 +121,11 @@ enum Translator {
         // is NOT extended thinking - the model does one short turn.
         var args = ["-p", "--output-format", "text", "--system-prompt", system,
                     "--tools", "", "--strict-mcp-config", "--setting-sources", ""]
-        args.append(contentsOf: ["--model", ModelResolver.claudeCLIAlias])
+        // The user's default model and effort from their Claude Code settings,
+        // which --setting-sources "" would otherwise drop (see HarnessDefaults).
+        let defaults = HarnessDefaults.claude()
+        if let model = defaults.model { args += ["--model", model] }
+        if let effort = defaults.effort { args += ["--effort", effort] }
         let result = try await runProcess(binary: binary, args: args, stdin: text)
         return try cleaned(result)
     }
@@ -134,48 +138,51 @@ enum Translator {
         let outFile = NSTemporaryDirectory() + "codex-\(UUID().uuidString).txt"
         defer { try? FileManager.default.removeItem(atPath: outFile) }
 
-        // Like `claude -p`, `codex exec` is an agent harness. Measured on a short
-        // translation (baseline ~9-10s):
+        // Like `claude -p`, `codex exec` is an agent harness:
         //   --ignore-user-config   don't load ~/.codex/config.toml (disables all MCP
         //                          servers in one flag; auth still uses CODEX_HOME)
-        //   --ignore-rules         don't load AGENTS.md (the CLAUDE.md equivalent)
-        //   -m <mini>              the account default is a reasoning-heavy codex
-        //                          model that burns thinking tokens even here. We
-        //                          pick the newest "mini" from codex's own model
-        //                          cache (ModelResolver.codexModel), which follows
-        //                          updates automatically. Much faster; every listed
-        //                          model supports the "low" reasoning level.
-        //   model_reasoning_effort=low   minimal isn't supported by these models
-        // Together: ~4s and correct output.
-        let args = ["exec", "--skip-git-repo-check",
-                    "--ignore-user-config", "--ignore-rules",
-                    "-m", ModelResolver.codexModel(),
-                    "-c", "model_reasoning_effort=low",
-                    "-o", outFile,
-                    promptEnvelope(system: system, text: text)]
+        //   --ignore-rules         don't load execpolicy `.rules` files
+        // Known gap: codex still loads the global $CODEX_HOME/AGENTS.md (measured
+        // 2026-09-23: a 37 KB file added ~9.3k input tokens per translation). No
+        // flag or -c key in codex 0.156 turns it off without also moving auth.json,
+        // and a separate CODEX_HOME would fork the user's refresh token.
+        // The model and reasoning effort are the user's own defaults from that
+        // config, passed back explicitly (see HarnessDefaults).
+        var args = ["exec", "--skip-git-repo-check", "--ignore-user-config", "--ignore-rules"]
+        let defaults = HarnessDefaults.codex()
+        if let model = defaults.model { args += ["-m", model] }
+        if let effort = defaults.effort { args += ["-c", "model_reasoning_effort=\(effort)"] }
+        args += ["-o", outFile, promptEnvelope(system: system, text: text)]
 
         _ = try await runProcess(binary: binary, args: args, stdin: nil)
         let result = (try? String(contentsOfFile: outFile, encoding: .utf8)) ?? ""
         return try cleaned(result)
     }
 
-    private static func runOpencode(system: String, text: String) async throws -> String {
-        let binary = try resolveBinary(name: "opencode")
+    private static func runGrok(system: String, text: String) async throws -> String {
+        let binary = try resolveBinary(name: "grok")
 
-        // Measured 2026-08-17 (opencode 1.18.18): stdout carries only the final
-        // message, the trace goes to stderr. `--pure` skips external plugins;
-        // `--title` suppresses the extra title-generation LLM call; an empty
-        // dedicated cwd keeps the project-copy snapshot trivial. The env vars
-        // are stripped defensively so a harness that wraps this process (which
-        // sets OPENCODE_*/SUPERCONDUCTOR_*) cannot inject its config or server
-        // into the translation. Expect 30-60s: the anonymous zen tier queues.
-        let args = ["run", "--pure", "--title", "translation",
-                    "-m", ModelResolver.opencodeModel(),
-                    promptEnvelope(system: system, text: text)]
-
+        // `grok -p` is an agent harness too. Measured 2026-09-22 (grok 1.0.41,
+        // default model grok-4.7, a one-line ru<->en translation):
+        //   defaults                                  ~28k input tokens, ~6-7s,
+        //                                             and it may browse the cwd
+        //                                             instead of translating
+        //   Provider.grok.cliEnvironment              no imported rules, skills,
+        //                                             MCP, memory or workflows
+        //   --tools X --disallowed-tools X            an empty allowlist: `--tools ""`
+        //                                             is ignored, and --disallowed-tools
+        //                                             alone leaves always-on tools
+        //   prompt envelope + --verbatim              the system prompt alone did not
+        //                                             stop it answering the input
+        // Together: ~5.7k tokens and correct output; 4-6s at the model's default
+        // effort (2026-09-23; ~3.4s when it was forced to low). Stdout carries
+        // only the answer in the default plain format; errors go to stderr, exit 1.
+        let args = ["-p", promptEnvelope(system: system, text: text), "--verbatim",
+                    "--system-prompt-override", system,
+                    "--tools", "todo_write", "--disallowed-tools", "todo_write",
+                    "--no-subagents", "--max-turns", "1"]
         let result = try await runProcess(binary: binary, args: args, stdin: nil,
-                                          cwd: opencodeWorkDir,
-                                          dropEnvPrefixes: ["OPENCODE_", "SUPERCONDUCTOR_"])
+                                          extraEnv: Provider.grok.cliEnvironment)
         return try cleaned(result)
     }
 
@@ -184,31 +191,16 @@ enum Translator {
         system + "\n\nInput: " + text + "\nOutput:"
     }
 
-    // Created once per launch; opencode snapshots its cwd per run, so an empty
-    // dedicated directory keeps that snapshot trivial.
-    private static let opencodeWorkDir: String = {
-        let dir = NSTemporaryDirectory() + "tlm-opencode"
-        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-        return dir
-    }()
-
     // MARK: - Process
 
     private static func runProcess(binary: String, args: [String], stdin: String?,
-                                   cwd: String? = nil, dropEnvPrefixes: [String] = []) async throws -> String {
+                                   extraEnv: [String: String] = [:]) async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
             let process = Process()
             process.executableURL = URL(fileURLWithPath: binary)
             process.arguments = args
-            process.currentDirectoryURL = URL(fileURLWithPath: cwd ?? NSTemporaryDirectory())
-
-            var env = ProcessInfo.processInfo.environment
-            let home = NSHomeDirectory()
-            let extraPaths = ["\(home)/.local/bin", "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
-            env["PATH"] = (extraPaths + [env["PATH"] ?? ""]).joined(separator: ":")
-            env["HOME"] = home
-            env = env.filter { key, _ in !dropEnvPrefixes.contains { key.hasPrefix($0) } }
-            process.environment = env
+            process.currentDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            process.environment = toolEnvironment(adding: extraEnv)
 
             let outPipe = Pipe()
             let errPipe = Pipe()
@@ -259,8 +251,8 @@ enum Translator {
                 continuation.resume(throwing: LimitReachedError(message: limit))
             } else if let jsonMessage = JSONErrorMessage.extract(from: stderr)
                 ?? JSONErrorMessage.extract(from: stdout) {
-                // opencode prints failures as `Error: {json}` with the human
-                // text nested under data.message; show that instead of raw JSON.
+                // codex prints API failures as `ERROR: {json}`; show the human
+                // text instead of raw JSON.
                 continuation.resume(throwing: TranslatorError.failed(jsonMessage))
             } else {
                 let detail = [stderr, stdout]
@@ -281,13 +273,13 @@ enum Translator {
 
     // A PATH/HOME environment matching the one translations run under, so status
     // checks resolve the same tools and auth.
-    static func toolEnvironment() -> [String: String] {
+    static func toolEnvironment(adding extra: [String: String] = [:]) -> [String: String] {
         var env = ProcessInfo.processInfo.environment
         let home = NSHomeDirectory()
         let extraPaths = ["\(home)/.local/bin", "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
         env["PATH"] = (extraPaths + [env["PATH"] ?? ""]).joined(separator: ":")
         env["HOME"] = home
-        return env
+        return env.merging(extra) { _, new in new }
     }
 
     private static var binaryCache: [String: String] = [:]
@@ -298,11 +290,10 @@ enum Translator {
         // Only tool-owned or system directories here. Machine-specific harness
         // paths are deliberately absent: if the user's login shell PATH carries
         // one (e.g. a wrapper script), loginShellWhich finds it - and it stays
-        // out of the trust boundary for claude/codex resolution.
+        // out of the trust boundary for engine CLI resolution.
         let home = NSHomeDirectory()
         let candidates = [
             "\(home)/.local/bin/\(name)",
-            "\(home)/.opencode/bin/\(name)", // opencode's official installer dir
             "/opt/homebrew/bin/\(name)",
             "/usr/local/bin/\(name)",
             "/usr/bin/\(name)"

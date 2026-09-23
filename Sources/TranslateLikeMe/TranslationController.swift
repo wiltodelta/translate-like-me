@@ -1,4 +1,7 @@
 import AppKit
+import os
+
+private let log = Logger(subsystem: "com.wiltodelta.translatelikeme", category: "translation")
 
 // Whether a translation is currently in flight. The status item swaps its icon
 // between the idle plate and the busy glyph in response to `.translationActivityChanged`.
@@ -32,8 +35,13 @@ final class TranslationController {
     private init() {}
 
     func run() {
-        guard !TranslationActivity.shared.isBusy else { return }
+        guard !TranslationActivity.shared.isBusy else {
+            log.info("Translate ignored: a translation is already running")
+            return
+        }
         TranslationActivity.shared.isBusy = true
+        let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "unknown"
+        log.info("Translate started, frontmost app: \(front, privacy: .public)")
 
         Task {
             defer { TranslationActivity.shared.isBusy = false }
@@ -43,6 +51,7 @@ final class TranslationController {
 
             guard let selection,
                   !selection.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                log.warning("No selection copied from \(front, privacy: .public)")
                 await offMain { SelectionService.restoreClipboard(original) }
                 PopupController.shared.showError("No text selected. Select some text first, then press the shortcut.")
                 return
@@ -53,6 +62,7 @@ final class TranslationController {
                 await offMain { SelectionService.paste(translated) }
 
                 let landed = await offMain { SelectionService.pasteLanded(replacing: selection) }
+                log.info("Translated \(selection.count) chars, paste landed: \(landed)")
                 if landed {
                     // Restore the original clipboard now that the paste has replaced
                     // the selection.
@@ -65,6 +75,7 @@ final class TranslationController {
                     PopupController.shared.showTranslation(translated)
                 }
             } catch {
+                log.error("Translation failed: \(error.localizedDescription, privacy: .public)")
                 await offMain { SelectionService.restoreClipboard(original) }
                 if let limit = error as? LimitReachedError {
                     PopupController.shared.showLimitReached(limit.message)
