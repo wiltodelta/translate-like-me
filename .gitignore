@@ -16,3 +16,8 @@ Translate Like Me.app/
 
 # Local Claude Code settings, never shared
 .claude/settings.local.json
+
+# An empty plist that appears next to AppIcon.icon now and then. Not written by
+# swift build, swift test, build.sh, actool or its ibtoold agent (checked
+# 2026-09-23); the source is still unknown, so it is ignored, not explained.
+/Resources/Assets.plist
