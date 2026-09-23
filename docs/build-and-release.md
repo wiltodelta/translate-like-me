@@ -18,7 +18,9 @@ detail an engineer needs.
 - **App icon:** `Resources/AppIcon.icon` is the Icon Composer source (square
   layers; macOS 26+ masks the icon and would otherwise put the old round art in
   a gray plate). `build.sh` compiles it with `xcrun actool` into `Assets.car`
-  plus a flat `AppIcon.icns` for macOS 15; this needs Xcode 26 or later. Its
+  plus a flat `AppIcon.icns` for macOS 15; this needs Xcode 26 or later on a
+  macOS 26 host (on macOS 15 actool's asset agent crashes, so CI runs on
+  `macos-26`). Its
   foreground layer is generated from `Resources/appicon_1024.png` by
   `uv run scripts/make-icon-layers.py`.
 - **Screenshots:** `TLM_SCREENSHOTS="$PWD/screenshots" swift test --filter
