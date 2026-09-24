@@ -32,6 +32,14 @@ if [[ "$SDK_STAMP" != "$(xcrun --show-sdk-version)" ]]; then
     exit 1
 fi
 cp "Resources/Info.plist" "$APP/Contents/Info.plist"
+# Stamp the latest release tag, as CI stamps the tag it builds, so a local build
+# never reports an older version than the release (which would raise the update
+# alert on every launch). --abbrev=0: the tag itself, not "2.0-5-gabc".
+VERSION="$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || true)"
+if [[ -n "$VERSION" ]]; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" \
+        -c "Set :CFBundleVersion $VERSION" "$APP/Contents/Info.plist"
+fi
 # The Icon Composer icon: Assets.car for macOS 26+ (system glass, dark and tinted
 # appearances) plus a flat AppIcon.icns for macOS 15. Needs Xcode 26+ (actool).
 # Regenerate its foreground layer with scripts/make-icon-layers.py.

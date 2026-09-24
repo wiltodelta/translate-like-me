@@ -22,12 +22,16 @@ workflow steps: `docs/build-and-release.md`.
 - Lint config in `.swiftlint.yml` scans `Sources/` at 120-column lines.
 - Tests cover the pure logic (`UpdateChecker.isNewer`, `Shortcut` formatting and
   menu key equivalents, the `Languages` pair rule, `HarnessDefaults` config
-  reading, `ModelResolver` API model selection, `LimitDetector` and
-  `JSONErrorMessage` engine payload parsing). UI, Accessibility, CGEvent, and
+  reading, `HarnessModels` catalog parsing (claude, codex, grok) and
+  `HarnessChoice`, the settings model/effort pick, `ModelResolver` API model
+  selection, `LimitDetector` and `JSONErrorMessage` engine payload parsing). UI, Accessibility, CGEvent, and
   CLI-subprocess code is not unit-tested; render UI changes with
-  `ScreenshotRecipe` (it also regenerates `screenshots/`).
+  `./capture-screenshots.sh` (it also regenerates `screenshots/`; needs
+  Accessibility and Screen Recording for the terminal and a Mac left alone).
 - Live runs of a dev build read and write the installed app's settings domain
-  (`com.wiltodelta.translatelikeme`): save and restore any key a test changes.
+  (`com.wiltodelta.translatelikeme`): save and restore any key a test changes,
+  or override it for one launch without writing (`open -n "Translate Like
+  Me.app" --args -authMode apiKey`, the argument domain).
   Probe engine CLIs with `env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN
   -u ANTHROPIC_BASE_URL`, or the harness's own variables redirect `claude`.
 

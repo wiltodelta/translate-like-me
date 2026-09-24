@@ -43,9 +43,9 @@ enum Provider: String, CaseIterable {
     // How subscription mode picks the model, for Settings copy (HarnessDefaults).
     var subscriptionModelSummary: String {
         switch self {
-        case .anthropic: return "Uses the default model and effort from your Claude Code settings."
-        case .openai: return "Uses the default model and reasoning effort from your Codex config."
-        case .grok: return "Uses the default model from your Grok config."
+        case .anthropic: return "Default uses the model and effort from your Claude Code settings."
+        case .openai: return "Default uses the model and reasoning effort from your Codex config."
+        case .grok: return "Default uses the model and effort from your Grok config."
         }
     }
 
@@ -149,6 +149,8 @@ enum Settings {
     private enum Key {
         static let provider = "provider"
         static let authMode = "authMode"
+        // capture-screenshots.sh overrides this key by name, to keep the real
+        // style out of the public screenshots.
         static let style = "style"
         static let anthropicKey = "anthropicKey"
         static let openaiKey = "openaiKey"
@@ -156,6 +158,9 @@ enum Settings {
         static let languageB = "languageB"
         static let replaceKeyCode = "replaceKeyCode"
         static let replaceModifiers = "replaceModifiers"
+        // Prefixes, one key per provider (harnessModel.anthropic, ...).
+        static let harnessModel = "harnessModel."
+        static let harnessEffort = "harnessEffort."
     }
 
     // The two languages translated between. The app auto-detects which one the
@@ -217,6 +222,21 @@ enum Settings {
     // MARK: - Derived accessors keyed by the active/selected provider
 
     static var effectiveAuthMode: AuthMode { provider.effectiveAuthMode(authMode) }
+
+    // The model and effort picked in Settings for a provider's CLI; a nil field
+    // means "Default", the CLI config default (HarnessChoice).
+    static func harnessPick(for provider: Provider) -> HarnessChoice {
+        HarnessChoice(model: defaults.string(forKey: Key.harnessModel + provider.rawValue),
+                      effort: defaults.string(forKey: Key.harnessEffort + provider.rawValue))
+    }
+
+    static func setHarnessPick(_ pick: HarnessChoice, for provider: Provider) {
+        for (key, value) in [(Key.harnessModel, pick.model), (Key.harnessEffort, pick.effort)] {
+            if let value { defaults.set(value, forKey: key + provider.rawValue) } else {
+                defaults.removeObject(forKey: key + provider.rawValue)
+            }
+        }
+    }
 
     static func apiKey(for provider: Provider) -> String {
         switch provider {

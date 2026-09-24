@@ -10,36 +10,40 @@ import Foundation
 // that provider; only the effort is. Codex profiles are not followed.
 // grok is not isolated from its config.toml, so it applies its defaults itself.
 enum HarnessDefaults {
-    struct Choice: Equatable {
-        var model: String?
-        var effort: String?
+    // The configured defaults for a provider's CLI; grok applies its own, so the
+    // app knows none for it.
+    static func configured(for provider: Provider) -> HarnessChoice {
+        switch provider {
+        case .anthropic: return claude()
+        case .openai: return codex()
+        case .grok: return HarnessChoice()
+        }
     }
 
     // Settings `env` keys that point claude at another provider.
     private static let claudeProviderKeys = ["ANTHROPIC_BASE_URL", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX"]
 
     // claude: `model` and `effortLevel` in settings.json.
-    static func claude() -> Choice {
-        let dir = ProcessInfo.processInfo.environment["CLAUDE_CONFIG_DIR"] ?? (NSHomeDirectory() + "/.claude")
-        guard let data = try? Data(contentsOf: URL(fileURLWithPath: dir + "/settings.json")),
+    static func claude() -> HarnessChoice {
+        guard let data = try? Data(contentsOf: CLIHome.file("settings.json", env: "CLAUDE_CONFIG_DIR", dir: ".claude")),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return Choice()
+            return HarnessChoice()
         }
         let env = json["env"] as? [String: Any] ?? [:]
         let rerouted = claudeProviderKeys.contains { env[$0] != nil }
-        return Choice(model: rerouted ? nil : nonEmpty(json["model"] as? String),
+        return HarnessChoice(model: rerouted ? nil : nonEmpty(json["model"] as? String),
                       effort: nonEmpty(json["effortLevel"] as? String))
     }
 
     // codex: top-level `model` and `model_reasoning_effort` in config.toml.
-    static func codex() -> Choice {
-        let home = ProcessInfo.processInfo.environment["CODEX_HOME"] ?? (NSHomeDirectory() + "/.codex")
-        guard let text = try? String(contentsOfFile: home + "/config.toml", encoding: .utf8) else {
-            return Choice()
+    static func codex() -> HarnessChoice {
+        guard let text = try? String(contentsOf: CLIHome.file("config.toml", env: "CODEX_HOME", dir: ".codex"),
+                                     encoding: .utf8) else {
+            return HarnessChoice()
         }
         let values = topLevelTOMLStrings(text)
         let otherProvider = values["model_provider"].map { $0 != "openai" } ?? false
-        return Choice(model: otherProvider ? nil : nonEmpty(values["model"]),
+        return HarnessChoice(model: otherProvider ? nil : nonEmpty(values["model"]),
                       effort: nonEmpty(values["model_reasoning_effort"]))
     }
 

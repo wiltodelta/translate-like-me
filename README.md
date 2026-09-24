@@ -96,7 +96,9 @@ Two panes, **General** and **Translation**. Changes apply immediately.
 - **Your writing style**: free text applied to the translation. Paste a full
   voice guide or a short distilled version. Leave empty for a plain translation.
 - **Translation engine**: provider (Claude / ChatGPT / Grok) and, for Claude and
-  ChatGPT, how to connect (subscription or API key).
+  ChatGPT, how to connect (subscription or API key). In subscription mode, a
+  **Model** and **Effort** picker lists what the CLI itself offers; **Default**
+  keeps the CLI's configured default.
 - **API key**: stored per provider; shown only in API-key mode.
 - **Launch at login**: start the app automatically when you log in.
 - **Updates**: current version and a "Check for Updates…" button.
@@ -131,7 +133,9 @@ provider per use). Keys are stored per provider and only used for that provider.
 
 The app never pins a model:
 
-- Subscription: each CLI runs with your own default model and effort, the ones
+- Subscription: the model and effort picked in Settings, listed from each
+  CLI's own model catalog (with the efforts each model accepts). With
+  **Default**, each CLI runs with your own default model and effort, the ones
   set in Claude Code's `settings.json` (`model`, `effortLevel`), codex's
   `config.toml` (`model`, `model_reasoning_effort`), or grok's config; where
   none is set, the CLI's built-in default applies.
@@ -179,6 +183,9 @@ Build a bundle locally:
 ./build.sh
 ```
 
+`./capture-screenshots.sh` rebuilds the app and regenerates the screenshots
+(the terminal needs Accessibility and Screen Recording access).
+
 Releases are automated. The app version comes from the git tag, so cutting a
 release is just tagging and pushing:
 
@@ -190,8 +197,8 @@ git push origin v1.3
 GitHub Actions then stamps the version into `Info.plist`, builds the app,
 and publishes a Release with `TranslateLikeMe-vX.Y-macOS.zip` attached. Use
 `vMAJOR.MINOR` tags; the in-app updater compares the tag to the installed
-version. Local `./build.sh` bundles keep whatever version is in `Info.plist`
-and are not meant for distribution.
+version. Local `./build.sh` bundles carry the latest tag's version and are not
+meant for distribution.
 
 One manual step remains after each release: the CI zip is ad-hoc signed, while
 the Accessibility grant is keyed to the stable local signing identity. Re-sign

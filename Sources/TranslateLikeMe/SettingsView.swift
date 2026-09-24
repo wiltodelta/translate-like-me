@@ -128,11 +128,45 @@ struct TranslationSettingsView: View {
                     Text("API Key").tag(AuthMode.apiKey)
                 }
             }
+            if store.effectiveAuthMode == .subscription {
+                modelPickers
+            }
         } header: {
             Text("Translation engine")
         } footer: {
             Text(engineFooter)
         }
+    }
+
+    // The CLI's own models and efforts (HarnessModels); "Default" keeps the CLI
+    // config default and names it when the app can read it.
+    @ViewBuilder private var modelPickers: some View {
+        Picker("Model", selection: $store.pick.model) {
+            Text(Self.defaultLabel(store.defaultModel.map(modelName))).tag(String?.none)
+            ForEach(store.catalog.models, id: \.id) { Text($0.name).tag(Optional($0.id)) }
+            // A pick the CLI no longer lists stays visible instead of blank.
+            if let picked = store.pick.model, store.catalog.efforts(for: picked) == nil {
+                Text(picked).tag(Optional(picked))
+            }
+        }
+        if !store.effortOptions.isEmpty {
+            Picker("Effort", selection: $store.pick.effort) {
+                Text(Self.defaultLabel(store.configured.effort.map(effortName))).tag(String?.none)
+                ForEach(store.effortOptions, id: \.id) { Text($0.name).tag(Optional($0.id)) }
+            }
+        }
+    }
+
+    private func modelName(_ id: String) -> String {
+        store.catalog.models.first { $0.id == id }?.name ?? id
+    }
+
+    private func effortName(_ id: String) -> String {
+        store.effortOptions.first { $0.id == id }?.name ?? id.capitalized
+    }
+
+    private static func defaultLabel(_ value: String?) -> String {
+        value.map { "Default (\($0))" } ?? "Default"
     }
 
     private var engineFooter: String {

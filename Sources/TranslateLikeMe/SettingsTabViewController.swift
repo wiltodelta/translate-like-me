@@ -9,6 +9,7 @@ enum SettingsPane: Int {
 // The settings window's pane switcher: an NSTabViewController in toolbar style,
 // each pane a SwiftUI view sized to its content, remembering the last pane.
 final class SettingsTabViewController: NSTabViewController {
+    // capture-screenshots.sh overrides this key by name.
     private static let lastPaneKey = "settingsSelectedPane"
 
     // Set once the window is built, so the selection the tab controller makes

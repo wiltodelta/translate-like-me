@@ -23,8 +23,9 @@ detail an engineer needs.
   `macos-26`). Its
   foreground layer is generated from `Resources/appicon_1024.png` by
   `uv run scripts/make-icon-layers.py`.
-- **Screenshots:** `TLM_SCREENSHOTS="$PWD/screenshots" swift test --filter
-  ScreenshotRecipe` re-renders `screenshots/menu.png` and `settings.png`.
+- **Screenshots:** `./capture-screenshots.sh` rebuilds the app and regenerates
+  `screenshots/` in the current system appearance; its header comment explains
+  the backdrop capture, the settings overrides and the covered-window check.
 - **CRITICAL:** `swift build` alone updates only the SwiftPM build directory; it
   does NOT refresh the binary inside `Translate Like Me.app`. Always run `./build.sh`
   before installing or testing the bundle, otherwise you run a stale binary.
@@ -46,8 +47,11 @@ Automated via GitHub Actions ([`.github/workflows/build.yml`](../.github/workflo
    `TranslateLikeMe-vX.Y-macOS.zip`, and publishes a GitHub Release with it
    attached. `UpdateChecker` compares that tag to the installed version.
 
-Local `./build.sh` bundles keep whatever version is committed in `Info.plist`;
-they are for local use, not distribution. CI signs ad-hoc (the stable identity
+`build.sh` stamps the bundle with the latest tag (`git describe --tags
+--abbrev=0`), falling back to the committed `Info.plist` without tags, so a
+local build never reports an older version than the release and raises the
+update alert on every launch. Local bundles are for local use, not
+distribution. CI signs ad-hoc (the stable identity
 is absent on the runner), which is expected.
 
 ## Re-sign the release asset locally (every release)
@@ -59,14 +63,10 @@ release, replace the asset with a locally signed build of the same tag:
 
 ```bash
 git checkout vX.Y                 # exactly the released commit
-# build.sh reads Resources/Info.plist, and CI stamps the tag version into it,
-# so mirror that locally (X.Y in both keys):
-/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString X.Y" Resources/Info.plist
-/usr/libexec/PlistBuddy -c "Set :CFBundleVersion X.Y" Resources/Info.plist
-./build.sh                         # signs with the stable identity when present
+./build.sh                         # stamps X.Y from the tag; signs with the stable identity
 zip -r -y TranslateLikeMe-vX.Y-macOS.zip "Translate Like Me.app"
 gh release upload vX.Y TranslateLikeMe-vX.Y-macOS.zip --clobber
-git checkout -- Resources/Info.plist && git switch main
+git switch main
 ```
 
 Verify before moving on (re-download, then check the identity is NOT ad-hoc):

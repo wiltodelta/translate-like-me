@@ -39,6 +39,15 @@ final class TranslationController {
             log.info("Translate ignored: a translation is already running")
             return
         }
+        // A modal alert (an update prompt) holds the main actor, so a run would
+        // stall until it closes and then copy from whatever app is in front by
+        // then. Show the alert instead.
+        if let modal = NSApp.modalWindow {
+            log.info("Translate ignored: an alert is open")
+            NSApp.activate(ignoringOtherApps: true)
+            modal.makeKeyAndOrderFront(nil)
+            return
+        }
         TranslationActivity.shared.isBusy = true
         let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "unknown"
         log.info("Translate started, frontmost app: \(front, privacy: .public)")

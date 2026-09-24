@@ -121,11 +121,12 @@ enum Translator {
         // is NOT extended thinking - the model does one short turn.
         var args = ["-p", "--output-format", "text", "--system-prompt", system,
                     "--tools", "", "--strict-mcp-config", "--setting-sources", ""]
-        // The user's default model and effort from their Claude Code settings,
-        // which --setting-sources "" would otherwise drop (see HarnessDefaults).
-        let defaults = HarnessDefaults.claude()
-        if let model = defaults.model { args += ["--model", model] }
-        if let effort = defaults.effort { args += ["--effort", effort] }
+        // The model and effort picked in Settings, else the user's defaults from
+        // their Claude Code settings, which --setting-sources "" would otherwise
+        // drop (HarnessChoice, HarnessDefaults).
+        let choice = HarnessChoice.current(for: .anthropic)
+        if let model = choice.model { args += ["--model", model] }
+        if let effort = choice.effort { args += ["--effort", effort] }
         let result = try await runProcess(binary: binary, args: args, stdin: text)
         return try cleaned(result)
     }
@@ -146,12 +147,13 @@ enum Translator {
         // 2026-09-23: a 37 KB file added ~9.3k input tokens per translation). No
         // flag or -c key in codex 0.156 turns it off without also moving auth.json,
         // and a separate CODEX_HOME would fork the user's refresh token.
-        // The model and reasoning effort are the user's own defaults from that
-        // config, passed back explicitly (see HarnessDefaults).
+        // The model and reasoning effort are the ones picked in Settings, else the
+        // user's own defaults from that config, passed back explicitly
+        // (HarnessChoice, HarnessDefaults).
         var args = ["exec", "--skip-git-repo-check", "--ignore-user-config", "--ignore-rules"]
-        let defaults = HarnessDefaults.codex()
-        if let model = defaults.model { args += ["-m", model] }
-        if let effort = defaults.effort { args += ["-c", "model_reasoning_effort=\(effort)"] }
+        let choice = HarnessChoice.current(for: .openai)
+        if let model = choice.model { args += ["-m", model] }
+        if let effort = choice.effort { args += ["-c", "model_reasoning_effort=\(effort)"] }
         args += ["-o", outFile, promptEnvelope(system: system, text: text)]
 
         _ = try await runProcess(binary: binary, args: args, stdin: nil)
@@ -177,10 +179,14 @@ enum Translator {
         // Together: ~5.7k tokens and correct output; 4-6s at the model's default
         // effort (2026-09-23; ~3.4s when it was forced to low). Stdout carries
         // only the answer in the default plain format; errors go to stderr, exit 1.
-        let args = ["-p", promptEnvelope(system: system, text: text), "--verbatim",
+        var args = ["-p", promptEnvelope(system: system, text: text), "--verbatim",
                     "--system-prompt-override", system,
                     "--tools", "todo_write", "--disallowed-tools", "todo_write",
                     "--no-subagents", "--max-turns", "1"]
+        // grok applies its own config defaults; only a pick made in Settings is passed.
+        let choice = HarnessChoice.current(for: .grok)
+        if let model = choice.model { args += ["-m", model] }
+        if let effort = choice.effort { args += ["--reasoning-effort", effort] }
         let result = try await runProcess(binary: binary, args: args, stdin: nil,
                                           extraEnv: Provider.grok.cliEnvironment)
         return try cleaned(result)

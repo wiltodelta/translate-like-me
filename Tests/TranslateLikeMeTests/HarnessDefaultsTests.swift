@@ -3,22 +3,6 @@ import XCTest
 @testable import TranslateLikeMe
 
 final class HarnessDefaultsTests: XCTestCase {
-    // Points `variable` at a throwaway directory holding `file`, so the test never
-    // reads the real machine's CLI config.
-    private func withConfigDir(_ variable: String, file: String, contents: String?, _ body: () -> Void) {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("harness-\(UUID().uuidString)")
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        if let contents {
-            try? contents.write(to: dir.appendingPathComponent(file), atomically: true, encoding: .utf8)
-        }
-        setenv(variable, dir.path, 1)
-        defer {
-            unsetenv(variable)
-            try? FileManager.default.removeItem(at: dir)
-        }
-        body()
-    }
-
     // Shape of the real ~/.codex/config.toml on 2026-09-23, plus a table whose
     // `model` key must not win.
     func testCodexReadsTopLevelModelAndEffort() {

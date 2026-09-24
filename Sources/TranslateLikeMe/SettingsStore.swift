@@ -13,8 +13,22 @@ final class SettingsStore {
             // so keep the stored mode coherent for later switches back.
             if !provider.supportsAPIKey { authMode = .subscription }
             engineChanged()
+            loadPick()
         }
     }
+
+    // The model and effort picked for the selected provider's CLI, a nil field
+    // meaning "Default" (HarnessChoice); each provider keeps its own pick.
+    var pick = HarnessChoice() {
+        didSet { pickChanged() }
+    }
+
+    // The selected provider's models, and its CLI config defaults, which the
+    // "Default" entries name.
+    private(set) var catalog = HarnessCatalog()
+    private(set) var configured = HarnessChoice()
+    // Keeps loadPick's assignment from being saved back (or reset) as an edit.
+    @ObservationIgnored private var loadingPick = false
 
     var authMode: AuthMode {
         didSet {
@@ -57,6 +71,36 @@ final class SettingsStore {
         replaceModifiers = Settings.replaceModifiers
         anthropicKey = Settings.anthropicKey
         openaiKey = Settings.openaiKey
+        loadPick()
+    }
+
+    // The model "Default" runs: the CLI config default, else the CLI's own.
+    var defaultModel: String? { configured.model ?? catalog.defaultModel }
+
+    // The efforts the model in use accepts; empty when that model takes none or
+    // is not known, so the Effort picker is hidden rather than guessed.
+    var effortOptions: [HarnessEffort] {
+        catalog.efforts(for: pick.model ?? defaultModel) ?? []
+    }
+
+    private func loadPick() {
+        loadingPick = true
+        defer { loadingPick = false }
+        catalog = HarnessModels.catalog(for: provider)
+        configured = HarnessDefaults.configured(for: provider)
+        pick = Settings.harnessPick(for: provider)
+    }
+
+    private func pickChanged() {
+        guard !loadingPick else { return }
+        // A model change can leave an effort the new model does not accept; the
+        // reset re-enters didSet, which saves.
+        if let effort = pick.effort, let allowed = catalog.efforts(for: pick.model ?? defaultModel),
+           !allowed.contains(where: { $0.id == effort }) {
+            pick.effort = nil
+            return
+        }
+        Settings.setHarnessPick(pick, for: provider)
     }
 
     // MARK: - Bindings scoped to the selected provider
