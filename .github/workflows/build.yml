@@ -118,6 +118,8 @@ jobs:
         [[ $(git cat-file -t "$GITHUB_REF_NAME") == tag ]] ||
           { echo "::error::$GITHUB_REF_NAME must be an annotated tag (git tag -a)"; exit 1; }
         git tag -l --format='%(contents:body)' "$GITHUB_REF_NAME" > release-notes.md
+        # The annotation's first line ("App Name X.Y") is the release title.
+        echo "RELEASE_TITLE=$(git tag -l --format='%(contents:subject)' "$GITHUB_REF_NAME")" >> "$GITHUB_ENV"
         grep -q '[^[:space:]]' release-notes.md ||
           { echo "::error::the $GITHUB_REF_NAME annotation has no body; it is the release notes"; exit 1; }
         cp release-notes.md "$FEED/${ZIP%.zip}.md"
@@ -146,6 +148,7 @@ jobs:
         files: |
           Translate-Like-Me-v*-macOS.zip
           appcast.xml
+        name: ${{ env.RELEASE_TITLE }}
         body_path: release-notes.md
         draft: false
         prerelease: false

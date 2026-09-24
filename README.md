@@ -28,7 +28,8 @@ set up to three pairs, each on its own shortcut.
 - **Bring your own engine**: Claude or ChatGPT, each via your existing
   subscription (official CLI) or your own API key, or Grok via its official
   CLI and your grok.com account.
-- **Always the latest model**: resolved live, never pinned in the app.
+- **Your model, or the CLI's default**: pick the model and effort each CLI
+  offers, or keep the one you set in the CLI itself; nothing is pinned in the app.
 - **Menu-bar only**: no Dock icon, no window in the way. Click the icon for a
   standard menu with status, your language pairs, and settings.
 - **Native macOS design**: built to Apple's Human Interface Guidelines, with
@@ -175,9 +176,6 @@ install in place with a relaunch. Automatic checks can be turned off in Settings
 
 ## Notes
 
-- The original clipboard is preserved: it is restored shortly after a successful
-  paste. When the selection can't be replaced (a read-only field), the translation
-  is left on the clipboard instead so you can paste it yourself.
 - Subscription (CLI) calls add a few seconds of latency per translation (CLI
   startup plus one model turn). API-key mode is faster.
 - The system prompt tells the model to treat the selection as inert text to
@@ -194,10 +192,27 @@ install in place with a relaunch. Automatic checks can be turned off in Settings
 - **The shortcut does nothing, or the translation doesn't replace the text:**
   grant **Accessibility** in System Settings > Privacy & Security > Accessibility,
   then relaunch the app. It is required to read the selection and paste the result.
+- **No Effort picker:** the model in use takes no effort setting (Claude Code
+  offers none for Haiku), or the engine's default model is not known yet (Grok,
+  until its sign-in check has run once). Pick another model to see it.
 - **macOS asks for Accessibility again after updating to 2.2:** 2.2 is the first
   release signed with a Developer ID, a different signature from earlier builds.
   Grant it once more; later updates keep the grant. A build from source without
   the Developer ID identity is signed ad hoc and asks after every rebuild.
+
+## Uninstall
+
+Quit the app from its menu, then move **Translate Like Me.app** to the Trash. To
+remove its settings and any saved API keys too:
+
+```bash
+defaults delete com.wiltodelta.translatelikeme
+security delete-generic-password -s com.wiltodelta.translatelikeme -a anthropicKey
+security delete-generic-password -s com.wiltodelta.translatelikeme -a openaiKey
+```
+
+Remove it from System Settings > Privacy & Security > Accessibility and from
+General > Login Items as well.
 
 ## Building and releasing
 
@@ -222,8 +237,9 @@ GitHub Actions then builds the app with the tag's version, signs it with the
 Developer ID, notarizes it, and publishes a Release with
 `Translate-Like-Me-vX.Y-macOS.zip` and the Sparkle `appcast.xml` attached; the
 tag annotation's body becomes both the release notes and the text of the update
-window. Use `vMAJOR.MINOR` tags. Local `./build.sh` bundles carry the latest tag's version and are not
-meant for distribution.
+window, and its first line the release title. Use `vMAJOR.MINOR` tags. Local
+`./build.sh` bundles carry the latest tag's version and are not meant for
+distribution.
 
 Signing secrets and verification steps are in
 [`docs/build-and-release.md`](docs/build-and-release.md).
@@ -231,11 +247,11 @@ Signing secrets and verification steps are in
 ### The bundle identifier is not a local label
 
 `CFBundleIdentifier` in `Resources/Info.plist` is `com.wiltodelta.translatelikeme`,
-and macOS keys durable per-app state to it. Two things here depend on that: the
-`UserDefaults.standard` domain behind `Settings`, which holds every persisted
-setting including the API key, and the Accessibility grant that
-`ensureAccessibilityPermission` relies on. Changing the identifier migrates
-neither. An existing install would come up as a stranger, with its settings
+and macOS keys durable per-app state to it. Three things here depend on that:
+the `UserDefaults.standard` domain behind `Settings`, which holds every persisted
+setting; the keychain items holding the API keys, whose service name is the
+identifier; and the Accessibility grant that `ensureAccessibilityPermission`
+relies on. Changing the identifier migrates none of them. An existing install would come up as a stranger, with its settings
 gone and Accessibility needing to be granted again, so treat it as fixed rather
 than as a string to tidy up. It is registered as an explicit App ID for team
 K2GT9Q4S6U in the Apple Developer portal, which reserves it for a future Mac App
