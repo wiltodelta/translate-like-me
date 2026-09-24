@@ -3,8 +3,8 @@ import Observation
 
 // Checks GitHub Releases for a newer version and offers to open the download
 // page. This is a lightweight "check and notify" updater, not a silent in-place
-// installer: the app is self-signed for personal use, so the user downloads the
-// new build and replaces the bundle themselves.
+// installer: the user downloads the new notarized build and replaces the bundle
+// themselves.
 //
 // Runs automatically a few seconds after launch (silent when already current)
 // and on demand from the Settings "Updates" section.

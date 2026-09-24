@@ -45,9 +45,8 @@ there is nothing to switch: type in one, get the other.
 1. Download the latest `.zip` from the
    [Releases](https://github.com/wiltodelta/translate-like-me/releases) page.
 2. Unzip it and move **Translate Like Me.app** to `/Applications`.
-3. Launch it. Because the build is self-signed for personal use (not notarized),
-   macOS may warn on first launch. Right-click the app and choose **Open** to
-   confirm once.
+3. Launch it. Releases are signed with a Developer ID and notarized by Apple,
+   so macOS opens them without a warning.
 
 ### From source
 
@@ -58,10 +57,8 @@ cd translate-like-me
 open "Translate Like Me.app"
 ```
 
-`build.sh` signs the app with a stable local identity (see the comment at the top
-of the script) so the Accessibility grant survives rebuilds. If that identity is
-missing it falls back to ad-hoc signing, and macOS asks for Accessibility again
-after every rebuild.
+Without the maintainer's Developer ID identity in your keychain, `build.sh`
+signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
 
 ## First run
 
@@ -165,15 +162,15 @@ installer: you download the new build and replace the app yourself.
 ## Troubleshooting
 
 - **"Translate Like Me is damaged and can't be opened", or an unidentified-developer
-  warning:** Gatekeeper blocking a non-notarized app. Right-click the app and
-  choose **Open** to confirm once, or clear the quarantine flag with
-  `xattr -cr "/Applications/Translate Like Me.app"`.
+  warning:** releases before 2.2 were not notarized. Update to the latest release,
+  or right-click the app and choose **Open** to confirm once.
 - **The shortcut does nothing, or the translation doesn't replace the text:**
   grant **Accessibility** in System Settings > Privacy & Security > Accessibility,
   then relaunch the app. It is required to read the selection and paste the result.
-- **macOS asks for Accessibility again after a rebuild:** the stable signing
-  identity is missing, so `build.sh` fell back to ad-hoc. Recreate the identity
-  (see the comment in `build.sh`) to keep the grant across rebuilds.
+- **macOS asks for Accessibility again after updating to 2.2:** 2.2 is the first
+  release signed with a Developer ID, a different signature from earlier builds.
+  Grant it once more; later updates keep the grant. A build from source without
+  the Developer ID identity is signed ad hoc and asks after every rebuild.
 
 ## Building and releasing
 
@@ -190,21 +187,18 @@ Releases are automated. The app version comes from the git tag, so cutting a
 release is just tagging and pushing:
 
 ```bash
-git tag -a v1.3 -m "Translate Like Me 1.3"
-git push origin v1.3
+git tag -a vX.Y -m "Translate Like Me X.Y"
+git push origin vX.Y
 ```
 
-GitHub Actions then stamps the version into `Info.plist`, builds the app,
-and publishes a Release with `TranslateLikeMe-vX.Y-macOS.zip` attached. Use
+GitHub Actions then builds the app with the tag's version, signs it with the
+Developer ID, notarizes it, and publishes a Release with `TranslateLikeMe-vX.Y-macOS.zip` attached. Use
 `vMAJOR.MINOR` tags; the in-app updater compares the tag to the installed
 version. Local `./build.sh` bundles carry the latest tag's version and are not
 meant for distribution.
 
-One manual step remains after each release: the CI zip is ad-hoc signed, while
-the Accessibility grant is keyed to the stable local signing identity. Re-sign
-and replace the release asset locally so installs keep their permissions
-(the exact commands are in
-[`docs/build-and-release.md`](docs/build-and-release.md)).
+Signing secrets and verification steps are in
+[`docs/build-and-release.md`](docs/build-and-release.md).
 
 ### The bundle identifier is not a local label
 

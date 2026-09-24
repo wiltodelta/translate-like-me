@@ -49,21 +49,26 @@ xcrun actool "Resources/AppIcon.icon" --compile "$APP/Contents/Resources" \
 cp "Resources/MenuBarIcon.png" "$APP/Contents/Resources/MenuBarIcon.png"
 cp "Resources/MenuBarBusy.png" "$APP/Contents/Resources/MenuBarBusy.png"
 
-# Sign with a stable self-signed identity so the Accessibility (TCC) grant
-# persists across rebuilds. The identity lives in the login keychain; recreate it
-# with (one-time):
-#   openssl req -x509 -newkey rsa:2048 -keyout k.key -out c.crt -days 3650 -nodes \
-#     -subj "/CN=$SIGN_IDENTITY" -addext "extendedKeyUsage=critical,codeSigning"
-#   openssl pkcs12 -export -out c.p12 -inkey k.key -in c.crt -passout pass:tlm \
-#     -name "$SIGN_IDENTITY" -macalg sha1 -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES
-#   security import c.p12 -k ~/Library/Keychains/login.keychain-db -P tlm -A
-# Falls back to ad-hoc if the identity is missing (then Accessibility re-prompts).
-SIGN_IDENTITY="Translate Like Me Dev"
-if security find-identity -p codesigning 2>/dev/null | grep -q "$SIGN_IDENTITY"; then
-    codesign --force --deep --sign "$SIGN_IDENTITY" "$APP" >/dev/null 2>&1 || true
+# Sign with the team's Developer ID Application identity when the keychain has it:
+# its stable designated requirement keeps the Accessibility (TCC) grant across
+# rebuilds and releases, and with the hardened runtime and (RELEASE=1) a secure
+# timestamp it is what notarization requires (notarize.sh). The timestamp needs
+# Apple's server, so everyday builds skip it and still work offline. Without the
+# identity (contributors, CI branch builds) the bundle is signed ad hoc, which
+# runs but re-prompts for Accessibility after every rebuild.
+TEAM_ID="K2GT9Q4S6U"
+SIGN_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null \
+    | awk -F'"' -v team="($TEAM_ID)" '/Developer ID Application:/ && index($2, team) {print $2; exit}')"
+if [[ -n "$SIGN_IDENTITY" ]]; then
+    TIMESTAMP="--timestamp=none"
+    [[ "${RELEASE:-}" == 1 ]] && TIMESTAMP="--timestamp"
+    codesign --force --options runtime "$TIMESTAMP" --sign "$SIGN_IDENTITY" "$APP"
+elif [[ "${RELEASE:-}" == 1 ]]; then
+    echo "error: RELEASE=1 but no Developer ID Application identity for team $TEAM_ID" >&2
+    exit 1
 else
-    echo "warning: '$SIGN_IDENTITY' not found, falling back to ad-hoc (Accessibility will re-prompt)"
-    codesign --force --deep --sign - "$APP" >/dev/null 2>&1 || true
+    echo "warning: no Developer ID Application identity, signing ad hoc (Accessibility will re-prompt)"
+    codesign --force --sign - "$APP"
 fi
 
 echo "Done: $PWD/$APP"

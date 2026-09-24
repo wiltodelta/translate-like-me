@@ -11,10 +11,10 @@ latest macOS releases (15+) on Apple silicon only.
 Assemble the bundle with `./build.sh` (needs Xcode 26+: `actool` compiles the
 Icon Composer icon); `swift build` alone leaves a stale binary inside
 `Translate Like Me.app`. Releases are driven by `vX.Y` git tags through
-GitHub Actions, and the workflow's artifact must then be re-signed locally and
-re-uploaded (`gh release upload --clobber`), because the grant it preserves is
-Accessibility. Full detail, including the stable signing identity and the
-workflow steps: `docs/build-and-release.md`.
+GitHub Actions, which signs with the Developer ID from repository secrets and
+notarizes (`notarize.sh`); locally `build.sh` signs with the same identity from
+the keychain. Full detail, including the secrets and the keys in
+`~/.appledev/`: `docs/build-and-release.md`.
 
 ## Code quality
 

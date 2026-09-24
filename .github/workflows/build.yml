@@ -15,6 +15,8 @@ jobs:
     runs-on: macos-26
     permissions:
       contents: write
+    env:
+      SIGNING_KEYCHAIN: ${{ runner.temp }}/signing.keychain-db
 
     steps:
     - name: Checkout code
@@ -34,16 +36,6 @@ jobs:
         xcodebuild -version
         swift --version
 
-    - name: Determine version
-      run: |
-        if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-          VERSION="${GITHUB_REF_NAME#v}"
-        else
-          VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)
-        fi
-        echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-        echo "Building version: $VERSION"
-
     - name: Clean build cache
       run: |
         rm -rf .build
@@ -60,20 +52,52 @@ jobs:
     - name: Run tests
       run: swift test
 
-    - name: Stamp version into Info.plist
+    # Tag builds only: a temporary keychain with the Developer ID Application
+    # identity and the notarytool profile, so build.sh signs with it (hardened
+    # runtime, timestamp) and notarize.sh notarizes and staples. Secrets are never
+    # exposed to pull requests from forks; branch builds stay ad hoc.
+    - name: Import signing identity and notary credentials (on tag)
+      if: startsWith(github.ref, 'refs/tags/v')
+      env:
+        DEVELOPER_ID_P12_BASE64: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
+        DEVELOPER_ID_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+        NOTARY_KEY_P8_BASE64: ${{ secrets.NOTARY_KEY_P8_BASE64 }}
+        NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+        NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
       run: |
-        /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" Resources/Info.plist
-        /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${VERSION}" Resources/Info.plist
+        KEYCHAIN="$SIGNING_KEYCHAIN"
+        KEYCHAIN_PASSWORD="$(openssl rand -hex 16)"
+        security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+        security set-keychain-settings -lut 21600 "$KEYCHAIN"
+        security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+        echo "$DEVELOPER_ID_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/developer-id.p12"
+        security import "$RUNNER_TEMP/developer-id.p12" -k "$KEYCHAIN" \
+          -P "$DEVELOPER_ID_P12_PASSWORD" -T /usr/bin/codesign
+        curl -sSf -o "$RUNNER_TEMP/DeveloperIDG2CA.cer" https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer
+        security import "$RUNNER_TEMP/DeveloperIDG2CA.cer" -k "$KEYCHAIN"
+        security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+        security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+        echo "$NOTARY_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
+        xcrun notarytool store-credentials notary-K2GT9Q4S6U --keychain "$KEYCHAIN" \
+          --key "$RUNNER_TEMP/AuthKey.p8" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER_ID"
+        rm "$RUNNER_TEMP/developer-id.p12" "$RUNNER_TEMP/AuthKey.p8"
+        security find-identity -v -p codesigning "$KEYCHAIN"
+        echo "NOTARY_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
 
-    - name: Build app bundle
+    # build.sh stamps the version from the tag (git describe), so the checkout
+    # needs the tags fetched above.
+    - name: Build app bundle (Developer ID with timestamp on tag, ad hoc otherwise)
       run: |
-        chmod +x build.sh
+        if [[ "$GITHUB_REF" == refs/tags/v* ]]; then export RELEASE=1; fi
         ./build.sh
 
-    - name: Create ZIP archive
-      run: |
-        ZIP_NAME="TranslateLikeMe-v${VERSION}-macOS.zip"
-        zip -r -y "$ZIP_NAME" "Translate Like Me.app"
+    - name: Notarize and zip (on tag)
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: ./notarize.sh
+
+    - name: Zip unsigned build (not a tag)
+      if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+      run: ./notarize.sh --zip-only
 
     - name: Upload app bundle
       uses: actions/upload-artifact@v7
@@ -91,3 +115,7 @@ jobs:
         prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Remove signing keychain
+      if: always() && startsWith(github.ref, 'refs/tags/v')
+      run: security delete-keychain "$SIGNING_KEYCHAIN" || true

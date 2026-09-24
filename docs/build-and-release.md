@@ -32,51 +32,55 @@ detail an engineer needs.
 - **Install for local use:** quit the running app, replace
   `/Applications/Translate Like Me.app`, relaunch. It is a menu-bar accessory
   (no Dock icon).
-- The stable signing identity here is "Translate Like Me Dev" (see the comment in
-  `build.sh`); the TCC grant it preserves is Accessibility.
-- The build is self-signed for personal use, not notarized. Gatekeeper warns on
-  other machines; fine for personal installs.
+- **Signing:** `build.sh` signs with the "Developer ID Application: Victor
+  Kuznetsov (K2GT9Q4S6U)" identity when the keychain has it, with the hardened
+  runtime and a secure timestamp; its designated requirement keeps the
+  Accessibility grant across rebuilds and releases. Without it the bundle is
+  signed ad hoc and Accessibility re-prompts after every rebuild. The private key
+  and the App Store Connect API key (`AuthKey_<KEY_ID>.p8`, role Developer,
+  used only for notarization) live in `~/.appledev/` on the maintainer's Mac,
+  outside any repository.
+- **Notarization:** `RELEASE=1 ./build.sh && ./notarize.sh` signs with a secure
+  timestamp (everyday builds skip it, so they work offline), submits the bundle,
+  staples the ticket, checks it with `spctl` and writes
+  `TranslateLikeMe-vX.Y-macOS.zip`. It reads the team-wide notarytool profile
+  `notary-K2GT9Q4S6U` from the login keychain (`xcrun notarytool
+  store-credentials`, command in the script header); other apps of the same
+  team reuse it. An app that needs a hardened-runtime entitlement (the camera,
+  for example) must pass `--entitlements` to `codesign`; this one needs none.
 
 ## Release process
 
 Automated via GitHub Actions ([`.github/workflows/build.yml`](../.github/workflows/build.yml)):
 
 1. `git tag -a vX.Y -m "Translate Like Me X.Y"` then `git push origin vX.Y`.
-2. The workflow stamps `X.Y` into `Info.plist` (`CFBundleShortVersionString` and
-   `CFBundleVersion`), runs SwiftLint and tests, builds via `build.sh`, zips as
-   `TranslateLikeMe-vX.Y-macOS.zip`, and publishes a GitHub Release with it
-   attached. `UpdateChecker` compares that tag to the installed version.
+2. The workflow runs SwiftLint and tests, imports the Developer ID
+   identity and the notarytool profile into a temporary keychain, builds and
+   signs via `RELEASE=1 build.sh` (which stamps `X.Y` from the tag), notarizes
+   and staples via `notarize.sh`, and publishes
+   a GitHub Release with `TranslateLikeMe-vX.Y-macOS.zip` attached. The keychain
+   is deleted at the end. `UpdateChecker` compares that tag to the installed
+   version.
+
+The repository secrets it reads are `DEVELOPER_ID_P12_BASE64` and
+`DEVELOPER_ID_P12_PASSWORD` (the identity, exported from `~/.appledev/`),
+`NOTARY_KEY_P8_BASE64`, `NOTARY_KEY_ID` and `NOTARY_ISSUER_ID`. Only tag builds
+read them, and GitHub never passes them to pull requests from forks; branch
+builds stay ad hoc. The Developer ID certificate expires on 2031-09-17: renew it
+on the Apple Developer portal and reset the two identity secrets.
 
 `build.sh` stamps the bundle with the latest tag (`git describe --tags
 --abbrev=0`), falling back to the committed `Info.plist` without tags, so a
 local build never reports an older version than the release and raises the
 update alert on every launch. Local bundles are for local use, not
-distribution. CI signs ad-hoc (the stable identity
-is absent on the runner), which is expected.
+distribution.
 
-## Re-sign the release asset locally (every release)
-
-CI-built release zips are ad-hoc signed (see above), but the Accessibility
-grant is keyed to the stable "Translate Like Me Dev" identity. Installing a
-CI-built zip therefore loses Accessibility and re-prompts. After every tagged
-release, replace the asset with a locally signed build of the same tag:
-
-```bash
-git checkout vX.Y                 # exactly the released commit
-./build.sh                         # stamps X.Y from the tag; signs with the stable identity
-zip -r -y TranslateLikeMe-vX.Y-macOS.zip "Translate Like Me.app"
-gh release upload vX.Y TranslateLikeMe-vX.Y-macOS.zip --clobber
-git switch main
-```
-
-Verify before moving on (re-download, then check the identity is NOT ad-hoc):
+Verify a release before moving on (re-download, then check the signature and the
+stapled ticket):
 
 ```bash
 gh release download vX.Y -p "*.zip" -D /tmp/asset-check && \
   ditto -x -k /tmp/asset-check/*.zip /tmp/asset-check/app && \
-  codesign -dvv "/tmp/asset-check/app/Translate Like Me.app" 2>&1 | grep Authority
+  spctl -a -vv "/tmp/asset-check/app/Translate Like Me.app" && \
+  xcrun stapler validate "/tmp/asset-check/app/Translate Like Me.app"
 ```
-
-The long-term fix is Developer ID signing + notarization in CI (secrets-based
-identity import), which removes this manual step entirely; until then this
-re-sign is part of releasing.
