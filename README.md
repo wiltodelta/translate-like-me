@@ -7,18 +7,22 @@ hotkey and rewrites it in your own writing style. Select text in any app, press
 the shortcut, and the selection is replaced in place with the translation.
 
 It detects the direction automatically between the two languages you choose, so
-there is nothing to switch: type in one, get the other.
+there is nothing to switch: type in one, get the other. If you use more languages,
+set up to three pairs, each on its own shortcut.
 
 <p align="center">
   <img src="screenshots/menu.png" alt="Translate Like Me - Menu bar menu" width="250">
+  <img src="screenshots/general.png" alt="Translate Like Me - Settings, General pane with language pairs" width="400">
   <img src="screenshots/settings.png" alt="Translate Like Me - Settings, Translation pane" width="400">
 </p>
 
 ## Features
 
 - **Translate in place**: replaces the selected text directly, in any app.
-- **Automatic direction**: detects which of your two languages you wrote in and
-  translates to the other.
+- **Automatic direction**: detects which language of the pair you wrote in and
+  translates to the other; text in any other language goes to the pair's first.
+- **Up to three language pairs**: for example Russian ↔ English on ⌥⌘F and
+  Russian ↔ Spanish on ⌥⌘G.
 - **Your writing style**: an optional style description is applied to every
   translation so the result sounds like you.
 - **Bring your own engine**: Claude or ChatGPT, each via your existing
@@ -26,7 +30,7 @@ there is nothing to switch: type in one, get the other.
   CLI and your grok.com account.
 - **Always the latest model**: resolved live, never pinned in the app.
 - **Menu-bar only**: no Dock icon, no window in the way. Click the icon for a
-  standard menu with status, languages, and settings.
+  standard menu with status, your language pairs, and settings.
 - **Native macOS design**: built to Apple's Human Interface Guidelines, with
   Liquid Glass on macOS 26 and later.
 - **Update checks**: checks GitHub Releases on launch and from Settings.
@@ -63,19 +67,20 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
 ## First run
 
 1. A small icon appears in the menu bar (there is no Dock icon). Settings opens
-   on the Translation pane at first launch so you can pick an engine; pick the
-   two languages in the menu-bar menu.
+   on the Translation pane at first launch so you can pick an engine. The first
+   language pair starts from your macOS languages (your first one and your
+   second, or English) on ⌥⌘F; change it under General > Languages.
 2. Grant **Accessibility** in **System Settings > Privacy & Security >
    Accessibility**. It is required to read the selection (synthesized ⌘C) and to
    paste the replacement (⌘V).
 
 ## Usage
 
-- Select text in any app, then press the shortcut (default **⌥⌘F**) to replace it
-  with the translation.
-- Click the menu-bar icon for the menu: engine and Accessibility status,
-  **Translate Selection**, the two languages (each a submenu), Settings, updates,
-  and Quit. Clicking the engine row opens its settings.
+- Select text in any app, then press a pair's shortcut (the first pair starts on
+  **⌥⌘F**) to replace it with the translation.
+- Click the menu-bar icon for the menu: engine and Accessibility status, one
+  **Translate Selection** item per language pair with its shortcut, Settings,
+  updates, and Quit. Clicking the engine row opens its settings.
 - The icon shows a busy glyph while a translation is running.
 - If the selection can't be replaced in place (a read-only field, e.g. a message
   you are reading rather than writing), the translation is put on the clipboard
@@ -88,8 +93,11 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
 
 Two panes, **General** and **Translation**. Changes apply immediately.
 
-- **Keyboard shortcut**: click the field and press a new combo to change it (must
-  include a modifier).
+- **Languages** (General): up to three pairs. Each row has the two languages, a
+  swap button, the pair's shortcut (click it and press a combo with ⌘, ⌥ or ⌃;
+  Delete clears it, and a combo another pair uses is refused), and a remove
+  button. Text in neither language of a pair is translated into its first
+  language, so put the language you read first.
 - **Your writing style**: free text applied to the translation. Paste a full
   voice guide or a short distilled version. Leave empty for a plain translation.
 - **Translation engine**: provider (Claude / ChatGPT / Grok) and, for Claude and
@@ -99,8 +107,6 @@ Two panes, **General** and **Translation**. Changes apply immediately.
 - **API key**: stored per provider; shown only in API-key mode.
 - **Launch at login**: start the app automatically when you log in.
 - **Updates**: current version and a "Check for Updates…" button.
-
-Languages are picked in the menu-bar menu, not in Settings.
 
 ## Providers and connection modes
 
@@ -192,7 +198,8 @@ git push origin vX.Y
 ```
 
 GitHub Actions then builds the app with the tag's version, signs it with the
-Developer ID, notarizes it, and publishes a Release with `TranslateLikeMe-vX.Y-macOS.zip` attached. Use
+Developer ID, notarizes it, and publishes a Release with
+`Translate-Like-Me-vX.Y-macOS.zip` attached. Use
 `vMAJOR.MINOR` tags; the in-app updater compares the tag to the installed
 version. Local `./build.sh` bundles carry the latest tag's version and are not
 meant for distribution.
@@ -209,7 +216,9 @@ setting including the API key, and the Accessibility grant that
 `ensureAccessibilityPermission` relies on. Changing the identifier migrates
 neither. An existing install would come up as a stranger, with its settings
 gone and Accessibility needing to be granted again, so treat it as fixed rather
-than as a string to tidy up.
+than as a string to tidy up. It is registered as an explicit App ID for team
+K2GT9Q4S6U in the Apple Developer portal, which reserves it for a future Mac App
+Store build.
 
 ## License
 

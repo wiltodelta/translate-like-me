@@ -24,8 +24,10 @@ detail an engineer needs.
   foreground layer is generated from `Resources/appicon_1024.png` by
   `uv run scripts/make-icon-layers.py`.
 - **Screenshots:** `./capture-screenshots.sh` rebuilds the app and regenerates
-  `screenshots/` in the current system appearance; its header comment explains
-  the backdrop capture, the settings overrides and the covered-window check.
+  `screenshots/` (menu, General, Translation) in the current system
+  appearance; its header comment explains the backdrop capture, the settings
+  overrides and the covered-window check. The terminal and the build need
+  Accessibility, so a build under a new signature prompts until granted.
 - **CRITICAL:** `swift build` alone updates only the SwiftPM build directory; it
   does NOT refresh the binary inside `Translate Like Me.app`. Always run `./build.sh`
   before installing or testing the bundle, otherwise you run a stale binary.
@@ -45,7 +47,7 @@ detail an engineer needs.
 - **Notarization:** `RELEASE=1 ./build.sh && ./notarize.sh` signs with a secure
   timestamp (everyday builds skip it, so they work offline), submits the bundle,
   staples the ticket, checks it with `spctl` and writes
-  `TranslateLikeMe-vX.Y-macOS.zip`. It reads the team-wide notarytool profile
+  `Translate-Like-Me-vX.Y-macOS.zip`. It reads the team-wide notarytool profile
   `notary-K2GT9Q4S6U` from the login keychain (`xcrun notarytool
   store-credentials`, command in the script header); other apps of the same
   team reuse it. An app that needs a hardened-runtime entitlement (the camera,
@@ -60,7 +62,7 @@ Automated via GitHub Actions ([`.github/workflows/build.yml`](../.github/workflo
    identity and the notarytool profile into a temporary keychain, builds and
    signs via `RELEASE=1 build.sh` (which stamps `X.Y` from the tag), notarizes
    and staples via `notarize.sh`, and publishes
-   a GitHub Release with `TranslateLikeMe-vX.Y-macOS.zip` attached. The keychain
+   a GitHub Release with `Translate-Like-Me-vX.Y-macOS.zip` attached. The keychain
    is deleted at the end. `UpdateChecker` compares that tag to the installed
    version.
 

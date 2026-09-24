@@ -21,11 +21,13 @@ the keychain. Full detail, including the secrets and where the keys are kept
 - `bash maintain.sh` runs the canonical Swift gate.
 - Lint config in `.swiftlint.yml` scans `Sources/` at 120-column lines.
 - Tests cover the pure logic (`UpdateChecker.isNewer`, `Shortcut` formatting and
-  menu key equivalents, the `Languages` pair rule, `HarnessDefaults` config
-  reading, `HarnessModels` catalog parsing (claude, codex, grok) and
-  `HarnessChoice`, the settings model/effort pick, `ModelResolver` API model
-  selection, `LimitDetector` and `JSONErrorMessage` engine payload parsing). UI, Accessibility, CGEvent, and
-  CLI-subprocess code is not unit-tested; render UI changes with
+  menu key equivalents, `Languages` pair editing, defaults from the macOS
+  languages and migration from the single pair, the pair prompt,
+  `HarnessDefaults` config reading, `HarnessModels` catalog parsing (claude,
+  codex, grok) and `HarnessChoice`, the settings model/effort pick,
+  `ModelResolver` API model selection, `LimitDetector` and `JSONErrorMessage`
+  engine payload parsing). UI, Accessibility, CGEvent, and CLI-subprocess code
+  is not unit-tested; render UI changes with
   `./capture-screenshots.sh` (it also regenerates `screenshots/`; needs
   Accessibility and Screen Recording for the terminal and a Mac left alone).
 - Live runs of a dev build read and write the installed app's settings domain

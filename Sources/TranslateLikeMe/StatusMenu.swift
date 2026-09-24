@@ -43,13 +43,12 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(engine)
         menu.addItem(accessibilityItem())
 
+        // The app's key action: one item per language pair, showing its shortcut.
         menu.addItem(.separator())
-        menu.addItem(translateItem())
-
-        menu.addItem(.separator())
-        menu.addItem(.sectionHeader(title: "Languages"))
-        menu.addItem(languageItem(isFirst: true))
-        menu.addItem(languageItem(isFirst: false))
+        menu.addItem(.sectionHeader(title: "Translate Selection"))
+        for pair in Settings.languagePairs {
+            menu.addItem(translateItem(pair))
+        }
 
         // macOS 26 gives Settings… its standard gear icon, so its group gets an
         // icon on every item (HIG: uniform treatment within a group).
@@ -129,49 +128,22 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     // MARK: - Commands
 
-    private func translateItem() -> NSMenuItem {
-        // The app's key action, so it gets an icon (HIG: icons for the most common
-        // actions and key features).
-        let item = self.item("Translate Selection", action: #selector(translateSelection))
-        item.image = NSImage(systemSymbolName: "translate", accessibilityDescription: nil)
-        if let equivalent = Shortcut.menuKeyEquivalent(keyCode: Settings.replaceKeyCode,
-                                                       modifiers: Settings.replaceModifiers) {
+    // Carries the pair's id; the pair is looked up when chosen.
+    private func translateItem(_ pair: LanguagePair) -> NSMenuItem {
+        let item = self.item(pair.title, action: #selector(translateSelection(_:)))
+        item.representedObject = pair.id
+        if let equivalent = pair.shortcut.flatMap(Shortcut.menuKeyEquivalent) {
             item.keyEquivalent = equivalent.key
             item.keyEquivalentModifierMask = equivalent.flags
         }
         return item
     }
 
-    // One submenu per side of the pair, titled with its current language and
-    // listing every language with a checkmark on the current one.
-    private func languageItem(isFirst: Bool) -> NSMenuItem {
-        let current = isFirst ? Settings.languageA : Settings.languageB
-        let parent = NSMenuItem(title: Languages.name(for: current), action: nil, keyEquivalent: "")
-        parent.toolTip = "The direction is detected automatically."
-        let submenu = NSMenu()
-        submenu.autoenablesItems = false
-        for language in Languages.all {
-            let choice = item(language.name, action: #selector(chooseLanguage(_:)))
-            choice.representedObject = language.code
-            choice.tag = isFirst ? 0 : 1
-            choice.state = language.code == current ? .on : .off
-            submenu.addItem(choice)
-        }
-        parent.submenu = submenu
-        return parent
+    @objc private func translateSelection(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? UUID,
+              let pair = Settings.languagePair(id: id) else { return }
+        TranslationController.shared.run(pair: pair)
     }
-
-    // The item's tag is the side of the pair (0 first, 1 second), its
-    // represented object the language code.
-    @objc private func chooseLanguage(_ sender: NSMenuItem) {
-        guard let code = sender.representedObject as? String else { return }
-        let pair = Languages.pair(settingFirst: sender.tag == 0, to: code,
-                                  current: (Settings.languageA, Settings.languageB))
-        Settings.languageA = pair.first
-        Settings.languageB = pair.second
-    }
-
-    @objc private func translateSelection() { TranslationController.shared.run() }
 
     @objc private func requestAccessibility() { SelectionService.promptForAccessibility() }
 

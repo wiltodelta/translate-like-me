@@ -14,6 +14,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        // Before anything reads the pairs, and before the first-run flag below,
+        // which the migration reads as "an earlier version ran here".
+        Settings.persistLanguagePairs()
 
         setUpStatusItem()
 
@@ -49,9 +52,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     // On the very first launch, open Settings on the Translation pane so the
     // user picks an engine before using the hotkeys.
     private func openSettingsOnFirstRun() {
-        let key = "didCompleteFirstRun"
-        guard !UserDefaults.standard.bool(forKey: key) else { return }
-        UserDefaults.standard.set(true, forKey: key)
+        guard !Settings.didCompleteFirstRun else { return }
+        Settings.didCompleteFirstRun = true
         DispatchQueue.main.async { [weak self] in self?.showSettings(pane: .translation) }
     }
 

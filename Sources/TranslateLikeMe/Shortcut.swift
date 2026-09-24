@@ -25,6 +25,14 @@ enum Shortcut {
         return result
     }
 
+    static func display(_ combo: KeyCombo) -> String {
+        display(keyCode: combo.keyCode, modifiers: combo.modifiers)
+    }
+
+    static func menuKeyEquivalent(_ combo: KeyCombo) -> (key: String, flags: NSEvent.ModifierFlags)? {
+        menuKeyEquivalent(keyCode: combo.keyCode, modifiers: combo.modifiers)
+    }
+
     // US-layout key codes (these match NSEvent.keyCode and Carbon virtual keys).
     private static let names: [Int: String] = [
         0: "A", 1: "S", 2: "D", 3: "F", 4: "H", 5: "G", 6: "Z", 7: "X", 8: "C", 9: "V",

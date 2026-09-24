@@ -1,4 +1,3 @@
-import Carbon
 import Foundation
 
 enum Provider: String, CaseIterable {
@@ -154,6 +153,10 @@ enum Settings {
         static let style = "style"
         static let anthropicKey = "anthropicKey"
         static let openaiKey = "openaiKey"
+        // capture-screenshots.sh overrides this key by name with sample pairs.
+        static let languagePairs = "languagePairs"
+        static let didCompleteFirstRun = "didCompleteFirstRun"
+        // Before pairs: one pair and one shortcut, read only to migrate.
         static let languageA = "languageA"
         static let languageB = "languageB"
         static let replaceKeyCode = "replaceKeyCode"
@@ -163,34 +166,48 @@ enum Settings {
         static let harnessEffort = "harnessEffort."
     }
 
-    // The two languages translated between. The app auto-detects which one the
-    // input is and produces the other.
-    static var languageA: String {
-        get { defaults.string(forKey: Key.languageA) ?? "ru" }
-        set { defaults.set(newValue, forKey: Key.languageA) }
+    // The language pairs, each with its own optional shortcut, stored as JSON;
+    // never empty.
+    static var languagePairs: [LanguagePair] {
+        get {
+            guard let data = defaults.data(forKey: Key.languagePairs),
+                  let pairs = try? JSONDecoder().decode([LanguagePair].self, from: data), !pairs.isEmpty else {
+                return [legacyPair() ?? Languages.defaultPair(preferred: Locale.preferredLanguages)]
+            }
+            return pairs
+        }
+        set { defaults.set(try? JSONEncoder().encode(newValue), forKey: Key.languagePairs) }
     }
 
-    static var languageB: String {
-        get { defaults.string(forKey: Key.languageB) ?? "en" }
-        set { defaults.set(newValue, forKey: Key.languageB) }
+    static func languagePair(id: LanguagePair.ID) -> LanguagePair? {
+        languagePairs.first { $0.id == id }
     }
 
-    // Global hotkey to translate and replace the selection. Default: ⌥⌘F.
-    static let defaultReplaceKeyCode = 3 // F
-    static let defaultReplaceModifiers = Int(cmdKey | optionKey)
-
-    static var replaceKeyCode: Int {
-        get { value(Key.replaceKeyCode, default: defaultReplaceKeyCode) }
-        set { defaults.set(newValue, forKey: Key.replaceKeyCode) }
+    // Set once Settings has been shown on the first launch; its presence also
+    // tells the pairs migration that an earlier version ran here.
+    static var didCompleteFirstRun: Bool {
+        get { defaults.bool(forKey: Key.didCompleteFirstRun) }
+        set { defaults.set(newValue, forKey: Key.didCompleteFirstRun) }
     }
 
-    static var replaceModifiers: Int {
-        get { value(Key.replaceModifiers, default: defaultReplaceModifiers) }
-        set { defaults.set(newValue, forKey: Key.replaceModifiers) }
+    // Writes the pairs once, so the first read's answer (the pre-pairs single
+    // pair and shortcut, or the system languages for a new user) never changes
+    // under a later launch. Call first thing at launch.
+    static func persistLanguagePairs() {
+        guard defaults.data(forKey: Key.languagePairs) == nil else { return }
+        languagePairs = languagePairs
     }
 
-    private static func value(_ key: String, default fallback: Int) -> Int {
-        defaults.object(forKey: key) == nil ? fallback : defaults.integer(forKey: key)
+    // The one pair and shortcut stored before pairs existed (defaults ru/en and
+    // ⌥⌘F), for anyone who ran an earlier version; nil for a new user.
+    static func legacyPair(in store: UserDefaults = .standard) -> LanguagePair? {
+        let keys = [Key.languageA, Key.languageB, Key.replaceKeyCode, Key.replaceModifiers, Key.didCompleteFirstRun]
+        guard keys.contains(where: { store.object(forKey: $0) != nil }) else { return nil }
+        let code = store.object(forKey: Key.replaceKeyCode) as? Int ?? Languages.defaultShortcut.keyCode
+        let mods = store.object(forKey: Key.replaceModifiers) as? Int ?? Languages.defaultShortcut.modifiers
+        return LanguagePair(first: Languages.normalized(store.string(forKey: Key.languageA) ?? "ru"),
+                            second: Languages.normalized(store.string(forKey: Key.languageB) ?? "en"),
+                            shortcut: KeyCombo(keyCode: code, modifiers: mods))
     }
 
     static var provider: Provider {

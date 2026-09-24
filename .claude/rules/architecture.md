@@ -22,8 +22,19 @@ Read before editing this domain.
   in the `.openSettings` notification); `SettingsStore` applies every change
   immediately. The popup (`PopupController`) stays a cursor-anchored
   panel: HIG Writing wants errors "as close to the problem as possible".
-- Global hotkey via Carbon `RegisterEventHotKey` (`HotKeyManager`), default
-  ⌥⌘F. `TranslationController` copies the selection, translates, and pastes back.
+- Language pairs (`LanguagePair`, up to `Languages.maxPairs` = 3, stored as JSON
+  in `Settings.languagePairs`, edited under General > Languages) each carry an
+  optional shortcut; `HotKeyManager` registers one Carbon `RegisterEventHotKey`
+  per pair and the status menu lists one Translate Selection item per pair.
+  The model detects the direction: text in `first` becomes `second`, anything
+  else becomes `first` (`Translator.systemPrompt`). On-device detection
+  (`NLLanguageRecognizer`) was measured and rejected: constrained to ru/en it
+  called Spanish and "Скинь PR по TranslateLikeMe" English at 1.00.
+  `Settings.persistLanguagePairs()` runs first at launch and writes the pairs
+  once: the pre-pairs `languageA`/`languageB`/`replaceKeyCode` (or ru/en ⌥⌘F for
+  an earlier run that kept the defaults) for an existing user, the macOS
+  languages for a new one. `TranslationController.run(pair:)` copies the
+  selection, translates, and pastes back.
   While a modal alert is open (an update prompt) the hotkey brings the alert
   forward instead of running: the modal holds the main actor, so a run would
   stall and then copy from whatever app is in front once it closes.

@@ -13,14 +13,22 @@ final class HotKeyManager {
 
     private init() {}
 
-    // (Re)registers the replace hotkey from the current settings. Call after
-    // launch and whenever the user changes the shortcut.
+    // (Re)registers one hotkey per language pair that has a shortcut. Call after
+    // launch and whenever the pairs change. A combo is registered once even if
+    // stored pairs repeat it (the recorder refuses that, a hand edit may not).
     @MainActor
-    func reload() {
+    func reload(pairs: [LanguagePair] = Settings.languagePairs) {
         unregisterAll()
-        register(keyCode: UInt32(Settings.replaceKeyCode),
-                 modifiers: UInt32(Settings.replaceModifiers)) {
-            TranslationController.shared.run()
+        var registered: [KeyCombo] = []
+        for pair in pairs {
+            guard let combo = pair.shortcut, !registered.contains(combo) else { continue }
+            registered.append(combo)
+            let id = pair.id
+            register(keyCode: UInt32(combo.keyCode), modifiers: UInt32(combo.modifiers)) {
+                // Looked up at fire time, so a run uses the pair as it is now.
+                guard let current = Settings.languagePair(id: id) else { return }
+                TranslationController.shared.run(pair: current)
+            }
         }
     }
 

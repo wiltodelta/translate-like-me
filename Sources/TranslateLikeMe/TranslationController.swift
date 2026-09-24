@@ -34,7 +34,8 @@ final class TranslationController {
 
     private init() {}
 
-    func run() {
+    // Translates the selection with `pair` (each pair has its own shortcut).
+    func run(pair: LanguagePair) {
         guard !TranslationActivity.shared.isBusy else {
             log.info("Translate ignored: a translation is already running")
             return
@@ -50,7 +51,7 @@ final class TranslationController {
         }
         TranslationActivity.shared.isBusy = true
         let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "unknown"
-        log.info("Translate started, frontmost app: \(front, privacy: .public)")
+        log.info("Translate started, pair: \(pair.title, privacy: .public), frontmost app: \(front, privacy: .public)")
 
         Task {
             defer { TranslationActivity.shared.isBusy = false }
@@ -67,7 +68,7 @@ final class TranslationController {
             }
 
             do {
-                let translated = try await Translator.translate(selection)
+                let translated = try await Translator.translate(selection, pair: pair)
                 await offMain { SelectionService.paste(translated) }
 
                 let landed = await offMain { SelectionService.pasteLanded(replacing: selection) }

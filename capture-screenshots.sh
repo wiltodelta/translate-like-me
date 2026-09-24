@@ -11,7 +11,8 @@
 # The copy reads the real settings domain, so every value the images show that
 # is personal or would change the user's settings is overridden for this launch
 # only, through the argument domain (-key value): the writing style (the
-# repository is public) and the pane Settings opens on. Nothing is written back.
+# repository is public), the language pairs, and the pane Settings opens on.
+# Nothing is written back.
 # build.sh stamps the latest tag, so the build raises no update alert.
 
 set -euo pipefail
@@ -22,6 +23,9 @@ EXECUTABLE="$PWD/$APP_DIR/Contents/MacOS/TranslateLikeMe"
 OUT="screenshots"
 WORK=$(mktemp -d)
 SAMPLE_STYLE="Casual and friendly, short sentences."
+# Two sample pairs, Russian-English on ⌥⌘F and Russian-Spanish on ⌥⌘G, as the
+# JSON Settings.languagePairs stores, passed as an old-style plist <data> value.
+SAMPLE_PAIRS='[{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","first":"ru","second":"en","shortcut":{"keyCode":3,"modifiers":2304}},{"id":"7F9619FF-8B86-D011-B42D-00C04FC964FF","first":"ru","second":"es","shortcut":{"keyCode":5,"modifiers":2304}}]'
 
 # --- Build ----------------------------------------------------------------------
 
@@ -104,6 +108,15 @@ case "pointer":
 case "clear":
     let (pid, backdrop) = (Int32(args[2])!, Int32(args[3])!)
     let rect = CGRect(x: Double(args[4])!, y: Double(args[5])!, width: Double(args[6])!, height: Double(args[7])!)
+    // The region must lie inside the visible frame (top-left origin), or the Dock
+    // or another screen's content is in it.
+    let screen = NSScreen.screens[0]
+    let visible = CGRect(x: screen.visibleFrame.minX, y: screen.frame.maxY - screen.visibleFrame.maxY,
+                         width: screen.visibleFrame.width, height: screen.visibleFrame.height)
+    guard visible.contains(rect) else {
+        FileHandle.standardError.write(Data("the window does not fit the visible screen\n".utf8))
+        exit(1)
+    }
     var sawApp = false
     for w in onScreen() {
         guard frame(w).intersects(rect), (w[kCGWindowAlpha as String] as? Double ?? 1) > 0 else { continue }
@@ -138,18 +151,27 @@ helper() { "$WORK/helper" "$@"; }
 
 # --- Accessibility driving -------------------------------------------------------
 
+# launch <pane>: a fresh copy with Settings set to open on <pane> (0 General, 1
+# Translation), since switching panes in the window would write the choice back.
 # -n: a new instance even while the installed copy (same bundle id) runs.
-# The keys are Settings.Key.style and SettingsTabViewController.lastPaneKey (1 is
-# the Translation pane); both name this script, since a renamed key would put
-# the real writing style into a public image.
-open -n "$APP_DIR" --args -style "$SAMPLE_STYLE" -settingsSelectedPane 1
+# The keys are Settings.Key.style, .languagePairs, .provider, .authMode and
+# SettingsTabViewController.lastPaneKey; they name this script, since a renamed
+# key would put the real settings into a public image. With the pairs overridden
+# the launch also writes none of its own.
 PID=""
-for _ in $(seq 1 20); do
-    PID=$(pgrep -f "$EXECUTABLE" | head -1 || true)
-    [ -n "$PID" ] && break
-    sleep 0.5
-done
-[ -n "$PID" ] || { echo "The app did not start."; exit 1; }
+launch() {
+    [ -n "$PID" ] && { kill "$PID"; sleep 1; }
+    open -n "$APP_DIR" --args -style "$SAMPLE_STYLE" -settingsSelectedPane "$1" \
+        -provider anthropic -authMode subscription \
+        -languagePairs "<$(printf '%s' "$SAMPLE_PAIRS" | xxd -p | tr -d '\n')>"
+    PID=""
+    for _ in $(seq 1 20); do
+        PID=$(pgrep -f "$EXECUTABLE" | head -1 || true)
+        [ -n "$PID" ] && return 0
+        sleep 0.5
+    done
+    echo "The app did not start."; exit 1
+}
 
 ax() { osascript -e "tell application \"System Events\" to tell (first process whose unix id is $PID) to $1"; }
 STATUS_ITEM='menu bar item 1 of menu bar 2'
@@ -219,6 +241,24 @@ capture_region() {
 
 # --- Screens ---------------------------------------------------------------------
 
+# capture_settings <window title> <name>: open Settings from the menu and capture it.
+capture_settings() {
+    ax "click menu item \"Settings…\" of menu 1 of $STATUS_ITEM" >/dev/null
+    local frame=""
+    for _ in $(seq 1 20); do
+        frame=$(helper named "$PID" "$1")
+        [ -n "$frame" ] && break
+        sleep 0.2
+    done
+    [ -n "$frame" ] || { echo "The settings window did not open on $1."; exit 1; }
+    read -r SX SY SW SH <<<"$frame"
+    show_backdrop "$SX" "$SY" "$SW" "$SH"
+    ax 'set frontmost to true' >/dev/null # above the backdrop, key so controls render active
+    sleep 1
+    capture_region "$2" "$SX" "$SY" "$SW" "$SH"
+}
+
+launch 0
 # The first open starts the engine check; the reopen shows its result.
 open_menu
 sleep 2 # the engine check
@@ -229,17 +269,8 @@ open_menu
 sleep 0.5
 read -r X Y W H < <(helper menu "$PID")
 capture_region menu "$X" "$Y" "$W" "$H"
+capture_settings General general
 
-ax "click menu item \"Settings…\" of menu 1 of $STATUS_ITEM" >/dev/null
-SETTINGS=""
-for _ in $(seq 1 20); do
-    SETTINGS=$(helper named "$PID" "Translation")
-    [ -n "$SETTINGS" ] && break
-    sleep 0.2
-done
-[ -n "$SETTINGS" ] || { echo "The settings window did not open on Translation."; exit 1; }
-read -r SX SY SW SH <<<"$SETTINGS"
-show_backdrop "$SX" "$SY" "$SW" "$SH"
-ax 'set frontmost to true' >/dev/null # above the backdrop, key so controls render active
-sleep 1
-capture_region settings "$SX" "$SY" "$SW" "$SH"
+launch 1
+open_menu
+capture_settings Translation settings

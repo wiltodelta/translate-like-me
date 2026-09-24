@@ -10,26 +10,33 @@ struct GeneralSettingsView: View {
 
     var body: some View {
         Form {
-            shortcutSection
+            languagesSection
             startupSection
             updatesSection
         }
         .settingsPane()
     }
 
-    // MARK: - Shortcut
+    // MARK: - Languages
 
-    private var shortcutSection: some View {
+    // One row per pair, each with its own shortcut (up to Languages.maxPairs).
+    private var languagesSection: some View {
         Section {
-            LabeledContent("Translate selection") {
-                ShortcutField(keyCode: $store.replaceKeyCode, modifiers: $store.replaceModifiers)
+            ForEach($store.pairs) { $pair in
+                LanguagePairRow(pair: $pair,
+                                canRemove: store.canRemovePair,
+                                remove: { store.removePair(id: pair.id) },
+                                usedBy: { store.pair(using: $0, except: pair.id)?.title })
+            }
+            if store.canAddPair {
+                Button("Add Pair") { store.addPair() }
             }
         } header: {
-            Text("Keyboard shortcut")
+            Text("Languages")
         } footer: {
-            Text("Select text in any app, then press the shortcut to replace it with the "
-                 + "translation. Click the shortcut to change it. Needs Accessibility "
-                 + "permission (macOS will ask).")
+            Text("Select text in any app and press a pair's shortcut to replace it with the translation. "
+                 + "The source language is detected automatically; text in neither language is "
+                 + "translated into the first one. Needs Accessibility permission (macOS will ask).")
         }
     }
 
@@ -190,6 +197,50 @@ struct TranslationSettingsView: View {
         } footer: {
             Text(copy.help)
         }
+    }
+}
+
+// A language pair: two language pickers, a swap button, the pair's shortcut, and
+// a remove button.
+private struct LanguagePairRow: View {
+    @Binding var pair: LanguagePair
+    let canRemove: Bool
+    let remove: () -> Void
+    let usedBy: (KeyCombo) -> String?
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            languagePicker("First language", isFirst: true)
+            Button {
+                (pair.first, pair.second) = (pair.second, pair.first)
+            } label: {
+                Image(systemName: "arrow.left.arrow.right")
+            }
+            .buttonStyle(.borderless)
+            .help("Swap the languages")
+            .accessibilityLabel("Swap the languages")
+            languagePicker("Second language", isFirst: false)
+            Spacer(minLength: 8)
+            ShortcutField(combo: $pair.shortcut, usedBy: usedBy)
+            Button(action: remove) {
+                Image(systemName: "minus.circle")
+            }
+            .buttonStyle(.borderless)
+            .disabled(!canRemove)
+            .help("Remove this pair")
+            .accessibilityLabel("Remove \(pair.title)")
+        }
+    }
+
+    private func languagePicker(_ label: String, isFirst: Bool) -> some View {
+        Picker(label, selection: Binding(
+            get: { isFirst ? pair.first : pair.second },
+            set: { pair = Languages.setting(pair, first: isFirst, to: $0) }
+        )) {
+            ForEach(Languages.all) { Text($0.name).tag($0.code) }
+        }
+        .labelsHidden()
+        .fixedSize()
     }
 }
 

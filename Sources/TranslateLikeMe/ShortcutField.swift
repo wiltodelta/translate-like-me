@@ -3,20 +3,22 @@ import AppKit
 import Carbon
 
 // A click-to-record shortcut control. Click it, press a key combo (must include
-// at least one non-shift modifier, or a function key), and it stores the Carbon
-// key code + modifier mask. Esc cancels recording. Key SEQUENCES (e.g. pressing a
-// key twice) are not supported - only a single key held with modifier(s) - so the
-// first valid press wins and recording stops immediately.
+// at least one non-shift modifier), and it stores the Carbon key code + modifier
+// mask; Delete clears it and Esc cancels. Key SEQUENCES are not supported - the
+// first valid press wins and recording stops. A combo `usedBy` names (another
+// pair's) is refused, so one shortcut never triggers two translations.
 struct ShortcutField: View {
-    @Binding var keyCode: Int
-    @Binding var modifiers: Int
+    @Binding var combo: KeyCombo?
+    let usedBy: (KeyCombo) -> String?
 
     @State private var recording = false
     @State private var monitor: Any?
+    @State private var conflict: String?
 
     private var label: some View {
-        Text(recording ? "Press keys…" : Shortcut.display(keyCode: keyCode, modifiers: modifiers))
-            .font(.body.monospaced())
+        Text(recording ? "Press keys…"
+             : combo.map(Shortcut.display) ?? "Record Shortcut")
+            .font(combo == nil && !recording ? .body : .body.monospaced())
             .frame(minWidth: 90)
     }
 
@@ -48,25 +50,14 @@ struct ShortcutField: View {
     }
 
     var body: some View {
-        // Stacked, not side-by-side: the hint/Reset line has its own row below
-        // the button instead of competing for LabeledContent's narrow trailing
-        // width, which used to wrap it mid-sentence.
+        // The hint has its own row below the button while recording, instead of
+        // competing for the row's narrow trailing width.
         VStack(alignment: .trailing, spacing: 4) {
             recorderButton
-
             if recording {
-                Text("Needs ⌘, ⌥, or ⌃ (⇧ alone doesn't work). Esc cancels.")
+                Text(conflict.map { "Already used by \($0)." } ?? "Needs ⌘, ⌥, or ⌃. Delete clears, Esc cancels.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-            } else if keyCode != Settings.defaultReplaceKeyCode || modifiers != Settings.defaultReplaceModifiers {
-                Button("Reset") {
-                    stop()
-                    keyCode = Settings.defaultReplaceKeyCode
-                    modifiers = Settings.defaultReplaceModifiers
-                }
-                .buttonStyle(.plain)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
             }
         }
         .onDisappear { stop() }
@@ -82,14 +73,23 @@ struct ShortcutField: View {
         HotKeyManager.shared.pause()
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             if event.keyCode == 53 { stop(); return nil } // Esc cancels
+            if event.keyCode == 51 || event.keyCode == 117 { // Delete, Forward Delete
+                combo = nil
+                stop()
+                return nil
+            }
             let mods = Shortcut.carbonModifiers(from: event.modifierFlags)
             // Shift alone isn't a usable global-hotkey modifier on macOS (it doesn't
             // reliably work), so require at least one of Cmd/Option/Control too -
             // same validation KeyboardShortcuts applies.
-            let hasRealModifier = mods & ~UInt32(shiftKey) != 0
-            guard hasRealModifier else { NSSound.beep(); return nil }
-            keyCode = Int(event.keyCode)
-            modifiers = Int(mods)
+            guard mods & ~UInt32(shiftKey) != 0 else { NSSound.beep(); return nil }
+            let recorded = KeyCombo(keyCode: Int(event.keyCode), modifiers: Int(mods))
+            if let owner = usedBy(recorded) {
+                conflict = owner
+                NSSound.beep()
+                return nil
+            }
+            combo = recorded
             stop()
             return nil
         }
@@ -98,6 +98,7 @@ struct ShortcutField: View {
     private func stop() {
         guard recording else { return }
         recording = false
+        conflict = nil
         if let monitor {
             NSEvent.removeMonitor(monitor)
             self.monitor = nil

@@ -41,12 +41,11 @@ final class SettingsStore {
         didSet { Settings.style = style }
     }
 
-    var replaceKeyCode: Int {
-        didSet { shortcutChanged() }
-    }
-
-    var replaceModifiers: Int {
-        didSet { shortcutChanged() }
+    var pairs: [LanguagePair] {
+        didSet {
+            Settings.languagePairs = pairs
+            HotKeyManager.shared.reload(pairs: pairs)
+        }
     }
 
     var anthropicKey: String {
@@ -67,8 +66,7 @@ final class SettingsStore {
         provider = Settings.provider
         authMode = Settings.authMode
         style = Settings.style
-        replaceKeyCode = Settings.replaceKeyCode
-        replaceModifiers = Settings.replaceModifiers
+        pairs = Settings.languagePairs
         anthropicKey = Settings.anthropicKey
         openaiKey = Settings.openaiKey
         loadPick()
@@ -133,9 +131,24 @@ final class SettingsStore {
         ModelResolver.clearCache()
     }
 
-    private func shortcutChanged() {
-        Settings.replaceKeyCode = replaceKeyCode
-        Settings.replaceModifiers = replaceModifiers
-        HotKeyManager.shared.reload()
+    // MARK: - Language pairs
+
+    var canAddPair: Bool { pairs.count < Languages.maxPairs }
+    var canRemovePair: Bool { pairs.count > 1 }
+
+    func addPair() {
+        guard canAddPair else { return }
+        pairs.append(Languages.newPair(after: pairs))
+    }
+
+    func removePair(id: LanguagePair.ID) {
+        guard canRemovePair else { return }
+        pairs.removeAll { $0.id == id }
+    }
+
+    // The pair already using `combo`, other than `id`, so one shortcut never
+    // triggers two pairs.
+    func pair(using combo: KeyCombo, except id: LanguagePair.ID) -> LanguagePair? {
+        pairs.first { $0.id != id && $0.shortcut == combo }
     }
 }
