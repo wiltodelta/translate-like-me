@@ -5,7 +5,7 @@
 #
 # Needs the Developer ID signature with a secure timestamp that RELEASE=1 build.sh
 # applies, and the team's notarytool credentials stored once in the login
-# keychain (the key files live in ~/.appledev, see docs/build-and-release.md):
+# keychain (the key files are in 1Password, see docs/build-and-release.md):
 #   xcrun notarytool store-credentials notary-K2GT9Q4S6U \
 #       --key AuthKey_<KEY_ID>.p8 --key-id <KEY_ID> --issuer <ISSUER_ID>
 set -euo pipefail

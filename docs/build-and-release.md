@@ -36,10 +36,12 @@ detail an engineer needs.
   Kuznetsov (K2GT9Q4S6U)" identity when the keychain has it, with the hardened
   runtime and a secure timestamp; its designated requirement keeps the
   Accessibility grant across rebuilds and releases. Without it the bundle is
-  signed ad hoc and Accessibility re-prompts after every rebuild. The private key
-  and the App Store Connect API key (`AuthKey_<KEY_ID>.p8`, role Developer,
-  used only for notarization) live in `~/.appledev/` on the maintainer's Mac,
-  outside any repository.
+  signed ad hoc and Accessibility re-prompts after every rebuild. The identity (with
+  its private key) and the App Store Connect API key (team key "Notarization",
+  role Developer, used only for notarization) are in the login keychain and
+  backed up in 1Password, Private vault, item "Apple Developer ID: Victor
+  Kuznetsov (K2GT9Q4S6U)": the `.p12` with its password, the `.p8`, the key
+  and issuer IDs, and the commands that restore both on a new Mac.
 - **Notarization:** `RELEASE=1 ./build.sh && ./notarize.sh` signs with a secure
   timestamp (everyday builds skip it, so they work offline), submits the bundle,
   staples the ticket, checks it with `spctl` and writes
@@ -63,7 +65,7 @@ Automated via GitHub Actions ([`.github/workflows/build.yml`](../.github/workflo
    version.
 
 The repository secrets it reads are `DEVELOPER_ID_P12_BASE64` and
-`DEVELOPER_ID_P12_PASSWORD` (the identity, exported from `~/.appledev/`),
+`DEVELOPER_ID_P12_PASSWORD` (the identity as a `.p12`),
 `NOTARY_KEY_P8_BASE64`, `NOTARY_KEY_ID` and `NOTARY_ISSUER_ID`. Only tag builds
 read them, and GitHub never passes them to pull requests from forks; branch
 builds stay ad hoc. The Developer ID certificate expires on 2031-09-17: renew it
