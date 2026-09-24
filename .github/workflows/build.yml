@@ -15,8 +15,6 @@ jobs:
     runs-on: macos-26
     permissions:
       contents: write
-    env:
-      SIGNING_KEYCHAIN: ${{ runner.temp }}/signing.keychain-db
 
     steps:
     - name: Checkout code
@@ -25,8 +23,11 @@ jobs:
         fetch-depth: 0
         fetch-tags: true
 
+    # The runner context is not available in job-level env, so the signing
+    # keychain path is exported here for the import and cleanup steps.
     - name: Select latest Xcode
       run: |
+        echo "SIGNING_KEYCHAIN=$RUNNER_TEMP/signing.keychain-db" >> "$GITHUB_ENV"
         LATEST_XCODE=$(ls /Applications | grep "Xcode" | sort -V | tail -1)
         echo "Using: $LATEST_XCODE"
         sudo xcode-select -s /Applications/$LATEST_XCODE/Contents/Developer
