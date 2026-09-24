@@ -1,5 +1,8 @@
 import Carbon
 import Foundation
+import os
+
+private let log = Logger.app("hotkey")
 
 // Registers global hotkeys via the Carbon Event Manager. RegisterEventHotKey is the
 // reliable way to get system-wide hotkeys for a background (accessory) app.
@@ -67,7 +70,7 @@ final class HotKeyManager {
         if status == noErr {
             refs.append(ref)
         } else {
-            NSLog("TranslateLikeMe: failed to register hotkey (status \(status))")
+            log.error("Failed to register hotkey \(keyCode) \(modifiers): status \(status)")
         }
     }
 

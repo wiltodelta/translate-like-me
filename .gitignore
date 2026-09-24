@@ -17,9 +17,11 @@ Translate Like Me.app/
 # Local Claude Code settings, never shared
 .claude/settings.local.json
 
-# An empty plist that appears next to AppIcon.icon now and then. Not written by
-# swift build, swift test, build.sh, actool or its ibtoold agent (checked
-# 2026-09-23); the source is still unknown, so it is ignored, not explained.
+# An empty plist that appeared next to AppIcon.icon now and then: actool's
+# long-lived agent resolves relative paths against the directory it first started
+# in, and watch-me-sleep's old generate-assets.sh passed a relative
+# `--output-partial-info-plist Resources/Assets.plist` while the agent had started
+# here (found 2026-09-24). Both build scripts now pass absolute paths.
 /Resources/Assets.plist
 
 # Release zips built by notarize.sh

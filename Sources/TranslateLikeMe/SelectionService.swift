@@ -20,13 +20,35 @@ enum SelectionService {
         static let vKey: CGKeyCode = 9
     }
 
-    static func currentClipboard() -> String? {
-        pasteboard.string(forType: .string)
+    // Every item and type on the pasteboard, so putting it back keeps rich text,
+    // images and files, not just the plain string; an empty snapshot restores
+    // an empty pasteboard.
+    struct Snapshot: Sendable {
+        let items: [[String: Data]]
     }
 
-    static func restoreClipboard(_ value: String?) {
-        guard let value else { return }
-        copyToClipboard(value)
+    static func snapshot(of board: NSPasteboard = pasteboard) -> Snapshot {
+        Snapshot(items: (board.pasteboardItems ?? []).map { item in
+            var types: [String: Data] = [:]
+            for type in item.types { types[type.rawValue] = item.data(forType: type) }
+            return types
+        })
+    }
+
+    static var changeCount: Int { pasteboard.changeCount }
+
+    // Puts the snapshot back, unless something else wrote to the pasteboard
+    // after `expected` (the user copying something meanwhile wins).
+    static func restore(_ snapshot: Snapshot, ifUnchangedSince expected: Int,
+                        on board: NSPasteboard = pasteboard) {
+        guard board.changeCount == expected else { return }
+        board.clearContents()
+        let items = snapshot.items.map { types in
+            let item = NSPasteboardItem()
+            for (type, data) in types { item.setData(data, forType: NSPasteboard.PasteboardType(type)) }
+            return item
+        }
+        if !items.isEmpty { board.writeObjects(items) }
     }
 
     static func copyToClipboard(_ text: String) {
@@ -50,10 +72,13 @@ enum SelectionService {
         return nil
     }
 
-    // Puts text on the pasteboard and pastes it into the frontmost app.
+    // Puts text on the pasteboard and pastes it into the frontmost app. The
+    // text is marked transient (nspasteboard.org), so clipboard managers do not
+    // keep it in their history.
     static func paste(_ text: String) {
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
+        pasteboard.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.TransientType"))
         // Small delay so the new pasteboard contents are settled before Cmd+V.
         usleep(30_000)
         postKey(KeyCode.vKey)
@@ -65,7 +90,7 @@ enum SelectionService {
     // If nothing re-copies within the window, the caret collapsed after a normal
     // paste, so the replacement is assumed to have landed.
     //
-    // This is a behavioural check (observe what the paste actually did) rather than
+    // This is a behavioral check (observe what the paste actually did) rather than
     // an Accessibility "is this settable" query, which was unreliable for editable
     // web/Electron fields and broke the common case.
     static func pasteLanded(replacing original: String) -> Bool {

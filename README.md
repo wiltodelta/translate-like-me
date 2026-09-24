@@ -33,7 +33,8 @@ set up to three pairs, each on its own shortcut.
   standard menu with status, your language pairs, and settings.
 - **Native macOS design**: built to Apple's Human Interface Guidelines, with
   Liquid Glass on macOS 26 and later.
-- **Update checks**: checks GitHub Releases on launch and from Settings.
+- **In-place updates**: checks once a day and installs a new version when you
+  choose to (Sparkle).
 
 ## Requirements
 
@@ -94,7 +95,7 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
 Two panes, **General** and **Translation**. Changes apply immediately.
 
 - **Languages** (General): up to three pairs. Each row has the two languages, a
-  swap button, the pair's shortcut (click it and press a combo with ⌘, ⌥ or ⌃;
+  swap button, the pair's shortcut (click it and press a combo with ⌘, ⌥, or ⌃;
   Delete clears it, and a combo another pair uses is refused), and a remove
   button. Text in neither language of a pair is translated into its first
   language, so put the language you read first.
@@ -106,7 +107,8 @@ Two panes, **General** and **Translation**. Changes apply immediately.
   keeps the CLI's configured default.
 - **API key**: stored per provider; shown only in API-key mode.
 - **Launch at login**: start the app automatically when you log in.
-- **Updates**: current version and a "Check for Updates…" button.
+- **Updates**: current version, automatic daily checks on or off, and a "Check
+  for Updates…" button.
 
 ## Providers and connection modes
 
@@ -145,12 +147,31 @@ The app never pins a model:
 - API key: the newest matching model (Sonnet, or OpenAI's fast tier) from the
   provider's live `/models` list.
 
+## Privacy
+
+- The text you translate and your writing style go to the engine you picked and
+  nowhere else: Anthropic (Claude), OpenAI (ChatGPT), or xAI (Grok), through its
+  official CLI or API. The app has no server, analytics or telemetry.
+- The claude and codex CLIs run with session history off, so translations are
+  not kept in `~/.claude` or `~/.codex`. The grok CLI has no such switch and may
+  keep its own history.
+- API keys are stored in your login keychain.
+- The clipboard is put back after a translation, with every type it held (rich
+  text, images, files), unless you copy something else in the meantime; the
+  pasted translation is marked transient so clipboard managers skip it.
+- Logs (`log stream --predicate 'subsystem == "com.wiltodelta.translatelikeme"'`)
+  record the app in front, the language pair and character counts, never the
+  text itself.
+
 ## Updates
 
-The app checks GitHub Releases a few seconds after launch and offers to open the
-download page when a newer version is tagged. You can also check on demand from
-Settings > Updates. It is a check-and-notify updater, not a silent in-place
-installer: you download the new build and replace the app yourself.
+The app uses [Sparkle](https://sparkle-project.org) (MIT licensed; its notice
+ships in the app bundle) to check once a day for a new release. It never takes
+focus from what you are doing: when an update is found, the menu's "Check for
+Updates…" item becomes "Install Update…" with the new version, and the update
+window opens only when you choose it or check by hand from the menu or Settings >
+Updates. Updates are signed with an EdDSA key as well as the Developer ID, and
+install in place with a relaunch. Automatic checks can be turned off in Settings.
 
 ## Notes
 
@@ -193,15 +214,15 @@ Releases are automated. The app version comes from the git tag, so cutting a
 release is just tagging and pushing:
 
 ```bash
-git tag -a vX.Y -m "Translate Like Me X.Y"
+git tag -a vX.Y -F notes.md   # first line "Translate Like Me X.Y", blank line, then the notes
 git push origin vX.Y
 ```
 
 GitHub Actions then builds the app with the tag's version, signs it with the
 Developer ID, notarizes it, and publishes a Release with
-`Translate-Like-Me-vX.Y-macOS.zip` attached. Use
-`vMAJOR.MINOR` tags; the in-app updater compares the tag to the installed
-version. Local `./build.sh` bundles carry the latest tag's version and are not
+`Translate-Like-Me-vX.Y-macOS.zip` and the Sparkle `appcast.xml` attached; the
+tag annotation's body becomes both the release notes and the text of the update
+window. Use `vMAJOR.MINOR` tags. Local `./build.sh` bundles carry the latest tag's version and are not
 meant for distribution.
 
 Signing secrets and verification steps are in

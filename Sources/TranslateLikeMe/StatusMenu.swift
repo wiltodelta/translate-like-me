@@ -54,9 +54,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         // icon on every item (HIG: uniform treatment within a group).
         menu.addItem(.separator())
         menu.addItem(item("Settings…", key: ",", action: #selector(openSettings)))
-        let updates = item("Check for Updates…", action: #selector(checkForUpdates))
-        updates.image = NSImage(systemSymbolName: "arrow.triangle.2.circlepath", accessibilityDescription: nil)
-        menu.addItem(updates)
+        menu.addItem(updatesItem())
 
         // The standard terminate(_:) selector, so the system treats it as Quit.
         menu.addItem(.separator())
@@ -155,5 +153,17 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         NotificationCenter.default.post(name: .openSettings, object: SettingsPane.translation)
     }
 
-    @objc private func checkForUpdates() { UpdateChecker.shared.checkForUpdates(manual: true) }
+    @objc private func checkForUpdates() { Updater.shared.checkForUpdates() }
+
+    // Also the gentle reminder for an update a scheduled check found (Updater):
+    // the title changes rather than a window taking focus.
+    private func updatesItem() -> NSMenuItem {
+        let pending = Updater.shared.pendingVersion
+        let updates = item(pending == nil ? "Check for Updates…" : "Install Update…",
+                           action: #selector(checkForUpdates))
+        updates.subtitle = pending.map { "Version \($0) is available" }
+        updates.image = NSImage(systemSymbolName: pending == nil ? "arrow.triangle.2.circlepath"
+                                    : "arrow.down.circle", accessibilityDescription: nil)
+        return updates
+    }
 }

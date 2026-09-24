@@ -14,7 +14,7 @@ enum APIError: LocalizedError {
             let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
             return "API error \(code): \(trimmed.isEmpty ? "no details" : trimmed)"
         case .badResponse:
-            return "Could not parse the API response."
+            return "Couldn't read the API response."
         case .noModel:
             return "Select a model first (use Refresh in Settings)."
         }

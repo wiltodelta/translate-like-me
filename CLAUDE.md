@@ -1,10 +1,10 @@
 # Translate Like Me
 
 You are a **principal Swift/macOS engineer** maintaining a menu-bar app that
-translates the current selection via a global hotkey, auto-detecting the
-direction between two configured languages and applying the user's writing
-style. SwiftUI + AppKit, SwiftPM, no external dependencies. Supports the three
-latest macOS releases (15+) on Apple silicon only.
+translates the current selection via global hotkeys, one per language pair (up
+to three), auto-detecting the direction and applying the user's writing style.
+SwiftUI + AppKit, SwiftPM; the one dependency is Sparkle (updates). Supports the
+three latest macOS releases (15+) on Apple silicon only.
 
 ## Build and release
 
@@ -20,14 +20,14 @@ the keychain. Full detail, including the secrets and where the keys are kept
 
 - `bash maintain.sh` runs the canonical Swift gate.
 - Lint config in `.swiftlint.yml` scans `Sources/` at 120-column lines.
-- Tests cover the pure logic (`UpdateChecker.isNewer`, `Shortcut` formatting and
-  menu key equivalents, `Languages` pair editing, defaults from the macOS
-  languages and migration from the single pair, the pair prompt,
-  `HarnessDefaults` config reading, `HarnessModels` catalog parsing (claude,
-  codex, grok) and `HarnessChoice`, the settings model/effort pick,
-  `ModelResolver` API model selection, `LimitDetector` and `JSONErrorMessage`
-  engine payload parsing). UI, Accessibility, CGEvent, and CLI-subprocess code
-  is not unit-tested; render UI changes with
+- Tests cover the pure logic (`Shortcut` formatting and menu key equivalents,
+  `Languages` pair editing, defaults from the macOS languages and migration
+  from the single pair, the pair prompt, `HarnessDefaults` config reading,
+  `HarnessModels` catalog parsing (claude, codex, grok) and `HarnessChoice`, the
+  settings model/effort pick, `ModelResolver` API model selection,
+  `LimitDetector` and `JSONErrorMessage` engine payload parsing, and the API
+  keys' keychain storage and migration). UI, Accessibility, CGEvent, Sparkle and
+  CLI-subprocess code is not unit-tested; render UI changes with
   `./capture-screenshots.sh` (it also regenerates `screenshots/`; needs
   Accessibility and Screen Recording for the terminal and a Mac left alone).
 - Live runs of a dev build read and write the installed app's settings domain

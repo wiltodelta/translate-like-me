@@ -35,9 +35,6 @@ Read before editing this domain.
   an earlier run that kept the defaults) for an existing user, the macOS
   languages for a new one. `TranslationController.run(pair:)` copies the
   selection, translates, and pastes back.
-  While a modal alert is open (an update prompt) the hotkey brings the alert
-  forward instead of running: the modal holds the main actor, so a run would
-  stall and then copy from whatever app is in front once it closes.
   Each run logs its frontmost app, outcome, and failures through `os.Logger`:
   `/usr/bin/log stream --level info --predicate 'subsystem ==
   "com.wiltodelta.translatelikeme"'` (plain `log` is a zsh builtin).
@@ -67,7 +64,9 @@ Read before editing this domain.
   config, so `HarnessDefaults` reads just the user's default model and effort
   (claude `settings.json` `model`/`effortLevel`, codex `config.toml`
   `model`/`model_reasoning_effort`) and passes them back as flags; grok reads
-  its own config. A default effort the picked model does not list is dropped.
+  its own config, and its default model (for the "Default (…)" label and the
+  Effort picker) is the "Default model:" line of `grok models`, the sign-in
+  probe, cached in `Settings.grokDefaultModel`. A default effort the picked model does not list is dropped.
   `ModelResolver` picks only for API-key mode (newest Sonnet, or OpenAI's
   `luna` fast tier, formerly `mini`). Known gap: codex still loads the
   global `$CODEX_HOME/AGENTS.md` into every translation (measured ~9.3k tokens
@@ -84,4 +83,10 @@ Read before editing this domain.
   and `PopupController.showLimitReached` shows the engine's reset time with an
   Open Settings action. `EngineStatus` stays
   sign-in-based: `claude usage` is too slow (~26s) for proactive checks.
-- `UpdateChecker` checks GitHub Releases on launch and from Settings.
+- Updates are Sparkle (`Updater`): a daily check against the appcast each
+  release publishes, with gentle reminders so a scheduled find never takes
+  focus (the menu item turns into "Install Update…"). Packaging and keys:
+  `docs/build-and-release.md`.
+- API keys are keychain items (`Keychain`, service = bundle id);
+  `Settings.moveAPIKeysToKeychain()` moves plain-text keys from earlier versions
+  at launch. Logging goes through `Logger.app(category)`, one subsystem.

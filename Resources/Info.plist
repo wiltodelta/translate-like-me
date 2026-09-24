@@ -32,5 +32,15 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright 2026 Victor Kuznetsov. Licensed under Apache-2.0.</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/wiltodelta/translate-like-me/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>hqKKidqlpRpssnvj1i6i1qY+jYdPjjDKIZHFyOxyGhc=</string>
+	<key>SURequireSignedFeed</key>
+	<true/>
+	<key>SUVerifyUpdateBeforeExtraction</key>
+	<true/>
 </dict>
 </plist>

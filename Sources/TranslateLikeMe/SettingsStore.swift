@@ -85,6 +85,7 @@ final class SettingsStore {
         loadingPick = true
         defer { loadingPick = false }
         catalog = HarnessModels.catalog(for: provider)
+        if provider == .grok { refreshGrokDefault() }
         configured = HarnessDefaults.configured(for: provider)
         pick = Settings.harnessPick(for: provider)
     }
@@ -99,6 +100,16 @@ final class SettingsStore {
             return
         }
         Settings.setHarnessPick(pick, for: provider)
+    }
+
+    // grok's default model comes from running `grok models` (~1 s), so it is
+    // asked off the main thread and the catalog reloaded when it answers.
+    private func refreshGrokDefault() {
+        Task {
+            await Task.detached { EngineStatus.refreshGrokDefault() }.value
+            guard provider == .grok else { return }
+            catalog.defaultModel = Settings.grokDefaultModel
+        }
     }
 
     // MARK: - Bindings scoped to the selected provider

@@ -70,8 +70,10 @@ enum HarnessModels {
             return (try? Data(contentsOf: CLIHome.file("models_cache.json", env: "CODEX_HOME", dir: ".codex")))
                 .map(parseCodex) ?? HarnessCatalog()
         case .grok:
-            return (try? Data(contentsOf: CLIHome.file("models_cache.json", env: "GROK_HOME", dir: ".grok")))
+            var catalog = (try? Data(contentsOf: CLIHome.file("models_cache.json", env: "GROK_HOME", dir: ".grok")))
                 .map(parseGrok) ?? HarnessCatalog()
+            catalog.defaultModel = Settings.grokDefaultModel
+            return catalog
         }
     }
 
@@ -133,6 +135,18 @@ enum HarnessModels {
             .sorted { $0.id.compare($1.id, options: .numeric) == .orderedDescending })
     }
 
+    // `grok models` prints "Default model: grok-4.7" (grok 1.0.41, 2026-09-24).
+    static func grokDefaultModel(in output: String) -> String? {
+        output.split(separator: "\n").lazy
+            .compactMap { line -> String? in
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                guard trimmed.hasPrefix("Default model:") else { return nil }
+                let model = trimmed.dropFirst("Default model:".count).trimmingCharacters(in: .whitespaces)
+                return model.isEmpty ? nil : model
+            }
+            .first
+    }
+
     private static func effort(_ id: Any?, name: Any?) -> HarnessEffort? {
         guard let id = id as? String else { return nil }
         return HarnessEffort(id: id, name: name as? String ?? id.capitalized)
@@ -146,7 +160,8 @@ enum HarnessModels {
             at: dir, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
         let newest = files.filter { $0.lastPathComponent.hasSuffix("-cc.json") }.max { lhs, rhs in
             let date = { (url: URL) in
-                (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+                    ?? .distantPast
             }
             return date(lhs) < date(rhs)
         }

@@ -6,7 +6,8 @@ import SwiftUI
 struct GeneralSettingsView: View {
     @Bindable var store: SettingsStore
     @State private var launchAtLogin = LoginItem.isEnabled
-    @State private var updater = UpdateChecker.shared
+    @State private var loginItemError: String?
+    @State private var updater = Updater.shared
 
     var body: some View {
         Form {
@@ -46,14 +47,21 @@ struct GeneralSettingsView: View {
         Section {
             // HIG (Toggles, macOS): a mini switch for a single-row setting in a
             // grouped form keeps the row height consistent with other controls.
-            Toggle("Launch at login", isOn: $launchAtLogin)
+            // Shows what macOS actually did: a refused change flips back and says why.
+            Toggle("Launch at login", isOn: Binding(
+                get: { launchAtLogin },
+                set: {
+                    loginItemError = LoginItem.set($0)
+                    launchAtLogin = LoginItem.isEnabled
+                }
+            ))
                 .toggleStyle(.switch)
                 .controlSize(.mini)
-                .onChange(of: launchAtLogin) { LoginItem.set(launchAtLogin) }
         } header: {
             Text("Startup")
         } footer: {
-            Text("Start Translate Like Me automatically when you log in to your Mac.")
+            Text(loginItemError.map { "Couldn't change this: \($0)" }
+                 ?? "Start Translate Like Me automatically when you log in to your Mac.")
         }
     }
 
@@ -62,16 +70,17 @@ struct GeneralSettingsView: View {
     private var updatesSection: some View {
         Section {
             LabeledContent("Version", value: updater.version)
-            Button {
-                updater.checkForUpdates(manual: true)
-            } label: {
-                Text(updater.isChecking ? "Checking…" : "Check for Updates…")
-            }
-            .disabled(updater.isChecking)
+            Toggle("Check for updates automatically", isOn: Binding(
+                get: { updater.automaticallyChecks },
+                set: { updater.automaticallyChecks = $0 }
+            ))
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+            Button("Check for Updates…") { updater.checkForUpdates() }
         } header: {
             Text("Updates")
         } footer: {
-            Text("Checks GitHub for a newer version on launch and offers to open the download page.")
+            Text("Checks once a day and installs a new version when you choose to.")
         }
     }
 }

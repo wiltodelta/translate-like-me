@@ -156,6 +156,7 @@ enum Settings {
         // capture-screenshots.sh overrides this key by name with sample pairs.
         static let languagePairs = "languagePairs"
         static let didCompleteFirstRun = "didCompleteFirstRun"
+        static let grokDefaultModel = "grokDefaultModel"
         // Before pairs: one pair and one shortcut, read only to migrate.
         static let languageA = "languageA"
         static let languageB = "languageB"
@@ -177,6 +178,13 @@ enum Settings {
             return pairs
         }
         set { defaults.set(try? JSONEncoder().encode(newValue), forKey: Key.languagePairs) }
+    }
+
+    // The default model `grok models` last reported (EngineStatus); a cache,
+    // since grok's own config is not read.
+    static var grokDefaultModel: String? {
+        get { defaults.string(forKey: Key.grokDefaultModel) }
+        set { defaults.set(newValue, forKey: Key.grokDefaultModel) }
     }
 
     static func languagePair(id: LanguagePair.ID) -> LanguagePair? {
@@ -226,14 +234,31 @@ enum Settings {
         set { defaults.set(newValue, forKey: Key.style) }
     }
 
+    // API keys live in the keychain (Keychain), never in the plain-text defaults.
     static var anthropicKey: String {
-        get { defaults.string(forKey: Key.anthropicKey) ?? "" }
-        set { defaults.set(newValue, forKey: Key.anthropicKey) }
+        get { Keychain.read(Key.anthropicKey) ?? "" }
+        set { Keychain.write(newValue, for: Key.anthropicKey) }
     }
 
     static var openaiKey: String {
-        get { defaults.string(forKey: Key.openaiKey) ?? "" }
-        set { defaults.set(newValue, forKey: Key.openaiKey) }
+        get { Keychain.read(Key.openaiKey) ?? "" }
+        set { Keychain.write(newValue, for: Key.openaiKey) }
+    }
+
+    // Moves API keys an earlier version kept in the defaults into the keychain
+    // and removes the plain-text copies once the keychain holds a key (one
+    // already there wins). Call at launch.
+    static func moveAPIKeysToKeychain(from store: UserDefaults = .standard,
+                                      service: String = Keychain.service) {
+        for key in [Key.anthropicKey, Key.openaiKey] {
+            guard let value = store.string(forKey: key) else { continue }
+            if !value.isEmpty, Keychain.read(key, service: service) == nil {
+                Keychain.write(value, for: key, service: service)
+            }
+            if value.isEmpty || Keychain.read(key, service: service) != nil {
+                store.removeObject(forKey: key)
+            }
+        }
     }
 
     // MARK: - Derived accessors keyed by the active/selected provider

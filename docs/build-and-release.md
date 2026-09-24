@@ -57,26 +57,46 @@ detail an engineer needs.
 
 Automated via GitHub Actions ([`.github/workflows/build.yml`](../.github/workflows/build.yml)):
 
-1. `git tag -a vX.Y -m "Translate Like Me X.Y"` then `git push origin vX.Y`.
+1. `git tag -a vX.Y -F notes.md` then `git push origin vX.Y`. The annotation's
+   first line is the title ("Translate Like Me X.Y"); its body, after a blank
+   line, is the release notes in Markdown.
 2. The workflow runs SwiftLint and tests, imports the Developer ID
    identity and the notarytool profile into a temporary keychain, builds and
    signs via `RELEASE=1 build.sh` (which stamps `X.Y` from the tag), notarizes
    and staples via `notarize.sh`, and publishes
    a GitHub Release with `Translate-Like-Me-vX.Y-macOS.zip` attached. The keychain
-   is deleted at the end. `UpdateChecker` compares that tag to the installed
-   version.
+   is deleted at the end.
+3. It also generates `appcast.xml` with Sparkle's `generate_appcast`: this
+   release only, its EdDSA signature, and the tag body embedded as Markdown
+   release notes (also the GitHub release body). The app's `SUFeedURL` is
+   `releases/latest/download/appcast.xml`, so publishing the release is what
+   offers it to installed copies.
+
+Sparkle (`Updater.swift`, `SPUStandardUpdaterController`) is the one updater.
+`build.sh` copies `Sparkle.framework` from the SwiftPM build into
+`Contents/Frameworks`, adds the `@executable_path/../Frameworks` rpath, removes
+its XPC services (they exist for sandboxed apps; this one is not), ships its
+MIT license as `Sparkle LICENSE.txt`, and signs `Autoupdate`, `Updater.app`,
+the framework and the app in that order, per Sparkle's manual-signing docs. The
+EdDSA private key is in the login keychain (Sparkle's `generate_keys`), in the
+1Password item as "Sparkle EdDSA private key" and in the `SPARKLE_PRIVATE_KEY`
+secret; one key serves every app of the team, and `SUPublicEDKey` in
+`Info.plist` is its public half. Losing it means shipping a new public key in a
+release signed with the old one. The end-to-end path (old build, local appcast,
+Install Update, relaunch into the new version) was run on 2026-09-24.
 
 The repository secrets it reads are `DEVELOPER_ID_P12_BASE64` and
 `DEVELOPER_ID_P12_PASSWORD` (the identity as a `.p12`),
-`NOTARY_KEY_P8_BASE64`, `NOTARY_KEY_ID` and `NOTARY_ISSUER_ID`. Only tag builds
+`NOTARY_KEY_P8_BASE64`, `NOTARY_KEY_ID`, `NOTARY_ISSUER_ID`, and
+`SPARKLE_PRIVATE_KEY`. Only tag builds
 read them, and GitHub never passes them to pull requests from forks; branch
 builds stay ad hoc. The Developer ID certificate expires on 2031-09-17: renew it
 on the Apple Developer portal and reset the two identity secrets.
 
 `build.sh` stamps the bundle with the latest tag (`git describe --tags
 --abbrev=0`), falling back to the committed `Info.plist` without tags, so a
-local build never reports an older version than the release and raises the
-update alert on every launch. Local bundles are for local use, not
+local build never reports an older version than the release, which Sparkle
+would then offer over it. Local bundles are for local use, not
 distribution.
 
 Verify a release before moving on (re-download, then check the signature and the

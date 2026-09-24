@@ -1,7 +1,7 @@
 import AppKit
 import os
 
-private let log = Logger(subsystem: "com.wiltodelta.translatelikeme", category: "translation")
+private let log = Logger.app("translation")
 
 // Whether a translation is currently in flight. The status item swaps its icon
 // between the idle plate and the busy glyph in response to `.translationActivityChanged`.
@@ -40,15 +40,6 @@ final class TranslationController {
             log.info("Translate ignored: a translation is already running")
             return
         }
-        // A modal alert (an update prompt) holds the main actor, so a run would
-        // stall until it closes and then copy from whatever app is in front by
-        // then. Show the alert instead.
-        if let modal = NSApp.modalWindow {
-            log.info("Translate ignored: an alert is open")
-            NSApp.activate(ignoringOtherApps: true)
-            modal.makeKeyAndOrderFront(nil)
-            return
-        }
         TranslationActivity.shared.isBusy = true
         let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "unknown"
         log.info("Translate started, pair: \(pair.title, privacy: .public), frontmost app: \(front, privacy: .public)")
@@ -56,13 +47,16 @@ final class TranslationController {
         Task {
             defer { TranslationActivity.shared.isBusy = false }
 
-            let original = await offMain { SelectionService.currentClipboard() }
+            let original = await offMain { SelectionService.snapshot() }
             let selection = await offMain { SelectionService.copySelection() }
+            // The pasteboard as this run left it; a restore is skipped if anything
+            // (the user) writes to it after this point.
+            let copied = await offMain { SelectionService.changeCount }
 
             guard let selection,
                   !selection.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 log.warning("No selection copied from \(front, privacy: .public)")
-                await offMain { SelectionService.restoreClipboard(original) }
+                await offMain { SelectionService.restore(original, ifUnchangedSince: copied) }
                 PopupController.shared.showError("No text selected. Select some text first, then press the shortcut.")
                 return
             }
@@ -76,8 +70,9 @@ final class TranslationController {
                 if landed {
                     // Restore the original clipboard now that the paste has replaced
                     // the selection.
+                    let mark = await offMain { SelectionService.changeCount }
                     try? await Task.sleep(for: .milliseconds(600))
-                    await offMain { SelectionService.restoreClipboard(original) }
+                    await offMain { SelectionService.restore(original, ifUnchangedSince: mark) }
                 } else {
                     // Read-only target: keep the translation on the clipboard and
                     // show it so it isn't lost.
@@ -85,8 +80,11 @@ final class TranslationController {
                     PopupController.shared.showTranslation(translated)
                 }
             } catch {
-                log.error("Translation failed: \(error.localizedDescription, privacy: .public)")
-                await offMain { SelectionService.restoreClipboard(original) }
+                // The message can quote the engine's output, so it stays private.
+                let kind = String(describing: type(of: error))
+                let detail = error.localizedDescription
+                log.error("Translation failed (\(kind, privacy: .public)): \(detail, privacy: .private)")
+                await offMain { SelectionService.restore(original, ifUnchangedSince: copied) }
                 if let limit = error as? LimitReachedError {
                     PopupController.shared.showLimitReached(limit.message)
                 } else {

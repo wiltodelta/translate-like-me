@@ -18,7 +18,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       with:
         fetch-depth: 0
         fetch-tags: true
@@ -48,7 +48,7 @@ jobs:
         if ! command -v swiftlint >/dev/null 2>&1; then
           brew install swiftlint
         fi
-        swiftlint lint
+        swiftlint lint --strict
 
     - name: Run tests
       run: swift test
@@ -94,14 +94,46 @@ jobs:
 
     - name: Notarize and zip (on tag)
       if: startsWith(github.ref, 'refs/tags/v')
-      run: ./notarize.sh
+      run: |
+        ./notarize.sh
+        # Nothing after this needs the Developer ID; lock it before third-party
+        # steps run.
+        security lock-keychain "$SIGNING_KEYCHAIN"
+
+    # The Sparkle feed installed apps read (SUFeedURL points at the latest
+    # release's appcast.xml). It holds this release only, signed with the EdDSA
+    # key, and embeds the release notes: the tag annotation's body, which is also
+    # the GitHub release body, so the notes are written once, in `git tag -a`.
+    - name: Generate the Sparkle appcast (on tag)
+      if: startsWith(github.ref, 'refs/tags/v')
+      env:
+        SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+      run: |
+        FEED="$RUNNER_TEMP/appcast"
+        mkdir -p "$FEED"
+        ZIP=$(ls Translate-Like-Me-v*-macOS.zip)
+        cp "$ZIP" "$FEED/"
+        # Release notes are the annotated tag's body; refuse a lightweight tag or
+        # an empty body rather than publish a release without notes.
+        [[ $(git cat-file -t "$GITHUB_REF_NAME") == tag ]] ||
+          { echo "::error::$GITHUB_REF_NAME must be an annotated tag (git tag -a)"; exit 1; }
+        git tag -l --format='%(contents:body)' "$GITHUB_REF_NAME" > release-notes.md
+        grep -q '[^[:space:]]' release-notes.md ||
+          { echo "::error::the $GITHUB_REF_NAME annotation has no body; it is the release notes"; exit 1; }
+        cp release-notes.md "$FEED/${ZIP%.zip}.md"
+        echo "$SPARKLE_PRIVATE_KEY" | .build/artifacts/sparkle/Sparkle/bin/generate_appcast \
+          --ed-key-file - --embed-release-notes --maximum-deltas 0 \
+          --download-url-prefix "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/" \
+          -o "$PWD/appcast.xml" "$FEED"
+        grep -q 'sparkle:edSignature' appcast.xml
+        cat appcast.xml
 
     - name: Zip unsigned build (not a tag)
       if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
       run: ./notarize.sh --zip-only
 
     - name: Upload app bundle
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
       with:
         name: Translate-Like-Me-macOS
         path: Translate-Like-Me-v*-macOS.zip
@@ -109,9 +141,12 @@ jobs:
 
     - name: Create release (on tag)
       if: startsWith(github.ref, 'refs/tags/v')
-      uses: softprops/action-gh-release@v3
+      uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
       with:
-        files: Translate-Like-Me-v*-macOS.zip
+        files: |
+          Translate-Like-Me-v*-macOS.zip
+          appcast.xml
+        body_path: release-notes.md
         draft: false
         prerelease: false
       env:

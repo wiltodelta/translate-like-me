@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // Before anything reads the pairs, and before the first-run flag below,
         // which the migration reads as "an earlier version ran here".
         Settings.persistLanguagePairs()
+        Settings.moveAPIKeysToKeychain()
 
         setUpStatusItem()
 
@@ -38,15 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         registerHotKeys()
         ensureAccessibilityPermission()
         openSettingsOnFirstRun()
-        checkForUpdatesOnLaunch()
-    }
-
-    // A short delay keeps launch snappy and avoids a modal racing the first-run
-    // Settings window. Silent when already on the latest version.
-    private func checkForUpdatesOnLaunch() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            UpdateChecker.shared.checkForUpdates()
-        }
+        Updater.shared.start()
     }
 
     // On the very first launch, open Settings on the Translation pane so the

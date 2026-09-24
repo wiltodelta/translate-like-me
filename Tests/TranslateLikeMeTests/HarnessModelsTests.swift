@@ -72,6 +72,22 @@ final class HarnessModelsTests: XCTestCase {
                                                           .init(id: "high", name: "High")])
     }
 
+    // Captured from `grok models`, grok 1.0.41, 2026-09-24.
+    func testGrokDefaultModelIsReadFromItsModelsOutput() {
+        let output = """
+        You are logged in with grok.com.
+
+        Default model: grok-4.7
+
+        Available models:
+          * grok-4.7 (default)
+          - grok-4.5
+        """
+        XCTAssertEqual(HarnessModels.grokDefaultModel(in: output), "grok-4.7")
+        XCTAssertNil(HarnessModels.grokDefaultModel(in: "You are not authenticated."))
+        XCTAssertNil(HarnessModels.grokDefaultModel(in: "Default model:   "))
+    }
+
     // A changed or broken cache must yield no models, never a crash, so Settings
     // falls back to "Default" alone.
     func testUnreadableCachesYieldNoModels() {

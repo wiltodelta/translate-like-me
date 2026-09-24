@@ -8,8 +8,8 @@ enum TranslatorError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .binaryNotFound(let name):
-            return "Could not find the '\(name)' CLI. Set its full path in "
-                + "Settings, or make sure it is installed and logged in."
+            return "Couldn't find the '\(name)' command-line tool. Install it and sign in, "
+                + "then try again."
         case .empty:
             return "The translation engine returned no text."
         case .failed(let message):
@@ -80,7 +80,8 @@ enum Translator {
         var examples = "\n\nExample: input \"Could you send me the file?\" (a request) "
             + "-> output is its translation into the output language, not a reply like \"Sure, here it is.\"\n"
             + "Example: input \"When is the release planned?\" (a direct question) "
-            + "-> output is its translation into the output language, not an answer, and not a same-language rephrase.\n"
+            + "-> output is its translation into the output language, not an answer, "
+            + "and not a same-language rephrase.\n"
             + "Example: input \"Привет\" (a bare greeting) -> output \"Hi\" or \"Hello\" (its translation), "
             + "not \"Привет\" unchanged and not a reply like \"Привет! Как дела?\""
         if !style.isEmpty {
@@ -122,8 +123,11 @@ enum Translator {
         // Dropping CLAUDE.md is also correct on its own: the user's working
         // instructions there should never leak into or steer the translation. This
         // is NOT extended thinking - the model does one short turn.
+        // --no-session-persistence: claude would otherwise keep every selection
+        // in ~/.claude/projects indefinitely.
         var args = ["-p", "--output-format", "text", "--system-prompt", system,
-                    "--tools", "", "--strict-mcp-config", "--setting-sources", ""]
+                    "--tools", "", "--strict-mcp-config", "--setting-sources", "",
+                    "--no-session-persistence"]
         // The model and effort picked in Settings, else the user's defaults from
         // their Claude Code settings, which --setting-sources "" would otherwise
         // drop (HarnessChoice, HarnessDefaults).
@@ -153,13 +157,29 @@ enum Translator {
         // The model and reasoning effort are the ones picked in Settings, else the
         // user's own defaults from that config, passed back explicitly
         // (HarnessChoice, HarnessDefaults).
-        var args = ["exec", "--skip-git-repo-check", "--ignore-user-config", "--ignore-rules"]
+        // --ephemeral keeps the selection out of ~/.codex/sessions. codex is an
+        // agent with tools on by default, so text from a web page could talk it
+        // into reading local files: the sandbox is read-only and every tool that
+        // reads, runs or browses is off (feature names from `codex features list`,
+        // codex-cli 0.156.1, checked 2026-09-24). `-c features.<name>=false`, not
+        // `--disable`: codex rejects an unknown `--disable` name outright, so a
+        // renamed feature would break every translation; an unknown `-c` key only
+        // warns.
+        var args = ["exec", "--skip-git-repo-check", "--ignore-user-config", "--ignore-rules",
+                    "--ephemeral", "-s", "read-only"]
+        for feature in ["shell_tool", "unified_exec", "browser_use", "browser_use_external",
+                        "computer_use", "image_generation", "apps", "view_image", "multi_agent",
+                        "plugins", "in_app_browser"] {
+            args += ["-c", "features.\(feature)=false"]
+        }
         let choice = HarnessChoice.current(for: .openai)
         if let model = choice.model { args += ["-m", model] }
         if let effort = choice.effort { args += ["-c", "model_reasoning_effort=\(effort)"] }
-        args += ["-o", outFile, promptEnvelope(system: system, text: text)]
+        // "-": the prompt comes on stdin, so the selection is not in the process
+        // list the way a command-line argument is.
+        args += ["-o", outFile, "-"]
 
-        _ = try await runProcess(binary: binary, args: args, stdin: nil)
+        _ = try await runProcess(binary: binary, args: args, stdin: promptEnvelope(system: system, text: text))
         let result = (try? String(contentsOfFile: outFile, encoding: .utf8)) ?? ""
         return try cleaned(result)
     }
@@ -264,11 +284,9 @@ enum Translator {
                 // text instead of raw JSON.
                 continuation.resume(throwing: TranslatorError.failed(jsonMessage))
             } else {
-                let detail = [stderr, stdout]
-                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                    .first { !$0.isEmpty }
                 continuation.resume(throwing: TranslatorError.failed(
-                    detail ?? "Engine exited with status \(process.terminationStatus)."))
+                    FailureDetail.summary(stderr: stderr, stdout: stdout)
+                        ?? "Engine exited with status \(process.terminationStatus)."))
             }
         } else {
             continuation.resume(returning: stdout)
@@ -284,6 +302,15 @@ enum Translator {
     // checks resolve the same tools and auth.
     static func toolEnvironment(adding extra: [String: String] = [:]) -> [String: String] {
         var env = ProcessInfo.processInfo.environment
+        // Only the CLIs (subscription mode, and their status checks) run with this
+        // environment; API-key mode calls the APIs directly. Subscription mode
+        // means the user's CLI sign-in; an API key or endpoint
+        // inherited from the login environment would silently switch claude or
+        // codex to per-use API billing or another provider.
+        for key in ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL",
+                    "OPENAI_API_KEY", "OPENAI_BASE_URL"] {
+            env[key] = nil
+        }
         let home = NSHomeDirectory()
         let extraPaths = ["\(home)/.local/bin", "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
         env["PATH"] = (extraPaths + [env["PATH"] ?? ""]).joined(separator: ":")
@@ -334,6 +361,26 @@ enum Translator {
             if !path.isEmpty, FileManager.default.isExecutableFile(atPath: path) { return path }
         } catch {
             return nil
+        }
+        return nil
+    }
+}
+
+// The part of a failed CLI's output worth showing: codex echoes the whole prompt
+// (the user's selection) on stderr before its `ERROR:` lines, so those lines win;
+// otherwise the last few lines of the stream that has any, capped.
+enum FailureDetail {
+    static func summary(stderr: String, stdout: String, limit: Int = 300) -> String? {
+        let errorLines = stderr.split(separator: "\n")
+            .filter { $0.hasPrefix("ERROR:") }
+            .map { $0.dropFirst("ERROR:".count).trimmingCharacters(in: .whitespaces) }
+        var unique: [String] = []
+        for line in errorLines where !unique.contains(line) { unique.append(line) }
+        if !unique.isEmpty { return String(unique.joined(separator: "\n").prefix(limit)) }
+        for stream in [stderr, stdout] {
+            let lines = stream.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+            if !lines.isEmpty { return String(lines.suffix(3).joined(separator: "\n").prefix(limit)) }
         }
         return nil
     }

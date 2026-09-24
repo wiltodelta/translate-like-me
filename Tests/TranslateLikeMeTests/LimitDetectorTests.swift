@@ -12,20 +12,35 @@ final class LimitDetectorTests: XCTestCase {
     private let codexStderr = """
         OpenAI Codex v0.147.0
         --------
-        workdir: /Users/wiltodelta/Documents/GitHub/translate-like-me
+        workdir: /Users/example/translate-like-me
         model: gpt-5.4-mini
         provider: openai
         approval: never
         sandbox: read-only
         reasoning effort: low
         reasoning summaries: none
-        session id: 01a011e3-c3de-7d90-a9f2-f694c5b3d9c9
+        session id: 00000000-0000-0000-0000-000000000000
         --------
         user
         Translate to Russian: hi
         ERROR: You've hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Aug 19th, 2026 8:29 PM.
         ERROR: You've hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Aug 19th, 2026 8:29 PM.
         """
+
+    // codex echoes the prompt, the user's selection, before its ERROR lines; the
+    // message shown and logged must carry only the error.
+    func testFailureDetailKeepsCodexErrorsAndDropsTheEchoedPrompt() {
+        let detail = FailureDetail.summary(stderr: codexStderr, stdout: "")
+        XCTAssertEqual(detail, codexUsageLine)
+        XCTAssertFalse(detail?.contains("Translate to Russian") ?? true)
+    }
+
+    func testFailureDetailFallsBackToTheLastLinesCapped() {
+        let long = String(repeating: "x", count: 500)
+        XCTAssertEqual(FailureDetail.summary(stderr: "", stdout: "a\nb\nc\nd"), "b\nc\nd")
+        XCTAssertEqual(FailureDetail.summary(stderr: long, stdout: "")?.count, 300)
+        XCTAssertNil(FailureDetail.summary(stderr: " \n", stdout: ""))
+    }
 
     func testClaudeWeeklyLimit() {
         XCTAssertEqual(LimitDetector.message(in: claudeWeekly), claudeWeekly)
