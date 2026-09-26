@@ -16,16 +16,36 @@ struct KeyCombo: Codable, Equatable {
     var modifiers: Int
 }
 
-// Two languages translated between, with an optional shortcut of its own. The
-// input's language is detected; text in `first` becomes `second`, and text in
-// `second` or in any other language becomes `first`.
+// Two languages translated between, with an optional shortcut and writing style
+// of its own. The input's language is detected; text in `first` becomes
+// `second`, and text in `second` or in any other language becomes `first`. Two
+// pairs may share languages, say one with the user's style for their own text
+// and one without for someone else's.
 struct LanguagePair: Codable, Equatable, Identifiable {
     var id = UUID()
     var first: String
     var second: String
     var shortcut: KeyCombo?
+    // Applied to this pair's translations; blank means a plain translation.
+    var style = ""
 
     var title: String { "\(Languages.name(for: first)) ↔ \(Languages.name(for: second))" }
+
+    // The style as applied; empty for a plain translation.
+    var trimmedStyle: String { style.trimmingCharacters(in: .whitespacesAndNewlines) }
+}
+
+// In an extension, so the memberwise initializer stays synthesized.
+extension LanguagePair {
+    // Pairs stored before styles moved into them have no style key.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        first = try container.decode(String.self, forKey: .first)
+        second = try container.decode(String.self, forKey: .second)
+        shortcut = try container.decodeIfPresent(KeyCombo.self, forKey: .shortcut)
+        style = try container.decodeIfPresent(String.self, forKey: .style) ?? ""
+    }
 }
 
 enum Languages {

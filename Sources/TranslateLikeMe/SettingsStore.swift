@@ -37,14 +37,14 @@ final class SettingsStore {
         }
     }
 
-    var style: String {
-        didSet { Settings.style = style }
-    }
-
     var pairs: [LanguagePair] {
         didSet {
             Settings.languagePairs = pairs
-            HotKeyManager.shared.reload(pairs: pairs)
+            // Hotkeys look their pair up when pressed, so a style or language
+            // edit needs no re-registration.
+            if oldValue.map(\.id) != pairs.map(\.id) || oldValue.map(\.shortcut) != pairs.map(\.shortcut) {
+                HotKeyManager.shared.reload(pairs: pairs)
+            }
         }
     }
 
@@ -65,7 +65,6 @@ final class SettingsStore {
     init() {
         provider = Settings.provider
         authMode = Settings.authMode
-        style = Settings.style
         pairs = Settings.languagePairs
         anthropicKey = Settings.anthropicKey
         openaiKey = Settings.openaiKey

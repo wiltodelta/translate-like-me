@@ -10,8 +10,8 @@
 #
 # The copy reads the real settings domain, so every value the images show that
 # is personal or would change the user's settings is overridden for this launch
-# only, through the argument domain (-key value): the writing style (the
-# repository is public), the language pairs, and the pane Settings opens on.
+# only, through the argument domain (-key value): the language pairs with their
+# writing styles (the repository is public), and the pane Settings opens on.
 # Nothing is written back.
 # build.sh stamps the latest tag, so the build raises no update alert.
 
@@ -22,10 +22,10 @@ APP_DIR="Translate Like Me.app"
 EXECUTABLE="$PWD/$APP_DIR/Contents/MacOS/TranslateLikeMe"
 OUT="screenshots"
 WORK=$(mktemp -d)
-SAMPLE_STYLE="Casual and friendly, short sentences."
-# Two sample pairs, Russian-English on ⌥⌘F and Russian-Spanish on ⌥⌘G, as the
-# JSON Settings.languagePairs stores, passed as an old-style plist <data> value.
-SAMPLE_PAIRS='[{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","first":"ru","second":"en","shortcut":{"keyCode":3,"modifiers":2304}},{"id":"7F9619FF-8B86-D011-B42D-00C04FC964FF","first":"ru","second":"es","shortcut":{"keyCode":5,"modifiers":2304}}]'
+# Two sample pairs, Russian-English on ⌥⌘F with a sample style and a plain
+# Russian-English on ⌥⌘G, as the JSON Settings.languagePairs stores, passed as
+# an old-style plist <data> value.
+SAMPLE_PAIRS='[{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","first":"ru","second":"en","shortcut":{"keyCode":3,"modifiers":2304},"style":"Casual and friendly, short sentences."},{"id":"7F9619FF-8B86-D011-B42D-00C04FC964FF","first":"ru","second":"en","shortcut":{"keyCode":5,"modifiers":2304},"style":""}]'
 
 # --- Build ----------------------------------------------------------------------
 
@@ -154,14 +154,14 @@ helper() { "$WORK/helper" "$@"; }
 # launch <pane>: a fresh copy with Settings set to open on <pane> (0 General, 1
 # Translation), since switching panes in the window would write the choice back.
 # -n: a new instance even while the installed copy (same bundle id) runs.
-# The keys are Settings.Key.style, .languagePairs, .provider, .authMode and
+# The keys are Settings.Key.languagePairs, .provider, .authMode and
 # SettingsTabViewController.lastPaneKey; they name this script, since a renamed
 # key would put the real settings into a public image. With the pairs overridden
-# the launch also writes none of its own.
+# the launch also writes none of its own and moves no old style into them.
 PID=""
 launch() {
     [ -n "$PID" ] && { kill "$PID"; sleep 1; }
-    open -n "$APP_DIR" --args -style "$SAMPLE_STYLE" -settingsSelectedPane "$1" \
+    open -n "$APP_DIR" --args -settingsSelectedPane "$1" \
         -provider anthropic -authMode subscription \
         -languagePairs "<$(printf '%s' "$SAMPLE_PAIRS" | xxd -p | tr -d '\n')>"
     PID=""

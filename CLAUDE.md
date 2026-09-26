@@ -21,19 +21,25 @@ the keychain. Full detail, including the secrets and where the keys are kept
 - `bash maintain.sh` runs the canonical Swift gate.
 - Lint config in `.swiftlint.yml` scans `Sources/` at 120-column lines.
 - Tests cover the pure logic (`Shortcut` formatting and menu key equivalents,
-  `Languages` pair editing, defaults from the macOS languages and migration
-  from the single pair, the pair prompt, `HarnessDefaults` config reading,
+  `Languages` pair editing, defaults from the macOS languages, migration
+  from the single pair and of the global style into the pairs, the pair
+  prompt, `HarnessDefaults` config reading,
   `HarnessModels` catalog parsing (claude, codex, grok) and `HarnessChoice`, the
   settings model/effort pick, `ModelResolver` API model selection,
   `LimitDetector` and `JSONErrorMessage` engine payload parsing, and the API
   keys' keychain storage and migration). UI, Accessibility, CGEvent, Sparkle and
   CLI-subprocess code is not unit-tested; render UI changes with
   `./capture-screenshots.sh` (it also regenerates `screenshots/`; needs
-  Accessibility and Screen Recording for the terminal and a Mac left alone).
+  Accessibility and Screen Recording for the terminal and a Mac left alone;
+  a closed menu mid-run fails it, rerun once). System Events `entire contents`
+  does not reach the SwiftUI controls in Settings: press them by walking
+  `AXUIElement` children and matching the title or accessibility label.
 - Live runs of a dev build read and write the installed app's settings domain
   (`com.wiltodelta.translatelikeme`): save and restore any key a test changes,
   or override it for one launch without writing (`open -n "Translate Like
-  Me.app" --args -authMode apiKey`, the argument domain).
+  Me.app" --args -authMode apiKey`, the argument domain). A dev launch also
+  runs the launch migrations on the real settings, so `defaults export
+  com.wiltodelta.translatelikeme <file>` before the first one.
   Probe engine CLIs with `env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN
   -u ANTHROPIC_BASE_URL`, or the harness's own variables redirect `claude`.
 

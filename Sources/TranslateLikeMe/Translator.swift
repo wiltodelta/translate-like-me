@@ -24,8 +24,7 @@ enum Translator {
     static func translate(_ text: String, pair: LanguagePair) async throws -> String {
         let provider = Settings.provider
         let auth = Settings.effectiveAuthMode
-        let style = Settings.style.trimmingCharacters(in: .whitespacesAndNewlines)
-        let system = systemPrompt(pair: pair, style: style)
+        let system = systemPrompt(pair: pair)
 
         switch (provider, auth) {
         case (.anthropic, .subscription):
@@ -50,7 +49,7 @@ enum Translator {
 
     // MARK: - Prompt
 
-    static func systemPrompt(pair: LanguagePair, style: String) -> String {
+    static func systemPrompt(pair: LanguagePair) -> String {
         // The numbered rules - and especially rules 3 and 5 - are load-bearing.
         // Verified against `claude -p`: without an explicit "never echo the
         // input" rule, the model sometimes returns the source text unchanged.
@@ -62,6 +61,7 @@ enum Translator {
         // given text. The one-shot example demonstrates the failure mode directly.
         let langA = Languages.name(for: pair.first)
         let langB = Languages.name(for: pair.second)
+        let style = pair.trimmedStyle
 
         var rules = "You are a translation engine, not an assistant. "
             + "Translate the user's text between \(langA) and \(langB). Rules: "

@@ -23,8 +23,10 @@ set up to three pairs, each on its own shortcut.
   translates to the other; text in any other language goes to the pair's first.
 - **Up to three language pairs**: for example Russian ↔ English on ⌥⌘F and
   Russian ↔ Spanish on ⌥⌘G.
-- **Your writing style**: an optional style description is applied to every
-  translation so the result sounds like you.
+- **Your writing style, per pair**: an optional style description makes a
+  pair's translations sound like you. Two pairs can share languages, for
+  example one with your style for your own text and a plain one for someone
+  else's.
 - **Bring your own engine**: Claude or ChatGPT, each via your existing
   subscription (official CLI) or your own API key, or Grok via its official
   CLI and your grok.com account.
@@ -95,13 +97,14 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
 
 Two panes, **General** and **Translation**. Changes apply immediately.
 
-- **Languages** (General): up to three pairs. Each row has the two languages, a
-  swap button, the pair's shortcut (click it and press a combo with ⌘, ⌥, or ⌃;
-  Delete clears it, and a combo another pair uses is refused), and a remove
-  button. Text in neither language of a pair is translated into its first
-  language, so put the language you read first.
-- **Your writing style**: free text applied to the translation. Paste a full
-  voice guide or a short distilled version. Leave empty for a plain translation.
+- **Languages** (General): up to three pairs. Each row has the two languages,
+  the pair's shortcut (click it and press a combo with ⌘, ⌥, or ⌃; Delete
+  clears it, and a combo another pair uses is refused), and a remove button,
+  with the pair's writing style below (Edit Style… opens it): free text applied
+  to that pair's translations. Paste a full voice guide or a short distilled
+  version, or leave it empty for a plain translation. The direction is detected
+  per translation; the order matters only for text in neither language, which
+  is translated into the first one, so put the language you read first.
 - **Translation engine**: provider (Claude / ChatGPT / Grok) and, for Claude and
   ChatGPT, how to connect (subscription or API key). In subscription mode, a
   **Model** and **Effort** picker lists what the CLI itself offers; **Default**
@@ -150,9 +153,9 @@ The app never pins a model:
 
 ## Privacy
 
-- The text you translate and your writing style go to the engine you picked and
-  nowhere else: Anthropic (Claude), OpenAI (ChatGPT), or xAI (Grok), through its
-  official CLI or API. The app has no server, analytics or telemetry.
+- The text you translate and the pair's writing style go to the engine you
+  picked and nowhere else: Anthropic (Claude), OpenAI (ChatGPT), or xAI (Grok),
+  through its official CLI or API. The app has no server, analytics or telemetry.
 - The claude and codex CLIs run with session history off, so translations are
   not kept in `~/.claude` or `~/.codex`. The grok CLI has no such switch and may
   keep its own history.

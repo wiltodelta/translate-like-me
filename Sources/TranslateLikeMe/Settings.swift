@@ -148,12 +148,12 @@ enum Settings {
     private enum Key {
         static let provider = "provider"
         static let authMode = "authMode"
-        // capture-screenshots.sh overrides this key by name, to keep the real
-        // style out of the public screenshots.
+        // Before styles moved into the pairs: one style for all, read only to migrate.
         static let style = "style"
         static let anthropicKey = "anthropicKey"
         static let openaiKey = "openaiKey"
-        // capture-screenshots.sh overrides this key by name with sample pairs.
+        // capture-screenshots.sh overrides this key by name with sample pairs,
+        // which also keeps the real styles out of the public screenshots.
         static let languagePairs = "languagePairs"
         static let didCompleteFirstRun = "didCompleteFirstRun"
         static let grokDefaultModel = "grokDefaultModel"
@@ -171,13 +171,20 @@ enum Settings {
     // never empty.
     static var languagePairs: [LanguagePair] {
         get {
-            guard let data = defaults.data(forKey: Key.languagePairs),
-                  let pairs = try? JSONDecoder().decode([LanguagePair].self, from: data), !pairs.isEmpty else {
-                return [legacyPair() ?? Languages.defaultPair(preferred: Locale.preferredLanguages)]
-            }
-            return pairs
+            storedPairs(in: defaults) ?? [legacyPair() ?? Languages.defaultPair(preferred: Locale.preferredLanguages)]
         }
-        set { defaults.set(try? JSONEncoder().encode(newValue), forKey: Key.languagePairs) }
+        set { storePairs(newValue, in: defaults) }
+    }
+
+    // The pairs as stored, nil when none are.
+    static func storedPairs(in store: UserDefaults) -> [LanguagePair]? {
+        guard let data = store.data(forKey: Key.languagePairs),
+              let pairs = try? JSONDecoder().decode([LanguagePair].self, from: data), !pairs.isEmpty else { return nil }
+        return pairs
+    }
+
+    static func storePairs(_ pairs: [LanguagePair], in store: UserDefaults) {
+        store.set(try? JSONEncoder().encode(pairs), forKey: Key.languagePairs)
     }
 
     // The default model `grok models` last reported (EngineStatus); a cache,
@@ -206,6 +213,23 @@ enum Settings {
         languagePairs = languagePairs
     }
 
+    // Gives every stored pair the one style an earlier version applied to all
+    // translations, then removes it. Once any pair has a style of its own the
+    // pairs are already set up, and an empty one is a deliberate plain pair, so
+    // the old style is only removed. Call after persistLanguagePairs. Skipped
+    // while the pairs are overridden for one launch (capture-screenshots.sh),
+    // which would write the sample pairs back.
+    static func moveStyleIntoPairs(in store: UserDefaults = .standard) {
+        let overridden = store.volatileDomain(forName: UserDefaults.argumentDomain)
+        guard overridden[Key.languagePairs] == nil, let style = store.string(forKey: Key.style) else { return }
+        if var pairs = storedPairs(in: store), pairs.allSatisfy({ $0.trimmedStyle.isEmpty }),
+           !style.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            for index in pairs.indices { pairs[index].style = style }
+            storePairs(pairs, in: store)
+        }
+        store.removeObject(forKey: Key.style)
+    }
+
     // The one pair and shortcut stored before pairs existed (defaults ru/en and
     // ⌥⌘F), for anyone who ran an earlier version; nil for a new user.
     static func legacyPair(in store: UserDefaults = .standard) -> LanguagePair? {
@@ -226,12 +250,6 @@ enum Settings {
     static var authMode: AuthMode {
         get { AuthMode(rawValue: defaults.string(forKey: Key.authMode) ?? "") ?? .subscription }
         set { defaults.set(newValue.rawValue, forKey: Key.authMode) }
-    }
-
-    // Custom writing style applied to the translation. Empty means plain translation.
-    static var style: String {
-        get { defaults.string(forKey: Key.style) ?? "" }
-        set { defaults.set(newValue, forKey: Key.style) }
     }
 
     // API keys live in the keychain (Keychain), never in the plain-text defaults.

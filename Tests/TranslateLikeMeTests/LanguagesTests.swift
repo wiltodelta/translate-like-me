@@ -90,10 +90,70 @@ final class LanguagesTests: XCTestCase {
         }
     }
 
+    // MARK: - Styles moving into the pairs
+
+    private func stored(_ pairs: [LanguagePair], in suite: UserDefaults) {
+        Settings.storePairs(pairs, in: suite)
+    }
+
+    private func styles(in suite: UserDefaults) -> [String] {
+        (Settings.storedPairs(in: suite) ?? []).map(\.style)
+    }
+
+    func testPairStoredWithoutAStyleDecodesAsPlain() throws {
+        let json = #"[{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","first":"ru","second":"en","#
+            + #""shortcut":{"keyCode":3,"modifiers":2304}}]"#
+        let pairs = try JSONDecoder().decode([LanguagePair].self, from: Data(json.utf8))
+        XCTAssertEqual(pairs.first?.style, "")
+        XCTAssertEqual(pairs.first?.shortcut, KeyCombo(keyCode: 3, modifiers: 2304))
+    }
+
+    func testOneStyleForAllMovesIntoEveryPair() {
+        withSuite { suite in
+            stored([pair("ru", "en"), pair("ru", "es")], in: suite)
+            suite.set("Casual.", forKey: "style")
+            Settings.moveStyleIntoPairs(in: suite)
+            XCTAssertEqual(styles(in: suite), ["Casual.", "Casual."])
+            XCTAssertNil(suite.object(forKey: "style"))
+        }
+    }
+
+    // A pair left plain next to a styled one is for someone else's text.
+    func testPairsWithTheirOwnStylesKeepThemAndThePlainOneStaysPlain() {
+        withSuite { suite in
+            var own = pair("ru", "en")
+            own.style = "Formal."
+            stored([own, pair("ru", "en")], in: suite)
+            suite.set("Casual.", forKey: "style")
+            Settings.moveStyleIntoPairs(in: suite)
+            XCTAssertEqual(styles(in: suite), ["Formal.", ""])
+            XCTAssertNil(suite.object(forKey: "style"))
+        }
+    }
+
+    func testEmptyStyleForAllLeavesThePairsPlain() {
+        withSuite { suite in
+            stored([pair("ru", "en")], in: suite)
+            suite.set("  ", forKey: "style")
+            Settings.moveStyleIntoPairs(in: suite)
+            XCTAssertEqual(styles(in: suite), [""])
+            XCTAssertNil(suite.object(forKey: "style"))
+        }
+    }
+
     // MARK: - Prompt
 
+    func testPromptCarriesOnlyItsOwnPairsStyle() {
+        var styled = pair("ru", "en")
+        styled.style = "Casual, short sentences."
+        XCTAssertTrue(Translator.systemPrompt(pair: styled).contains("in this voice"))
+        XCTAssertTrue(Translator.systemPrompt(pair: styled).contains("Casual, short sentences."))
+        styled.style = " \n"
+        XCTAssertFalse(Translator.systemPrompt(pair: styled).contains("in this voice"))
+    }
+
     func testPromptNamesThePairAndSendsOtherLanguagesToTheFirst() {
-        let prompt = Translator.systemPrompt(pair: pair("ru", "pt-BR"), style: "")
+        let prompt = Translator.systemPrompt(pair: pair("ru", "pt-BR"))
         XCTAssertTrue(prompt.contains("between Russian and Portuguese (Brazil)"))
         XCTAssertTrue(prompt.contains("if the input is Russian, the output is Portuguese (Brazil)"))
         XCTAssertTrue(prompt.contains("A third-language input is never translated into Portuguese (Brazil)."))

@@ -46,8 +46,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         // The app's key action: one item per language pair, showing its shortcut.
         menu.addItem(.separator())
         menu.addItem(.sectionHeader(title: "Translate Selection"))
-        for pair in Settings.languagePairs {
-            menu.addItem(translateItem(pair))
+        let pairs = Settings.languagePairs
+        for pair in pairs {
+            let shared = pairs.contains { $0.id != pair.id && $0.first == pair.first && $0.second == pair.second }
+            menu.addItem(translateItem(pair, showsStyle: shared))
         }
 
         // macOS 26 gives Settings… its standard gear icon, so its group gets an
@@ -126,10 +128,14 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     // MARK: - Commands
 
-    // Carries the pair's id; the pair is looked up when chosen.
-    private func translateItem(_ pair: LanguagePair) -> NSMenuItem {
+    // Carries the pair's id; the pair is looked up when chosen. Pairs that share
+    // languages are told apart by whether they apply a style.
+    private func translateItem(_ pair: LanguagePair, showsStyle: Bool) -> NSMenuItem {
         let item = self.item(pair.title, action: #selector(translateSelection(_:)))
         item.representedObject = pair.id
+        if showsStyle {
+            item.subtitle = pair.trimmedStyle.isEmpty ? "Plain translation" : "In your writing style"
+        }
         if let equivalent = pair.shortcut.flatMap(Shortcut.menuKeyEquivalent) {
             item.keyEquivalent = equivalent.key
             item.keyEquivalentModifierMask = equivalent.flags

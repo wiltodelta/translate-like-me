@@ -24,8 +24,10 @@ Read before editing this domain.
   panel: HIG Writing wants errors "as close to the problem as possible".
 - Language pairs (`LanguagePair`, up to `Languages.maxPairs` = 3, stored as JSON
   in `Settings.languagePairs`, edited under General > Languages) each carry an
-  optional shortcut; `HotKeyManager` registers one Carbon `RegisterEventHotKey`
-  per pair and the status menu lists one Translate Selection item per pair.
+  optional shortcut and writing style (`style`, empty for a plain translation;
+  pairs may share languages); `HotKeyManager` registers one Carbon `RegisterEventHotKey`
+  per pair and the status menu lists one Translate Selection item per pair
+  (pairs sharing languages get a subtitle saying which applies a style).
   The model detects the direction: text in `first` becomes `second`, anything
   else becomes `first` (`Translator.systemPrompt`). On-device detection
   (`NLLanguageRecognizer`) was measured and rejected: constrained to ru/en it
@@ -33,7 +35,10 @@ Read before editing this domain.
   `Settings.persistLanguagePairs()` runs first at launch and writes the pairs
   once: the pre-pairs `languageA`/`languageB`/`replaceKeyCode` (or ru/en ⌥⌘F for
   an earlier run that kept the defaults) for an existing user, the macOS
-  languages for a new one. `TranslationController.run(pair:)` copies the
+  languages for a new one; `Settings.moveStyleIntoPairs()` then copies the
+  earlier single global `style` into every pair when none has a style yet,
+  and removes it.
+  `TranslationController.run(pair:)` copies the
   selection, translates, and pastes back.
   Each run logs its frontmost app, outcome, and failures through `os.Logger`:
   `/usr/bin/log stream --level info --predicate 'subsystem ==

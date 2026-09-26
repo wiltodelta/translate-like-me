@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // Before anything reads the pairs, and before the first-run flag below,
         // which the migration reads as "an earlier version ran here".
         Settings.persistLanguagePairs()
+        Settings.moveStyleIntoPairs()
         Settings.moveAPIKeysToKeychain()
 
         setUpStatusItem()

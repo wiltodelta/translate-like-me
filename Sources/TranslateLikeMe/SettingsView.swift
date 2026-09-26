@@ -37,7 +37,9 @@ struct GeneralSettingsView: View {
         } footer: {
             Text("Select text in any app and press a pair's shortcut to replace it with the translation. "
                  + "The source language is detected automatically; text in neither language is "
-                 + "translated into the first one. Needs Accessibility permission (macOS will ask).")
+                 + "translated into the first one. A pair's writing style makes its translations sound "
+                 + "like you; two pairs can share languages, one with your style and one without, for "
+                 + "someone else's text. Needs Accessibility permission (macOS will ask).")
         }
     }
 
@@ -90,43 +92,12 @@ struct TranslationSettingsView: View {
 
     var body: some View {
         Form {
-            styleSection
             engineSection
             if store.effectiveAuthMode == .apiKey, let copy = store.provider.apiKeyCopy {
                 apiKeySection(copy)
             }
         }
         .settingsPane()
-    }
-
-    // MARK: - Writing style
-
-    // A simple, neutral starter so the box isn't empty. Intentionally generic -
-    // the user edits it into their own voice.
-    private static let styleTemplate = """
-    Friendly and casual, like a message to a colleague. Short, clear sentences. \
-    Plain everyday words, no jargon or filler.
-    """
-
-    private var styleSection: some View {
-        Section {
-            TextEditor(text: $store.style)
-                .font(.body)
-                .frame(minHeight: 110, maxHeight: 220)
-            if store.style.trimmingCharacters(in: .whitespaces).isEmpty {
-                Button("Insert Starter Template") {
-                    store.style = Self.styleTemplate
-                }
-                .buttonStyle(.link)
-                .font(.callout)
-            }
-        } header: {
-            Text("Your writing style")
-        } footer: {
-            Text("Applied to every translation so it sounds like you. Describe the tone, "
-                 + "for example: \"Casual and friendly, short sentences.\" "
-                 + "Leave empty for a plain translation.")
-        }
     }
 
     // MARK: - Engine
@@ -209,25 +180,41 @@ struct TranslationSettingsView: View {
     }
 }
 
-// A language pair: two language pickers, a swap button, the pair's shortcut, and
-// a remove button.
+// A language pair: two language pickers, the pair's shortcut, a
+// remove button, and below them the pair's writing style as a one-line preview.
+// The style is edited in a sheet, so a long voice guide never grows the pane
+// (the settings window fits its pane and does not scroll).
 private struct LanguagePairRow: View {
     @Binding var pair: LanguagePair
     let canRemove: Bool
     let remove: () -> Void
     let usedBy: (KeyCombo) -> String?
+    @State private var editingStyle = false
 
     var body: some View {
+        let style = pair.trimmedStyle
+        VStack(alignment: .leading, spacing: 6) {
+            languagesRow
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(style.isEmpty ? "Plain translation, no writing style" : style)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Button("Edit Style…") { editingStyle = true }
+                    .accessibilityLabel("Edit the writing style for \(pair.title)")
+            }
+        }
+        .sheet(isPresented: $editingStyle) {
+            StyleEditor(pair: $pair)
+        }
+    }
+
+    private var languagesRow: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             languagePicker("First language", isFirst: true)
-            Button {
-                (pair.first, pair.second) = (pair.second, pair.first)
-            } label: {
-                Image(systemName: "arrow.left.arrow.right")
-            }
-            .buttonStyle(.borderless)
-            .help("Swap the languages")
-            .accessibilityLabel("Swap the languages")
+            // Not a button: the direction is detected per translation.
+            Text("↔").foregroundStyle(.secondary).accessibilityHidden(true)
             languagePicker("Second language", isFirst: false)
             Spacer(minLength: 8)
             ShortcutField(combo: $pair.shortcut, usedBy: usedBy)
@@ -250,6 +237,46 @@ private struct LanguagePairRow: View {
         }
         .labelsHidden()
         .fixedSize()
+    }
+}
+
+// A pair's writing style in a sheet; edits apply as typed, like the rest of
+// Settings. HIG (Sheets): a sheet for a focused task, dismissed with Done.
+private struct StyleEditor: View {
+    @Binding var pair: LanguagePair
+    @Environment(\.dismiss) private var dismiss
+
+    // A simple, neutral starter so the box isn't empty. Intentionally generic -
+    // the user edits it into their own voice.
+    private static let template = """
+    Friendly and casual, like a message to a colleague. Short, clear sentences. \
+    Plain everyday words, no jargon or filler.
+    """
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Writing style for \(pair.title)")
+                .font(.headline)
+            TextEditor(text: $pair.style)
+                .font(.body)
+                .frame(height: 220)
+            Text("Makes this pair's translations sound like you. Describe the tone, for example: "
+                 + "\"Casual and friendly, short sentences.\" Leave empty for a plain translation, "
+                 + "for example for someone else's text.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                if pair.trimmedStyle.isEmpty {
+                    Button("Insert Starter Template") { pair.style = Self.template }
+                }
+                Spacer()
+                Button("Done") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(width: 460)
     }
 }
 
