@@ -71,6 +71,16 @@ Automated via GitHub Actions ([`.github/workflows/build.yml`](../.github/workflo
    release notes (also the GitHub release body). The app's `SUFeedURL` is
    `releases/latest/download/appcast.xml`, so publishing the release is what
    offers it to installed copies.
+4. A second job, `homebrew`, points the cask in
+   [wiltodelta/homebrew-tap](https://github.com/wiltodelta/homebrew-tap)
+   (`Casks/translate-like-me.rb`) at the new release, committing the new
+   `version` and the zip's `sha256` (the build job's `zip-sha256` output). It
+   pushes with the `HOMEBREW_TAP_DEPLOY_KEY` secret, the private half of the
+   write deploy key "translate-like-me release" on the tap (created 2026-09-26;
+   no expiry, no other copy: to rotate, make a new pair, replace the deploy key
+   and the secret), and fails loudly without it. The cask has `auto_updates
+   true`, so brew leaves installed copies to Sparkle; the bump only keeps new
+   installs current.
 
 Sparkle (`Updater.swift`, `SPUStandardUpdaterController`) is the one updater.
 `build.sh` copies `Sparkle.framework` from the SwiftPM build into
@@ -87,9 +97,9 @@ Install Update, relaunch into the new version) was run on 2026-09-24.
 
 The repository secrets it reads are `DEVELOPER_ID_P12_BASE64` and
 `DEVELOPER_ID_P12_PASSWORD` (the identity as a `.p12`),
-`NOTARY_KEY_P8_BASE64`, `NOTARY_KEY_ID`, `NOTARY_ISSUER_ID`, and
-`SPARKLE_PRIVATE_KEY`. Only tag builds
-read them, and GitHub never passes them to pull requests from forks; branch
+`NOTARY_KEY_P8_BASE64`, `NOTARY_KEY_ID`, `NOTARY_ISSUER_ID`,
+`SPARKLE_PRIVATE_KEY`, and `HOMEBREW_TAP_DEPLOY_KEY` for the cask bump. Only tag
+builds read them, and GitHub never passes them to pull requests from forks; branch
 builds stay ad hoc. The Developer ID certificate expires on 2031-09-17: renew it
 on the Apple Developer portal and reset the two identity secrets.
 

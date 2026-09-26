@@ -10,11 +10,12 @@ three latest macOS releases (15+) on Apple silicon only.
 
 Assemble the bundle with `./build.sh` (needs Xcode 26+: `actool` compiles the
 Icon Composer icon); `swift build` alone leaves a stale binary inside
-`Translate Like Me.app`. Releases are driven by `vX.Y` git tags through
-GitHub Actions, which signs with the Developer ID from repository secrets and
-notarizes (`notarize.sh`); locally `build.sh` signs with the same identity from
-the keychain. Full detail, including the secrets and where the keys are kept
-(1Password): `docs/build-and-release.md`.
+`Translate Like Me.app`. Releases are driven by `vX.Y` git tags through GitHub
+Actions, which signs with the Developer ID from repository secrets and
+notarizes (`notarize.sh`), then bumps the cask in `wiltodelta/homebrew-tap`;
+locally `build.sh` signs with the same identity from the keychain. Full
+detail, including the secrets and where the keys are kept (1Password):
+`docs/build-and-release.md`.
 
 ## Code quality
 

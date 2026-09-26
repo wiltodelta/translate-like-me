@@ -48,6 +48,14 @@ set up to three pairs, each on its own shortcut.
 
 ## Install
 
+### With Homebrew
+
+```bash
+brew install --cask wiltodelta/tap/translate-like-me
+```
+
+After that the app keeps itself up to date (Sparkle), not `brew upgrade`.
+
 ### From a release
 
 1. Download the latest `.zip` from the

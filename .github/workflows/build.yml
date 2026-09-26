@@ -15,6 +15,8 @@ jobs:
     runs-on: macos-26
     permissions:
       contents: write
+    outputs:
+      zip-sha256: ${{ steps.zip.outputs.sha256 }}
 
     steps:
     - name: Checkout code
@@ -100,6 +102,12 @@ jobs:
         # steps run.
         security lock-keychain "$SIGNING_KEYCHAIN"
 
+    # The released zip's checksum, for the cask bump (the homebrew job).
+    - name: Hash the zip (on tag)
+      id: zip
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: echo "sha256=$(shasum -a 256 Translate-Like-Me-v*-macOS.zip | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
     # The Sparkle feed installed apps read (SUFeedURL points at the latest
     # release's appcast.xml). It holds this release only, signed with the EdDSA
     # key, and embeds the release notes: the tag annotation's body, which is also
@@ -158,3 +166,46 @@ jobs:
     - name: Remove signing keychain
       if: always() && startsWith(github.ref, 'refs/tags/v')
       run: security delete-keychain "$SIGNING_KEYCHAIN" || true
+
+  # Points the Homebrew cask (wiltodelta/homebrew-tap) at the release just
+  # published. A job here, not a workflow on `release`, because a release made
+  # with GITHUB_TOKEN starts no other workflow. The cask derives its URL from
+  # `version`, so version and sha256 are the whole bump. The key: see
+  # docs/build-and-release.md.
+  homebrew:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    # Without the key, checkout would fall back to GITHUB_TOKEN and fail only at
+    # the push; say why up front.
+    - name: Check the tap deploy key
+      env:
+        TAP_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+      run: |
+        [ -n "$TAP_KEY" ] ||
+          { echo "::error::HOMEBREW_TAP_DEPLOY_KEY is not set; the cask still points at the previous release"; exit 1; }
+
+    - name: Checkout the tap
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      with:
+        repository: wiltodelta/homebrew-tap
+        ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+
+    - name: Bump the cask
+      env:
+        SHA: ${{ needs.build.outputs.zip-sha256 }}
+      run: |
+        set -euo pipefail
+        VERSION="${GITHUB_REF_NAME#v}"
+        [ -n "$SHA" ]
+        C=Casks/translate-like-me.rb
+        sed -i -E "s|^  version \"[^\"]*\"|  version \"$VERSION\"|; s|^  sha256 \"[^\"]*\"|  sha256 \"$SHA\"|" "$C"
+        grep -q "version \"$VERSION\"" "$C" && grep -q "sha256 \"$SHA\"" "$C"
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add "$C"
+        git commit -m "translate-like-me $VERSION" || { echo "Cask already current"; exit 0; }
+        git push
