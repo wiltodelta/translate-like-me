@@ -123,6 +123,9 @@ case "clear":
         // The Dock spans the whole screen at layer 20, transparent but for the
         // Dock itself at the screen edge.
         if w[kCGWindowOwnerName as String] as? String == "Dock" { continue }
+        // Desktop widgets (owned by Notification Center) and the wallpaper sit
+        // at desktop level, a negative layer, always behind app windows.
+        if (w[kCGWindowLayer as String] as? Int ?? 0) < 0 { continue }
         let owner = w[kCGWindowOwnerPID as String] as? Int32
         if owner == backdrop { exit(sawApp ? 0 : 1) }
         if owner == pid { sawApp = true; continue }
