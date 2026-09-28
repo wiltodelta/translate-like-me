@@ -1,8 +1,10 @@
+import AppKit
 import SwiftUI
 
 // The settings panes. HIG (Settings, macOS): a toolbar switches between panes,
 // the window title follows the visible pane, and the window fits the pane, so
-// nothing scrolls. Changes apply immediately (SettingsStore).
+// nothing scrolls (short screens aside, see settingsPane). Changes apply
+// immediately (SettingsStore).
 struct GeneralSettingsView: View {
     @Bindable var store: SettingsStore
     @State private var launchAtLogin = LoginItem.isEnabled
@@ -29,8 +31,15 @@ struct GeneralSettingsView: View {
                                 remove: { store.removePair(id: pair.id) },
                                 usedBy: { store.pair(using: $0, except: pair.id)?.title })
             }
-            if store.canAddPair {
+            // At the limit the button stays, disabled, and says why: a button
+            // that silently vanished left people looking for it.
+            HStack(spacing: 8) {
                 Button("Add Pair") { store.addPair() }
+                    .disabled(!store.canAddPair)
+                if !store.canAddPair {
+                    Text("Up to \(Languages.maxPairs) pairs")
+                        .foregroundStyle(.secondary)
+                }
             }
         } header: {
             Text("Languages")
@@ -218,8 +227,13 @@ private struct LanguagePairRow: View {
             languagePicker("Second language", isFirst: false)
             Spacer(minLength: 8)
             ShortcutField(combo: $pair.shortcut, usedBy: usedBy)
+            // The glyph stays small; its hit area does not. At the glyph's own
+            // 13 pt it sat under HIG Accessibility's 20 pt macOS minimum, for the
+            // one destructive control in the row. 24 pt keeps the row's height.
             Button(action: remove) {
                 Image(systemName: "minus.circle")
+                    .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
             .disabled(!canRemove)
@@ -257,8 +271,14 @@ private struct StyleEditor: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Writing style for \(pair.title)")
                 .font(.headline)
+            // A visible field in both appearances: in light the editor's white
+            // matched the sheet's, so an empty style showed only a caret.
             TextEditor(text: $pair.style)
                 .font(.body)
+                .scrollContentBackground(.hidden)
+                .padding(4)
+                .background(Color(nsColor: .textBackgroundColor), in: .rect(cornerRadius: 6))
+                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(nsColor: .separatorColor)))
                 .frame(height: 220)
             Text("Makes this pair's translations sound like you. Describe the tone, for example: "
                  + "\"Casual and friendly, short sentences.\" Leave empty for a plain translation, "
@@ -281,10 +301,21 @@ private struct StyleEditor: View {
 }
 
 private extension View {
-    // A grouped form sized to its content at the settings window's width.
+    // A grouped form sized to its content at the settings window's width, but
+    // never taller than the screen shows: past that the form scrolls. Three
+    // language pairs made the General pane 777 pt, which already slid under the
+    // Dock on a 1470x956 display and cannot fit a smaller one at all.
     func settingsPane() -> some View {
         formStyle(.grouped)
             .frame(width: 500)
+            .frame(maxHeight: SettingsLayout.maxPaneHeight)
             .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+enum SettingsLayout {
+    // The window's title bar and pane toolbar take about 80 pt; 100 leaves a margin.
+    static var maxPaneHeight: CGFloat {
+        (NSScreen.main?.visibleFrame.height ?? 800) - 100
     }
 }

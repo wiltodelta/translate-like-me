@@ -20,7 +20,11 @@ Read before editing this domain.
   style (`SettingsTabViewController.makeWindow`, panes General and Translation,
   window title follows the pane, last pane restored unless a caller passes one
   in the `.openSettings` notification); `SettingsStore` applies every change
-  immediately. The popup (`PopupController`) stays a cursor-anchored
+  immediately. The window is a `SettingsWindow` that keeps every frame, the
+  pane-switch animation steps included, inside the screen's visible frame, and
+  a pane taller than the screen scrolls (`SettingsLayout.maxPaneHeight`) instead
+  of running under the Dock. At `Languages.maxPairs` the Add Pair button stays,
+  disabled, beside "Up to 3 pairs". The popup (`PopupController`) stays a cursor-anchored
   panel: HIG Writing wants errors "as close to the problem as possible".
 - Language pairs (`LanguagePair`, up to `Languages.maxPairs` = 3, stored as JSON
   in `Settings.languagePairs`, edited under General > Languages) each carry an
