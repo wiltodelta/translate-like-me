@@ -25,7 +25,16 @@ Read before editing this domain.
   a pane taller than the screen scrolls (`SettingsLayout.maxPaneHeight`) instead
   of running under the Dock. At `Languages.maxPairs` the Add Pair button stays,
   disabled, beside "Up to 3 pairs". The popup (`PopupController`) stays a cursor-anchored
-  panel: HIG Writing wants errors "as close to the problem as possible".
+  panel: HIG Writing wants errors "as close to the problem as possible". It never
+  becomes key, so its Copy / Open Settings buttons are not keyboard-reachable; that
+  is deliberate (decided 2026-09-28): taking focus would steal the field the user
+  is typing in, the translation is already on the clipboard, and Settings opens
+  from the status menu. Its one action keeps the active accent
+  (`controlActiveState = .key`), and a capped body fades at the bottom when more
+  text is below. macOS 27 hides `NSMenuItem.image` unless `preferredImageVisibility
+  = .visible`; the status rows and the updates item set it (`StatusMenu.showsImage`).
+  A scheduled Sparkle check shows its own window only while the app is active, so a
+  launch-time find is announced in the menu, not over the user's app.
 - Language pairs (`LanguagePair`, up to `Languages.maxPairs` = 3, stored as JSON
   in `Settings.languagePairs`, edited under General > Languages) each carry an
   optional shortcut and writing style (`style`, empty for a plain translation;

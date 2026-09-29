@@ -58,6 +58,12 @@ enum Provider: String, CaseIterable {
         }
     }
 
+    // The one sentence for a signed-out CLI, shared by the status menu row and the
+    // translation popup so the two always give the same fix.
+    var notSignedInHint: String {
+        "Not signed in to \(shortName). Run \(loginCommand) in Terminal."
+    }
+
     // The API-key mode's settings copy, or nil for engines that run only through
     // their signed-in CLI (Grok has no direct xAI API mode here).
     // modelSummary says how API-key mode picks the model (ModelResolver).

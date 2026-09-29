@@ -57,7 +57,7 @@ final class TranslationController {
                   !selection.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 log.warning("No selection copied from \(front, privacy: .public)")
                 await offMain { SelectionService.restore(original, ifUnchangedSince: copied) }
-                PopupController.shared.showError("No text selected. Select some text first, then press the shortcut.")
+                PopupController.shared.showError("No text selected. Select some text first, then try again.")
                 return
             }
 

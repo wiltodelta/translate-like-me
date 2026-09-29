@@ -10,6 +10,8 @@ final class PopupModel {
     // Optional trailing action (e.g. "Open Settings" on a limit error). Set and
     // cleared as one value so the title and handler cannot drift apart.
     var action: (title: String, handler: () -> Void)?
+    // The body is taller than the capped popup, so part of it is below the fold.
+    var overflows = false
 }
 
 // A floating, cursor-anchored popup for errors and for a translation that could
@@ -23,15 +25,29 @@ struct PopupView: View {
             Text(model.header)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
+            // A capped popup scrolls; with overlay scrollers hidden until scrolled, a
+            // long translation read as complete at its seventh paragraph. The last
+            // lines fade out when more is below (UX-T05).
             ScrollView {
                 Text(model.body)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .mask {
+                LinearGradient(
+                    stops: [.init(color: .black, location: 0),
+                            .init(color: .black, location: model.overflows ? 0.82 : 1),
+                            .init(color: .black.opacity(model.overflows ? 0.15 : 1), location: 1)],
+                    startPoint: .top, endPoint: .bottom)
+            }
             if let action = model.action {
                 Button(action.title, action: action.handler)
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
+                    // The panel never becomes key (it must not take focus from the
+                    // app being translated in), and an inactive window draws a
+                    // prominent button gray: keep the one action looking like one.
+                    .environment(\.controlActiveState, .key)
             }
         }
         .padding(12)
@@ -125,6 +141,7 @@ final class PopupController {
         // Only as tall as the content (HIG Popovers: "Avoid making a popover too
         // big"), capped so a long translation scrolls.
         let total = min(bodyHeight + chrome, maxHeight)
+        model.overflows = bodyHeight + chrome > maxHeight
         panel.setContentSize(NSSize(width: width, height: total))
 
         positionNearCursor(panel)

@@ -96,9 +96,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             symbol = "checkmark.circle"
             detail = Settings.effectiveAuthMode == .subscription
                 ? "Ready, using your subscription" : "Ready, using your API key"
-        case .notLoggedIn(let service):
+        case .notLoggedIn:
             symbol = "exclamationmark.triangle"
-            detail = "Not signed in to \(service). Run \(provider.loginCommand) in Terminal."
+            detail = provider.notSignedInHint
         case .notInstalled(let cli):
             symbol = "exclamationmark.triangle"
             detail = "The \(cli) command-line tool was not found."
@@ -112,6 +112,17 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         item.title = provider.shortName
         item.subtitle = detail
         item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        showsImage(item)
+    }
+
+    // macOS 27 hides menu item images unless an item asks for them (NSMenuItem
+    // .preferredImageVisibility). These symbols carry state (ready, warning, update
+    // found), and Settings… keeps its system gear, so a hidden image left a warning
+    // with no sign and a group with one icon (HIG Menus: all or none in a group).
+    private func showsImage(_ item: NSMenuItem) {
+        if #available(macOS 27.0, *) {
+            item.preferredImageVisibility = .visible
+        }
     }
 
     // Enabled only while access is missing: it is the way to grant it.
@@ -123,6 +134,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         item.image = NSImage(systemSymbolName: trusted ? "checkmark.circle" : "exclamationmark.triangle",
                              accessibilityDescription: nil)
         item.isEnabled = !trusted
+        showsImage(item)
         return item
     }
 
@@ -170,6 +182,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         updates.subtitle = pending.map { "Version \($0) is available" }
         updates.image = NSImage(systemSymbolName: pending == nil ? "arrow.triangle.2.circlepath"
                                     : "arrow.down.circle", accessibilityDescription: nil)
+        showsImage(updates)
         return updates
     }
 }

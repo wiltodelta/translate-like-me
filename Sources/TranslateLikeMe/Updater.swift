@@ -56,8 +56,11 @@ final class Updater: NSObject, SPUStandardUserDriverDelegate {
         _ update: SUAppcastItem, andInImmediateFocus immediateFocus: Bool
     ) -> Bool {
         // Show Sparkle's window only if the app is already in front (the user
-        // is in Settings); otherwise the menu item announces it.
-        immediateFocus
+        // is in Settings); otherwise the menu item announces it. Sparkle also
+        // reports "immediate focus" for a check made right after launch, which
+        // for a login item is exactly while the user is typing elsewhere: the
+        // window took focus over their app (UX audit 2026-09-28, UX-T01).
+        immediateFocus && MainActor.assumeIsolated { NSApp.isActive }
     }
 
     nonisolated func standardUserDriverWillHandleShowingUpdate(

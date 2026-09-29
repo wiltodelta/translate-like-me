@@ -4,9 +4,13 @@ enum TranslatorError: LocalizedError {
     case binaryNotFound(String)
     case empty
     case failed(String)
+    case notSignedIn(Provider)
 
     var errorDescription: String? {
         switch self {
+        case .notSignedIn(let provider):
+            // The status menu's own wording, so the popup and the menu give one fix.
+            return provider.notSignedInHint
         case .binaryNotFound(let name):
             return "Couldn't find the '\(name)' command-line tool. Install it and sign in, "
                 + "then try again."
@@ -22,6 +26,20 @@ enum TranslatorError: LocalizedError {
 // is resolved live (no user picker, no pinned version) - see ModelResolver.
 enum Translator {
     static func translate(_ text: String, pair: LanguagePair) async throws -> String {
+        let provider = Settings.provider
+        do {
+            return try await translateWithEngine(text, pair: pair)
+        } catch TranslatorError.failed(let message)
+            where Settings.effectiveAuthMode == .subscription && SignInDetector.matches(message) {
+            // A signed-out CLI answers with its own instructions (grok: "Error: Not
+            // signed in. To authenticate without a browser, run: grok login
+            // --device-code ... XAI_API_KEY ..."). Say what the menu says instead
+            // (UX audit 2026-09-28, UX-T03).
+            throw TranslatorError.notSignedIn(provider)
+        }
+    }
+
+    private static func translateWithEngine(_ text: String, pair: LanguagePair) async throws -> String {
         let provider = Settings.provider
         let auth = Settings.effectiveAuthMode
         let system = systemPrompt(pair: pair)
@@ -383,5 +401,17 @@ enum FailureDetail {
             if !lines.isEmpty { return String(lines.suffix(3).joined(separator: "\n").prefix(limit)) }
         }
         return nil
+    }
+}
+
+// Recognizes a signed-out CLI in its failure text. Phrases from real output:
+// grok 1.0.41 "Error: Not signed in." and "You are not authenticated."; claude and
+// codex say "not logged in". Case-insensitive, whole phrase.
+enum SignInDetector {
+    private static let phrases = ["not signed in", "not logged in", "not authenticated"]
+
+    static func matches(_ text: String) -> Bool {
+        let lowered = text.lowercased()
+        return phrases.contains { lowered.contains($0) }
     }
 }
