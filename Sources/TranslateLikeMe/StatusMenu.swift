@@ -119,10 +119,13 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     // .preferredImageVisibility). These symbols carry state (ready, warning, update
     // found), and Settings… keeps its system gear, so a hidden image left a warning
     // with no sign and a group with one icon (HIG Menus: all or none in a group).
+    // Set through the Objective-C runtime: the property exists from the macOS 27 SDK
+    // on, and CI still builds with an older one. 1 is NSMenuItemImageVisibilityVisible
+    // (AppKit NSMenuItem.h); on earlier systems the item has no such property and
+    // shows its image anyway.
     private func showsImage(_ item: NSMenuItem) {
-        if #available(macOS 27.0, *) {
-            item.preferredImageVisibility = .visible
-        }
+        guard item.responds(to: NSSelectorFromString("setPreferredImageVisibility:")) else { return }
+        item.setValue(1, forKey: "preferredImageVisibility")
     }
 
     // Enabled only while access is missing: it is the way to grant it.
