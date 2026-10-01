@@ -24,8 +24,10 @@ detail an engineer needs.
   foreground layer is generated from `Resources/appicon_1024.png` by
   `uv run scripts/make-icon-layers.py`.
 - **Screenshots:** `./capture-screenshots.sh` rebuilds the app and regenerates
-  `screenshots/` (menu, General, Translation) in the current system
-  appearance; its header comment explains the backdrop capture, the settings
+  `screenshots/` (menu, General, Translation), each in the light appearance
+  and in Dark Mode (`*-dark.png`, which the website serves to dark visitors).
+  It switches the system appearance for the dark pass and restores the
+  user's on exit; its header comment explains the backdrop capture, the settings
   overrides and the covered-window check. The terminal and the build need
   Accessibility, so a build under a new signature prompts until granted.
 - **CRITICAL:** `swift build` alone updates only the SwiftPM build directory; it

@@ -5,8 +5,10 @@
 # Launches a second copy of the app next to any installed one and drives it only
 # through Accessibility (opening its status item, pressing menu items), never
 # with synthetic mouse clicks or keys, so nothing lands on other windows. The
-# terminal running it needs Accessibility and Screen Recording access. Captures
-# follow the current system appearance.
+# terminal running it needs Accessibility and Screen Recording access. Each
+# screen is captured twice, in the light appearance (menu.png) and in Dark Mode
+# (menu-dark.png): the script switches the system appearance and puts the
+# user's own back when it exits.
 #
 # The copy reads the real settings domain, so every value the images show that
 # is personal or would change the user's settings is overridden for this launch
@@ -196,6 +198,13 @@ close_menu() {
     sleep 0.5
 }
 
+# Status-bar menus follow the menu bar's appearance, not the app's, so only the
+# system-wide switch turns the menu dark too.
+appearance() {
+    osascript -e "tell application \"System Events\" to tell appearance preferences to $1"
+}
+ORIGINAL_DARK=$(appearance 'get dark mode')
+
 # A pointer resting over a menu item or control would draw it highlighted, so
 # the pointer waits at the screen's left edge (no hot corner there) and is put
 # back afterwards. Moving it is not a click: nothing receives an event.
@@ -204,6 +213,7 @@ helper pointer 2 400
 
 BACKDROP_PID=""
 cleanup() {
+    appearance "set dark mode to $ORIGINAL_DARK" >/dev/null || true
     helper pointer $POINTER
     [ -n "$BACKDROP_PID" ] && kill "$BACKDROP_PID" 2>/dev/null
     [ -n "$PID" ] && kill "$PID" 2>/dev/null
@@ -261,19 +271,27 @@ capture_settings() {
     capture_region "$2" "$SX" "$SY" "$SW" "$SH"
 }
 
-launch 0
-# The first open starts the engine check; the reopen shows its result.
-open_menu
-sleep 2 # the engine check
-read -r X Y W H < <(helper menu "$PID")
-close_menu
-show_backdrop "$X" "$Y" "$W" "$H"
-open_menu
-sleep 0.5
-read -r X Y W H < <(helper menu "$PID")
-capture_region menu "$X" "$Y" "$W" "$H"
-capture_settings General general
+# capture_all <dark mode true|false> <file suffix>: every screen in one appearance.
+capture_all() {
+    appearance "set dark mode to $1" >/dev/null
+    sleep 2 # the menu bar and windows redraw
+    launch 0
+    # The first open starts the engine check; the reopen shows its result.
+    open_menu
+    sleep 2 # the engine check
+    read -r X Y W H < <(helper menu "$PID")
+    close_menu
+    show_backdrop "$X" "$Y" "$W" "$H"
+    open_menu
+    sleep 0.5
+    read -r X Y W H < <(helper menu "$PID")
+    capture_region "menu$2" "$X" "$Y" "$W" "$H"
+    capture_settings General "general$2"
 
-launch 1
-open_menu
-capture_settings Translation settings
+    launch 1
+    open_menu
+    capture_settings Translation "settings$2"
+}
+
+capture_all false ""
+capture_all true -dark

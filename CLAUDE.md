@@ -32,7 +32,8 @@ detail, including the secrets and where the keys are kept (1Password):
   `LimitDetector` and `JSONErrorMessage` engine payload parsing, and the API
   keys' keychain storage and migration). UI, Accessibility, CGEvent, Sparkle and
   CLI-subprocess code is not unit-tested; render UI changes with
-  `./capture-screenshots.sh` (it also regenerates `screenshots/`; needs
+  `./capture-screenshots.sh` (it also regenerates `screenshots/`, light and
+  dark, flipping the system to Dark Mode and back; needs
   Accessibility and Screen Recording for the terminal and a Mac left alone;
   a closed menu mid-run fails it, rerun once). System Events `entire contents`
   does not reach the SwiftUI controls in Settings: press them by walking

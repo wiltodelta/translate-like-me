@@ -234,8 +234,9 @@ Build a bundle locally:
 ./build.sh
 ```
 
-`./capture-screenshots.sh` rebuilds the app and regenerates the screenshots
-(the terminal needs Accessibility and Screen Recording access).
+`./capture-screenshots.sh` rebuilds the app and regenerates the screenshots,
+light and dark, switching the system to Dark Mode for a moment (the terminal
+needs Accessibility and Screen Recording access).
 
 Releases are automated. The app version comes from the git tag, so cutting a
 release is just tagging and pushing:
