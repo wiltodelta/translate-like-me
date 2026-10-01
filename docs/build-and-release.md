@@ -127,12 +127,19 @@ gh release download vX.Y -p "*.zip" -D /tmp/asset-check && \
 by [`.github/workflows/pages.yml`](../.github/workflows/pages.yml) on every
 push to `main` that touches the page, `screenshots/` or the app icon; the
 workflow copies those two in, so each has one committed copy. The domain
-(registered 2026-10-01 at Namecheap) uses DigitalOcean DNS in the personal
-account (`doctl --context raiw-app`): four A records to GitHub's Pages
-addresses, `www` as a CNAME to `wiltodelta.github.io`, and the TXT record
+(registered 2026-10-01 at Namecheap) uses Cloudflare DNS on the free plan
+(account kuznetsov.va@gmail.com): four A records to GitHub's Pages addresses
+and `www` as a CNAME to `wiltodelta.github.io`, all DNS only (proxying would
+stop GitHub issuing the certificate), and the TXT record
 `_github-pages-challenge-wiltodelta` that verifies the domain on the
 `wiltodelta` account, so no other account can publish Pages on it. Keep that
 TXT record: deleting it unverifies the domain.
+
+Mail to any address at the domain goes to kuznetsov.va@gmail.com through
+Cloudflare Email Routing (catch-all rule; the MX, SPF and DKIM records are
+Cloudflare's). Cloudflare is there for that: Email Routing is free only with
+Cloudflare DNS, and the free tiers elsewhere refuse a newly registered domain
+(Forward Email) or hold one domain (ImprovMX, already used).
 
 The page repeats facts from this repository by hand (the README's features,
 requirements and cask command, the screenshots' sizes), so update it when

@@ -15,7 +15,7 @@ Actions, which signs with the Developer ID from repository secrets and
 notarizes (`notarize.sh`), then bumps the cask in `wiltodelta/homebrew-tap`;
 locally `build.sh` signs with the same identity from the keychain. The
 website `translatelikeme.com` is `site/index.html` on GitHub Pages, its DNS
-in DigitalOcean. Full
+and mail forwarding in Cloudflare. Full
 detail, including the secrets and where the keys are kept (1Password):
 `docs/build-and-release.md`.
 
