@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Translate Like Me: translate selected text on Mac, in your own writing style</title>
+  <meta name="description" content="Free, open source macOS menu bar app that translates the selected text in any app in place with a global hotkey, with automatic direction and your own writing style. Claude, ChatGPT or Grok via your subscription or API key.">
+  <link rel="canonical" href="https://translatelikeme.com/">
+  <link rel="icon" type="image/png" href="appicon.png">
+  <link rel="apple-touch-icon" href="appicon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Translate Like Me">
+  <meta property="og:description" content="Translate the selected text in any Mac app in place with a hotkey, in your own writing style.">
+  <meta property="og:url" content="https://translatelikeme.com/">
+  <meta property="og:image" content="https://translatelikeme.com/screenshots/general.png">
+  <meta name="color-scheme" content="light dark">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #1d1d1f;
+      --muted: #515154;
+      --card: #f5f5f7;
+      --border: #d2d2d7;
+      --accent: #0062cc;
+      --accent-fg: #ffffff;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #161617;
+        --fg: #f5f5f7;
+        --muted: #b8b8bd;
+        --card: #232325;
+        --border: #3a3a3c;
+        --accent: #3d9bff;
+        --accent-fg: #000000;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 17px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+    }
+    main { max-width: 960px; margin: 0 auto; padding: 48px 20px 32px; }
+    header { text-align: center; }
+    h1 { font-size: 40px; line-height: 1.15; margin: 12px 0 8px; letter-spacing: -0.02em; }
+    .lead { font-size: 21px; color: var(--muted); max-width: 640px; margin: 0 auto; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 28px 0 8px; }
+    .button {
+      padding: 12px 22px; border-radius: 980px;
+      background: var(--accent); color: var(--accent-fg); text-decoration: none; font-weight: 600;
+    }
+    .button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+    .note { text-align: center; color: var(--muted); font-size: 15px; margin: 0; }
+    pre {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px 16px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; margin: 16px auto 0; max-width: 560px;
+    }
+    .shots { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; align-items: flex-start; margin: 48px 0; }
+    .shots img { max-width: 100%; height: auto; }
+    h2 { font-size: 28px; margin: 48px 0 16px; letter-spacing: -0.01em; }
+    .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; padding: 0; list-style: none; }
+    .features li { background: var(--card); border-radius: 14px; padding: 18px 20px; }
+    .features strong { display: block; margin-bottom: 4px; }
+    .features span { color: var(--muted); }
+    a { color: var(--accent); }
+    footer { border-top: 1px solid var(--border); margin-top: 56px; padding-top: 20px; color: var(--muted); font-size: 15px; text-align: center; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="appicon.png" alt="" width="112" height="112">
+    <h1>Translate Like Me</h1>
+    <p class="lead">Select text in any Mac app, press a hotkey, and the selection is replaced in place with its translation, in your own writing style.</p>
+    <div class="actions">
+      <a class="button" href="https://github.com/wiltodelta/translate-like-me/releases/latest">Download for Mac</a>
+      <a class="button secondary" href="https://github.com/wiltodelta/translate-like-me">Source on GitHub</a>
+    </div>
+    <p class="note">Free and open source (Apache-2.0). macOS 15 or later, Apple silicon. Signed and notarized.</p>
+    <pre><code>brew install --cask wiltodelta/tap/translate-like-me</code></pre>
+  </header>
+
+  <div class="shots">
+    <img src="screenshots/menu.png" width="314" height="347" alt="Translate Like Me menu bar menu with two language pairs, one in your writing style and one plain">
+    <img src="screenshots/general.png" width="540" height="789" alt="Settings, General pane with language pairs and their writing styles">
+  </div>
+
+  <h2>What it does</h2>
+  <ul class="features">
+    <li><strong>Translate in place</strong><span>Replaces the selected text directly, in any app. Read-only text goes to a small popup with a Copy button.</span></li>
+    <li><strong>Automatic direction</strong><span>Detects which language of the pair you wrote in and translates to the other. Nothing to switch.</span></li>
+    <li><strong>Up to three language pairs</strong><span>Each pair on its own global shortcut, for example Russian and English on ⌥⌘F.</span></li>
+    <li><strong>Your writing style, per pair</strong><span>Describe how you write, and that pair's translations sound like you. Leave it empty for a plain translation of someone else's text.</span></li>
+    <li><strong>Bring your own engine</strong><span>Claude or ChatGPT through your existing subscription (official CLI) or your own API key, or Grok through its CLI.</span></li>
+    <li><strong>Private by design</strong><span>No server, analytics or telemetry. Text goes only to the engine you picked; API keys stay in your keychain.</span></li>
+  </ul>
+
+  <div class="shots">
+    <img src="screenshots/settings.png" loading="lazy" width="542" height="398" alt="Settings, Translation pane with the engine, model and effort pickers">
+  </div>
+
+  <footer>
+    Made by <a href="https://github.com/wiltodelta">Victor Kuznetsov</a>.
+    <a href="https://github.com/wiltodelta/translate-like-me#readme">Documentation</a> ·
+    <a href="https://github.com/wiltodelta/translate-like-me/issues">Report an issue</a>
+  </footer>
+</main>
+</body>
+</html>

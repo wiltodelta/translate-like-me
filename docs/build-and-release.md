@@ -118,3 +118,20 @@ gh release download vX.Y -p "*.zip" -D /tmp/asset-check && \
   spctl -a -vv "/tmp/asset-check/app/Translate Like Me.app" && \
   xcrun stapler validate "/tmp/asset-check/app/Translate Like Me.app"
 ```
+
+## Website
+
+`https://translatelikeme.com` is `site/index.html`, published to GitHub Pages
+by [`.github/workflows/pages.yml`](../.github/workflows/pages.yml) on every
+push to `main` that touches the page, `screenshots/` or the app icon; the
+workflow copies those two in, so each has one committed copy. The domain
+(registered 2026-10-01 at Namecheap) uses DigitalOcean DNS in the personal
+account (`doctl --context raiw-app`): four A records to GitHub's Pages
+addresses, `www` as a CNAME to `wiltodelta.github.io`, and the TXT record
+`_github-pages-challenge-wiltodelta` that verifies the domain on the
+`wiltodelta` account, so no other account can publish Pages on it. Keep that
+TXT record: deleting it unverifies the domain.
+
+The page repeats facts from this repository by hand (the README's features,
+requirements and cask command, the screenshots' sizes), so update it when
+those change.

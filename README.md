@@ -5,6 +5,7 @@
 A tiny macOS menu-bar app that translates the current selection with a global
 hotkey and rewrites it in your own writing style. Select text in any app, press
 the shortcut, and the selection is replaced in place with the translation.
+Website: [translatelikeme.com](https://translatelikeme.com).
 
 It detects the direction automatically between the two languages you choose, so
 there is nothing to switch: type in one, get the other. If you use more languages,

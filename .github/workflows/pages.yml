@@ -1,0 +1,47 @@
+name: Publish translatelikeme.com
+
+# The site is site/index.html plus the README's screenshots and the app icon,
+# copied in at deploy time so they have one committed copy each. The custom
+# domain is set in the repository's Pages settings and verified on the account,
+# so no CNAME file is needed with an Actions deployment.
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'site/**'
+      - 'screenshots/**'
+      - 'Resources/appicon_1024.png'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+    - name: Assemble the site
+      run: |
+        cp -R site _site
+        cp -R screenshots _site/screenshots
+        cp Resources/appicon_1024.png _site/appicon.png
+
+    - name: Upload the site
+      uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
