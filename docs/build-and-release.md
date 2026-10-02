@@ -30,7 +30,10 @@ detail an engineer needs.
   It switches the system appearance for the dark pass and restores the
   user's on exit; its header comment explains the backdrop capture, the settings
   overrides and the covered-window check. The terminal and the build need
-  Accessibility, so a build under a new signature prompts until granted.
+  Accessibility, so a build under a new signature prompts until granted. It
+  ends by rebuilding the website's link preview, `site/og-image.png`
+  (1200x630, `scripts/make-og-image.py`), which lays the menu screenshot
+  beside the icon and tagline.
 - **CRITICAL:** `swift build` alone updates only the SwiftPM build directory; it
   does NOT refresh the binary inside `Translate Like Me.app`. Always run `./build.sh`
   before installing or testing the bundle, otherwise you run a stale binary.

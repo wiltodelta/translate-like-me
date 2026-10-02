@@ -285,3 +285,6 @@ capture_all() {
 
 capture_all false ""
 capture_all true -dark
+
+# The website's link preview lays the new menu screenshot beside the tagline.
+uv run scripts/make-og-image.py
