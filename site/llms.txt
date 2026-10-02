@@ -1,0 +1,6 @@
+# Translate Like Me
+
+> Free, open source macOS menu bar app that translates the selected text in any app in place with a global hotkey, in the user's own writing style, using Claude, ChatGPT or Grok through the user's subscription or API key.
+
+- [README](https://github.com/wiltodelta/translate-like-me/blob/main/README.md): features, requirements, install, settings, providers, privacy, troubleshooting
+- [Releases](https://github.com/wiltodelta/translate-like-me/releases): signed and notarized downloads with release notes

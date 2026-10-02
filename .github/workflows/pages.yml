@@ -1,7 +1,8 @@
 name: Publish translatelikeme.com
 
-# The site is site/index.html plus the README's screenshots and the app icon,
-# copied in at deploy time so they have one committed copy each. The custom
+# The site is site/ (the page, robots.txt, llms.txt) plus the README's
+# screenshots and the app icon, copied in at deploy time so they have one
+# committed copy each. The custom
 # domain is set in the repository's Pages settings and verified on the account,
 # so no CNAME file is needed with an Actions deployment.
 on:

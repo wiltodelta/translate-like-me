@@ -142,6 +142,11 @@ Cloudflare's). Cloudflare is there for that: Email Routing is free only with
 Cloudflare DNS, and the free tiers elsewhere refuse a newly registered domain
 (Forward Email) or hold one domain (ImprovMX, already used).
 
+For search engines and AI assistants the site also serves `robots.txt` and
+`llms.txt` (one sentence and links to the README), and the page carries a
+schema.org `SoftwareApplication` block whose `sameAs` lists the directory
+listings (OpenAlternative, Peerlist).
+
 The page repeats facts from this repository by hand (the README's features,
-requirements and cask command, the screenshots' sizes), so update it when
-those change.
+privacy, requirements and cask command, the languages in `Languages.swift`,
+the screenshots' sizes), so update it when those change.

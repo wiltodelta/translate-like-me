@@ -13,7 +13,29 @@
   <meta property="og:description" content="Translate the selected text in any Mac app in place with a hotkey, in your own writing style.">
   <meta property="og:url" content="https://translatelikeme.com/">
   <meta property="og:image" content="https://translatelikeme.com/screenshots/general.png">
+  <meta name="twitter:card" content="summary">
   <meta name="color-scheme" content="light dark">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Translate Like Me",
+    "url": "https://translatelikeme.com/",
+    "image": "https://translatelikeme.com/appicon.png",
+    "screenshot": "https://translatelikeme.com/screenshots/menu.png",
+    "applicationCategory": "UtilitiesApplication",
+    "operatingSystem": "macOS 15 or later, Apple silicon",
+    "downloadUrl": "https://github.com/wiltodelta/translate-like-me/releases/latest",
+    "license": "https://www.apache.org/licenses/LICENSE-2.0",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Person", "name": "Victor Kuznetsov", "url": "https://github.com/wiltodelta" },
+    "sameAs": [
+      "https://github.com/wiltodelta/translate-like-me",
+      "https://openalternative.co/translate-like-me",
+      "https://peerlist.io/wiltodelta/project/translate-like-me"
+    ]
+  }
+  </script>
   <style>
     :root {
       --bg: #ffffff;
@@ -65,6 +87,8 @@
     .features strong { display: block; margin-bottom: 4px; }
     .features span { color: var(--muted); }
     a { color: var(--accent); }
+    .faq h3 { font-size: 19px; margin: 24px 0 4px; }
+    .faq p { color: var(--muted); margin: 0; }
     footer { border-top: 1px solid var(--border); margin-top: 56px; padding-top: 20px; color: var(--muted); font-size: 15px; text-align: center; }
   </style>
 </head>
@@ -100,6 +124,22 @@
   <div class="shots">
     <picture><source srcset="screenshots/settings-dark.png" media="(prefers-color-scheme: dark)" width="542" height="398"><img src="screenshots/settings.png" loading="lazy" width="542" height="398" alt="Settings, Translation pane with the engine, model and effort pickers"></picture>
   </div>
+
+  <section class="faq">
+    <h2>Questions</h2>
+    <h3>Is Translate Like Me free?</h3>
+    <p>Yes, the app is free and open source under the Apache-2.0 license. Translations run on an engine you already use: your Claude or ChatGPT subscription through its official CLI, Grok through its CLI and your grok.com account, or your own Anthropic or OpenAI API key, billed by the provider.</p>
+    <h3>Which apps does it work in?</h3>
+    <p>Any Mac app where you can select text: it copies the selection, translates it and pastes the result in its place. It needs Accessibility permission for that. If the text can't be replaced in place, for example a message you are reading, the translation goes to the clipboard and to a small popup with a Copy button.</p>
+    <h3>Which languages does it support?</h3>
+    <p>Common languages from English, Spanish, French and German to Chinese, Japanese, Korean, Arabic, Hindi, Russian and Ukrainian. Set up to three language pairs, each on its own shortcut. The direction is detected automatically, and text in neither language of the pair is translated into the pair's first.</p>
+    <h3>How does the writing style work?</h3>
+    <p>Each pair can carry a free-text description of how you write, from a short line to a full voice guide, and the model applies it to that pair's translations. Leave it empty for a plain translation, for example a second pair on the same languages for someone else's text.</p>
+    <h3>Where does my text go?</h3>
+    <p>Only to the engine you picked: Anthropic, OpenAI or xAI, through its official CLI or API. The app has no server, analytics or telemetry, API keys stay in your login keychain, and the claude and codex CLIs run with session history off.</p>
+    <h3>How do I install it?</h3>
+    <p>Download the latest release from GitHub, or run <code>brew install --cask wiltodelta/tap/translate-like-me</code>. It needs macOS 15 or later on Apple silicon, is signed and notarized by Apple, and installs updates in place when you choose to.</p>
+  </section>
 
   <footer>
     Made by <a href="https://github.com/wiltodelta">Victor Kuznetsov</a>.
