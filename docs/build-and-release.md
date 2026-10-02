@@ -22,7 +22,8 @@ detail an engineer needs.
   macOS 26 host (on macOS 15 actool's asset agent crashes, so CI runs on
   `macos-26`). Its
   foreground layer is generated from `Resources/appicon_1024.png` by
-  `uv run scripts/make-icon-layers.py`.
+  `uv run scripts/make-icon-layers.py`. The website's icons follow it at
+  deploy time; its link preview after `uv run scripts/make-og-image.py`.
 - **Screenshots:** `./capture-screenshots.sh` rebuilds the app and regenerates
   `screenshots/` (the menu with the strip of menu bar above it, General,
   Translation), each in the light appearance

@@ -1,10 +1,11 @@
 name: Publish translatelikeme.com
 
-# The site is site/ (the page, robots.txt, llms.txt) plus the README's
-# screenshots and the app icon, copied in at deploy time so they have one
-# committed copy each. The custom
-# domain is set in the repository's Pages settings and verified on the account,
-# so no CNAME file is needed with an Actions deployment.
+# The site is site/ (the page, robots.txt, llms.txt, the link preview) plus
+# the README's screenshots, copied in at deploy time so they have one committed
+# copy, and the icons that scripts/make-site-icons.py derives from the app
+# icon. The custom domain is set in the repository's Pages settings and
+# verified on the account, so no CNAME file is needed with an Actions
+# deployment.
 on:
   push:
     branches: [ main ]
@@ -12,6 +13,7 @@ on:
       - 'site/**'
       - 'screenshots/**'
       - 'Resources/appicon_1024.png'
+      - 'scripts/make-site-icons.py'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -34,11 +36,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+    - name: Install uv
+      uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+
     - name: Assemble the site
       run: |
         cp -R site _site
         cp -R screenshots _site/screenshots
-        cp Resources/appicon_1024.png _site/appicon.png
+        uv run scripts/make-site-icons.py _site
 
     - name: Upload the site
       uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
