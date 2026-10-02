@@ -38,14 +38,12 @@ pkill -f "$EXECUTABLE" 2>/dev/null || true
 
 cat >"$WORK/helper.swift" <<'SWIFT'
 import AppKit
-import CoreImage
 
 // menu <pid>                -> "x y w h" of the pid's open menu window
 // named <pid> <title>       -> "x y w h" of the on-screen window with that title
 // menubar                   -> the menu bar height in points
 // backdrop <x> <y> <w> <h>  -> show a plain backdrop window there (screen points,
 //                              top-left origin) until killed
-// pad <png> <top>           -> add <top> points above the image in its top-left color
 // pointer [<x> <y>]         -> print the pointer position (top-left origin), or move it
 // clear <pid> <backdrop pid> <x> <y> <w> <h> -> exit 1 unless, front to back, only
 //                              the app's windows cover that rect above the backdrop
@@ -135,18 +133,6 @@ case "clear":
         exit(1)
     }
     exit(1)
-case "pad":
-    let url = URL(fileURLWithPath: args[2])
-    let rep = NSBitmapImageRep(data: try! Data(contentsOf: url))!
-    let image = CIImage(bitmapImageRep: rep)!
-    let top = (CGFloat(Double(args[3])!) * CGFloat(rep.pixelsWide) / rep.size.width).rounded()
-    // Sample the captured backdrop rather than recompute its color: the capture
-    // passes through the display's color management.
-    let fill = rep.colorAt(x: 4, y: 4)!.usingColorSpace(.sRGB)!
-    let canvas = CGRect(x: 0, y: 0, width: image.extent.width, height: image.extent.height + top)
-    let background = CIImage(color: CIColor(color: fill)!).cropped(to: canvas)
-    try! CIContext().writePNGRepresentation(of: image.composited(over: background), to: url, format: .RGBA8,
-                                           colorSpace: CGColorSpace(name: CGColorSpace.sRGB)!)
 default:
     exit(2)
 }
@@ -224,9 +210,11 @@ trap cleanup EXIT
 # Menus and windows are Liquid Glass: a single-window capture renders them
 # without what sits behind them, as flat gray. So every screenshot puts a plain
 # backdrop under the window and captures that screen region with a MARGIN of
-# backdrop on each side, window shadow included. The menu hangs right under the
-# menu bar, so the top margin is taken only down to the menu bar and the rest is
-# filled in the backdrop's color. Nothing else on screen reaches the image.
+# backdrop on each side, window shadow included. The menu is captured with the
+# strip of menu bar above it, so the image shows where the app lives (directories
+# such as MacMenuBar ask for that); the strip holds the wallpaper and the status
+# items next to this one, nothing from a window. Nothing else on screen reaches
+# the image.
 MARGIN=20
 MENU_BAR=$(helper menubar)
 show_backdrop() {
@@ -234,20 +222,22 @@ show_backdrop() {
     BACKDROP_PID=$!
     sleep 1.2
 }
-# capture_region <name> <x> <y> <w> <h>: the window's frame in screen points.
-# The region is checked before and after the capture, and the image kept only
-# if both pass: a window raised meanwhile (the Mac is in use) would put its
-# contents, often private, into a public image.
+# capture_region <name> <x> <y> <w> <h>: the window's frame in screen points. A
+# window whose top margin reaches the menu bar (the menu) is captured up through
+# it. The region below the menu bar is checked before and after the capture, and
+# the image kept only if both pass: a window raised meanwhile (the Mac is in use)
+# would put its contents, often private, into a public image.
 capture_region() {
     local top=$((MARGIN < $3 - MENU_BAR ? MARGIN : $3 - MENU_BAR))
     local region=("$(($2 - MARGIN))" "$(($3 - top))" "$(($4 + 2 * MARGIN))" "$(($5 + top + MARGIN))")
+    local shot_region=("${region[@]}")
+    [ "$top" -lt "$MARGIN" ] && shot_region=("${region[0]}" 0 "${region[2]}" "$(($3 + $5 + MARGIN))")
     local shot="$WORK/$1.png"
     helper clear "$PID" "$BACKDROP_PID" "${region[@]}" &&
-        screencapture -x -R"$(IFS=,; echo "${region[*]}")" "$shot" &&
+        screencapture -x -R"$(IFS=,; echo "${shot_region[*]}")" "$shot" &&
         helper clear "$PID" "$BACKDROP_PID" "${region[@]}" ||
         { echo "Another window covered $1; rerun with the Mac left alone."; exit 1; }
     kill "$BACKDROP_PID"; wait "$BACKDROP_PID" 2>/dev/null || true; BACKDROP_PID=""
-    [ "$top" -lt "$MARGIN" ] && helper pad "$shot" $((MARGIN - top))
     mv "$shot" "$OUT/$1.png"
     echo "Captured $OUT/$1.png"
 }
