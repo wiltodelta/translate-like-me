@@ -136,8 +136,10 @@ workflow copies those two in, so each has one committed copy. The domain
 and `www` as a CNAME to `wiltodelta.github.io`, all DNS only (proxying would
 stop GitHub issuing the certificate), and the TXT record
 `_github-pages-challenge-wiltodelta` that verifies the domain on the
-`wiltodelta` account, so no other account can publish Pages on it. Keep that
-TXT record: deleting it unverifies the domain.
+`wiltodelta` account, so no other account can publish Pages on it. A second
+TXT record on the root, `google-site-verification=...`, verifies the domain
+property in Google Search Console (account kuznetsov.va@gmail.com, added
+2026-10-01). Keep both TXT records: deleting one unverifies the domain there.
 
 Mail to any address at the domain goes to kuznetsov.va@gmail.com through
 Cloudflare Email Routing (catch-all rule; the MX, SPF and DKIM records are
