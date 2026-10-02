@@ -183,6 +183,13 @@ close_menu() {
     ax "perform action \"AXCancel\" of menu 1 of $STATUS_ITEM" >/dev/null 2>&1 || true
     sleep 0.5
 }
+# measure_menu: the open menu's frame into X Y W H. A menu that closed in the
+# meantime leaves nothing to read, and a bare read would end the script
+# silently under set -e.
+measure_menu() {
+    read -r X Y W H < <(helper menu "$PID") ||
+        { echo "The menu closed before it was measured; rerun with the Mac left alone."; exit 1; }
+}
 
 # Status-bar menus follow the menu bar's appearance, not the app's, so only the
 # system-wide switch turns the menu dark too.
@@ -269,12 +276,12 @@ capture_all() {
     # The first open starts the engine check; the reopen shows its result.
     open_menu
     sleep 2 # the engine check
-    read -r X Y W H < <(helper menu "$PID")
+    measure_menu
     close_menu
     show_backdrop "$X" "$Y" "$W" "$H"
     open_menu
     sleep 0.5
-    read -r X Y W H < <(helper menu "$PID")
+    measure_menu
     capture_region "menu$2" "$X" "$Y" "$W" "$H"
     capture_settings General "general$2"
 
