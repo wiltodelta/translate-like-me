@@ -37,7 +37,9 @@ detail, including the secrets and where the keys are kept (1Password):
   `./capture-screenshots.sh` (it also regenerates `screenshots/`, light and
   dark, flipping the system to Dark Mode and back; needs
   Accessibility and Screen Recording for the terminal and a Mac left alone;
-  a closed menu mid-run fails it, rerun once). System Events `entire contents`
+  a closed menu mid-run fails it, rerun once; the General pane's bottom margin
+  reaches the Dock, and a Dock label there passes the covered-window check, so
+  look at the bottom of `general*.png` before committing). System Events `entire contents`
   does not reach the SwiftUI controls in Settings: press them by walking
   `AXUIElement` children and matching the title or accessibility label. A
   picker is an `AXPopUpButton` (its value is the selection): press it, then
