@@ -79,8 +79,10 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
 
 1. A small icon appears in the menu bar (there is no Dock icon), and a welcome
    window walks you through setup. First add your language pairs: there are
-   none until you add one, and the first pair you add starts from your macOS
-   languages (your first one and your second, or English) on ⌥⌘F. Then pick an
+   none until you add one, and the first pair you add is suggested from your
+   Mac on ⌥⌘F: its languages (Language & Region), then your keyboard layouts,
+   then your region, then English. When the Mac knows only one language, the
+   second is left for you to choose. Every language macOS has is offered. Then pick an
    engine: each one (Claude, ChatGPT, Grok) is checked right away with a short
    test translation, so the list shows which work on your Mac and, for the
    others, what to fix (install the tool or sign in). Coming

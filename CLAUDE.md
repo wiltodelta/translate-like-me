@@ -24,8 +24,9 @@ detail, including the secrets and where the keys are kept (1Password):
 - `bash maintain.sh` runs the canonical Swift gate.
 - Lint config in `.swiftlint.yml` scans `Sources/` at 120-column lines.
 - Tests cover the pure logic (`Shortcut` formatting and menu key equivalents,
-  `Languages` pair editing, the first pair from the macOS languages and no
-  pairs for a new user, `EngineHealth` mapping of onboarding checks, migration
+  `Languages` pair editing, the full macOS language list and the
+  suggestion chain for new pairs (unchosen when it runs out), no pairs for a
+  new user, `EngineHealth` mapping of onboarding checks, migration
   from the single pair and of the global style into the pairs, the pair
   prompt, `HarnessDefaults` config reading,
   `HarnessModels` catalog parsing (claude, codex, grok) and `HarnessChoice`, the
@@ -38,7 +39,11 @@ detail, including the secrets and where the keys are kept (1Password):
   Accessibility and Screen Recording for the terminal and a Mac left alone;
   a closed menu mid-run fails it, rerun once). System Events `entire contents`
   does not reach the SwiftUI controls in Settings: press them by walking
-  `AXUIElement` children and matching the title or accessibility label.
+  `AXUIElement` children and matching the title or accessibility label. A
+  picker is an `AXPopUpButton` (its value is the selection): press it, then
+  press the `AXMenuItem` by title, and read the result back from the
+  defaults (`plutil -extract languagePairs raw`, base64 JSON) rather than
+  sending keys, which land in whatever app is in front.
 - Live runs of a dev build read and write the installed app's settings domain
   (`com.wiltodelta.translatelikeme`): save and restore any key a test changes,
   or override it for one launch without writing (`open -n "Translate Like

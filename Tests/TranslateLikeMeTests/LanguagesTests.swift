@@ -21,21 +21,62 @@ final class LanguagesTests: XCTestCase {
         XCTAssertEqual([first.first, first.second], ["en", "ru"])
     }
 
-    func testNewPairKeepsTheFirstLanguageAndSkipsTakenPartners() {
-        let added = Languages.newPair(after: [pair("ru", "en")])
-        XCTAssertEqual(added.first, "ru")
-        XCTAssertEqual(added.second, "es") // "en" is taken, "ru" is itself
+    func testNewPairTakesTheNextSuggestionTheFirstLanguageIsNotPairedWith() {
+        let added = Languages.newPair(after: [pair("ru", "en")], suggestions: ["ru", "en", "de", "fr"])
+        XCTAssertEqual([added.first, added.second], ["ru", "de"])
         XCTAssertNil(added.shortcut)
-        XCTAssertEqual(Languages.newPair(after: [pair("ru", "en"), added]).second, "fr")
+        let third = Languages.newPair(after: [pair("ru", "en"), added], suggestions: ["ru", "en", "de", "fr"])
+        XCTAssertEqual(third.second, "fr")
     }
 
-    func testFirstPairAddedStartsFromTheSystemLanguagesOnTheDefaultShortcut() {
-        let added = Languages.newPair(after: [], preferred: ["de-DE", "ru-RU"])
+    // Nothing left to suggest: the second language waits for the user instead
+    // of being picked from the list.
+    func testNewPairLeavesTheSecondUnchosenWhenSuggestionsRunOut() {
+        let added = Languages.newPair(after: [pair("en", "ru")], suggestions: ["en", "ru"])
+        XCTAssertEqual(added.second, "")
+        XCTAssertFalse(added.isComplete)
+    }
+
+    func testFirstPairAddedIsTheFirstTwoSuggestionsOnTheDefaultShortcut() {
+        let added = Languages.newPair(after: [], suggestions: ["de", "ru"])
         XCTAssertEqual([added.first, added.second], ["de", "ru"])
         XCTAssertEqual(added.shortcut, Languages.defaultShortcut)
     }
 
+    // An English Mac with a U.S. layout in the US says nothing about a second
+    // language.
+    func testFirstPairOnAnEnglishOnlyMacLeavesTheSecondUnchosen() {
+        let made = Languages.newPair(after: [], suggestions: Languages.suggestions(
+            preferred: ["en-US"], keyboards: ["en"], region: "US"))
+        XCTAssertEqual([made.first, made.second], ["en", ""])
+    }
+
     // MARK: - System languages
+
+    func testListCoversMacOSLanguagesWithScriptsAndPortugueseByRegion() {
+        let codes = Set(Languages.all.map(\.code))
+        XCTAssertGreaterThan(codes.count, 250)
+        for code in ["en", "ru", "uk", "ka", "hy", "sw", "zh-Hans", "zh-Hant", "sr-Cyrl", "sr-Latn", "pt-BR", "pt-PT"] {
+            XCTAssertTrue(codes.contains(code), code)
+        }
+        XCTAssertFalse(codes.contains("pt"))
+        XCTAssertFalse(codes.contains("zh"))
+        XCTAssertFalse(codes.contains("ur-Aran")) // a style of the Arabic script
+        XCTAssertEqual(Languages.name(for: "ka"), "Georgian")
+        XCTAssertEqual(Languages.all.map(\.name), Languages.all.map(\.name).sorted {
+            $0.localizedStandardCompare($1) == .orderedAscending
+        })
+    }
+
+    // Every language a pair stored before the full list keeps its code.
+    func testCodesFromTheCuratedListStillExist() {
+        let codes = Set(Languages.all.map(\.code))
+        for code in ["en", "ru", "es", "fr", "de", "it", "pt-BR", "pt-PT", "nl", "pl", "uk", "tr", "ar", "he",
+                     "hi", "zh-Hans", "zh-Hant", "ja", "ko", "vi", "th", "id", "sv", "no", "da", "fi", "cs",
+                     "el", "ro", "hu"] {
+            XCTAssertTrue(codes.contains(code), code)
+        }
+    }
 
     func testPreferredIdentifiersMapToTheLongestListedCode() {
         XCTAssertEqual(Languages.code(forPreferred: "ru-US"), "ru")
@@ -43,20 +84,25 @@ final class LanguagesTests: XCTestCase {
         XCTAssertEqual(Languages.code(forPreferred: "pt-PT"), "pt-PT")
         XCTAssertEqual(Languages.code(forPreferred: "pt"), "pt-BR")
         XCTAssertEqual(Languages.code(forPreferred: "zh"), "zh-Hans")
+        XCTAssertEqual(Languages.code(forPreferred: "sr"), "sr-Cyrl") // its default script
+        XCTAssertEqual(Languages.code(forPreferred: "sr_Latn"), "sr-Latn") // keyboard spelling
         XCTAssertNil(Languages.code(forPreferred: "xx-YY"))
     }
 
-    func testDefaultPairFollowsTheSystemLanguages() {
-        func codes(_ preferred: [String]) -> [String] {
-            let made = Languages.defaultPair(preferred: preferred)
-            return [made.first, made.second]
-        }
-        XCTAssertEqual(codes(["ru-US", "en-US"]), ["ru", "en"])
-        XCTAssertEqual(codes(["de-DE"]), ["de", "en"])
-        XCTAssertEqual(codes(["en-US", "en-GB", "fr-FR"]), ["en", "fr"]) // duplicates collapse
-        XCTAssertEqual(codes(["en-US"]), ["en", "es"])
-        XCTAssertEqual(codes(["xx"]), ["en", "es"])
-        XCTAssertEqual(Languages.defaultPair(preferred: ["ru"]).shortcut, Languages.defaultShortcut)
+    func testSuggestionsGoSystemThenKeyboardsThenRegionThenEnglish() {
+        XCTAssertEqual(Languages.suggestions(preferred: ["en-US", "ru-US"], keyboards: [], region: "US"),
+                       ["en", "ru"])
+        // One system language: a Russian layout says the second.
+        XCTAssertEqual(Languages.suggestions(preferred: ["en-US"], keyboards: ["en", "ru"], region: "US"),
+                       ["en", "ru"])
+        // Neither: the region's language.
+        XCTAssertEqual(Languages.suggestions(preferred: ["en-DE"], keyboards: ["en"], region: "DE"),
+                       ["en", "de"])
+        // A non-English Mac gets English last.
+        XCTAssertEqual(Languages.suggestions(preferred: ["ru-RU"], keyboards: ["ru"], region: "RU"),
+                       ["ru", "en"])
+        XCTAssertEqual(Languages.suggestions(preferred: ["en-US", "en-GB"], keyboards: ["xx"], region: nil),
+                       ["en"]) // repeats and unlisted codes collapse
     }
 
     // MARK: - Migration from the single pair

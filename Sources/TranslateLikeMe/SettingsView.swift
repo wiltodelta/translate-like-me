@@ -226,15 +226,33 @@ private struct LanguagePairRow: View {
     }
 
     private func languagePicker(_ label: String, isFirst: Bool) -> some View {
-        Picker(label, selection: Binding(
-            get: { isFirst ? pair.first : pair.second },
-            set: { pair = Languages.setting(pair, first: isFirst, to: $0) }
-        )) {
+        LanguagePicker(label: label, code: isFirst ? pair.first : pair.second) {
+            pair = Languages.setting(pair, first: isFirst, to: $0)
+        }
+        .equatable()
+    }
+}
+
+// One side of a pair. Equatable on its code, so editing the pair's style does
+// not rebuild a menu of every macOS language (300+ items) per keystroke.
+private struct LanguagePicker: View, Equatable {
+    let label: String
+    let code: String
+    let pick: (String) -> Void
+
+    var body: some View {
+        Picker(label, selection: Binding(get: { code }, set: pick)) {
+            // A second language the Mac could not suggest waits for a pick.
+            if code.isEmpty {
+                Text("Choose a Language").tag("")
+            }
             ForEach(Languages.all) { Text($0.name).tag($0.code) }
         }
         .labelsHidden()
         .fixedSize()
     }
+
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.label == rhs.label && lhs.code == rhs.code }
 }
 
 // A pair's writing style in a sheet; edits apply as typed, like the rest of

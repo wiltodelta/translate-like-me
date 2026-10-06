@@ -117,7 +117,7 @@ private struct OnboardingView: View {
                 Spacer()
                 Button("Continue") { step = .engine }
                     .keyboardShortcut(.defaultAction)
-                    .disabled(store.pairs.isEmpty)
+                    .disabled(store.pairs.isEmpty || !store.pairs.allSatisfy(\.isComplete))
             case .engine:
                 Button("Back") { step = .languages }
                 Button("Check Again", action: checkAll)

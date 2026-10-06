@@ -36,6 +36,10 @@ final class TranslationController {
 
     // Translates the selection with `pair` (each pair has its own shortcut).
     func run(pair: LanguagePair) {
+        guard pair.isComplete else {
+            PopupController.shared.showError("Choose the second language for \(pair.title) in Settings first.")
+            return
+        }
         guard !TranslationActivity.shared.isBusy else {
             log.info("Translate ignored: a translation is already running")
             return

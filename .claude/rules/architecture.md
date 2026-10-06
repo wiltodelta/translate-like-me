@@ -35,6 +35,19 @@ Read before editing this domain.
   = .visible`; the status rows and the updates item set it (`StatusMenu.showsImage`).
   A scheduled Sparkle check shows its own window only while the app is active, so a
   launch-time find is announced in the menu, not over the user's app.
+- `Languages.all` is every language with a macOS locale (307, from
+  `Locale.availableIdentifiers`, English names), split by script where a
+  language has several (not `Aran`, a Nastaliq style), Portuguese by region;
+  stored codes are BCP 47. New pairs take languages from
+  `Languages.suggestions`: system languages, then each enabled keyboard
+  layout's primary language (TIS), then the region's language, then English.
+  The first pair is the first two on ⌥⌘F; later pairs pair the first pair's
+  first language with the next free suggestion. When suggestions run out the
+  second language stays empty (`LanguagePair.isComplete` false): the picker
+  shows "Choose a Language", onboarding's Continue waits, the menu item opens
+  General, and a run shows a popup instead of translating. Each side's picker
+  is an `Equatable` `LanguagePicker` keyed on its code, so typing a pair's
+  style does not rebuild a 300-item menu per keystroke.
 - Language pairs (`LanguagePair`, up to `Languages.maxPairs` = 3, stored as JSON
   in `Settings.languagePairs`, edited under General > Languages) each carry an
   optional shortcut and writing style (`style`, empty for a plain translation;
@@ -48,8 +61,7 @@ Read before editing this domain.
   `Settings.persistLanguagePairs()` runs first at launch and writes the pairs
   once: the pre-pairs `languageA`/`languageB`/`replaceKeyCode` (or ru/en ⌥⌘F for
   an earlier run that kept the defaults) for an existing user, none for a new
-  one (`Settings.initialPairs`; the first pair added starts from the macOS
-  languages on ⌥⌘F, `Languages.newPair`), and every pair may be removed (the
+  one (`Settings.initialPairs`), and every pair may be removed (the
   menu then shows "Add a Language Pair…"); `Settings.moveStyleIntoPairs()` then copies the
   earlier single global `style` into every pair when none has a style yet,
   and removes it.

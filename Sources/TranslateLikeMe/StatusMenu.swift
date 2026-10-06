@@ -143,7 +143,11 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private func translateItem(_ pair: LanguagePair, showsStyle: Bool) -> NSMenuItem {
         let item = self.item(pair.title, action: #selector(translateSelection(_:)))
         item.representedObject = pair.id
-        if showsStyle {
+        if !pair.isComplete {
+            // Opens General > Languages, where the language is chosen.
+            item.action = #selector(openLanguageSettings)
+            item.subtitle = "Choose the second language in Settings"
+        } else if showsStyle {
             item.subtitle = pair.trimmedStyle.isEmpty ? "Plain translation" : "In your writing style"
         }
         if let equivalent = pair.shortcut.flatMap(Shortcut.menuKeyEquivalent) {

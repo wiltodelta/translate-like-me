@@ -24,12 +24,16 @@ struct KeyCombo: Codable, Equatable {
 struct LanguagePair: Codable, Equatable, Identifiable {
     var id = UUID()
     var first: String
+    // Empty until chosen, when the Mac suggested no second language.
     var second: String
     var shortcut: KeyCombo?
     // Applied to this pair's translations; blank means a plain translation.
     var style = ""
 
-    var title: String { "\(Languages.name(for: first)) ↔ \(Languages.name(for: second))" }
+    var title: String { "\(Languages.name(for: first)) ↔ \(isComplete ? Languages.name(for: second) : "…")" }
+
+    // The second language chosen; a new pair may leave it to the user.
+    var isComplete: Bool { !second.isEmpty }
 
     // The style as applied; empty for a plain translation.
     var trimmedStyle: String { style.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -49,39 +53,38 @@ extension LanguagePair {
 }
 
 enum Languages {
-    // A curated list of common languages. Order roughly by popularity.
-    static let all: [Language] = [
-        Language(code: "en", name: "English"),
-        Language(code: "ru", name: "Russian"),
-        Language(code: "es", name: "Spanish"),
-        Language(code: "fr", name: "French"),
-        Language(code: "de", name: "German"),
-        Language(code: "it", name: "Italian"),
-        Language(code: "pt-BR", name: "Portuguese (Brazil)"),
-        Language(code: "pt-PT", name: "Portuguese (Portugal)"),
-        Language(code: "nl", name: "Dutch"),
-        Language(code: "pl", name: "Polish"),
-        Language(code: "uk", name: "Ukrainian"),
-        Language(code: "tr", name: "Turkish"),
-        Language(code: "ar", name: "Arabic"),
-        Language(code: "he", name: "Hebrew"),
-        Language(code: "hi", name: "Hindi"),
-        Language(code: "zh-Hans", name: "Chinese (Simplified)"),
-        Language(code: "zh-Hant", name: "Chinese (Traditional)"),
-        Language(code: "ja", name: "Japanese"),
-        Language(code: "ko", name: "Korean"),
-        Language(code: "vi", name: "Vietnamese"),
-        Language(code: "th", name: "Thai"),
-        Language(code: "id", name: "Indonesian"),
-        Language(code: "sv", name: "Swedish"),
-        Language(code: "no", name: "Norwegian"),
-        Language(code: "da", name: "Danish"),
-        Language(code: "fi", name: "Finnish"),
-        Language(code: "cs", name: "Czech"),
-        Language(code: "el", name: "Greek"),
-        Language(code: "ro", name: "Romanian"),
-        Language(code: "hu", name: "Hungarian")
-    ]
+    // Every language macOS has a locale for (307 on macOS 27), named in English
+    // and sorted by name. A language written in several scripts is listed once
+    // per script (zh-Hans, zh-Hant, sr-Cyrl, sr-Latn), except Aran, a Nastaliq
+    // style of the Arabic script rather than a script of its own. Portuguese is
+    // listed by region, as the two written standards differ.
+    static let all: [Language] = {
+        var scripts: [String: Set<String>] = [:]
+        for identifier in Locale.availableIdentifiers {
+            let language = Locale.Components(identifier: identifier).languageComponents
+            guard let code = language.languageCode?.identifier else { continue }
+            var found = scripts[code, default: []]
+            if let script = language.script?.identifier, script != "Aran" { found.insert(script) }
+            scripts[code] = found
+        }
+        var codes: [String] = []
+        for (code, found) in scripts {
+            if code == "pt" {
+                codes += ["pt-BR", "pt-PT"]
+            } else if found.count > 1 {
+                codes += found.map { "\(code)-\($0)" }
+            } else {
+                codes.append(code)
+            }
+        }
+        let english = Locale(identifier: "en")
+        return codes
+            .map { Language(code: $0, name: english.localizedString(forIdentifier: $0) ?? $0) }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }()
+
+    // Keyed by lowercased code, so lookups ignore case ("zh-hant").
+    private static let byCode = Dictionary(uniqueKeysWithValues: all.map { ($0.code.lowercased(), $0) })
 
     // Pairs beyond this are not offered: each one is a shortcut to remember.
     static let maxPairs = 3
@@ -94,46 +97,75 @@ enum Languages {
     }
 
     static func name(for code: String) -> String {
-        all.first { $0.code == code }?.name ?? code
+        byCode[code.lowercased()]?.name ?? code
     }
 
     // The listed language for a system language identifier ("ru-US",
-    // "zh-Hans-CN", "pt-BR"): the longest listed code it starts with.
+    // "zh-Hans-CN", "pt-BR", "sr"): the longest listed code it starts with, and
+    // for a language listed only by script, the script it is written in by
+    // default ("sr" is Cyrillic).
     static func code(forPreferred identifier: String) -> String? {
-        let parts = identifier.split(separator: "-")
+        let tag = identifier.replacingOccurrences(of: "_", with: "-")
+        return longestListedPrefix(of: tag)
+            ?? longestListedPrefix(of: Locale.Language(identifier: tag).maximalIdentifier)
+    }
+
+    private static func longestListedPrefix(of tag: String) -> String? {
+        let parts = tag.split(separator: "-")
         for count in stride(from: parts.count, through: 1, by: -1) {
             // A bare "zh" or "pt" maps to the listed default variant.
-            let candidate = normalized(parts.prefix(count).joined(separator: "-"))
-            if let match = all.first(where: { $0.code.caseInsensitiveCompare(candidate) == .orderedSame }) {
-                return match.code
-            }
+            let prefix = normalized(parts.prefix(count).joined(separator: "-"))
+            if let match = byCode[prefix.lowercased()] { return match.code }
         }
         return nil
     }
 
-    // The first pair a new user adds: the first system language that is listed,
-    // with the next listed system language, else English (or Spanish for an
-    // English speaker).
-    static func defaultPair(preferred: [String]) -> LanguagePair {
+    // The languages this Mac says its user reads or writes, most telling
+    // first, without repeats: the system languages (Language & Region), then
+    // each enabled keyboard layout's own language, then the region's language,
+    // then English, which most people translate to and from. Empty strings
+    // and unlisted languages are skipped.
+    static func suggestions(preferred: [String], keyboards: [String], region: String?) -> [String] {
+        let regionLanguage = region.map { Locale.Language(identifier: "und-\($0)").maximalIdentifier }
         var seen: [String] = []
-        for code in preferred.compactMap(code(forPreferred:)) where !seen.contains(code) { seen.append(code) }
-        let first = seen.first ?? "en"
-        let second = seen.dropFirst().first ?? (first == "en" ? "es" : "en")
-        return LanguagePair(first: first, second: second, shortcut: defaultShortcut)
+        for identifier in preferred + keyboards + [regionLanguage, "en"].compactMap({ $0 }) {
+            guard let code = code(forPreferred: identifier), !seen.contains(code) else { continue }
+            seen.append(code)
+        }
+        return seen
+    }
+
+    static var systemSuggestions: [String] {
+        suggestions(preferred: Locale.preferredLanguages, keyboards: keyboardLanguages,
+                    region: Locale.current.region?.identifier)
+    }
+
+    // The primary language of each enabled keyboard layout or input method
+    // (U.S. is English, RussianWin Russian), in the order macOS lists them.
+    private static var keyboardLanguages: [String] {
+        let filter = [kTISPropertyInputSourceCategory as String: kTISCategoryKeyboardInputSource as Any]
+        guard let sources = TISCreateInputSourceList(filter as CFDictionary, false)?
+            .takeRetainedValue() as? [TISInputSource] else { return [] }
+        return sources.compactMap { source in
+            guard let raw = TISGetInputSourceProperty(source, kTISPropertyInputSourceLanguages) else { return nil }
+            return (Unmanaged<AnyObject>.fromOpaque(raw).takeUnretainedValue() as? [String])?.first
+        }
     }
 
     // ⌥⌘F, the shortcut the first pair starts with.
     static let defaultShortcut = KeyCombo(keyCode: 3, modifiers: Int(cmdKey | optionKey))
 
-    // A new pair: the first pair's first language with the first listed
-    // language it is not already paired with. No shortcut until one is recorded.
-    // The very first pair starts from the system languages on ⌥⌘F instead.
+    // A new pair: the first pair's first language (for the very first pair,
+    // the first suggestion, on ⌥⌘F) with the next suggestion it is not already
+    // paired with. When none is left (an English Mac with a U.S. layout in the
+    // US knows one language) the second is left unchosen rather than guessed.
+    // Later pairs get no shortcut until one is recorded.
     static func newPair(after pairs: [LanguagePair],
-                        preferred: [String] = Locale.preferredLanguages) -> LanguagePair {
-        guard let first = pairs.first?.first else { return defaultPair(preferred: preferred) }
+                        suggestions: [String] = systemSuggestions) -> LanguagePair {
+        let first = pairs.first?.first ?? suggestions.first ?? "en"
         let taken = Set(pairs.filter { $0.first == first || $0.second == first }.flatMap { [$0.first, $0.second] })
-        let second = all.first { $0.code != first && !taken.contains($0.code) }?.code ?? "en"
-        return LanguagePair(first: first, second: second, shortcut: nil)
+        let second = suggestions.first { $0 != first && !taken.contains($0) } ?? ""
+        return LanguagePair(first: first, second: second, shortcut: pairs.isEmpty ? defaultShortcut : nil)
     }
 
     // The pair after setting one side to `code`. The two sides stay distinct:
