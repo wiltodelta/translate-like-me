@@ -19,8 +19,7 @@ final class SettingsTabViewController: NSTabViewController {
     // HIG (Settings, macOS): panes in a noncustomizable toolbar that always shows
     // the active pane; the window title follows the pane (the tab controller
     // propagates each pane's title).
-    static func makeWindow() -> (window: NSWindow, tabs: SettingsTabViewController) {
-        let store = SettingsStore()
+    static func makeWindow(store: SettingsStore) -> (window: NSWindow, tabs: SettingsTabViewController) {
         let tabs = SettingsTabViewController()
         tabs.tabStyle = .toolbar
         tabs.addPane("General", symbol: "gearshape", GeneralSettingsView(store: store))
@@ -57,7 +56,7 @@ final class SettingsTabViewController: NSTabViewController {
 }
 
 // The settings window grows downward from where it was centred whenever its pane
-// grows (another language pair, the API key section, a switch to a taller pane),
+// grows (another language pair, a switch to a taller pane),
 // which put its bottom under the Dock. Every frame it is given, the tab
 // controller's animation steps included, is kept inside the screen's visible
 // frame by moving it up. Correcting after the animation instead was measured

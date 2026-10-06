@@ -14,13 +14,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     // The last check, tagged with the engine it was made for, so a result for
     // the previous engine is never shown after switching in Settings.
-    private var engineStatus: (engine: String, readiness: EngineStatus.Readiness)?
+    private var engineStatus: (engine: Provider, readiness: EngineStatus.Readiness)?
     private var engineCheck: Task<Void, Never>?
     private weak var engineItem: NSMenuItem?
-
-    private var currentEngine: String {
-        "\(Settings.provider.rawValue)|\(Settings.effectiveAuthMode.rawValue)"
-    }
 
     override init() {
         super.init()
@@ -51,6 +47,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             let shared = pairs.contains { $0.id != pair.id && $0.first == pair.first && $0.second == pair.second }
             menu.addItem(translateItem(pair, showsStyle: shared))
         }
+        if pairs.isEmpty {
+            menu.addItem(item("Add a Language Pair…", action: #selector(openLanguageSettings)))
+        }
 
         // macOS 26 gives Settings… its standard gear icon, so its group gets an
         // icon on every item (HIG: uniform treatment within a group).
@@ -74,7 +73,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     private func refreshEngine() {
         engineCheck?.cancel()
-        let engine = currentEngine
+        let engine = Settings.provider
         engineCheck = Task {
             let result = await Task.detached { EngineStatus.check() }.value
             guard !Task.isCancelled else { return }
@@ -90,21 +89,17 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         let provider = Settings.provider
         let symbol: String
         let detail: String
-        let readiness = engineStatus?.engine == currentEngine ? engineStatus?.readiness : nil
+        let readiness = engineStatus?.engine == provider ? engineStatus?.readiness : nil
         switch readiness {
         case .ready:
             symbol = "checkmark.circle"
-            detail = Settings.effectiveAuthMode == .subscription
-                ? "Ready, using your subscription" : "Ready, using your API key"
+            detail = "Ready"
         case .notLoggedIn:
             symbol = "exclamationmark.triangle"
             detail = provider.notSignedInHint
-        case .notInstalled(let cli):
+        case .notInstalled:
             symbol = "exclamationmark.triangle"
-            detail = "The \(cli) command-line tool was not found."
-        case .noKey:
-            symbol = "exclamationmark.triangle"
-            detail = "No API key yet. Add it in Settings."
+            detail = provider.notInstalledHint
         case .none:
             symbol = "circle.dotted"
             detail = "Checking…"
@@ -168,6 +163,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     @objc private func openSettings() {
         NotificationCenter.default.post(name: .openSettings, object: nil)
+    }
+
+    @objc private func openLanguageSettings() {
+        NotificationCenter.default.post(name: .openSettings, object: SettingsPane.general)
     }
 
     @objc private func openEngineSettings() {

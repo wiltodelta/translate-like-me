@@ -9,10 +9,6 @@ final class SettingsStore {
     var provider: Provider {
         didSet {
             Settings.provider = provider
-            // Engines without an API-key mode (Grok) ignore the auth-mode split,
-            // so keep the stored mode coherent for later switches back.
-            if !provider.supportsAPIKey { authMode = .subscription }
-            engineChanged()
             loadPick()
         }
     }
@@ -30,13 +26,6 @@ final class SettingsStore {
     // Keeps loadPick's assignment from being saved back (or reset) as an edit.
     @ObservationIgnored private var loadingPick = false
 
-    var authMode: AuthMode {
-        didSet {
-            Settings.authMode = authMode
-            engineChanged()
-        }
-    }
-
     var pairs: [LanguagePair] {
         didSet {
             Settings.languagePairs = pairs
@@ -48,26 +37,9 @@ final class SettingsStore {
         }
     }
 
-    var anthropicKey: String {
-        didSet {
-            Settings.anthropicKey = anthropicKey
-            engineChanged()
-        }
-    }
-
-    var openaiKey: String {
-        didSet {
-            Settings.openaiKey = openaiKey
-            engineChanged()
-        }
-    }
-
     init() {
         provider = Settings.provider
-        authMode = Settings.authMode
         pairs = Settings.languagePairs
-        anthropicKey = Settings.anthropicKey
-        openaiKey = Settings.openaiKey
         loadPick()
     }
 
@@ -111,40 +83,9 @@ final class SettingsStore {
         }
     }
 
-    // MARK: - Bindings scoped to the selected provider
-
-    // The key field edits the selected provider's key (Settings.apiKey(for:)).
-    var currentKey: String {
-        get {
-            switch provider {
-            case .anthropic: return anthropicKey
-            case .openai: return openaiKey
-            case .grok: return ""
-            }
-        }
-        set {
-            switch provider {
-            case .anthropic: anthropicKey = newValue
-            case .openai: openaiKey = newValue
-            case .grok: break
-            }
-        }
-    }
-
-    var effectiveAuthMode: AuthMode { provider.effectiveAuthMode(authMode) }
-
-    // MARK: - Side effects
-
-    // A model id may have been cached for the previous provider or key; clear it
-    // so the next translation re-resolves the latest model live.
-    private func engineChanged() {
-        ModelResolver.clearCache()
-    }
-
     // MARK: - Language pairs
 
     var canAddPair: Bool { pairs.count < Languages.maxPairs }
-    var canRemovePair: Bool { pairs.count > 1 }
 
     func addPair() {
         guard canAddPair else { return }
@@ -152,7 +93,6 @@ final class SettingsStore {
     }
 
     func removePair(id: LanguagePair.ID) {
-        guard canRemovePair else { return }
         pairs.removeAll { $0.id == id }
     }
 

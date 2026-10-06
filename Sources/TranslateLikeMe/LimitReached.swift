@@ -1,7 +1,7 @@
 import Foundation
 
 // The error thrown when the engine's usage limit is exhausted: a subscription
-// weekly/5-hour limit in CLI mode, or a 429 quota/rate limit in API mode.
+// weekly/5-hour limit, or a 429 quota/rate limit the CLI passes through.
 // Carrying it as its own type lets the UI present the reset time and a
 // switch-engine action instead of a generic error.
 struct LimitReachedError: LocalizedError {
@@ -14,7 +14,7 @@ struct LimitReachedError: LocalizedError {
 // output, trying error.message, then message. It scans for balanced `{...}`
 // objects (skipping braces inside strings), so an API body, a pretty-printed
 // object, and codex's `ERROR: {json}` line printed twice all parse the same
-// way. Shared by the CLI layer (Translator) and the API layer (APIClient).
+// way.
 enum JSONErrorMessage {
     static func extract(from text: String) -> String? {
         let chars = Array(text.utf8)

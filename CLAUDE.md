@@ -24,14 +24,15 @@ detail, including the secrets and where the keys are kept (1Password):
 - `bash maintain.sh` runs the canonical Swift gate.
 - Lint config in `.swiftlint.yml` scans `Sources/` at 120-column lines.
 - Tests cover the pure logic (`Shortcut` formatting and menu key equivalents,
-  `Languages` pair editing, defaults from the macOS languages, migration
+  `Languages` pair editing, the first pair from the macOS languages and no
+  pairs for a new user, `EngineHealth` mapping of onboarding checks, migration
   from the single pair and of the global style into the pairs, the pair
   prompt, `HarnessDefaults` config reading,
   `HarnessModels` catalog parsing (claude, codex, grok) and `HarnessChoice`, the
-  settings model/effort pick, `ModelResolver` API model selection,
-  `LimitDetector` and `JSONErrorMessage` engine payload parsing, and the API
-  keys' keychain storage and migration). UI, Accessibility, CGEvent, Sparkle and
-  CLI-subprocess code is not unit-tested; render UI changes with
+  settings model/effort pick,
+  `LimitDetector` and `JSONErrorMessage` engine payload parsing, and removal
+  of the keys the dropped API-key mode stored). UI, Accessibility, CGEvent,
+  Sparkle and CLI-subprocess code is not unit-tested; render UI changes with
   `./capture-screenshots.sh` (it also regenerates `screenshots/`, light and
   dark, flipping the system to Dark Mode and back; needs
   Accessibility and Screen Recording for the terminal and a Mac left alone;
@@ -41,9 +42,14 @@ detail, including the secrets and where the keys are kept (1Password):
 - Live runs of a dev build read and write the installed app's settings domain
   (`com.wiltodelta.translatelikeme`): save and restore any key a test changes,
   or override it for one launch without writing (`open -n "Translate Like
-  Me.app" --args -authMode apiKey`, the argument domain). A dev launch also
+  Me.app" --args -provider grok`, the argument domain). A dev launch also
   runs the launch migrations on the real settings, so `defaults export
-  com.wiltodelta.translatelikeme <file>` before the first one.
+  com.wiltodelta.translatelikeme <file>` before the first one. Onboarding opens
+  with `-didCompleteFirstRun NO -languagePairs '<5b5d>'` (no pairs), but adding
+  a pair or picking an engine there still writes the real domain. The bundle
+  is hardened, so lldb cannot attach: read a crash's stack from
+  `~/Library/Logs/DiagnosticReports/TranslateLikeMe-*.ips` (JSON after the
+  first line).
   Probe engine CLIs with `env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN
   -u ANTHROPIC_BASE_URL`, or the harness's own variables redirect `claude`.
 
@@ -65,4 +71,4 @@ matching files are touched.
 
 | File | Covers |
 |------|--------|
-| `architecture.md` | Status item and its menu, settings panes, global hotkey, paste-landed editability detection, providers, and update checking |
+| `architecture.md` | Status item and its menu, settings panes, onboarding and its engine checks, global hotkey, paste-landed editability detection, providers, and update checking |

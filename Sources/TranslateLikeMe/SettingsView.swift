@@ -22,33 +22,13 @@ struct GeneralSettingsView: View {
 
     // MARK: - Languages
 
-    // One row per pair, each with its own shortcut (up to Languages.maxPairs).
     private var languagesSection: some View {
         Section {
-            ForEach($store.pairs) { $pair in
-                LanguagePairRow(pair: $pair,
-                                canRemove: store.canRemovePair,
-                                remove: { store.removePair(id: pair.id) },
-                                usedBy: { store.pair(using: $0, except: pair.id)?.title })
-            }
-            // At the limit the button stays, disabled, and says why: a button
-            // that silently vanished left people looking for it.
-            HStack(spacing: 8) {
-                Button("Add Pair") { store.addPair() }
-                    .disabled(!store.canAddPair)
-                if !store.canAddPair {
-                    Text("Up to \(Languages.maxPairs) pairs")
-                        .foregroundStyle(.secondary)
-                }
-            }
+            LanguagePairList(store: store)
         } header: {
             Text("Languages")
         } footer: {
-            Text("Select text in any app and press a pair's shortcut to replace it with the translation. "
-                 + "The source language is detected automatically; text in neither language is "
-                 + "translated into the first one. A pair's writing style makes its translations sound "
-                 + "like you; two pairs can share languages, one with your style and one without, for "
-                 + "someone else's text. Needs Accessibility permission (macOS will ask).")
+            Text(LanguagePairList.explanation + " Needs Accessibility permission (macOS will ask).")
         }
     }
 
@@ -102,9 +82,6 @@ struct TranslationSettingsView: View {
     var body: some View {
         Form {
             engineSection
-            if store.effectiveAuthMode == .apiKey, let copy = store.provider.apiKeyCopy {
-                apiKeySection(copy)
-            }
         }
         .settingsPane()
     }
@@ -118,15 +95,7 @@ struct TranslationSettingsView: View {
                 Text("ChatGPT").tag(Provider.openai)
                 Text("Grok").tag(Provider.grok)
             }
-            if store.provider.supportsAPIKey {
-                Picker("How to connect", selection: $store.authMode) {
-                    Text("Subscription").tag(AuthMode.subscription)
-                    Text("API Key").tag(AuthMode.apiKey)
-                }
-            }
-            if store.effectiveAuthMode == .subscription {
-                modelPickers
-            }
+            modelPickers
         } header: {
             Text("Translation engine")
         } footer: {
@@ -167,24 +136,40 @@ struct TranslationSettingsView: View {
 
     private var engineFooter: String {
         let provider = store.provider
-        if store.effectiveAuthMode == .subscription {
-            return "Runs the \(provider.cliProductName) command-line tool you are signed in to "
-                + "(not the desktop app). No extra cost beyond your plan. \(provider.subscriptionModelSummary)"
-        }
-        return "Connects directly with your own API key (you pay the provider per use). "
-            + (provider.apiKeyCopy?.modelSummary ?? "")
+        return "Runs the \(provider.cliProductName) command-line tool you are signed in to "
+            + "(not the desktop app). No extra cost beyond your plan. \(provider.modelSummary)"
     }
+}
 
-    // MARK: - API key
+// The pair rows, one per pair with its own shortcut (up to Languages.maxPairs),
+// and the Add Pair button; General > Languages and onboarding both show it.
+struct LanguagePairList: View {
+    @Bindable var store: SettingsStore
 
-    private func apiKeySection(_ copy: APIKeyCopy) -> some View {
-        Section {
-            // HIG (Writing, text fields): label the field, hint the format.
-            SecureField("Key", text: $store.currentKey, prompt: Text(copy.placeholder))
-        } header: {
-            Text(copy.header)
-        } footer: {
-            Text(copy.help)
+    static let explanation = "Select text in any app and press a pair's shortcut to replace it with "
+        + "the translation. The source language is detected automatically; text in neither language is "
+        + "translated into the first one. A pair's writing style makes its translations sound like you; "
+        + "two pairs can share languages, one with your style and one without, for someone else's text."
+
+    var body: some View {
+        if store.pairs.isEmpty {
+            Text("No language pairs yet. Add one to get a translation shortcut.")
+                .foregroundStyle(.secondary)
+        }
+        ForEach($store.pairs) { $pair in
+            LanguagePairRow(pair: $pair,
+                            remove: { store.removePair(id: pair.id) },
+                            usedBy: { store.pair(using: $0, except: pair.id)?.title })
+        }
+        // At the limit the button stays, disabled, and says why: a button
+        // that silently vanished left people looking for it.
+        HStack(spacing: 8) {
+            Button("Add Pair") { store.addPair() }
+                .disabled(!store.canAddPair)
+            if !store.canAddPair {
+                Text("Up to \(Languages.maxPairs) pairs")
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }
@@ -195,7 +180,6 @@ struct TranslationSettingsView: View {
 // (the settings window fits its pane and does not scroll).
 private struct LanguagePairRow: View {
     @Binding var pair: LanguagePair
-    let canRemove: Bool
     let remove: () -> Void
     let usedBy: (KeyCombo) -> String?
     @State private var editingStyle = false
@@ -236,7 +220,6 @@ private struct LanguagePairRow: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
-            .disabled(!canRemove)
             .help("Remove this pair")
             .accessibilityLabel("Remove \(pair.title)")
         }
@@ -300,15 +283,16 @@ private struct StyleEditor: View {
     }
 }
 
-private extension View {
+extension View {
     // A grouped form sized to its content at the settings window's width, but
     // never taller than the screen shows: past that the form scrolls. Three
     // language pairs made the General pane 777 pt, which already slid under the
     // Dock on a 1470x956 display and cannot fit a smaller one at all.
-    func settingsPane() -> some View {
+    // `reserved` is height the window takes below the form (onboarding's buttons).
+    func settingsPane(width: CGFloat = 500, reserved: CGFloat = 0) -> some View {
         formStyle(.grouped)
-            .frame(width: 500)
-            .frame(maxHeight: SettingsLayout.maxPaneHeight)
+            .frame(width: width)
+            .frame(maxHeight: SettingsLayout.maxPaneHeight - reserved)
             .fixedSize(horizontal: false, vertical: true)
     }
 }

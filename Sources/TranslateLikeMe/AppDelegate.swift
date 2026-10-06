@@ -3,14 +3,18 @@ import SwiftUI
 import ApplicationServices
 
 // Owns the AppKit pieces: the status-bar item and its menu (StatusMenu), global
-// hotkeys (Carbon), the Accessibility prompt, and the settings window.
+// hotkeys (Carbon), the Accessibility prompt, and the onboarding and settings
+// windows.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private var statusItem: NSStatusItem!
     private let statusMenu = StatusMenu()
+    // One model for both windows, so an edit in one shows in the other.
+    private lazy var store = SettingsStore()
     private var settingsWindow: NSWindow?
     private var settingsTabs: SettingsTabViewController?
+    private var onboardingWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -18,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // which the migration reads as "an earlier version ran here".
         Settings.persistLanguagePairs()
         Settings.moveStyleIntoPairs()
-        Settings.moveAPIKeysToKeychain()
+        Settings.removeAPIKeys()
 
         setUpStatusItem()
 
@@ -39,16 +43,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         registerHotKeys()
         ensureAccessibilityPermission()
-        openSettingsOnFirstRun()
+        showOnboardingOnFirstRun()
         Updater.shared.start()
     }
 
-    // On the very first launch, open Settings on the Translation pane so the
-    // user picks an engine before using the hotkeys.
-    private func openSettingsOnFirstRun() {
+    // Until onboarding has been finished or closed once, it opens at launch: a
+    // new user has no language pairs and no engine checked yet.
+    private func showOnboardingOnFirstRun() {
         guard !Settings.didCompleteFirstRun else { return }
-        Settings.didCompleteFirstRun = true
-        DispatchQueue.main.async { [weak self] in self?.showSettings(pane: .translation) }
+        DispatchQueue.main.async { [weak self] in self?.showOnboarding() }
+    }
+
+    private func showOnboarding() {
+        let window = Onboarding.makeWindow(store: store) { [weak self] in
+            self?.onboardingWindow?.close()
+        }
+        window.isReleasedWhenClosed = false
+        window.delegate = self
+        window.center()
+        onboardingWindow = window
+        show(window)
     }
 
     // MARK: - Status item
@@ -78,7 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     // `pane` is the pane to show, or nil for the last viewed one.
     func showSettings(pane: SettingsPane? = nil) {
         if settingsWindow == nil {
-            let (window, tabs) = SettingsTabViewController.makeWindow()
+            let (window, tabs) = SettingsTabViewController.makeWindow(store: store)
             window.isReleasedWhenClosed = false
             window.delegate = self
             window.center()
@@ -86,14 +100,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             settingsTabs = tabs
         }
         settingsTabs?.select(pane)
-        // An accessory app must briefly become regular to show and focus a window.
-        NSApp.setActivationPolicy(.regular)
-        NSApp.activate(ignoringOtherApps: true)
-        settingsWindow?.makeKeyAndOrderFront(nil)
+        settingsWindow.map(show)
     }
 
+    // An accessory app must briefly become regular to show and focus a window.
+    private func show(_ window: NSWindow) {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    // Back to a menu-bar-only app once neither window is open. Closing
+    // onboarding, with Done or the close button, finishes it for good.
     func windowWillClose(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
+        let closing = notification.object as? NSWindow
+        if closing === onboardingWindow {
+            Settings.didCompleteFirstRun = true
+            onboardingWindow = nil
+        }
+        let stillOpen = [settingsWindow, onboardingWindow].contains { $0 !== closing && $0?.isVisible == true }
+        if !stillOpen { NSApp.setActivationPolicy(.accessory) }
     }
 
     // MARK: - Accessibility

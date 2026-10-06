@@ -145,7 +145,7 @@ helper() { "$WORK/helper" "$@"; }
 # launch <pane>: a fresh copy with Settings set to open on <pane> (0 General, 1
 # Translation), since switching panes in the window would write the choice back.
 # -n: a new instance even while the installed copy (same bundle id) runs.
-# The keys are Settings.Key.languagePairs, .provider, .authMode and
+# The keys are Settings.Key.languagePairs, .provider and
 # SettingsTabViewController.lastPaneKey; they name this script, since a renamed
 # key would put the real settings into a public image. With the pairs overridden
 # the launch also writes none of its own and moves no old style into them.
@@ -153,7 +153,7 @@ PID=""
 launch() {
     [ -n "$PID" ] && { kill "$PID"; sleep 1; }
     open -n "$APP_DIR" --args -settingsSelectedPane "$1" \
-        -provider anthropic -authMode subscription \
+        -provider anthropic \
         -languagePairs "<$(printf '%s' "$SAMPLE_PAIRS" | xxd -p | tr -d '\n')>"
     PID=""
     for _ in $(seq 1 20); do

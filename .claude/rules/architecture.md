@@ -47,8 +47,10 @@ Read before editing this domain.
   called Spanish and "Скинь PR по TranslateLikeMe" English at 1.00.
   `Settings.persistLanguagePairs()` runs first at launch and writes the pairs
   once: the pre-pairs `languageA`/`languageB`/`replaceKeyCode` (or ru/en ⌥⌘F for
-  an earlier run that kept the defaults) for an existing user, the macOS
-  languages for a new one; `Settings.moveStyleIntoPairs()` then copies the
+  an earlier run that kept the defaults) for an existing user, none for a new
+  one (`Settings.initialPairs`; the first pair added starts from the macOS
+  languages on ⌥⌘F, `Languages.newPair`), and every pair may be removed (the
+  menu then shows "Add a Language Pair…"); `Settings.moveStyleIntoPairs()` then copies the
   earlier single global `style` into every pair when none has a style yet,
   and removes it.
   `TranslationController.run(pair:)` copies the
@@ -56,20 +58,31 @@ Read before editing this domain.
   Each run logs its frontmost app, outcome, and failures through `os.Logger`:
   `/usr/bin/log stream --level info --predicate 'subsystem ==
   "com.wiltodelta.translatelikeme"'` (plain `log` is a zsh builtin).
+- Onboarding (`Onboarding`, a `SettingsWindow` hosting an `NSHostingView`: an
+  `NSHostingController` sized by `preferredContentSize` aborted in a layout
+  loop) opens at launch until `Settings.didCompleteFirstRun`, which closing it
+  sets. Step one is `LanguagePairList`, shared with General > Languages; step
+  two lists the providers with `EngineChecks`, started when the window opens:
+  `EngineProbe` runs `EngineStatus.check` and then one real test translation
+  (`Translator.translate(_:pair:provider:)`), mapped to `EngineHealth`.
+  Not-installed and signed-out engines are rechecked when the app becomes
+  active (back from a `login` in Terminal); a spent limit or failed run waits
+  for Check Again, each recheck being a real translation. Until the user picks, a definitively failing
+  stored engine yields to the first working one. Settings and onboarding share
+  one `SettingsStore` owned by `AppDelegate`. Parallel checks made
+  `Translator`'s binary cache a lock (`OSAllocatedUnfairLock`).
 - `SelectionService.pasteLanded` decides editability *after* the paste (re-copy
   the selection; if it still holds the original text, the field is read-only).
   Read-only targets get the translation on the clipboard plus a `PopupController`
   popup instead of a silent lost paste.
-- Providers: Claude (`claude` CLI or Anthropic API), ChatGPT (`codex` CLI or
-  OpenAI API), and Grok (`grok` CLI only), selected in Settings. Per-provider
-  facts live as `Provider` properties (`displayName`, `shortName`,
-  `cliBinaryName`, `cliProductName`, `loginCommand`, `apiKeyCopy`, the model
-  summaries, `cliEnvironment`, `statusArguments` with
-  `isSignedIn(statusOutput:exitCode:)`, and the `supportsAPIKey` capability that
-  views and checks gate on), not as `== .grok` special cases;
-  `Provider.effectiveAuthMode(_:)` is the auth mode that applies (CLI-only
-  engines ignore a stored API-key mode).
-- Subscription mode runs the model and effort picked in Settings, else the CLI
+- Providers: Claude (`claude` CLI), ChatGPT (`codex` CLI) and Grok (`grok`
+  CLI), selected in Settings; each runs on the user's subscription through its
+  signed-in CLI (the API-key mode was removed; `Settings.removeAPIKeys()`
+  deletes what it stored at launch). Per-provider facts live as `Provider`
+  properties (`shortName`, `cliBinaryName`, `cliProductName`,
+  `loginCommand`, the model summary, `cliEnvironment`, `statusArguments` with
+  `isSignedIn(statusOutput:exitCode:)`), not as `== .grok` special cases.
+- Translations run the model and effort picked in Settings, else the CLI
   default (`HarnessChoice.current`). The pickers list `HarnessModels`, read from
   each CLI's own cache: claude `~/.claude/cache/model-catalog/<account>-cc.json`
   (per-model efforts; Haiku has none; `state.model` is its default), codex and
@@ -85,8 +98,7 @@ Read before editing this domain.
   its own config, and its default model (for the "Default (…)" label and the
   Effort picker) is the "Default model:" line of `grok models`, the sign-in
   probe, cached in `Settings.grokDefaultModel`. A default effort the picked model does not list is dropped.
-  `ModelResolver` picks only for API-key mode (newest Sonnet, or OpenAI's
-  `luna` fast tier, formerly `mini`). Known gap: codex still loads the
+  Known gap: codex still loads the
   global `$CODEX_HOME/AGENTS.md` into every translation (measured ~9.3k tokens
   for a 37 KB file, 2026-09-23); codex 0.156 has no flag for it (see
   `Translator.runCodex`).
@@ -96,7 +108,7 @@ Read before editing this domain.
   translating (flag rationale in `Translator.runGrok`). Its sign-in check is
   `grok models` output.
 - Exhausted-limit failures surface as `LimitReachedError`: `LimitDetector`
-  (LimitReached.swift) matches real CLI/API payloads (claude prints its limit
+  (LimitReached.swift) matches real CLI payloads, API quota bodies included (claude prints its limit
   line on stdout, codex on stderr; grok's limit payload is not yet captured)
   and `PopupController.showLimitReached` shows the engine's reset time with an
   Open Settings action. `EngineStatus` stays
@@ -105,6 +117,4 @@ Read before editing this domain.
   release publishes, with gentle reminders so a scheduled find never takes
   focus (the menu item turns into "Install Update…"). Packaging and keys:
   `docs/build-and-release.md`.
-- API keys are keychain items (`Keychain`, service = bundle id);
-  `Settings.moveAPIKeysToKeychain()` moves plain-text keys from earlier versions
-  at launch. Logging goes through `Logger.app(category)`, one subsystem.
+- Logging goes through `Logger.app(category)`, one subsystem.

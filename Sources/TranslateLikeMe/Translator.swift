@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 enum TranslatorError: LocalizedError {
     case binaryNotFound(String)
@@ -22,15 +23,15 @@ enum TranslatorError: LocalizedError {
     }
 }
 
-// Routes a translation through the configured provider and auth mode. The model
-// is resolved live (no user picker, no pinned version) - see ModelResolver.
+// Routes a translation through the configured provider's signed-in CLI.
 enum Translator {
-    static func translate(_ text: String, pair: LanguagePair) async throws -> String {
-        let provider = Settings.provider
+    // `provider` defaults to the engine chosen in Settings; onboarding passes
+    // each one to test it before one is chosen (EngineProbe).
+    static func translate(_ text: String, pair: LanguagePair,
+                          provider: Provider = Settings.provider) async throws -> String {
         do {
-            return try await translateWithEngine(text, pair: pair)
-        } catch TranslatorError.failed(let message)
-            where Settings.effectiveAuthMode == .subscription && SignInDetector.matches(message) {
+            return try await translateWithEngine(text, pair: pair, provider: provider)
+        } catch TranslatorError.failed(let message) where SignInDetector.matches(message) {
             // A signed-out CLI answers with its own instructions (grok: "Error: Not
             // signed in. To authenticate without a browser, run: grok login
             // --device-code ... XAI_API_KEY ..."). Say what the menu says instead
@@ -39,29 +40,13 @@ enum Translator {
         }
     }
 
-    private static func translateWithEngine(_ text: String, pair: LanguagePair) async throws -> String {
-        let provider = Settings.provider
-        let auth = Settings.effectiveAuthMode
+    private static func translateWithEngine(_ text: String, pair: LanguagePair,
+                                            provider: Provider) async throws -> String {
         let system = systemPrompt(pair: pair)
-
-        switch (provider, auth) {
-        case (.anthropic, .subscription):
-            return try await runClaude(system: system, text: text)
-        case (.openai, .subscription):
-            return try await runCodex(system: system, text: text)
-        case (.grok, _):
-            // effectiveAuthMode is always .subscription here (no xAI API mode).
-            return try await runGrok(system: system, text: text)
-        case (.anthropic, .apiKey):
-            let model = await ModelResolver.apiModel(provider: .anthropic, key: Settings.anthropicKey)
-            let result = try await APIClient.anthropicTranslate(
-                key: Settings.anthropicKey, model: model, system: system, text: text)
-            return try cleaned(result)
-        case (.openai, .apiKey):
-            let model = await ModelResolver.apiModel(provider: .openai, key: Settings.openaiKey)
-            let result = try await APIClient.openaiTranslate(
-                key: Settings.openaiKey, model: model, system: system, text: text)
-            return try cleaned(result)
+        switch provider {
+        case .anthropic: return try await runClaude(system: system, text: text)
+        case .openai: return try await runCodex(system: system, text: text)
+        case .grok: return try await runGrok(system: system, text: text)
         }
     }
 
@@ -125,7 +110,7 @@ enum Translator {
         return trimmed
     }
 
-    // MARK: - CLI engines (subscription)
+    // MARK: - CLI engines
 
     private static func runClaude(system: String, text: String) async throws -> String {
         let binary = try resolveBinary(name: "claude")
@@ -320,9 +305,7 @@ enum Translator {
     // checks resolve the same tools and auth.
     static func toolEnvironment(adding extra: [String: String] = [:]) -> [String: String] {
         var env = ProcessInfo.processInfo.environment
-        // Only the CLIs (subscription mode, and their status checks) run with this
-        // environment; API-key mode calls the APIs directly. Subscription mode
-        // means the user's CLI sign-in; an API key or endpoint
+        // Translations run on the user's CLI sign-in; an API key or endpoint
         // inherited from the login environment would silently switch claude or
         // codex to per-use API billing or another provider.
         for key in ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL",
@@ -336,10 +319,13 @@ enum Translator {
         return env.merging(extra) { _, new in new }
     }
 
-    private static var binaryCache: [String: String] = [:]
+    // Locked: engine checks resolve binaries from several threads at once
+    // (onboarding checks every engine in parallel), and an unguarded dictionary
+    // crashed there on a concurrent insert.
+    private static let binaryCache = OSAllocatedUnfairLock(initialState: [String: String]())
 
     private static func resolveBinary(name: String) throws -> String {
-        if let cached = binaryCache[name] { return cached }
+        if let cached = binaryCache.withLock({ $0[name] }) { return cached }
 
         // Only tool-owned or system directories here. Machine-specific harness
         // paths are deliberately absent: if the user's login shell PATH carries
@@ -353,11 +339,11 @@ enum Translator {
             "/usr/bin/\(name)"
         ]
         for candidate in candidates where FileManager.default.isExecutableFile(atPath: candidate) {
-            binaryCache[name] = candidate
+            binaryCache.withLock { $0[name] = candidate }
             return candidate
         }
         if let found = loginShellWhich(name) {
-            binaryCache[name] = found
+            binaryCache.withLock { $0[name] = found }
             return found
         }
         throw TranslatorError.binaryNotFound(name)

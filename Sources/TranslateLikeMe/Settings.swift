@@ -1,19 +1,12 @@
 import Foundation
+import Security
 
 enum Provider: String, CaseIterable {
     case anthropic
     case openai
     case grok
 
-    var displayName: String {
-        switch self {
-        case .anthropic: return "Anthropic (Claude)"
-        case .openai: return "OpenAI"
-        case .grok: return "xAI (Grok)"
-        }
-    }
-
-    // Short friendly name for status rows ("Claude", not "Anthropic (Claude)").
+    // Short friendly name for status rows and Settings ("Claude", "ChatGPT").
     var shortName: String {
         switch self {
         case .anthropic: return "Claude"
@@ -39,8 +32,8 @@ enum Provider: String, CaseIterable {
         }
     }
 
-    // How subscription mode picks the model, for Settings copy (HarnessDefaults).
-    var subscriptionModelSummary: String {
+    // How "Default" picks the model, for Settings copy (HarnessDefaults).
+    var modelSummary: String {
         switch self {
         case .anthropic: return "Default uses the model and effort from your Claude Code settings."
         case .openai: return "Default uses the model and reasoning effort from your Codex config."
@@ -64,31 +57,9 @@ enum Provider: String, CaseIterable {
         "Not signed in to \(shortName). Run \(loginCommand) in Terminal."
     }
 
-    // The API-key mode's settings copy, or nil for engines that run only through
-    // their signed-in CLI (Grok has no direct xAI API mode here).
-    // modelSummary says how API-key mode picks the model (ModelResolver).
-    var apiKeyCopy: APIKeyCopy? {
-        switch self {
-        case .anthropic:
-            return APIKeyCopy(header: "Claude API key", placeholder: "sk-ant-…",
-                              help: "Create one at console.anthropic.com under API Keys.",
-                              modelSummary: "Always picks the latest Sonnet automatically.")
-        case .openai:
-            return APIKeyCopy(header: "OpenAI API key", placeholder: "sk-…",
-                              help: "Create one at platform.openai.com under API Keys.",
-                              modelSummary: "Always picks the latest fast GPT automatically.")
-        case .grok:
-            return nil
-        }
-    }
-
-    // Engine capabilities, so views and checks gate on the provider instead of
-    // special-casing it by name.
-    var supportsAPIKey: Bool { apiKeyCopy != nil }
-
-    // The auth mode that applies: CLI-only engines ignore a stored API-key mode.
-    func effectiveAuthMode(_ stored: AuthMode) -> AuthMode {
-        supportsAPIKey ? stored : .subscription
+    // The status menu row's and onboarding's sentence for a missing CLI.
+    var notInstalledHint: String {
+        "The \(cliBinaryName) command-line tool (\(cliProductName)) was not found."
     }
 
     // Extra environment for every run of this provider's CLI, translations and
@@ -135,29 +106,14 @@ enum Provider: String, CaseIterable {
     }
 }
 
-struct APIKeyCopy {
-    let header: String
-    let placeholder: String
-    let help: String
-    let modelSummary: String
-}
-
-enum AuthMode: String, CaseIterable {
-    case subscription
-    case apiKey
-}
-
 // Thin wrapper over UserDefaults for the persisted settings.
 enum Settings {
     private static let defaults = UserDefaults.standard
 
     private enum Key {
         static let provider = "provider"
-        static let authMode = "authMode"
         // Before styles moved into the pairs: one style for all, read only to migrate.
         static let style = "style"
-        static let anthropicKey = "anthropicKey"
-        static let openaiKey = "openaiKey"
         // capture-screenshots.sh overrides this key by name with sample pairs,
         // which also keeps the real styles out of the public screenshots.
         static let languagePairs = "languagePairs"
@@ -173,20 +129,23 @@ enum Settings {
         static let harnessEffort = "harnessEffort."
     }
 
-    // The language pairs, each with its own optional shortcut, stored as JSON;
-    // never empty.
+    // The language pairs, each with its own optional shortcut, stored as JSON.
+    // Empty for a new user until onboarding (or General > Languages) adds one.
     static var languagePairs: [LanguagePair] {
-        get {
-            storedPairs(in: defaults) ?? [legacyPair() ?? Languages.defaultPair(preferred: Locale.preferredLanguages)]
-        }
+        get { storedPairs(in: defaults) ?? initialPairs() }
         set { storePairs(newValue, in: defaults) }
     }
 
-    // The pairs as stored, nil when none are.
+    // The pairs as stored (possibly none), nil when nothing is stored yet.
     static func storedPairs(in store: UserDefaults) -> [LanguagePair]? {
-        guard let data = store.data(forKey: Key.languagePairs),
-              let pairs = try? JSONDecoder().decode([LanguagePair].self, from: data), !pairs.isEmpty else { return nil }
-        return pairs
+        guard let data = store.data(forKey: Key.languagePairs) else { return nil }
+        return try? JSONDecoder().decode([LanguagePair].self, from: data)
+    }
+
+    // The pairs before any are stored: the pre-pairs single pair for someone who
+    // ran an earlier version, none for a new user, who sets them up in onboarding.
+    static func initialPairs(in store: UserDefaults = .standard) -> [LanguagePair] {
+        legacyPair(in: store).map { [$0] } ?? []
     }
 
     static func storePairs(_ pairs: [LanguagePair], in store: UserDefaults) {
@@ -204,16 +163,16 @@ enum Settings {
         languagePairs.first { $0.id == id }
     }
 
-    // Set once Settings has been shown on the first launch; its presence also
-    // tells the pairs migration that an earlier version ran here.
+    // Set once onboarding (Settings, before onboarding existed) has been shown;
+    // its presence also tells the pairs migration that an earlier version ran here.
     static var didCompleteFirstRun: Bool {
         get { defaults.bool(forKey: Key.didCompleteFirstRun) }
         set { defaults.set(newValue, forKey: Key.didCompleteFirstRun) }
     }
 
     // Writes the pairs once, so the first read's answer (the pre-pairs single
-    // pair and shortcut, or the system languages for a new user) never changes
-    // under a later launch. Call first thing at launch.
+    // pair and shortcut, or none for a new user) never changes under a later
+    // launch. Call first thing at launch.
     static func persistLanguagePairs() {
         guard defaults.data(forKey: Key.languagePairs) == nil else { return }
         languagePairs = languagePairs
@@ -253,41 +212,19 @@ enum Settings {
         set { defaults.set(newValue.rawValue, forKey: Key.provider) }
     }
 
-    static var authMode: AuthMode {
-        get { AuthMode(rawValue: defaults.string(forKey: Key.authMode) ?? "") ?? .subscription }
-        set { defaults.set(newValue.rawValue, forKey: Key.authMode) }
-    }
-
-    // API keys live in the keychain (Keychain), never in the plain-text defaults.
-    static var anthropicKey: String {
-        get { Keychain.read(Key.anthropicKey) ?? "" }
-        set { Keychain.write(newValue, for: Key.anthropicKey) }
-    }
-
-    static var openaiKey: String {
-        get { Keychain.read(Key.openaiKey) ?? "" }
-        set { Keychain.write(newValue, for: Key.openaiKey) }
-    }
-
-    // Moves API keys an earlier version kept in the defaults into the keychain
-    // and removes the plain-text copies once the keychain holds a key (one
-    // already there wins). Call at launch.
-    static func moveAPIKeysToKeychain(from store: UserDefaults = .standard,
-                                      service: String = Keychain.service) {
-        for key in [Key.anthropicKey, Key.openaiKey] {
-            guard let value = store.string(forKey: key) else { continue }
-            if !value.isEmpty, Keychain.read(key, service: service) == nil {
-                Keychain.write(value, for: key, service: service)
-            }
-            if value.isEmpty || Keychain.read(key, service: service) != nil {
-                store.removeObject(forKey: key)
-            }
+    // Removes what the API-key mode left behind once it was dropped: the auth
+    // mode, the keys in the keychain (service = bundle id), and plain-text keys
+    // from before the keychain. Call at launch.
+    static func removeAPIKeys(from store: UserDefaults = .standard,
+                              service: String = Bundle.main.bundleIdentifier ?? "com.wiltodelta.translatelikeme") {
+        for key in ["authMode", "anthropicKey", "openaiKey"] { store.removeObject(forKey: key) }
+        for account in ["anthropicKey", "openaiKey"] {
+            let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+                                        kSecAttrService as String: service,
+                                        kSecAttrAccount as String: account]
+            SecItemDelete(query as CFDictionary)
         }
     }
-
-    // MARK: - Derived accessors keyed by the active/selected provider
-
-    static var effectiveAuthMode: AuthMode { provider.effectiveAuthMode(authMode) }
 
     // The model and effort picked in Settings for a provider's CLI; a nil field
     // means "Default", the CLI config default (HarnessChoice).
@@ -301,14 +238,6 @@ enum Settings {
             if let value { defaults.set(value, forKey: key + provider.rawValue) } else {
                 defaults.removeObject(forKey: key + provider.rawValue)
             }
-        }
-    }
-
-    static func apiKey(for provider: Provider) -> String {
-        switch provider {
-        case .anthropic: return anthropicKey
-        case .openai: return openaiKey
-        case .grok: return ""
         }
     }
 }

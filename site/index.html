@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Translate Like Me: translate selected text on Mac, in your own writing style</title>
-  <meta name="description" content="Free, open source macOS menu bar app that translates the selected text in any app in place with a global hotkey, with automatic direction and your own writing style. Claude, ChatGPT or Grok via your subscription or API key.">
+  <meta name="description" content="Free, open source macOS menu bar app that translates the selected text in any app in place with a global hotkey, with automatic direction and your own writing style. Claude, ChatGPT or Grok via your subscription.">
   <link rel="canonical" href="https://translatelikeme.com/">
   <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
   <link rel="icon" type="image/png" sizes="256x256" href="/icon-256.png">
@@ -121,8 +121,8 @@
     <li><strong>Automatic direction</strong><span>Detects which language of the pair you wrote in and translates to the other. Nothing to switch.</span></li>
     <li><strong>Up to three language pairs</strong><span>Each pair on its own global shortcut, for example Russian and English on ⌥⌘F.</span></li>
     <li><strong>Your writing style, per pair</strong><span>Describe how you write, and that pair's translations sound like you. Leave it empty for a plain translation of someone else's text.</span></li>
-    <li><strong>Bring your own engine</strong><span>Claude or ChatGPT through your existing subscription (official CLI) or your own API key, or Grok through its CLI.</span></li>
-    <li><strong>Private by design</strong><span>No server, analytics or telemetry. Text goes only to the engine you picked; API keys stay in your keychain.</span></li>
+    <li><strong>Bring your own engine</strong><span>Claude, ChatGPT or Grok through your existing subscription and the official CLI.</span></li>
+    <li><strong>Private by design</strong><span>No server, analytics or telemetry. Text goes only to the engine you picked.</span></li>
   </ul>
 
   <div class="shots">
@@ -132,7 +132,7 @@
   <section class="faq">
     <h2>Questions</h2>
     <h3>Is Translate Like Me free?</h3>
-    <p>Yes, the app is free and open source under the Apache-2.0 license. Translations run on an engine you already use: your Claude or ChatGPT subscription through its official CLI, Grok through its CLI and your grok.com account, or your own Anthropic or OpenAI API key, billed by the provider.</p>
+    <p>Yes, the app is free and open source under the Apache-2.0 license. Translations run on an engine you already use: your Claude or ChatGPT subscription through its official CLI, or Grok through its CLI and your grok.com account.</p>
     <h3>Which apps does it work in?</h3>
     <p>Any Mac app where you can select text: it copies the selection, translates it and pastes the result in its place. It needs Accessibility permission for that. If the text can't be replaced in place, for example a message you are reading, the translation goes to the clipboard and to a small popup with a Copy button.</p>
     <h3>Which languages does it support?</h3>
@@ -140,7 +140,7 @@
     <h3>How does the writing style work?</h3>
     <p>Each pair can carry a free-text description of how you write, from a short line to a full voice guide, and the model applies it to that pair's translations. Leave it empty for a plain translation, for example a second pair on the same languages for someone else's text.</p>
     <h3>Where does my text go?</h3>
-    <p>Only to the engine you picked: Anthropic, OpenAI or xAI, through its official CLI or API. The app has no server, analytics or telemetry, API keys stay in your login keychain, and the claude and codex CLIs run with session history off.</p>
+    <p>Only to the engine you picked: Anthropic, OpenAI or xAI, through its official CLI. The app has no server, analytics or telemetry, and the claude and codex CLIs run with session history off.</p>
     <h3>How do I install it?</h3>
     <p>Download the latest release from GitHub, or run <code>brew install --cask wiltodelta/tap/translate-like-me</code>. It needs macOS 15 or later on Apple silicon, is signed and notarized by Apple, and installs updates in place when you choose to.</p>
   </section>

@@ -111,7 +111,7 @@ enum Languages {
         return nil
     }
 
-    // The first pair for a new user: the first system language that is listed,
+    // The first pair a new user adds: the first system language that is listed,
     // with the next listed system language, else English (or Spanish for an
     // English speaker).
     static func defaultPair(preferred: [String]) -> LanguagePair {
@@ -127,8 +127,10 @@ enum Languages {
 
     // A new pair: the first pair's first language with the first listed
     // language it is not already paired with. No shortcut until one is recorded.
-    static func newPair(after pairs: [LanguagePair]) -> LanguagePair {
-        let first = pairs.first?.first ?? "en"
+    // The very first pair starts from the system languages on ⌥⌘F instead.
+    static func newPair(after pairs: [LanguagePair],
+                        preferred: [String] = Locale.preferredLanguages) -> LanguagePair {
+        guard let first = pairs.first?.first else { return defaultPair(preferred: preferred) }
         let taken = Set(pairs.filter { $0.first == first || $0.second == first }.flatMap { [$0.first, $0.second] })
         let second = all.first { $0.code != first && !taken.contains($0.code) }?.code ?? "en"
         return LanguagePair(first: first, second: second, shortcut: nil)

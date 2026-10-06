@@ -29,6 +29,12 @@ final class LanguagesTests: XCTestCase {
         XCTAssertEqual(Languages.newPair(after: [pair("ru", "en"), added]).second, "fr")
     }
 
+    func testFirstPairAddedStartsFromTheSystemLanguagesOnTheDefaultShortcut() {
+        let added = Languages.newPair(after: [], preferred: ["de-DE", "ru-RU"])
+        XCTAssertEqual([added.first, added.second], ["de", "ru"])
+        XCTAssertEqual(added.shortcut, Languages.defaultShortcut)
+    }
+
     // MARK: - System languages
 
     func testPreferredIdentifiersMapToTheLongestListedCode() {
@@ -64,6 +70,27 @@ final class LanguagesTests: XCTestCase {
 
     func testNewUserHasNoLegacyPair() {
         withSuite { XCTAssertNil(Settings.legacyPair(in: $0)) }
+    }
+
+    // A new user sets the pairs up in onboarding; nothing is added for them.
+    func testNewUserStartsWithNoPairs() {
+        withSuite { XCTAssertEqual(Settings.initialPairs(in: $0), []) }
+    }
+
+    func testEarlierRunKeepsItsPairWhenNoneAreStored() {
+        withSuite { suite in
+            suite.set("de", forKey: "languageA")
+            XCTAssertEqual(Settings.initialPairs(in: suite).map(\.first), ["de"])
+        }
+    }
+
+    // Removing every pair is stored as none, not read back as "nothing stored".
+    func testNoPairsStoredStaysNoPairs() {
+        withSuite { suite in
+            suite.set(true, forKey: "didCompleteFirstRun")
+            Settings.storePairs([], in: suite)
+            XCTAssertEqual(Settings.storedPairs(in: suite), [])
+        }
     }
 
     // An earlier version that ran with its defaults stored no language keys.

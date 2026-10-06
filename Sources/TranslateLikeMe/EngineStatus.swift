@@ -10,23 +10,16 @@ import Foundation
 enum EngineStatus {
     enum Readiness: Equatable {
         case ready
-        case notInstalled(cli: String)   // e.g. the `claude` / `codex` command
-        case notLoggedIn(service: String) // e.g. "Claude", "ChatGPT"
-        case noKey                        // API-key mode, key field empty
+        case notInstalled
+        case notLoggedIn
     }
 
-    static func check() -> Readiness {
-        let provider = Settings.provider
-        switch Settings.effectiveAuthMode {
-        case .apiKey:
-            return Settings.apiKey(for: provider).isEmpty ? .noKey : .ready
-        case .subscription:
-            guard let binary = Translator.binaryPath(name: provider.cliBinaryName) else {
-                return .notInstalled(cli: provider.cliBinaryName)
-            }
-            return isSignedIn(binary: binary, provider: provider) ? .ready
-                                                                  : .notLoggedIn(service: provider.shortName)
+    // The engine chosen in Settings by default; onboarding checks each one.
+    static func check(provider: Provider = Settings.provider) -> Readiness {
+        guard let binary = Translator.binaryPath(name: provider.cliBinaryName) else {
+            return .notInstalled
         }
+        return isSignedIn(binary: binary, provider: provider) ? .ready : .notLoggedIn
     }
 
     // grok keeps its default model in its own config, which the app does not

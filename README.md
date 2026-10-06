@@ -28,9 +28,8 @@ set up to three pairs, each on its own shortcut.
   pair's translations sound like you. Two pairs can share languages, for
   example one with your style for your own text and a plain one for someone
   else's.
-- **Bring your own engine**: Claude or ChatGPT, each via your existing
-  subscription (official CLI) or your own API key, or Grok via its official
-  CLI and your grok.com account.
+- **Bring your own engine**: Claude, ChatGPT or Grok through your existing
+  subscription and the provider's official CLI.
 - **Your model, or the CLI's default**: pick the model and effort each CLI
   offers, or keep the one you set in the CLI itself; nothing is pinned in the app.
 - **Menu-bar only**: no Dock icon, no window in the way. Click the icon for a
@@ -43,9 +42,8 @@ set up to three pairs, each on its own shortcut.
 ## Requirements
 
 - macOS 15 (Sequoia) or later, on a Mac with Apple silicon.
-- For subscription mode: the provider's official CLI installed and signed in
-  (`claude` for Claude, `codex` for ChatGPT, `grok` for Grok). For API-key
-  mode: an API key.
+- The provider's official CLI installed and signed in (`claude` for Claude,
+  `codex` for ChatGPT, `grok` for Grok).
 
 ## Install
 
@@ -79,18 +77,23 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
 
 ## First run
 
-1. A small icon appears in the menu bar (there is no Dock icon). Settings opens
-   on the Translation pane at first launch so you can pick an engine. The first
-   language pair starts from your macOS languages (your first one and your
-   second, or English) on ⌥⌘F; change it under General > Languages.
+1. A small icon appears in the menu bar (there is no Dock icon), and a welcome
+   window walks you through setup. First add your language pairs: there are
+   none until you add one, and the first pair you add starts from your macOS
+   languages (your first one and your second, or English) on ⌥⌘F. Then pick an
+   engine: each one (Claude, ChatGPT, Grok) is checked right away with a short
+   test translation, so the list shows which work on your Mac and, for the
+   others, what to fix (install the tool or sign in). Coming
+   back from Terminal after signing in checks again. Everything stays editable
+   in Settings.
 2. Grant **Accessibility** in **System Settings > Privacy & Security >
    Accessibility**. It is required to read the selection (synthesized ⌘C) and to
    paste the replacement (⌘V).
 
 ## Usage
 
-- Select text in any app, then press a pair's shortcut (the first pair starts on
-  **⌥⌘F**) to replace it with the translation.
+- Select text in any app, then press a pair's shortcut (the first pair you add
+  starts on **⌥⌘F**) to replace it with the translation.
 - Click the menu-bar icon for the menu: engine and Accessibility status, one
   **Translate Selection** item per language pair with its shortcut, Settings,
   updates, and Quit. Clicking the engine row opens its settings.
@@ -106,7 +109,8 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
 
 Two panes, **General** and **Translation**. Changes apply immediately.
 
-- **Languages** (General): up to three pairs. Each row has the two languages,
+- **Languages** (General): up to three pairs, and none is fine too (the menu
+  then offers to add one). Each row has the two languages,
   the pair's shortcut (click it and press a combo with ⌘, ⌥, or ⌃; Delete
   clears it, and a combo another pair uses is refused), and a remove button,
   with the pair's writing style below (Edit Style… opens it): free text applied
@@ -114,28 +118,25 @@ Two panes, **General** and **Translation**. Changes apply immediately.
   version, or leave it empty for a plain translation. The direction is detected
   per translation; the order matters only for text in neither language, which
   is translated into the first one, so put the language you read first.
-- **Translation engine**: provider (Claude / ChatGPT / Grok) and, for Claude and
-  ChatGPT, how to connect (subscription or API key). In subscription mode, a
-  **Model** and **Effort** picker lists what the CLI itself offers; **Default**
-  keeps the CLI's configured default.
-- **API key**: stored per provider; shown only in API-key mode.
+- **Translation engine**: provider (Claude / ChatGPT / Grok), and a **Model**
+  and **Effort** picker listing what the CLI itself offers; **Default** keeps
+  the CLI's configured default.
 - **Launch at login**: start the app automatically when you log in.
 - **Updates**: current version, automatic daily checks on or off, and a "Check
   for Updates…" button.
 
-## Providers and connection modes
+## Providers
 
-Three providers; Claude and ChatGPT each in two modes, Grok in subscription
-mode only:
+Three providers, each through its official CLI and your subscription:
 
-| Provider           | Subscription            | API key                     |
-|--------------------|-------------------------|-----------------------------|
-| Anthropic (Claude) | `claude -p` (Pro/Max)   | `POST /v1/messages`         |
-| OpenAI (ChatGPT)   | `codex exec` (ChatGPT)  | `POST /v1/chat/completions` |
-| xAI (Grok)         | `grok -p` (grok.com)    | -                           |
+| Provider           | CLI                     |
+|--------------------|-------------------------|
+| Anthropic (Claude) | `claude -p` (Pro/Max)   |
+| OpenAI (ChatGPT)   | `codex exec` (ChatGPT)  |
+| xAI (Grok)         | `grok -p` (grok.com)    |
 
-**Subscription** runs the provider's official CLI as a subprocess, using the plan
-you are already signed in to. No API key and no per-token billing beyond your
+The app runs the provider's official CLI as a subprocess, using the plan you
+are already signed in to. No API key and no per-token billing beyond your
 plan. For `codex`, run `codex login` once (ChatGPT account) before using it;
 for `grok`, run `grok login` once.
 
@@ -144,31 +145,23 @@ Claude / Codex / Grok programmatically. Extracting a subscription OAuth token an
 it in your own API client is not allowed; this app never does that. It only
 invokes the official binary as a subprocess.
 
-**API key** calls the provider's HTTP API directly with your own key (you pay the
-provider per use). Keys are stored per provider and only used for that provider.
-
 ### Model selection
 
-The app never pins a model:
-
-- Subscription: the model and effort picked in Settings, listed from each
-  CLI's own model catalog (with the efforts each model accepts). With
-  **Default**, each CLI runs with your own default model and effort, the ones
-  set in Claude Code's `settings.json` (`model`, `effortLevel`), codex's
-  `config.toml` (`model`, `model_reasoning_effort`), or grok's config; where
-  none is set, the CLI's built-in default applies.
-- API key: the newest matching model (Sonnet, or OpenAI's fast tier) from the
-  provider's live `/models` list.
+The app never pins a model: it runs the model and effort picked in Settings,
+listed from each CLI's own model catalog (with the efforts each model accepts).
+With **Default**, each CLI runs with your own default model and effort, the
+ones set in Claude Code's `settings.json` (`model`, `effortLevel`), codex's
+`config.toml` (`model`, `model_reasoning_effort`), or grok's config; where none
+is set, the CLI's built-in default applies.
 
 ## Privacy
 
 - The text you translate and the pair's writing style go to the engine you
   picked and nowhere else: Anthropic (Claude), OpenAI (ChatGPT), or xAI (Grok),
-  through its official CLI or API. The app has no server, analytics or telemetry.
+  through its official CLI. The app has no server, analytics or telemetry.
 - The claude and codex CLIs run with session history off, so translations are
   not kept in `~/.claude` or `~/.codex`. The grok CLI has no such switch and may
   keep its own history.
-- API keys are stored in your login keychain.
 - The clipboard is put back after a translation, with every type it held (rich
   text, images, files), unless you copy something else in the meantime; the
   pasted translation is marked transient so clipboard managers skip it.
@@ -188,8 +181,8 @@ install in place with a relaunch. Automatic checks can be turned off in Settings
 
 ## Notes
 
-- Subscription (CLI) calls add a few seconds of latency per translation (CLI
-  startup plus one model turn). API-key mode is faster.
+- CLI calls add a few seconds of latency per translation (CLI startup plus one
+  model turn).
 - The system prompt tells the model to treat the selection as inert text to
   transform, never as a question or request directed at it. Without this, small
   fast models occasionally "answer" question-shaped input instead of translating
@@ -215,13 +208,14 @@ install in place with a relaunch. Automatic checks can be turned off in Settings
 ## Uninstall
 
 Quit the app from its menu, then move **Translate Like Me.app** to the Trash. To
-remove its settings and any saved API keys too:
+remove its settings too:
 
 ```bash
 defaults delete com.wiltodelta.translatelikeme
-security delete-generic-password -s com.wiltodelta.translatelikeme -a anthropicKey
-security delete-generic-password -s com.wiltodelta.translatelikeme -a openaiKey
 ```
+
+API keys saved by versions up to 2.6, which had an API-key mode, are removed
+from the keychain the first time a later version starts.
 
 Remove it from System Settings > Privacy & Security > Accessibility and from
 General > Login Items as well.
@@ -262,8 +256,8 @@ Signing secrets and verification steps are in
 `CFBundleIdentifier` in `Resources/Info.plist` is `com.wiltodelta.translatelikeme`,
 and macOS keys durable per-app state to it. Three things here depend on that:
 the `UserDefaults.standard` domain behind `Settings`, which holds every persisted
-setting; the keychain items holding the API keys, whose service name is the
-identifier; and the Accessibility grant that `ensureAccessibilityPermission`
+setting; the keychain items earlier versions kept API keys in, whose service
+name is the identifier and which launch now removes; and the Accessibility grant that `ensureAccessibilityPermission`
 relies on. Changing the identifier migrates none of them. An existing install would come up as a stranger, with its settings
 gone and Accessibility needing to be granted again, so treat it as fixed rather
 than as a string to tidy up. It is registered as an explicit App ID for team
