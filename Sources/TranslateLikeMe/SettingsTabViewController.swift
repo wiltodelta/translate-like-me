@@ -4,6 +4,7 @@ import SwiftUI
 enum SettingsPane: Int {
     case general
     case translation
+    case rewrite
 }
 
 // The settings window's pane switcher: an NSTabViewController in toolbar style,
@@ -24,6 +25,7 @@ final class SettingsTabViewController: NSTabViewController {
         tabs.tabStyle = .toolbar
         tabs.addPane("General", symbol: "gearshape", GeneralSettingsView(store: store))
         tabs.addPane("Translation", symbol: "translate", TranslationSettingsView(store: store))
+        tabs.addPane("Rewrite", symbol: "text.bubble", RewriteSettingsView(store: store))
         let window = SettingsWindow(contentViewController: tabs)
         window.styleMask = [.titled, .closable]
         window.toolbarStyle = .preference

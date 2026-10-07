@@ -40,13 +40,37 @@ final class TranslationController {
             PopupController.shared.showError("Choose the second language for \(pair.title) in Settings first.")
             return
         }
+        run(action: "Translate", subject: pair.title, noun: "Translation") {
+            try await Translator.translate($0, pair: pair)
+        }
+    }
+
+    // Rewrites the selected notes into a finished message for `target`.
+    func compose(target: ComposeTarget) {
+        guard target.isComplete else {
+            PopupController.shared.showError("Choose the second language for \(target.title) in Settings first.")
+            return
+        }
+        run(action: "Compose", subject: target.title, noun: "Message") {
+            try await Translator.compose($0, target: target)
+        }
+    }
+
+    // Copies the selection, transforms it with the engine, and pastes the result
+    // back in place. `action` and `subject` label the log lines; `noun` names the
+    // result in the popup shown when the paste cannot land.
+    private func run(action: String, subject: String, noun: String,
+                     transform: @escaping @MainActor (String) async throws -> String) {
         guard !TranslationActivity.shared.isBusy else {
-            log.info("Translate ignored: a translation is already running")
+            log.info("\(action, privacy: .public) ignored: a run is already in progress")
             return
         }
         TranslationActivity.shared.isBusy = true
         let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "unknown"
-        log.info("Translate started, pair: \(pair.title, privacy: .public), frontmost app: \(front, privacy: .public)")
+        log.info("""
+            \(action, privacy: .public) started, \(subject, privacy: .public), \
+            frontmost app: \(front, privacy: .public)
+            """)
 
         Task {
             defer { TranslationActivity.shared.isBusy = false }
@@ -66,11 +90,11 @@ final class TranslationController {
             }
 
             do {
-                let translated = try await Translator.translate(selection, pair: pair)
+                let translated = try await transform(selection)
                 await offMain { SelectionService.paste(translated) }
 
                 let landed = await offMain { SelectionService.pasteLanded(replacing: selection) }
-                log.info("Translated \(selection.count) chars, paste landed: \(landed)")
+                log.info("\(action, privacy: .public) done, \(selection.count) chars, paste landed: \(landed)")
                 if landed {
                     // Restore the original clipboard now that the paste has replaced
                     // the selection.
@@ -81,13 +105,15 @@ final class TranslationController {
                     // Read-only target: keep the translation on the clipboard and
                     // show it so it isn't lost.
                     await offMain { SelectionService.copyToClipboard(translated) }
-                    PopupController.shared.showTranslation(translated)
+                    PopupController.shared.showTranslation(translated, noun: noun)
                 }
             } catch {
                 // The message can quote the engine's output, so it stays private.
                 let kind = String(describing: type(of: error))
                 let detail = error.localizedDescription
-                log.error("Translation failed (\(kind, privacy: .public)): \(detail, privacy: .private)")
+                log.error("""
+                    \(action, privacy: .public) failed (\(kind, privacy: .public)): \(detail, privacy: .private)
+                    """)
                 await offMain { SelectionService.restore(original, ifUnchangedSince: copied) }
                 if let limit = error as? LimitReachedError {
                     PopupController.shared.showLimitReached(limit.message)

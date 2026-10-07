@@ -51,6 +51,14 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             menu.addItem(item("Add a Language Pair…", action: #selector(openLanguageSettings)))
         }
 
+        // Rewrite pairs, only once one is set up: the feature is off without.
+        let targets = Settings.composeTargets
+        if !targets.isEmpty {
+            menu.addItem(.separator())
+            menu.addItem(.sectionHeader(title: "Rewrite Selection"))
+            for target in targets { menu.addItem(composeItem(target)) }
+        }
+
         // macOS 26 gives Settings… its standard gear icon, so its group gets an
         // icon on every item (HIG: uniform treatment within a group).
         menu.addItem(.separator())
@@ -157,6 +165,26 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         return item
     }
 
+    private func composeItem(_ target: ComposeTarget) -> NSMenuItem {
+        let item = self.item(target.title, action: #selector(composeSelection(_:)))
+        item.representedObject = target.id
+        if !target.isComplete {
+            item.action = #selector(openRewriteSettings)
+            item.subtitle = "Choose the second language in Settings"
+        }
+        if let equivalent = target.shortcut.flatMap(Shortcut.menuKeyEquivalent) {
+            item.keyEquivalent = equivalent.key
+            item.keyEquivalentModifierMask = equivalent.flags
+        }
+        return item
+    }
+
+    @objc private func composeSelection(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? UUID,
+              let target = Settings.composeTarget(id: id) else { return }
+        TranslationController.shared.compose(target: target)
+    }
+
     @objc private func translateSelection(_ sender: NSMenuItem) {
         guard let id = sender.representedObject as? UUID,
               let pair = Settings.languagePair(id: id) else { return }
@@ -171,6 +199,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     @objc private func openLanguageSettings() {
         NotificationCenter.default.post(name: .openSettings, object: SettingsPane.general)
+    }
+
+    @objc private func openRewriteSettings() {
+        NotificationCenter.default.post(name: .openSettings, object: SettingsPane.rewrite)
     }
 
     @objc private func openEngineSettings() {

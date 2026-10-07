@@ -12,8 +12,9 @@
 #
 # The copy reads the real settings domain, so every value the images show that
 # is personal or would change the user's settings is overridden for this launch
-# only, through the argument domain (-key value): the language pairs with their
-# writing styles (the repository is public), and the pane Settings opens on.
+# only, through the argument domain (-key value): the language pairs and compose
+# targets with their writing styles (the repository is public), and the pane
+# Settings opens on.
 # Nothing is written back.
 # build.sh stamps the latest tag, so the build raises no update alert.
 
@@ -27,12 +28,19 @@ WORK=$(mktemp -d)
 # Two sample pairs, Russian-English on ⌥⌘F with a sample style and a plain
 # Russian-English on ⌥⌘G, as the JSON Settings.languagePairs stores, passed as
 # an old-style plist <data> value.
+# One sample Rewrite pair, Russian-English on ⌥⌘J with a sample style, as the JSON
+# Settings.composeTargets stores.
+SAMPLE_TARGETS='[{"id":"8F9619FF-8B86-D011-B42D-00C04FC964FF","first":"ru","second":"en","shortcut":{"keyCode":38,"modifiers":2304},"style":"Clear and friendly. Short paragraphs, no emoji."}]'
 SAMPLE_PAIRS='[{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","first":"ru","second":"en","shortcut":{"keyCode":3,"modifiers":2304},"style":"Casual and friendly, short sentences."},{"id":"7F9619FF-8B86-D011-B42D-00C04FC964FF","first":"ru","second":"en","shortcut":{"keyCode":5,"modifiers":2304},"style":""}]'
 
 # --- Build ----------------------------------------------------------------------
 
 pkill -f "$EXECUTABLE" 2>/dev/null || true
-./build.sh >"$WORK/build.log" 2>&1 || { cat "$WORK/build.log"; exit 1; }
+# An ad hoc build is a new app to Accessibility, whose prompt would cover the
+# captures, so NO_BUILD=1 reuses the bundle already granted.
+if [ "${NO_BUILD:-}" != 1 ]; then
+    ./build.sh >"$WORK/build.log" 2>&1 || { cat "$WORK/build.log"; exit 1; }
+fi
 
 # --- Helper: window lookup and backdrop ------------------------------------------
 
@@ -154,7 +162,8 @@ launch() {
     [ -n "$PID" ] && { kill "$PID"; sleep 1; }
     open -n "$APP_DIR" --args -settingsSelectedPane "$1" \
         -provider anthropic \
-        -languagePairs "<$(printf '%s' "$SAMPLE_PAIRS" | xxd -p | tr -d '\n')>"
+        -languagePairs "<$(printf '%s' "$SAMPLE_PAIRS" | xxd -p | tr -d '\n')>" \
+        -composeTargets "<$(printf '%s' "$SAMPLE_TARGETS" | xxd -p | tr -d '\n')>"
     PID=""
     for _ in $(seq 1 20); do
         PID=$(pgrep -f "$EXECUTABLE" | head -1 || true)
@@ -288,6 +297,10 @@ capture_all() {
     launch 1
     open_menu
     capture_settings Translation "settings$2"
+
+    launch 2
+    open_menu
+    capture_settings Rewrite "rewrite$2"
 }
 
 capture_all false ""

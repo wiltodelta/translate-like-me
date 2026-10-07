@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 
 // Observable model for the settings panes. Every change is written to `Settings`
@@ -32,7 +33,18 @@ final class SettingsStore {
             // Hotkeys look their pair up when pressed, so a style or language
             // edit needs no re-registration.
             if oldValue.map(\.id) != pairs.map(\.id) || oldValue.map(\.shortcut) != pairs.map(\.shortcut) {
-                HotKeyManager.shared.reload(pairs: pairs)
+                HotKeyManager.shared.reload(pairs: pairs, targets: composeTargets)
+            }
+        }
+    }
+
+    var composeTargets: [ComposeTarget] {
+        didSet {
+            Settings.composeTargets = composeTargets
+            // Looked up when pressed too, so only ids and shortcuts matter here.
+            if oldValue.map(\.id) != composeTargets.map(\.id)
+                || oldValue.map(\.shortcut) != composeTargets.map(\.shortcut) {
+                HotKeyManager.shared.reload(pairs: pairs, targets: composeTargets)
             }
         }
     }
@@ -40,6 +52,7 @@ final class SettingsStore {
     init() {
         provider = Settings.provider
         pairs = Settings.languagePairs
+        composeTargets = Settings.composeTargets
         loadPick()
     }
 
@@ -96,9 +109,25 @@ final class SettingsStore {
         pairs.removeAll { $0.id == id }
     }
 
-    // The pair already using `combo`, other than `id`, so one shortcut never
-    // triggers two pairs.
-    func pair(using combo: KeyCombo, except id: LanguagePair.ID) -> LanguagePair? {
-        pairs.first { $0.id != id && $0.shortcut == combo }
+    // The pair or rewrite pair already using `combo`, other than the one with
+    // `id`, named with its section since both lists show the same language
+    // titles, so one shortcut never triggers two actions.
+    func owner(of combo: KeyCombo, except id: UUID) -> String? {
+        pairs.first { $0.id != id && $0.shortcut == combo }.map { "Translate \($0.title)" }
+            ?? composeTargets.first { $0.id != id && $0.shortcut == combo }.map { "Rewrite \($0.title)" }
+    }
+
+    // MARK: - Rewrite pairs
+
+    var canAddComposeTarget: Bool { composeTargets.count < Compose.maxTargets }
+
+    func addComposeTarget() {
+        guard canAddComposeTarget else { return }
+        composeTargets.append(Compose.newTarget(after: composeTargets, pairs: pairs))
+    }
+
+    // Unlike pairs, the last one can go: Rewrite is off with none.
+    func removeComposeTarget(id: ComposeTarget.ID) {
+        composeTargets.removeAll { $0.id == id }
     }
 }

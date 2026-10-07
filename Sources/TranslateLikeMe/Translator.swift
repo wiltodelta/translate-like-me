@@ -16,21 +16,34 @@ enum TranslatorError: LocalizedError {
             return "Couldn't find the '\(name)' command-line tool. Install it and sign in, "
                 + "then try again."
         case .empty:
-            return "The translation engine returned no text."
+            return "The engine returned no text."
         case .failed(let message):
             return message
         }
     }
 }
 
-// Routes a translation through the configured provider's signed-in CLI.
+// Routes a translation (or a compose run) through the configured provider's
+// signed-in CLI.
 enum Translator {
     // `provider` defaults to the engine chosen in Settings; onboarding passes
     // each one to test it before one is chosen (EngineProbe).
     static func translate(_ text: String, pair: LanguagePair,
                           provider: Provider = Settings.provider) async throws -> String {
+        try await run(system: systemPrompt(pair: pair), text: text, provider: provider)
+    }
+
+    // Rewrites raw notes into a finished message for `target` (Compose.systemPrompt).
+    static func compose(_ text: String, target: ComposeTarget) async throws -> String {
+        let reply = try await run(system: Compose.systemPrompt(target: target), text: text, provider: Settings.provider)
+        let message = Compose.message(from: reply)
+        if message.isEmpty { throw TranslatorError.empty }
+        return message
+    }
+
+    private static func run(system: String, text: String, provider: Provider) async throws -> String {
         do {
-            return try await translateWithEngine(text, pair: pair, provider: provider)
+            return try await runEngine(system: system, text: text, provider: provider)
         } catch TranslatorError.failed(let message) where SignInDetector.matches(message) {
             // A signed-out CLI answers with its own instructions (grok: "Error: Not
             // signed in. To authenticate without a browser, run: grok login
@@ -40,9 +53,7 @@ enum Translator {
         }
     }
 
-    private static func translateWithEngine(_ text: String, pair: LanguagePair,
-                                            provider: Provider) async throws -> String {
-        let system = systemPrompt(pair: pair)
+    private static func runEngine(system: String, text: String, provider: Provider) async throws -> String {
         switch provider {
         case .anthropic: return try await runClaude(system: system, text: text)
         case .openai: return try await runCodex(system: system, text: text)

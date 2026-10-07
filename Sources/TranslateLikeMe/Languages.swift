@@ -16,12 +16,33 @@ struct KeyCombo: Codable, Equatable {
     var modifiers: Int
 }
 
+// Two languages with an optional shortcut and writing style: a translation pair
+// or a rewrite target. The settings list and its editor work on either.
+protocol ShortcutPair: Identifiable where ID == UUID {
+    var first: String { get set }
+    var second: String { get set }
+    var shortcut: KeyCombo? { get set }
+    var style: String { get set }
+}
+
+extension ShortcutPair {
+    var title: String {
+        "\(Languages.name(for: first)) ↔ \(isComplete ? Languages.name(for: second) : "…")"
+    }
+
+    // The second language chosen; a new pair may leave it to the user.
+    var isComplete: Bool { !second.isEmpty }
+
+    // The style as applied; empty when none is set.
+    var trimmedStyle: String { style.trimmingCharacters(in: .whitespacesAndNewlines) }
+}
+
 // Two languages translated between, with an optional shortcut and writing style
 // of its own. The input's language is detected; text in `first` becomes
 // `second`, and text in `second` or in any other language becomes `first`. Two
 // pairs may share languages, say one with the user's style for their own text
 // and one without for someone else's.
-struct LanguagePair: Codable, Equatable, Identifiable {
+struct LanguagePair: ShortcutPair, Codable, Equatable {
     var id = UUID()
     var first: String
     // Empty until chosen, when the Mac suggested no second language.
@@ -29,14 +50,6 @@ struct LanguagePair: Codable, Equatable, Identifiable {
     var shortcut: KeyCombo?
     // Applied to this pair's translations; blank means a plain translation.
     var style = ""
-
-    var title: String { "\(Languages.name(for: first)) ↔ \(isComplete ? Languages.name(for: second) : "…")" }
-
-    // The second language chosen; a new pair may leave it to the user.
-    var isComplete: Bool { !second.isEmpty }
-
-    // The style as applied; empty for a plain translation.
-    var trimmedStyle: String { style.trimmingCharacters(in: .whitespacesAndNewlines) }
 }
 
 // In an extension, so the memberwise initializer stays synthesized.
@@ -170,7 +183,7 @@ enum Languages {
 
     // The pair after setting one side to `code`. The two sides stay distinct:
     // picking the language already on the other side swaps them.
-    static func setting(_ pair: LanguagePair, first isFirst: Bool, to code: String) -> LanguagePair {
+    static func setting<Pair: ShortcutPair>(_ pair: Pair, first isFirst: Bool, to code: String) -> Pair {
         var pair = pair
         if isFirst {
             if code == pair.second { pair.second = pair.first }

@@ -28,12 +28,14 @@ detail, including the secrets and where the keys are kept (1Password):
   suggestion chain for new pairs (unchosen when it runs out), no pairs for a
   new user, `EngineHealth` mapping of onboarding checks, migration
   from the single pair and of the global style into the pairs, the pair
-  prompt, `HarnessDefaults` config reading,
+  prompt, `Compose` targets, their prompt and the header cut from its reply, `HarnessDefaults` config reading,
   `HarnessModels` catalog parsing (claude, codex, grok) and `HarnessChoice`, the
   settings model/effort pick,
   `LimitDetector` and `JSONErrorMessage` engine payload parsing, and removal
   of the keys the dropped API-key mode stored). UI, Accessibility, CGEvent,
-  Sparkle and CLI-subprocess code is not unit-tested; render UI changes with
+  Sparkle and CLI-subprocess code is not unit-tested (`ComposeLiveTests` runs
+  the compose prompt against the real engine only with `TLM_LIVE=1`, and
+  `scripts/compose-e2e.sh` presses the shortcuts in TextEdit); render UI changes with
   `./capture-screenshots.sh` (it also regenerates `screenshots/`, light and
   dark, flipping the system to Dark Mode and back; needs
   Accessibility and Screen Recording for the terminal and a Mac left alone;

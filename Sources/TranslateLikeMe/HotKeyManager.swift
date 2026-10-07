@@ -16,11 +16,13 @@ final class HotKeyManager {
 
     private init() {}
 
-    // (Re)registers one hotkey per language pair that has a shortcut. Call after
-    // launch and whenever the pairs change. A combo is registered once even if
-    // stored pairs repeat it (the recorder refuses that, a hand edit may not).
+    // (Re)registers one hotkey per language pair, then per compose target, that
+    // has a shortcut. Call after launch and whenever either list changes. A combo
+    // is registered once even if stored entries repeat it (the recorder refuses
+    // that, a hand edit may not); a pair wins over a compose target.
     @MainActor
-    func reload(pairs: [LanguagePair] = Settings.languagePairs) {
+    func reload(pairs: [LanguagePair] = Settings.languagePairs,
+                targets: [ComposeTarget] = Settings.composeTargets) {
         unregisterAll()
         var registered: [KeyCombo] = []
         for pair in pairs {
@@ -31,6 +33,15 @@ final class HotKeyManager {
                 // Looked up at fire time, so a run uses the pair as it is now.
                 guard let current = Settings.languagePair(id: id) else { return }
                 TranslationController.shared.run(pair: current)
+            }
+        }
+        for target in targets {
+            guard let combo = target.shortcut, !registered.contains(combo) else { continue }
+            registered.append(combo)
+            let id = target.id
+            register(keyCode: UInt32(combo.keyCode), modifiers: UInt32(combo.modifiers)) {
+                guard let current = Settings.composeTarget(id: id) else { return }
+                TranslationController.shared.compose(target: current)
             }
         }
     }

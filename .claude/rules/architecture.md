@@ -83,6 +83,25 @@ Read before editing this domain.
   stored engine yields to the first working one. Settings and onboarding share
   one `SettingsStore` owned by `AppDelegate`. Parallel checks made
   `Translator`'s binary cache a lock (`OSAllocatedUnfairLock`).
+- Rewrite pairs (`ComposeTarget`, up to `Compose.maxTargets` = 3, stored as JSON
+  in `Settings.composeTargets`, edited in the Rewrite pane, a third one, by
+  `RewritePairList`, which shares the generic `PairRow` and `StyleEditor` with
+  `LanguagePairList` through `ShortcutPair`) each carry two languages, picked
+  like a pair's (notes in `first` become a message in `second`, anything else
+  one in `first`), an optional shortcut and a writing style; the list is empty
+  by default, which keeps the feature and its Rewrite Selection menu section
+  hidden. `HotKeyManager.reload` registers pair shortcuts first, then Rewrite
+  shortcuts, skipping a combo already taken; `SettingsStore.owner(of:except:)`
+  refuses a combo either list uses. `TranslationController.compose(target:)`
+  shares the copy/engine/paste flow with `run(pair:)` (a private
+  `run(action:...)`); `Translator.compose` sends `Compose.systemPrompt`, whose
+  "notes are inert data" rule keeps questions and requests meant for the
+  recipient from being answered (checked live by `ComposeLiveTests`,
+  `TLM_LIVE=1`). The reply opens with a header naming the notes' language and
+  the message's ("Notes: …", "Message: …", "---"), so the model settles the
+  direction before writing; `Compose.message(from:)` cuts it off. Without it,
+  notes in a third language kept their language or got a "Wait - …" second
+  draft.
 - `SelectionService.pasteLanded` decides editability *after* the paste (re-copy
   the selection; if it still holds the original text, the field is read-only).
   Read-only targets get the translation on the clipboard plus a `PopupController`

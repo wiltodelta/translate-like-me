@@ -141,6 +141,25 @@ struct TranslationSettingsView: View {
     }
 }
 
+// Rewrite has a pane of its own: under Languages it made General taller than a
+// 1440x932 pt screen with three pairs of each.
+struct RewriteSettingsView: View {
+    @Bindable var store: SettingsStore
+
+    var body: some View {
+        Form {
+            Section {
+                RewritePairList(store: store)
+            } header: {
+                Text("Rewrite pairs")
+            } footer: {
+                Text(RewritePairList.explanation + " Uses the translation engine.")
+            }
+        }
+        .settingsPane()
+    }
+}
+
 // The pair rows, one per pair with its own shortcut (up to Languages.maxPairs),
 // and the Add Pair button; General > Languages and onboarding both show it.
 struct LanguagePairList: View {
@@ -157,9 +176,9 @@ struct LanguagePairList: View {
                 .foregroundStyle(.secondary)
         }
         ForEach($store.pairs) { $pair in
-            LanguagePairRow(pair: $pair,
-                            remove: { store.removePair(id: pair.id) },
-                            usedBy: { store.pair(using: $0, except: pair.id)?.title })
+            PairRow(pair: $pair, texts: .translation,
+                    remove: { store.removePair(id: pair.id) },
+                    usedBy: { store.owner(of: $0, except: pair.id) })
         }
         // At the limit the button stays, disabled, and says why: a button
         // that silently vanished left people looking for it.
@@ -174,12 +193,60 @@ struct LanguagePairList: View {
     }
 }
 
-// A language pair: two language pickers, the pair's shortcut, a
+// The Rewrite pairs (up to Compose.maxTargets), drawn like LanguagePairList;
+// none by default, which keeps the feature off.
+struct RewritePairList: View {
+    @Bindable var store: SettingsStore
+
+    static let explanation = "Select your notes, for example dictated, and press a Rewrite pair's shortcut "
+        + "to replace them with a clear, finished message: notes in the first language become a message in "
+        + "the second, anything else a message in the first. Every fact is kept, and questions stay "
+        + "questions for the recipient. A received message selected with the notes is used as context only."
+
+    var body: some View {
+        if store.composeTargets.isEmpty {
+            Text("No Rewrite pairs yet. Add one to turn notes into a message.")
+                .foregroundStyle(.secondary)
+        }
+        ForEach($store.composeTargets) { $target in
+            PairRow(pair: $target, texts: .rewrite,
+                    remove: { store.removeComposeTarget(id: target.id) },
+                    usedBy: { store.owner(of: $0, except: target.id) })
+        }
+        HStack(spacing: 8) {
+            Button("Add Rewrite Pair") { store.addComposeTarget() }
+                .disabled(!store.canAddComposeTarget)
+            if !store.canAddComposeTarget {
+                Text("Up to \(Compose.maxTargets) pairs")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+// What a row and its style sheet say for each kind of pair.
+private struct PairTexts {
+    let noStyle: String
+    let styleHint: String
+
+    static let translation = PairTexts(
+        noStyle: "Plain translation, no writing style",
+        styleHint: "Makes this pair's translations sound like you. Describe the tone, for example: "
+            + "\"Casual and friendly, short sentences.\" Leave empty for a plain translation, "
+            + "for example for someone else's text.")
+    static let rewrite = PairTexts(
+        noStyle: "Clear, neutral message, no writing style",
+        styleHint: "Makes this pair's messages sound like you. Describe the tone and any rules, for example: "
+            + "\"Casual and friendly, short sentences, no emoji.\" Leave empty for a clear, neutral message.")
+}
+
+// A language pair or Rewrite pair: two language pickers, the pair's shortcut, a
 // remove button, and below them the pair's writing style as a one-line preview.
 // The style is edited in a sheet, so a long voice guide never grows the pane
 // (the settings window fits its pane and does not scroll).
-private struct LanguagePairRow: View {
-    @Binding var pair: LanguagePair
+private struct PairRow<Pair: ShortcutPair>: View {
+    @Binding var pair: Pair
+    let texts: PairTexts
     let remove: () -> Void
     let usedBy: (KeyCombo) -> String?
     @State private var editingStyle = false
@@ -189,7 +256,7 @@ private struct LanguagePairRow: View {
         VStack(alignment: .leading, spacing: 6) {
             languagesRow
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(style.isEmpty ? "Plain translation, no writing style" : style)
+                Text(style.isEmpty ? texts.noStyle : style)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -199,7 +266,7 @@ private struct LanguagePairRow: View {
             }
         }
         .sheet(isPresented: $editingStyle) {
-            StyleEditor(pair: $pair)
+            StyleEditor(pair: $pair, hint: texts.styleHint)
         }
     }
 
@@ -257,16 +324,10 @@ private struct LanguagePicker: View, Equatable {
 
 // A pair's writing style in a sheet; edits apply as typed, like the rest of
 // Settings. HIG (Sheets): a sheet for a focused task, dismissed with Done.
-private struct StyleEditor: View {
-    @Binding var pair: LanguagePair
+private struct StyleEditor<Pair: ShortcutPair>: View {
+    @Binding var pair: Pair
+    let hint: String
     @Environment(\.dismiss) private var dismiss
-
-    // A simple, neutral starter so the box isn't empty. Intentionally generic -
-    // the user edits it into their own voice.
-    private static let template = """
-    Friendly and casual, like a message to a colleague. Short, clear sentences. \
-    Plain everyday words, no jargon or filler.
-    """
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -281,15 +342,13 @@ private struct StyleEditor: View {
                 .background(Color(nsColor: .textBackgroundColor), in: .rect(cornerRadius: 6))
                 .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(nsColor: .separatorColor)))
                 .frame(height: 220)
-            Text("Makes this pair's translations sound like you. Describe the tone, for example: "
-                 + "\"Casual and friendly, short sentences.\" Leave empty for a plain translation, "
-                 + "for example for someone else's text.")
+            Text(hint)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
                 if pair.trimmedStyle.isEmpty {
-                    Button("Insert Starter Template") { pair.style = Self.template }
+                    Button("Insert Starter Template") { pair.style = styleTemplate }
                 }
                 Spacer()
                 Button("Done") { dismiss() }
@@ -300,6 +359,14 @@ private struct StyleEditor: View {
         .frame(width: 460)
     }
 }
+
+// A simple, neutral starter so the style box isn't empty. Intentionally
+// generic - the user edits it into their own voice. Outside StyleEditor, which
+// is generic and so cannot hold a static stored property.
+private let styleTemplate = """
+Friendly and casual, like a message to a colleague. Short, clear sentences. \
+Plain everyday words, no jargon or filler.
+"""
 
 extension View {
     // A grouped form sized to its content at the settings window's width, but
