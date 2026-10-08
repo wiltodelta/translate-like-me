@@ -4,6 +4,7 @@ import SwiftUI
 enum SettingsPane: Int {
     case general
     case translation
+    case rewrite
 }
 
 // The settings window's pane switcher: an NSTabViewController in toolbar style,
@@ -24,6 +25,7 @@ final class SettingsTabViewController: NSTabViewController {
         tabs.tabStyle = .toolbar
         tabs.addPane("General", symbol: "gearshape", GeneralSettingsView(store: store))
         tabs.addPane("Translation", symbol: "translate", TranslationSettingsView(store: store))
+        tabs.addPane("Rewrite", symbol: "text.bubble", RewriteSettingsView(store: store))
         let window = SettingsWindow(contentViewController: tabs)
         window.styleMask = [.titled, .closable]
         window.toolbarStyle = .preference
@@ -41,10 +43,16 @@ final class SettingsTabViewController: NSTabViewController {
         addTabViewItem(item)
     }
 
-    // Shows `pane`, or the last viewed one when nil.
+    // Shows `pane`, or the last viewed one when nil. Restoring the last pane is
+    // not a choice, so it is not written back: capture-screenshots.sh passes it
+    // for one launch, and the write put that pane into the real settings.
     func select(_ pane: SettingsPane?) {
         let index = pane?.rawValue ?? UserDefaults.standard.integer(forKey: Self.lastPaneKey)
+        let records = recordsSelection
+        recordsSelection = pane != nil && records
         selectedTabViewItemIndex = min(max(index, 0), tabViewItems.count - 1)
+        recordsSelection = records
+        clearFocus()
     }
 
     override func tabView(_ tabView: NSTabView, didSelect tabViewItem: NSTabViewItem?) {
@@ -52,6 +60,15 @@ final class SettingsTabViewController: NSTabViewController {
         if recordsSelection {
             UserDefaults.standard.set(selectedTabViewItemIndex, forKey: Self.lastPaneKey)
         }
+        clearFocus()
+    }
+
+    // AppKit gives a pane's first text field the focus, and the Rewrite pane's
+    // first is a preset's name: opened with its text selected, the next key
+    // typed renamed the preset. Nothing is focused until clicked or tabbed to.
+    // Async, because the window picks its first responder after this returns.
+    private func clearFocus() {
+        DispatchQueue.main.async { [weak self] in self?.view.window?.makeFirstResponder(nil) }
     }
 }
 

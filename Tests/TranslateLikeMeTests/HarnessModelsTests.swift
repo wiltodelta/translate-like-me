@@ -51,6 +51,28 @@ final class HarnessModelsTests: XCTestCase {
         XCTAssertNil(catalog.efforts(for: "unknown"))
     }
 
+    // A user's settings may name an alias ("model": "opus"); claude runs the
+    // first, newest, catalog model of that family, so the Default label and
+    // the Effort picker name that model too.
+    func testClaudeAliasResolvesToTheNewestModelOfItsFamily() throws {
+        let json = """
+        {"catalog": {"config": {"models": [
+          {"id": "claude-opus-5-5", "name": "Opus 5.5", "short_name": "Opus",
+           "thinking": {"effort_options": [{"id": "max", "name": "Max"}]}},
+          {"id": "claude-sonnet-5-5", "name": "Sonnet 5.5", "short_name": "Sonnet"},
+          {"id": "claude-opus-5", "name": "Opus 5", "short_name": "Opus",
+           "thinking": {"effort_options": [{"id": "low", "name": "Low"}]}}
+        ]}}}
+        """
+        let catalog = try XCTUnwrap(HarnessModels.parseClaude(Data(json.utf8)))
+        XCTAssertEqual(catalog.model("opus")?.name, "Opus 5.5")
+        XCTAssertEqual(catalog.model("Sonnet")?.name, "Sonnet 5.5")
+        XCTAssertEqual(catalog.efforts(for: "opus"), [.init(id: "max", name: "Max")])
+        XCTAssertEqual(catalog.model("claude-opus-5")?.name, "Opus 5")
+        XCTAssertNil(catalog.model("haiku"))
+        XCTAssertNil(catalog.model(nil))
+    }
+
     func testUnreadableClaudeCatalogFallsBackToTheAliases() {
         XCTAssertNil(HarnessModels.parseClaude(Data("{}".utf8)))
         withConfigDir("CLAUDE_CONFIG_DIR", file: "cache/model-catalog/x-cc.json", contents: "not json") {

@@ -123,7 +123,7 @@ struct TranslationSettingsView: View {
     }
 
     private func modelName(_ id: String) -> String {
-        store.catalog.models.first { $0.id == id }?.name ?? id
+        store.catalog.model(id)?.name ?? id
     }
 
     private func effortName(_ id: String) -> String {
@@ -138,6 +138,98 @@ struct TranslationSettingsView: View {
         let provider = store.provider
         return "Runs the \(provider.cliProductName) command-line tool you are signed in to "
             + "(not the desktop app). No extra cost beyond your plan. \(provider.modelSummary)"
+    }
+}
+
+// Rewrite has a pane of its own: under General > Languages, three pairs and
+// three presets made the pane taller than a 1440x900 screen.
+struct RewriteSettingsView: View {
+    @Bindable var store: SettingsStore
+
+    static let explanation = "Select rough notes in any app, for example dictated, and press a preset's "
+        + "shortcut to replace them with a clear, finished message in the same language, in the preset's "
+        + "style. Every fact is kept, and questions stay questions for the recipient. Select a received "
+        + "message together with your notes to reply to it. To send the message in another language, "
+        + "translate it with a pair's shortcut afterwards. Uses the translation engine."
+
+    var body: some View {
+        Form {
+            Section {
+                if store.rewritePresets.isEmpty {
+                    Text("No presets yet. Add one to turn notes into a message.")
+                        .foregroundStyle(.secondary)
+                }
+                ForEach(store.rewritePresets) { preset in
+                    RewritePresetRow(preset: binding(for: preset),
+                                     remove: { store.removeRewritePreset(id: preset.id) },
+                                     usedBy: { store.owner(of: $0, except: preset.id) })
+                }
+                HStack(spacing: 8) {
+                    Button("Add Preset") { store.addRewritePreset() }
+                        .disabled(!store.canAddRewritePreset)
+                    if !store.canAddRewritePreset {
+                        Text("Up to \(Rewrite.maxPresets) presets")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Presets")
+            } footer: {
+                Text(Self.explanation)
+            }
+        }
+        .settingsPane()
+    }
+
+    // The preset found by id, not by index: the row's name field reads its
+    // binding once more after a removal, and `$store.rewritePresets`' index
+    // binding then ran past the shortened array and crashed (2026-10-08).
+    private func binding(for preset: RewritePreset) -> Binding<RewritePreset> {
+        Binding(
+            get: { store.rewritePresets.first { $0.id == preset.id } ?? preset },
+            set: { edited in
+                guard let index = store.rewritePresets.firstIndex(where: { $0.id == preset.id }) else { return }
+                store.rewritePresets[index] = edited
+            })
+    }
+}
+
+// A Rewrite preset: its name, shortcut and a remove button, and below them its
+// writing style as a one-line preview, drawn like a pair's row.
+private struct RewritePresetRow: View {
+    @Binding var preset: RewritePreset
+    let remove: () -> Void
+    let usedBy: (KeyCombo) -> String?
+    @State private var editingStyle = false
+
+    var body: some View {
+        let style = preset.trimmedStyle
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                TextField("Name", text: $preset.name, prompt: Text("Preset name"))
+                    .labelsHidden()
+                    .accessibilityLabel("Preset name")
+                    .frame(maxWidth: 200)
+                Spacer(minLength: 8)
+                ShortcutField(combo: $preset.shortcut, usedBy: usedBy)
+                RemoveButton(help: "Remove this preset", label: "Remove the \(preset.title) preset", action: remove)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(style.isEmpty ? "Clear, neutral message, no writing style" : style)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Button("Edit Style…") { editingStyle = true }
+                    .accessibilityLabel("Edit the writing style for the \(preset.title) preset")
+            }
+        }
+        .sheet(isPresented: $editingStyle) {
+            StyleEditor(title: "Writing style for \(preset.title)", style: $preset.style,
+                        hint: "Makes this preset's messages sound like you. Describe the tone and any rules, for "
+                            + "example: \"Casual and friendly, short sentences, no emoji.\" Leave empty for "
+                            + "a clear, neutral message.")
+        }
     }
 }
 
@@ -159,7 +251,7 @@ struct LanguagePairList: View {
         ForEach($store.pairs) { $pair in
             LanguagePairRow(pair: $pair,
                             remove: { store.removePair(id: pair.id) },
-                            usedBy: { store.pair(using: $0, except: pair.id)?.title })
+                            usedBy: { store.owner(of: $0, except: pair.id) })
         }
         // At the limit the button stays, disabled, and says why: a button
         // that silently vanished left people looking for it.
@@ -199,7 +291,10 @@ private struct LanguagePairRow: View {
             }
         }
         .sheet(isPresented: $editingStyle) {
-            StyleEditor(pair: $pair)
+            StyleEditor(title: "Writing style for \(pair.title)", style: $pair.style,
+                        hint: "Makes this pair's translations sound like you. Describe the tone, for example: "
+                            + "\"Casual and friendly, short sentences.\" Leave empty for a plain translation, "
+                            + "for example for someone else's text.")
         }
     }
 
@@ -211,17 +306,7 @@ private struct LanguagePairRow: View {
             languagePicker("Second language", isFirst: false)
             Spacer(minLength: 8)
             ShortcutField(combo: $pair.shortcut, usedBy: usedBy)
-            // The glyph stays small; its hit area does not. At the glyph's own
-            // 13 pt it sat under HIG Accessibility's 20 pt macOS minimum, for the
-            // one destructive control in the row. 24 pt keeps the row's height.
-            Button(action: remove) {
-                Image(systemName: "minus.circle")
-                    .frame(width: 24, height: 24)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.borderless)
-            .help("Remove this pair")
-            .accessibilityLabel("Remove \(pair.title)")
+            RemoveButton(help: "Remove this pair", label: "Remove \(pair.title)", action: remove)
         }
     }
 
@@ -230,6 +315,26 @@ private struct LanguagePairRow: View {
             pair = Languages.setting(pair, first: isFirst, to: $0)
         }
         .equatable()
+    }
+}
+
+// A row's remove control. The glyph stays small; its hit area does not. At the
+// glyph's own 13 pt it sat under HIG Accessibility's 20 pt macOS minimum, for
+// the one destructive control in the row. 24 pt keeps the row's height.
+private struct RemoveButton: View {
+    let help: String
+    let label: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "minus.circle")
+                .frame(width: 24, height: 24)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .help(help)
+        .accessibilityLabel(label)
     }
 }
 
@@ -255,10 +360,13 @@ private struct LanguagePicker: View, Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.label == rhs.label && lhs.code == rhs.code }
 }
 
-// A pair's writing style in a sheet; edits apply as typed, like the rest of
-// Settings. HIG (Sheets): a sheet for a focused task, dismissed with Done.
+// A pair's or Rewrite preset's writing style in a sheet; edits apply as typed,
+// like the rest of Settings. HIG (Sheets): a sheet for a focused task, dismissed
+// with Done.
 private struct StyleEditor: View {
-    @Binding var pair: LanguagePair
+    let title: String
+    @Binding var style: String
+    let hint: String
     @Environment(\.dismiss) private var dismiss
 
     // A simple, neutral starter so the box isn't empty. Intentionally generic -
@@ -270,26 +378,24 @@ private struct StyleEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Writing style for \(pair.title)")
+            Text(title)
                 .font(.headline)
             // A visible field in both appearances: in light the editor's white
             // matched the sheet's, so an empty style showed only a caret.
-            TextEditor(text: $pair.style)
+            TextEditor(text: $style)
                 .font(.body)
                 .scrollContentBackground(.hidden)
                 .padding(4)
                 .background(Color(nsColor: .textBackgroundColor), in: .rect(cornerRadius: 6))
                 .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(nsColor: .separatorColor)))
                 .frame(height: 220)
-            Text("Makes this pair's translations sound like you. Describe the tone, for example: "
-                 + "\"Casual and friendly, short sentences.\" Leave empty for a plain translation, "
-                 + "for example for someone else's text.")
+            Text(hint)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
-                if pair.trimmedStyle.isEmpty {
-                    Button("Insert Starter Template") { pair.style = Self.template }
+                if style.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Button("Insert Starter Template") { style = Self.template }
                 }
                 Spacer()
                 Button("Done") { dismiss() }

@@ -2,7 +2,9 @@
 
 You are a **principal Swift/macOS engineer** maintaining a menu-bar app that
 translates the current selection via global hotkeys, one per language pair (up
-to three), auto-detecting the direction and applying the user's writing style.
+to three), auto-detecting the direction and applying the user's writing style,
+and rewrites selected rough notes into a finished message in the same language
+with named Rewrite presets (up to three).
 SwiftUI + AppKit, SwiftPM; the one dependency is Sparkle (updates). Supports the
 three latest macOS releases (15+) on Apple silicon only.
 
@@ -28,7 +30,7 @@ detail, including the secrets and where the keys are kept (1Password):
   suggestion chain for new pairs (unchosen when it runs out), no pairs for a
   new user, `EngineHealth` mapping of onboarding checks, migration
   from the single pair and of the global style into the pairs, the pair
-  prompt, `HarnessDefaults` config reading,
+  prompt, `Rewrite` presets and their prompt, `HarnessDefaults` config reading,
   `HarnessModels` catalog parsing (claude, codex, grok) and `HarnessChoice`, the
   settings model/effort pick,
   `LimitDetector` and `JSONErrorMessage` engine payload parsing, and removal
@@ -37,7 +39,9 @@ detail, including the secrets and where the keys are kept (1Password):
   `./capture-screenshots.sh` (it also regenerates `screenshots/`, light and
   dark, flipping the system to Dark Mode and back; needs
   Accessibility and Screen Recording for the terminal and a Mac left alone;
-  a closed menu mid-run fails it, rerun once; the General pane's bottom margin
+  a closed menu mid-run, or a system overlay over the capture (an AirPods
+  notice, a stuck transparent `screencaptureui` window: `kill -TERM` it when
+  nothing is recording), fails it, rerun once; the General pane's bottom margin
   reaches the Dock, and a Dock label there passes the covered-window check, so
   look at the bottom of `general*.png` before committing). System Events `entire contents`
   does not reach the SwiftUI controls in Settings: press them by walking
@@ -59,6 +63,10 @@ detail, including the secrets and where the keys are kept (1Password):
   first line).
   Probe engine CLIs with `env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN
   -u ANTHROPIC_BASE_URL`, or the harness's own variables redirect `claude`.
+  Check a prompt change live with a temporary XCTest that calls
+  `Translator.translate` or `Translator.rewrite` behind an env-var guard
+  (`swift test --filter`, three runs per case, delete it after), rather than
+  by pressing hotkeys: keystrokes land in whatever window is in front.
 
 ## Interface
 
@@ -78,4 +86,4 @@ matching files are touched.
 
 | File | Covers |
 |------|--------|
-| `architecture.md` | Status item and its menu, settings panes, onboarding and its engine checks, global hotkey, paste-landed editability detection, providers, and update checking |
+| `architecture.md` | Status item and its menu, settings panes, onboarding and its engine checks, global hotkey, language pairs and Rewrite presets, paste-landed editability detection, providers, and update checking |

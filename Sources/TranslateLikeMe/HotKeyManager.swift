@@ -16,22 +16,26 @@ final class HotKeyManager {
 
     private init() {}
 
-    // (Re)registers one hotkey per language pair that has a shortcut. Call after
-    // launch and whenever the pairs change. A combo is registered once even if
-    // stored pairs repeat it (the recorder refuses that, a hand edit may not).
+    // (Re)registers one hotkey per language pair, then per Rewrite preset, that
+    // has a shortcut. Call after launch and whenever either list changes. A
+    // combo is registered once even if stored entries repeat it (the recorder
+    // refuses that, a hand edit may not); a pair wins over a preset.
     @MainActor
-    func reload(pairs: [LanguagePair] = Settings.languagePairs) {
+    func reload(pairs: [LanguagePair] = Settings.languagePairs,
+                presets: [RewritePreset] = Settings.rewritePresets) {
         unregisterAll()
+        // Each entry is looked up at fire time, so a run uses it as it is now.
+        let entries: [(KeyCombo?, () -> Void)] = pairs.map { pair in
+            (pair.shortcut, { [id = pair.id] in Settings.languagePair(id: id).map(TranslationController.shared.run) })
+        } + presets.map { preset in
+            (preset.shortcut, { [id = preset.id] in
+                Settings.rewritePreset(id: id).map(TranslationController.shared.rewrite)
+            })
+        }
         var registered: [KeyCombo] = []
-        for pair in pairs {
-            guard let combo = pair.shortcut, !registered.contains(combo) else { continue }
+        for case let (combo?, action) in entries where !registered.contains(combo) {
             registered.append(combo)
-            let id = pair.id
-            register(keyCode: UInt32(combo.keyCode), modifiers: UInt32(combo.modifiers)) {
-                // Looked up at fire time, so a run uses the pair as it is now.
-                guard let current = Settings.languagePair(id: id) else { return }
-                TranslationController.shared.run(pair: current)
-            }
+            register(keyCode: UInt32(combo.keyCode), modifiers: UInt32(combo.modifiers), action: action)
         }
     }
 

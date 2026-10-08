@@ -51,6 +51,14 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             menu.addItem(item("Add a Language Pair…", action: #selector(openLanguageSettings)))
         }
 
+        // Rewrite is off until a preset is added in Settings, and so is its section.
+        let presets = Settings.rewritePresets
+        if !presets.isEmpty {
+            menu.addItem(.separator())
+            menu.addItem(.sectionHeader(title: "Rewrite Selection"))
+            for preset in presets { menu.addItem(rewriteItem(preset)) }
+        }
+
         // macOS 26 gives Settings… its standard gear icon, so its group gets an
         // icon on every item (HIG: uniform treatment within a group).
         menu.addItem(.separator())
@@ -150,11 +158,28 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         } else if showsStyle {
             item.subtitle = pair.trimmedStyle.isEmpty ? "Plain translation" : "In your writing style"
         }
-        if let equivalent = pair.shortcut.flatMap(Shortcut.menuKeyEquivalent) {
-            item.keyEquivalent = equivalent.key
-            item.keyEquivalentModifierMask = equivalent.flags
-        }
+        show(pair.shortcut, on: item)
         return item
+    }
+
+    private func rewriteItem(_ preset: RewritePreset) -> NSMenuItem {
+        let item = self.item(preset.title, action: #selector(rewriteSelection(_:)))
+        item.representedObject = preset.id
+        show(preset.shortcut, on: item)
+        return item
+    }
+
+    // The global shortcut, shown as the item's key equivalent.
+    private func show(_ shortcut: KeyCombo?, on item: NSMenuItem) {
+        guard let equivalent = shortcut.flatMap(Shortcut.menuKeyEquivalent) else { return }
+        item.keyEquivalent = equivalent.key
+        item.keyEquivalentModifierMask = equivalent.flags
+    }
+
+    @objc private func rewriteSelection(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? UUID,
+              let preset = Settings.rewritePreset(id: id) else { return }
+        TranslationController.shared.rewrite(preset: preset)
     }
 
     @objc private func translateSelection(_ sender: NSMenuItem) {

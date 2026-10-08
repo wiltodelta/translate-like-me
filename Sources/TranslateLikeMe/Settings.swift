@@ -117,6 +117,8 @@ enum Settings {
         // capture-screenshots.sh overrides this key by name with sample pairs,
         // which also keeps the real styles out of the public screenshots.
         static let languagePairs = "languagePairs"
+        // capture-screenshots.sh overrides this key by name too.
+        static let rewritePresets = "rewritePresets"
         static let didCompleteFirstRun = "didCompleteFirstRun"
         static let grokDefaultModel = "grokDefaultModel"
         // Before pairs: one pair and one shortcut, read only to migrate.
@@ -150,6 +152,20 @@ enum Settings {
 
     static func storePairs(_ pairs: [LanguagePair], in store: UserDefaults) {
         store.set(try? JSONEncoder().encode(pairs), forKey: Key.languagePairs)
+    }
+
+    // The Rewrite presets, stored as JSON; none (the feature off) until the
+    // user adds one in Settings > Rewrite.
+    static var rewritePresets: [RewritePreset] {
+        get {
+            guard let data = defaults.data(forKey: Key.rewritePresets) else { return [] }
+            return (try? JSONDecoder().decode([RewritePreset].self, from: data)) ?? []
+        }
+        set { defaults.set(try? JSONEncoder().encode(newValue), forKey: Key.rewritePresets) }
+    }
+
+    static func rewritePreset(id: RewritePreset.ID) -> RewritePreset? {
+        rewritePresets.first { $0.id == id }
     }
 
     // The default model `grok models` last reported (EngineStatus); a cache,

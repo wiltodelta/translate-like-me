@@ -3,7 +3,7 @@ paths:
   - "Sources/**"
   - "Resources/**"
   - "Tests/**"
-description: App architecture -- the status item and its standard NSMenu, settings panes, the Carbon global hotkey path, paste-landed editability detection, Claude/Codex/Grok provider and model resolution, and update checking
+description: App architecture -- the status item and its standard NSMenu, settings panes, language pairs and Rewrite presets, the Carbon global hotkey path, paste-landed editability detection, Claude/Codex/Grok provider and model resolution, and update checking
 ---
 
 # Architecture
@@ -17,11 +17,15 @@ Read before editing this domain.
   (`menuNeedsUpdate`), keeps the same items in every state (status rows change
   text, never disappear), and uses the standard `terminate(_:)` selector so
   macOS 26 supplies Quit's icon. Settings is an `NSTabViewController` in toolbar
-  style (`SettingsTabViewController.makeWindow`, panes General and Translation,
-  window title follows the pane, last pane restored unless a caller passes one
-  in the `.openSettings` notification); `SettingsStore` applies every change
-  immediately. The window is a `SettingsWindow` that keeps every frame, the
-  pane-switch animation steps included, inside the screen's visible frame, and
+  style (`SettingsTabViewController.makeWindow`, panes General, Translation
+  and Rewrite, window title follows the pane, last pane restored unless a
+  caller passes one in the `.openSettings` notification; a restored pane is
+  not written back, a clicked or passed one is); `SettingsStore` applies every
+  change immediately. No control is focused when a pane opens
+  (`SettingsTabViewController.clearFocus`): AppKit focused the Rewrite pane's
+  first preset name with its text selected, so the next key renamed it. The
+  window is a `SettingsWindow` that keeps every frame, the pane-switch
+  animation steps included, inside the screen's visible frame, and
   a pane taller than the screen scrolls (`SettingsLayout.maxPaneHeight`) instead
   of running under the Dock. At `Languages.maxPairs` the Add Pair button stays,
   disabled, beside "Up to 3 pairs". The popup (`PopupController`) stays a cursor-anchored
@@ -67,9 +71,34 @@ Read before editing this domain.
   and removes it.
   `TranslationController.run(pair:)` copies the
   selection, translates, and pastes back.
-  Each run logs its frontmost app, outcome, and failures through `os.Logger`:
-  `/usr/bin/log stream --level info --predicate 'subsystem ==
-  "com.wiltodelta.translatelikeme"'` (plain `log` is a zsh builtin).
+- Rewrite presets (`RewritePreset`, up to `Rewrite.maxPresets` = 3, stored as
+  JSON in `Settings.rewritePresets`, edited in the Rewrite pane, none by
+  default) each carry a name (the menu item's title; new ones are "Preset
+  <n>"), an optional shortcut and a writing style. A preset never translates:
+  the message stays in the notes' language and a pair's shortcut translates it
+  afterwards. Presets are told apart by purpose, not language, as Apple's
+  Writing Tools, Wispr Flow and DeepL Write tell theirs apart by tone, and
+  because a language bound into each preset is what Superwhisper users ask to
+  be rid of (an earlier draft here bound one, decided against 2026-10-08).
+  `HotKeyManager.reload` registers pairs first, then presets, skipping a combo
+  already taken, and `SettingsStore.owner(of:except:)` refuses a combo either
+  list uses. A row holding a `TextField` binds its item by id
+  (`RewriteSettingsView.binding(for:)`), never by index through
+  `ForEach($array)`: the field re-reads its binding during the resize
+  animation after a removal and crashed past the shortened array. The menu
+  adds a Rewrite Selection section only while a preset exists. `TranslationController.rewrite(preset:)` shares the copy, engine and
+  paste flow with `run(pair:)` (`perform`). `Rewrite.systemPrompt` keeps the
+  notes' language even beside a received message in another (21 of 21 live
+  runs, 2026-10-08), keeps questions for the recipient, drops filler and
+  superseded self-corrections, treats the received message as context only,
+  writes a name taken from it in the message's script ("Марк", 1 of 3 runs
+  without that rule, 3 of 3 with it), and allows the recipient's name but no
+  greeting word (10 of 21 runs opened "Hi Pete," without that rule, 0 of 12
+  with it).
+  Each run, translate or rewrite, logs its frontmost app, outcome, and
+  failures through `os.Logger`: `/usr/bin/log stream --level info --predicate
+  'subsystem == "com.wiltodelta.translatelikeme"'` (plain `log` is a zsh
+  builtin).
 - Onboarding (`Onboarding`, a `SettingsWindow` hosting an `NSHostingView`: an
   `NSHostingController` sized by `preferredContentSize` aborted in a layout
   loop) opens at launch until `Settings.didCompleteFirstRun`, which closing it
@@ -100,7 +129,11 @@ Read before editing this domain.
   (per-model efforts; Haiku has none; `state.model` is its default), codex and
   grok `models_cache.json`. They are internal files parsed defensively: an
   unreadable one gives an empty list and "Default" only (claude falls back to
-  its documented aliases). `HarnessCatalog.efforts(for:)` is the one effort
+  its documented aliases). `HarnessCatalog.model(_:)` finds a model by id, else
+  a claude alias ("opus" in the user's settings) as the first catalog model
+  whose `short_name` it is, which is what claude runs (checked live for all
+  four aliases, 2026-10-08), so "Default (Opus 5.5)" names a version.
+  `HarnessCatalog.efforts(for:)` is the one effort
   rule, nil for an unknown model so nothing is guessed; the cache is read at
   translation time only when a pick exists. Picks are stored per provider
   (`Settings.harnessPick`). claude and codex run isolated from their user

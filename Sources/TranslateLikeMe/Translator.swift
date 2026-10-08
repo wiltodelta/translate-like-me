@@ -23,14 +23,24 @@ enum TranslatorError: LocalizedError {
     }
 }
 
-// Routes a translation through the configured provider's signed-in CLI.
+// Routes a translation, or a rewrite, through the configured provider's
+// signed-in CLI.
 enum Translator {
     // `provider` defaults to the engine chosen in Settings; onboarding passes
     // each one to test it before one is chosen (EngineProbe).
     static func translate(_ text: String, pair: LanguagePair,
                           provider: Provider = Settings.provider) async throws -> String {
+        try await run(system: systemPrompt(pair: pair), text: text, provider: provider)
+    }
+
+    // Rewrites rough notes into a finished message (Rewrite.systemPrompt).
+    static func rewrite(_ text: String, preset: RewritePreset) async throws -> String {
+        try await run(system: Rewrite.systemPrompt(preset: preset), text: text, provider: Settings.provider)
+    }
+
+    private static func run(system: String, text: String, provider: Provider) async throws -> String {
         do {
-            return try await translateWithEngine(text, pair: pair, provider: provider)
+            return try await runEngine(system: system, text: text, provider: provider)
         } catch TranslatorError.failed(let message) where SignInDetector.matches(message) {
             // A signed-out CLI answers with its own instructions (grok: "Error: Not
             // signed in. To authenticate without a browser, run: grok login
@@ -40,9 +50,7 @@ enum Translator {
         }
     }
 
-    private static func translateWithEngine(_ text: String, pair: LanguagePair,
-                                            provider: Provider) async throws -> String {
-        let system = systemPrompt(pair: pair)
+    private static func runEngine(system: String, text: String, provider: Provider) async throws -> String {
         switch provider {
         case .anthropic: return try await runClaude(system: system, text: text)
         case .openai: return try await runCodex(system: system, text: text)

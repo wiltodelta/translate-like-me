@@ -115,8 +115,9 @@ final class PopupController {
     // tells the user they can paste it or select it straight from the popup.
     // The Copy button puts the translation back on the clipboard if something
     // else was copied since; its title turns to "Copied" as feedback.
-    func showTranslation(_ text: String) {
-        model.header = "Couldn't replace the selection. Translation copied to clipboard."
+    // `noun` names the result: "Translation", or "Message" for a rewrite.
+    func showResult(_ text: String, noun: String) {
+        model.header = "Couldn't replace the selection. \(noun) copied to clipboard."
         model.body = text
         model.action = ("Copy", { [weak self] in
             SelectionService.copyToClipboard(text)

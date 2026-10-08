@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 
 // Observable model for the settings panes. Every change is written to `Settings`
@@ -32,7 +33,18 @@ final class SettingsStore {
             // Hotkeys look their pair up when pressed, so a style or language
             // edit needs no re-registration.
             if oldValue.map(\.id) != pairs.map(\.id) || oldValue.map(\.shortcut) != pairs.map(\.shortcut) {
-                HotKeyManager.shared.reload(pairs: pairs)
+                HotKeyManager.shared.reload(pairs: pairs, presets: rewritePresets)
+            }
+        }
+    }
+
+    var rewritePresets: [RewritePreset] {
+        didSet {
+            Settings.rewritePresets = rewritePresets
+            // Looked up when pressed too, so only ids and shortcuts matter here.
+            if oldValue.map(\.id) != rewritePresets.map(\.id)
+                || oldValue.map(\.shortcut) != rewritePresets.map(\.shortcut) {
+                HotKeyManager.shared.reload(pairs: pairs, presets: rewritePresets)
             }
         }
     }
@@ -40,6 +52,7 @@ final class SettingsStore {
     init() {
         provider = Settings.provider
         pairs = Settings.languagePairs
+        rewritePresets = Settings.rewritePresets
         loadPick()
     }
 
@@ -96,9 +109,24 @@ final class SettingsStore {
         pairs.removeAll { $0.id == id }
     }
 
-    // The pair already using `combo`, other than `id`, so one shortcut never
-    // triggers two pairs.
-    func pair(using combo: KeyCombo, except id: LanguagePair.ID) -> LanguagePair? {
-        pairs.first { $0.id != id && $0.shortcut == combo }
+    // What already uses `combo`, other than the pair or preset `id`, named for
+    // the shortcut recorder, so one shortcut never triggers two actions.
+    func owner(of combo: KeyCombo, except id: UUID) -> String? {
+        pairs.first { $0.id != id && $0.shortcut == combo }.map(\.title)
+            ?? rewritePresets.first { $0.id != id && $0.shortcut == combo }.map { "the \($0.title) preset" }
+    }
+
+    // MARK: - Rewrite presets
+
+    var canAddRewritePreset: Bool { rewritePresets.count < Rewrite.maxPresets }
+
+    func addRewritePreset() {
+        guard canAddRewritePreset else { return }
+        rewritePresets.append(Rewrite.newPreset(after: rewritePresets))
+    }
+
+    // Unlike the last pair, the last preset may go: Rewrite is simply off then.
+    func removeRewritePreset(id: RewritePreset.ID) {
+        rewritePresets.removeAll { $0.id == id }
     }
 }

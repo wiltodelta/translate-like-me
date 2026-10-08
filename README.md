@@ -11,10 +11,15 @@ It detects the direction automatically between the two languages you choose, so
 there is nothing to switch: type in one, get the other. If you use more languages,
 set up to three pairs, each on its own shortcut.
 
+It also writes for you: select rough notes, for example dictated, press a
+Rewrite preset's shortcut, and they are replaced with a clear, finished message
+in the same language, in that preset's style.
+
 <p align="center">
   <img src="screenshots/menu.png" alt="Translate Like Me - Menu bar menu" width="250">
   <img src="screenshots/general.png" alt="Translate Like Me - Settings, General pane with language pairs" width="400">
   <img src="screenshots/settings.png" alt="Translate Like Me - Settings, Translation pane" width="400">
+  <img src="screenshots/rewrite.png" alt="Translate Like Me - Settings, Rewrite pane" width="400">
 </p>
 
 ## Features
@@ -28,6 +33,13 @@ set up to three pairs, each on its own shortcut.
   pair's translations sound like you. Two pairs can share languages, for
   example one with your style for your own text and a plain one for someone
   else's.
+- **Rewrite notes into a message**: up to three named presets, each with its
+  own shortcut and writing style, for example Work on ⌥⌘J and Friends on ⌥⌘K.
+  The notes become a message in their own language: filler and repetitions
+  gone, self-corrections resolved, every fact kept, and questions to the
+  recipient kept as questions. Select a received message along with your notes
+  to reply to it. Rewrite never translates; a pair's shortcut does that
+  afterwards. Off until you add a preset.
 - **Bring your own engine**: Claude, ChatGPT or Grok through your existing
   subscription and the provider's official CLI.
 - **Your model, or the CLI's default**: pick the model and effort each CLI
@@ -99,6 +111,9 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
 - Click the menu-bar icon for the menu: engine and Accessibility status, one
   **Translate Selection** item per language pair with its shortcut, Settings,
   updates, and Quit. Clicking the engine row opens its settings.
+- Select notes, then press a preset's shortcut (add one under Settings >
+  Rewrite) to replace them with a finished message. The menu then also lists
+  one **Rewrite Selection** item per preset.
 - The icon shows a busy glyph while a translation is running.
 - If the selection can't be replaced in place (a read-only field, e.g. a message
   you are reading rather than writing), the translation is put on the clipboard
@@ -109,7 +124,8 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
 
 ## Settings
 
-Two panes, **General** and **Translation**. Changes apply immediately.
+Three panes, **General**, **Translation** and **Rewrite**. Changes apply
+immediately.
 
 - **Languages** (General): up to three pairs, and none is fine too (the menu
   then offers to add one). Each row has the two languages,
@@ -120,6 +136,10 @@ Two panes, **General** and **Translation**. Changes apply immediately.
   version, or leave it empty for a plain translation. The direction is detected
   per translation; the order matters only for text in neither language, which
   is translated into the first one, so put the language you read first.
+- **Rewrite**: up to three presets, none by default. Each row has the preset's
+  name, its shortcut, and a remove button, with its writing style below; an
+  empty style gives a clear, neutral message. Rewrite runs on the translation
+  engine.
 - **Translation engine**: provider (Claude / ChatGPT / Grok), and a **Model**
   and **Effort** picker listing what the CLI itself offers; **Default** keeps
   the CLI's configured default.

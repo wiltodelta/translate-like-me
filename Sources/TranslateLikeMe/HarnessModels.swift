@@ -41,6 +41,8 @@ struct HarnessModel: Equatable {
     let name: String
     // In the CLI's own order; empty when the model takes no effort setting.
     let efforts: [HarnessEffort]
+    // The alias the CLI also accepts for this family ("opus"), nil where none.
+    var alias: String?
 }
 
 // The models a CLI offers, and the one it uses by default where it records that.
@@ -48,10 +50,20 @@ struct HarnessCatalog: Equatable {
     var models: [HarnessModel] = []
     var defaultModel: String?
 
+    // The listed model `id` names: by id, else the first (newest) model with
+    // that alias, which is how claude resolves "opus" in a user's settings
+    // (checked 2026-10-08: opus, sonnet, haiku and fable each ran the first
+    // catalog model of their family).
+    func model(_ id: String?) -> HarnessModel? {
+        guard let id else { return nil }
+        let alias = id.lowercased()
+        return models.first { $0.id == id } ?? models.first { $0.alias == alias }
+    }
+
     // The efforts `model` accepts, or nil when the model is not listed, so
     // callers never guess.
     func efforts(for model: String?) -> [HarnessEffort]? {
-        models.first { $0.id == model }?.efforts
+        self.model(model)?.efforts
     }
 }
 
@@ -83,7 +95,8 @@ enum HarnessModels {
         ("fable", "Fable"), ("opus", "Opus"), ("sonnet", "Sonnet"), ("haiku", "Haiku")
     ].map { HarnessModel(id: $0.0, name: $0.1, efforts: []) })
 
-    // claude's catalog: `catalog.config.models` entries with `id`, `name`, and
+    // claude's catalog: `catalog.config.models` entries with `id`, `name`,
+    // `short_name` (the family, whose lowercase is its alias), and
     // `thinking.effort_options` of `{id, name}`; `catalog.state.model` is the
     // model Claude Code uses by default.
     static func parseClaude(_ data: Data) -> HarnessCatalog? {
@@ -95,7 +108,8 @@ enum HarnessModels {
             guard let id = model["id"] as? String else { return nil }
             let options = (model["thinking"] as? [String: Any])?["effort_options"] as? [[String: Any]] ?? []
             return HarnessModel(id: id, name: model["name"] as? String ?? id,
-                                efforts: options.compactMap { effort($0["id"], name: $0["name"]) })
+                                efforts: options.compactMap { effort($0["id"], name: $0["name"]) },
+                                alias: (model["short_name"] as? String)?.lowercased())
         }
         return HarnessCatalog(models: parsed,
                               defaultModel: (catalog["state"] as? [String: Any])?["model"] as? String)
