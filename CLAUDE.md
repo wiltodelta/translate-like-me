@@ -25,16 +25,7 @@ detail, including the secrets and where the keys are kept (1Password):
 
 - `bash maintain.sh` runs the canonical Swift gate.
 - Lint config in `.swiftlint.yml` scans `Sources/` at 120-column lines.
-- Tests cover the pure logic (`Shortcut` formatting and menu key equivalents,
-  `Languages` pair editing, the full macOS language list and the
-  suggestion chain for new pairs (unchosen when it runs out), no pairs for a
-  new user, `EngineHealth` mapping of onboarding checks, migration
-  from the single pair and of the global style into the pairs, the pair
-  prompt, `Rewrite` presets and their prompt, `HarnessDefaults` config reading,
-  `HarnessModels` catalog parsing (claude, codex, grok) and `HarnessChoice`, the
-  settings model/effort pick,
-  `LimitDetector` and `JSONErrorMessage` engine payload parsing, and removal
-  of the keys the dropped API-key mode stored). UI, Accessibility, CGEvent,
+- `Tests/TranslateLikeMeTests/` covers pure logic only. UI, Accessibility, CGEvent,
   Sparkle and CLI-subprocess code is not unit-tested; render UI changes with
   `./capture-screenshots.sh` (it also regenerates `screenshots/`, light and
   dark, flipping the system to Dark Mode and back; needs
