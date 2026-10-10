@@ -15,21 +15,18 @@ struct TranslateLikeMeApp: App {
     }
 }
 
-// The plate-shaped menu-bar icons: template images (solid plate with symbols cut
-// out as transparent holes), so macOS tints them automatically for light/dark
-// menu bars and the cutouts show the bar's own background through. `image` is the
-// idle plate (@!%$); `busyImage` is the same plate with three dots, shown while a
-// translation runs.
+// The menu-bar icons (scripts/make-menubar-icons.py): template images, so macOS
+// tints them for light and dark menu bars. `image` is the app icon's face as an
+// outline; `busyImage` is the same face as a solid tile with the features cut
+// out, shown while a translation runs.
 enum MenuBarIcon {
-    static let image = plate(named: "MenuBarIcon", fallbackSymbol: "character.bubble")
-    static let busyImage = plate(named: "MenuBarBusy", fallbackSymbol: "ellipsis")
+    static let image = glyph(named: "MenuBarIcon", fallbackSymbol: "character.bubble")
+    static let busyImage = glyph(named: "MenuBarBusy", fallbackSymbol: "ellipsis")
 
-    private static func plate(named name: String, fallbackSymbol: String) -> NSImage {
-        let barHeight: CGFloat = 16
+    private static func glyph(named name: String, fallbackSymbol: String) -> NSImage {
         if let url = Bundle.main.url(forResource: name, withExtension: "png"),
            let image = NSImage(contentsOf: url) {
-            let aspect = image.size.height > 0 ? image.size.width / image.size.height : 1
-            image.size = NSSize(width: barHeight * aspect, height: barHeight)
+            image.size = NSSize(width: 18, height: 18)  // 72 px drawn at 4x
             image.isTemplate = true
             return image
         }

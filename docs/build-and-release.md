@@ -21,9 +21,19 @@ detail an engineer needs.
   plus a flat `AppIcon.icns` for macOS 15; this needs Xcode 26 or later on a
   macOS 26 host (on macOS 15 actool's asset agent crashes, so CI runs on
   `macos-26`). Its
-  foreground layer is generated from `Resources/appicon_1024.png` by
-  `uv run scripts/make-icon-layers.py`. The website's icons follow it at
-  deploy time; its link preview after `uv run scripts/make-og-image.py`.
+  layers (brows, eyes, pupils, symbol plate, symbols) are flat SVGs, so
+  macOS 27 gives each its own Liquid Glass, and `icon.json` holds their
+  colors and dark and tinted variants; both are written by
+  `uv run scripts/make-icon-layers.py`, which draws the shapes from
+  measurements of `Resources/appicon_1024.png` and sets the symbols in Nunito
+  ExtraBold, the original's typeface (OFL, subset in `scripts/fonts`).
+  `ictool` inside Icon Composer.app renders every appearance for review. The
+  website's icons follow `appicon_1024.png` at deploy time; its link preview
+  after `uv run scripts/make-og-image.py`.
+- **Menu bar icon:** `Resources/MenuBarIcon.png` (idle, the face as an outline)
+  and `MenuBarBusy.png` (a solid tile with the features cut out) are template
+  images drawn by `uv run scripts/make-menubar-icons.py`, in the outline / fill
+  pairing Rota and Watch Me While I Fall Asleep use.
 - **Screenshots:** `./capture-screenshots.sh` rebuilds the app and regenerates
   `screenshots/` (the menu with the strip of menu bar above it, General,
   Translation, Rewrite), each in the light appearance

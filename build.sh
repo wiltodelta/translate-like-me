@@ -56,7 +56,7 @@ grep -q ".macOS(\"$MIN_MACOS\")" Package.swift ||
     { echo "error: Package.swift platform differs from LSMinimumSystemVersion $MIN_MACOS" >&2; exit 1; }
 # The Icon Composer icon: Assets.car for macOS 26+ (system glass, dark and tinted
 # appearances) plus a flat AppIcon.icns for older releases. Needs Xcode 26+
-# (actool). Regenerate its foreground layer with scripts/make-icon-layers.py.
+# (actool). Regenerate its layers and icon.json with scripts/make-icon-layers.py.
 # Absolute paths: actool resolves relative ones against the working directory of
 # its long-lived agent, which is wherever it first started, not this script's.
 xcrun actool "$PWD/Resources/AppIcon.icon" --compile "$PWD/$APP/Contents/Resources" \
