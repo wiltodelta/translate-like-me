@@ -187,7 +187,7 @@ is set, the CLI's built-in default applies.
 - The clipboard is put back after a translation, with every type it held (rich
   text, images, files), unless you copy something else in the meantime; the
   pasted translation is marked transient so clipboard managers skip it.
-- Logs (`log stream --predicate 'subsystem == "com.wiltodelta.translatelikeme"'`)
+- Logs (`/usr/bin/log stream --level info --predicate 'subsystem == "com.wiltodelta.translatelikeme"'`)
   record the app in front, the language pair and character counts, never the
   text itself.
 
