@@ -163,7 +163,7 @@ plan. For `codex`, run `codex login` once (ChatGPT account) before using it;
 for `grok`, run `grok login` once.
 
 Using the official CLIs with a subscription is an intended, supported way to run
-Claude / Codex / Grok programmatically. Extracting a subscription OAuth token and using
+Claude Code / Codex / Grok Build programmatically. Extracting a subscription OAuth token and using
 it in your own API client is not allowed; this app never does that. It only
 invokes the official binary as a subprocess.
 

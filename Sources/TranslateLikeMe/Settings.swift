@@ -28,7 +28,7 @@ enum Provider: String, CaseIterable {
         switch self {
         case .anthropic: return "Claude Code"
         case .openai: return "Codex"
-        case .grok: return "Grok"
+        case .grok: return "Grok Build"
         }
     }
 
@@ -37,7 +37,7 @@ enum Provider: String, CaseIterable {
         switch self {
         case .anthropic: return "Default uses the model and effort from your Claude Code settings."
         case .openai: return "Default uses the model and reasoning effort from your Codex config."
-        case .grok: return "Default uses the model and effort from your Grok config."
+        case .grok: return "Default uses the model and effort from your Grok Build config."
         }
     }
 
