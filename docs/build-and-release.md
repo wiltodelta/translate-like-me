@@ -25,9 +25,10 @@ detail an engineer needs.
   macOS 27 gives each its own Liquid Glass, and `icon.json` holds their
   colors and dark and tinted variants; both are written by
   `uv run scripts/make-icon-layers.py`, which draws the shapes from
-  measurements of `Resources/appicon_1024.png` and sets the symbols in Nunito
-  ExtraBold, the original's typeface (OFL, subset in `scripts/fonts`).
-  `ictool` inside Icon Composer.app renders every appearance for review. The
+  measurements of the original round artwork and sets the symbols in Nunito
+  ExtraBold, the original's typeface (OFL, subset in `scripts/fonts`). It then
+  renders `Resources/appicon_1024.png` from the icon with `ictool` (inside Icon
+  Composer.app, which also renders every appearance for review). The
   website's icons follow `appicon_1024.png` at deploy time; its link preview
   after `uv run scripts/make-og-image.py`.
 - **Menu bar icon:** `Resources/MenuBarIcon.png` (idle, the face as an outline)

@@ -7,18 +7,22 @@
 The system draws Liquid Glass per layer, and macOS 27 gives each layer its own
 glass, so every feature is its own flat SVG without painted shading: brows,
 eye whites, pupils, the symbol plate and the "@!%$" symbols. The shapes are
-drawn from the measurements of the original round artwork
-(Resources/appicon_1024.png); the symbols are set in Nunito ExtraBold, the
-typeface the original used, vendored as a subset under scripts/fonts. The
-orange-to-pink head gradient is the icon's background fill. Colors and the
-dark-appearance variants live in icon.json, which this script writes too.
-build.sh compiles the .icon with actool.
+drawn from the measurements of the original round artwork; the symbols are set
+in Nunito ExtraBold, the typeface the original used, vendored as a subset under
+scripts/fonts. The orange-to-pink head gradient is the icon's background fill.
+Colors and the dark-appearance variants live in icon.json, which this script
+writes too. build.sh compiles the .icon with actool.
+
+It then renders Resources/appicon_1024.png from the icon with Icon Composer's
+ictool (the default appearance, macOS 27 design), the raster the website's
+icons and link preview are made from, so they show the icon the app ships.
 
 Run: uv run scripts/make-icon-layers.py
 """
 
 import json
 import logging
+import subprocess
 from pathlib import Path
 
 from fontTools.pens.boundsPen import BoundsPen
@@ -31,13 +35,15 @@ log = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parent.parent
 FONT = ROOT / "scripts" / "fonts" / "Nunito-ExtraBold-symbols.ttf"  # OFL, subset to the symbols
 ICON = ROOT / "Resources" / "AppIcon.icon"
+RASTER = ROOT / "Resources" / "appicon_1024.png"
+ICTOOL = Path("/Applications/Xcode.app/Contents/Applications/Icon Composer.app/Contents/Executables/ictool")
 ASSETS = ICON / "Assets"
 
 SIZE = 1024
 
-# Layer geometry in the 1024-point layer space, measured on the features of
-# Resources/appicon_1024.png as the earlier raster layer placed them (the brow
-# curve fitted to 98.6% overlap). Brows mirror around the face's axis.
+# Layer geometry in the 1024-point layer space, measured on the features of the
+# original round artwork (appicon_1024.png until 3.3) as the earlier raster layer
+# placed them (the brow curve fitted to 98.6% overlap). Brows mirror around the face's axis.
 AXIS_X = 507.25
 EYES = [(340, 419.5), (674.5, 419.5)]
 EYE_RADIUS = 137.5
@@ -146,6 +152,10 @@ def main() -> None:
     }
     (ICON / "icon.json").write_text(json.dumps(document, indent=2) + "\n")
     log.info("Wrote %s with %s layers", ICON.relative_to(ROOT), len(shapes))
+    subprocess.run([ICTOOL, ICON, "--export-image", "--output-file", RASTER, "--platform", "macOS",
+                    "--rendition", "Default", "--width", "1024", "--height", "1024", "--scale", "1",
+                    "--design-generation", "27"], check=True, capture_output=True)
+    log.info("Rendered %s", RASTER.relative_to(ROOT))
 
 
 if __name__ == "__main__":
