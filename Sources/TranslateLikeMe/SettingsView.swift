@@ -29,6 +29,7 @@ struct GeneralSettingsView: View {
             Text("Languages")
         } footer: {
             Text(LanguagePairList.explanation + " Needs Accessibility permission (macOS will ask).")
+                .foregroundStyle(Color.secondaryText)
         }
     }
 
@@ -53,6 +54,7 @@ struct GeneralSettingsView: View {
         } footer: {
             Text(loginItemError.map { "Couldn't change this: \($0)" }
                  ?? "Start Translate Like Me automatically when you log in to your Mac.")
+                .foregroundStyle(Color.secondaryText)
         }
     }
 
@@ -72,6 +74,7 @@ struct GeneralSettingsView: View {
             Text("Updates")
         } footer: {
             Text("Checks once a day and installs a new version when you choose to.")
+                .foregroundStyle(Color.secondaryText)
         }
     }
 }
@@ -100,6 +103,7 @@ struct TranslationSettingsView: View {
             Text("Translation engine")
         } footer: {
             Text(engineFooter)
+                .foregroundStyle(Color.secondaryText)
         }
     }
 
@@ -157,7 +161,7 @@ struct RewriteSettingsView: View {
             Section {
                 if store.rewritePresets.isEmpty {
                     Text("No presets yet. Add one to turn notes into a message.")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.secondaryText)
                 }
                 ForEach(store.rewritePresets) { preset in
                     RewritePresetRow(preset: binding(for: preset),
@@ -169,13 +173,14 @@ struct RewriteSettingsView: View {
                         .disabled(!store.canAddRewritePreset)
                     if !store.canAddRewritePreset {
                         Text("Up to \(Rewrite.maxPresets) presets")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.secondaryText)
                     }
                 }
             } header: {
                 Text("Presets")
             } footer: {
                 Text(Self.explanation)
+                    .foregroundStyle(Color.secondaryText)
             }
         }
         .settingsPane()
@@ -211,12 +216,12 @@ private struct RewritePresetRow: View {
                     .accessibilityLabel("Preset name")
                     .frame(maxWidth: 200)
                 Spacer(minLength: 8)
-                ShortcutField(combo: $preset.shortcut, usedBy: usedBy)
+                ShortcutField(combo: $preset.shortcut, usedBy: usedBy, owner: "the \(preset.title) preset")
                 RemoveButton(help: "Remove this preset", label: "Remove the \(preset.title) preset", action: remove)
             }
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(style.isEmpty ? "Clear, neutral message, no writing style" : style)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.secondaryText)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -246,7 +251,7 @@ struct LanguagePairList: View {
     var body: some View {
         if store.pairs.isEmpty {
             Text("No language pairs yet. Add one to get a translation shortcut.")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.secondaryText)
         }
         ForEach($store.pairs) { $pair in
             LanguagePairRow(pair: $pair,
@@ -260,7 +265,7 @@ struct LanguagePairList: View {
                 .disabled(!store.canAddPair)
             if !store.canAddPair {
                 Text("Up to \(Languages.maxPairs) pairs")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.secondaryText)
             }
         }
     }
@@ -281,8 +286,14 @@ private struct LanguagePairRow: View {
         VStack(alignment: .leading, spacing: 6) {
             languagesRow
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(style.isEmpty ? "Plain translation, no writing style" : style)
-                    .foregroundStyle(.secondary)
+                Group {
+                    if pair.isComplete {
+                        Text(style.isEmpty ? "Plain translation, no writing style" : style)
+                            .foregroundStyle(Color.secondaryText)
+                    } else {
+                        Text("Choose the second language to use this pair.")
+                    }
+                }
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -302,10 +313,10 @@ private struct LanguagePairRow: View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             languagePicker("First language", isFirst: true)
             // Not a button: the direction is detected per translation.
-            Text("↔").foregroundStyle(.secondary).accessibilityHidden(true)
+            Text("↔").foregroundStyle(Color.secondaryText).accessibilityHidden(true)
             languagePicker("Second language", isFirst: false)
             Spacer(minLength: 8)
-            ShortcutField(combo: $pair.shortcut, usedBy: usedBy)
+            ShortcutField(combo: $pair.shortcut, usedBy: usedBy, owner: pair.title)
             RemoveButton(help: "Remove this pair", label: "Remove \(pair.title)", action: remove)
         }
     }
@@ -391,7 +402,7 @@ private struct StyleEditor: View {
                 .frame(height: 220)
             Text(hint)
                 .font(.callout)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
                 if style.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -419,6 +430,12 @@ extension View {
             .frame(maxHeight: SettingsLayout.maxPaneHeight - reserved)
             .fixedSize(horizontal: false, vertical: true)
     }
+}
+
+extension Color {
+    // Secondary text the app draws, at 4.5:1 or more where `.secondary` is not
+    // (CLAUDE.md, Interface; watch-me-sleep's panelSecondary is the same rule).
+    static let secondaryText = Color.primary.opacity(0.66)
 }
 
 enum SettingsLayout {

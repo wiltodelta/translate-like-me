@@ -2,6 +2,7 @@
 
 included:
   - Sources
+  - Tests
 
 excluded:
   - .build
@@ -44,3 +45,11 @@ opt_in_rules:
   - empty_string
   - toggle_bool
   - sorted_first_last
+
+custom_rules:
+  # Secondary text the app draws uses Color.secondaryText (CLAUDE.md, Interface).
+  no_system_secondary_text:
+    name: "System secondary text"
+    regex: '\.foregroundStyle\(\.secondary\)'
+    message: "Use Color.secondaryText: .secondary measures under 4.5:1"
+    severity: error

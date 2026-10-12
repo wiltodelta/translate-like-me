@@ -24,7 +24,7 @@ struct PopupView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(model.header)
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.secondaryText)
             // A capped popup scrolls; with overlay scrollers hidden until scrolled, a
             // long translation read as complete at its seventh paragraph. The last
             // lines fade out when more is below (UX-T05).

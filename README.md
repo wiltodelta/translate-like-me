@@ -108,12 +108,12 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
 
 - Select text in any app, then press a pair's shortcut (the first pair you add
   starts on **⌥⌘F**) to replace it with the translation.
-- Click the menu-bar icon for the menu: engine and Accessibility status, one
-  **Translate Selection** item per language pair with its shortcut, Settings,
-  updates, and Quit. Clicking the engine row opens its settings.
+- Click the menu-bar icon for the menu: engine and Accessibility status, a
+  **Translate selection** section with one item per language pair and its
+  shortcut, Settings, updates, and Quit. Clicking the engine row opens its settings.
 - Select notes, then press a preset's shortcut (add one under Settings >
   Rewrite) to replace them with a finished message. The menu then also lists
-  one **Rewrite Selection** item per preset.
+  a **Rewrite selection** section with one item per preset.
 - The icon shows a busy glyph while a translation is running.
 - If the selection can't be replaced in place (a read-only field, e.g. a message
   you are reading rather than writing), the translation is put on the clipboard
@@ -151,11 +151,11 @@ immediately.
 
 Three providers, each through its official CLI and your subscription:
 
-| Provider           | CLI                     |
-|--------------------|-------------------------|
-| Anthropic (Claude) | `claude -p` (Pro/Max)   |
-| OpenAI (ChatGPT)   | `codex exec` (ChatGPT)  |
-| xAI (Grok)         | `grok -p` (grok.com)    |
+| Provider           | CLI                             |
+|--------------------|---------------------------------|
+| Anthropic (Claude) | `claude -p` (Pro/Max)           |
+| OpenAI (ChatGPT)   | `codex exec` (ChatGPT)          |
+| xAI (Grok)         | `grok --prompt-file` (grok.com) |
 
 The app runs the provider's official CLI as a subprocess, using the plan you
 are already signed in to. No API key and no per-token billing beyond your
@@ -181,6 +181,8 @@ is set, the CLI's built-in default applies.
 - The text you translate and the pair's writing style go to the engine you
   picked and nowhere else: Anthropic (Claude), OpenAI (ChatGPT), or xAI (Grok),
   through its official CLI. The app has no server, analytics or telemetry.
+- Each CLI receives the text on standard input, never as a command-line
+  argument, so it does not show up in the process list.
 - The claude and codex CLIs run with session history off, so translations are
   not kept in `~/.claude` or `~/.codex`. The grok CLI has no such switch and may
   keep its own history.
@@ -258,13 +260,13 @@ Releases are automated. The app version comes from the git tag, so cutting a
 release is just tagging and pushing:
 
 ```bash
-git tag -a vX.Y -F notes.md   # first line "Translate Like Me X.Y", blank line, then the notes
-git push origin vX.Y
+git tag -a vX.Y.Z -F notes.md   # first line "Translate Like Me X.Y.Z", blank line, then the notes
+git push origin vX.Y.Z
 ```
 
 GitHub Actions then builds the app with the tag's version, signs it with the
 Developer ID, notarizes it, and publishes a Release with
-`Translate-Like-Me-vX.Y-macOS.zip` and the Sparkle `appcast.xml` attached; the
+`Translate-Like-Me-vX.Y.Z-macOS.zip` and the Sparkle `appcast.xml` attached; the
 tag annotation's body becomes both the release notes and the text of the update
 window, and its first line the release title. Use `vMAJOR.MINOR` tags. Local
 `./build.sh` bundles carry the latest tag's version and are not meant for

@@ -25,6 +25,18 @@ jobs:
         fetch-depth: 0
         fetch-tags: true
 
+    # A release tag is vX.Y.Z and above every earlier tag: Sparkle offers only a
+    # higher version, so a lower number never reaches anybody already on the
+    # newer release (watch-me-sleep 3.6.1, tagged after 3.7 on 2026-10-11).
+    - name: Check the release tag (on tag)
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: |
+        [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] ||
+          { echo "::error::$GITHUB_REF_NAME is not vX.Y.Z"; exit 1; }
+        HIGHEST="$(git tag -l 'v*' | sort -V | tail -1)"
+        [[ "$HIGHEST" == "$GITHUB_REF_NAME" ]] ||
+          { echo "::error::$GITHUB_REF_NAME is not above the existing tag $HIGHEST"; exit 1; }
+
     # The runner context is not available in job-level env, so the signing
     # keychain path is exported here for the import and cleanup steps.
     - name: Select latest Xcode

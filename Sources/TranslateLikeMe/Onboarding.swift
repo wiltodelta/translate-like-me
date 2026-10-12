@@ -71,6 +71,7 @@ private struct OnboardingView: View {
             Text("Choose your language pairs").font(.title2.bold())
         } footer: {
             Text(LanguagePairList.explanation)
+                .foregroundStyle(Color.secondaryText)
         }
     }
 
@@ -93,6 +94,7 @@ private struct OnboardingView: View {
         } footer: {
             Text("Translate Like Me uses an AI subscription you already have, through the service's "
                  + "command-line tool you are signed in to. Each one was tried with a short test translation.")
+                .foregroundStyle(Color.secondaryText)
         }
     }
 
@@ -148,7 +150,7 @@ private struct EngineRow: View {
                         .accessibilityHidden(true)
                 }
                 Text(detail)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .font(.callout)

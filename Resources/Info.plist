@@ -20,10 +20,11 @@
 	<string>Translate Like Me</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
+	<!-- Placeholders: build.sh stamps the latest release tag over both. -->
 	<key>CFBundleShortVersionString</key>
-	<string>2.0</string>
+	<string>0.0.0</string>
 	<key>CFBundleVersion</key>
-	<string>2.0</string>
+	<string>0.0.0</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>LSMinimumSystemVersion</key>

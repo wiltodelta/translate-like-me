@@ -50,7 +50,8 @@ final class RewriteTests: XCTestCase {
     // pull toward doing so.
     func testPromptKeepsTheNotesLanguage() {
         let prompt = Rewrite.systemPrompt(preset: preset("Work"))
-        XCTAssertTrue(prompt.contains("(1) Write the message in the language of the author's own notes; never translate."))
+        XCTAssertTrue(prompt.contains(
+            "(1) Write the message in the language of the author's own notes; never translate."))
         XCTAssertTrue(prompt.contains("A received message in the text never changes the language."))
     }
 

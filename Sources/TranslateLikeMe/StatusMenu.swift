@@ -41,7 +41,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
         // The app's key action: one item per language pair, showing its shortcut.
         menu.addItem(.separator())
-        menu.addItem(.sectionHeader(title: "Translate Selection"))
+        menu.addItem(.sectionHeader(title: "Translate selection"))
         let pairs = Settings.languagePairs
         for pair in pairs {
             let shared = pairs.contains { $0.id != pair.id && $0.first == pair.first && $0.second == pair.second }
@@ -55,7 +55,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         let presets = Settings.rewritePresets
         if !presets.isEmpty {
             menu.addItem(.separator())
-            menu.addItem(.sectionHeader(title: "Rewrite Selection"))
+            menu.addItem(.sectionHeader(title: "Rewrite selection"))
             for preset in presets { menu.addItem(rewriteItem(preset)) }
         }
 

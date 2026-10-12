@@ -45,10 +45,14 @@ cp "Resources/Info.plist" "$APP/Contents/Info.plist"
 # Stamp the latest release tag, as CI stamps the tag it builds, so a local build
 # never reports an older version than the release (which would make Sparkle
 # offer the release over it). --abbrev=0: the tag itself, not "2.0-5-gabc".
+# CI must have the tag; a local checkout without one keeps the 0.0.0 placeholder.
 VERSION="$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || true)"
 if [[ -n "$VERSION" ]]; then
     /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" \
         -c "Set :CFBundleVersion $VERSION" "$APP/Contents/Info.plist"
+elif [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+    echo "error: no git tag to take the version from" >&2
+    exit 1
 fi
 # The oldest supported macOS lives in Info.plist; Package.swift must say the same.
 MIN_MACOS="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' Resources/Info.plist)"

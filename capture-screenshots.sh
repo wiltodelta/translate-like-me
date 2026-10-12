@@ -15,7 +15,9 @@
 # only, through the argument domain (-key value): the language pairs and Rewrite
 # presets with their writing styles (the repository is public), and the pane
 # Settings opens on.
-# Nothing is written back.
+# Nothing should be written back; the domain is exported first and imported
+# again on exit all the same, because one write on a pane's render once put the
+# sample presets into the real settings (2026-10-11).
 # build.sh stamps the latest tag, so the build raises no update alert.
 
 set -euo pipefail
@@ -209,12 +211,16 @@ ORIGINAL_DARK=$(appearance 'get dark mode')
 POINTER=$(helper pointer)
 helper pointer 2 400
 
+DOMAIN=com.wiltodelta.translatelikeme
+defaults export "$DOMAIN" "$WORK/defaults.plist"
+
 BACKDROP_PID=""
 cleanup() {
+    [ -n "$PID" ] && kill "$PID" 2>/dev/null && sleep 1
+    defaults import "$DOMAIN" "$WORK/defaults.plist" || true
     appearance "set dark mode to $ORIGINAL_DARK" >/dev/null || true
     helper pointer $POINTER
     [ -n "$BACKDROP_PID" ] && kill "$BACKDROP_PID" 2>/dev/null
-    [ -n "$PID" ] && kill "$PID" 2>/dev/null
     rm -rf "$WORK"
 }
 trap cleanup EXIT

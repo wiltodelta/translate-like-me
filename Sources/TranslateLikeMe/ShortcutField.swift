@@ -10,6 +10,9 @@ import Carbon
 struct ShortcutField: View {
     @Binding var combo: KeyCombo?
     let usedBy: (KeyCombo) -> String?
+    // What the shortcut runs ("Russian ↔ English", "the Work preset"): VoiceOver
+    // read the bare combo, with nothing saying whose shortcut it was.
+    let owner: String
 
     @State private var recording = false
     @State private var monitor: Any?
@@ -18,7 +21,12 @@ struct ShortcutField: View {
     private var label: some View {
         Text(recording ? "Press keys…"
              : combo.map(Shortcut.display) ?? "Record Shortcut")
-            .font(combo == nil && !recording ? .body : .body.monospaced())
+            // Monospaced for the glyphs of a recorded combo only, not for prose.
+            .font(combo != nil && !recording ? .body.monospaced() : .body)
+            // Never truncated: a long second language squeezed "Record Shortcut"
+            // to "Record Short…". The bezel's padding gives way instead; a fixed-size
+            // button pushed the row past the form's width and hid the ↔.
+            .fixedSize()
             .frame(minWidth: 90)
     }
 
@@ -54,10 +62,12 @@ struct ShortcutField: View {
         // competing for the row's narrow trailing width.
         VStack(alignment: .trailing, spacing: 4) {
             recorderButton
+                .accessibilityLabel("Shortcut for \(owner)")
+                .accessibilityValue(recording ? "Recording" : combo.map(Shortcut.display) ?? "None")
             if recording {
                 Text(conflict.map { "Already used by \($0)." } ?? "Needs ⌘, ⌥, or ⌃. Delete clears, Esc cancels.")
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.secondaryText)
             }
         }
         .onDisappear { stop() }

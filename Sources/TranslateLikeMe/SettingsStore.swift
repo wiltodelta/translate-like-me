@@ -27,8 +27,12 @@ final class SettingsStore {
     // Keeps loadPick's assignment from being saved back (or reset) as an edit.
     @ObservationIgnored private var loadingPick = false
 
+    // An unchanged value is not stored: a field hands back its unchanged text when
+    // it loses focus, and storing it rewrote the settings domain (a launch's
+    // argument-domain values included) on every visit to a pane.
     var pairs: [LanguagePair] {
         didSet {
+            guard pairs != oldValue else { return }
             Settings.languagePairs = pairs
             // Hotkeys look their pair up when pressed, so a style or language
             // edit needs no re-registration.
@@ -40,6 +44,7 @@ final class SettingsStore {
 
     var rewritePresets: [RewritePreset] {
         didSet {
+            guard rewritePresets != oldValue else { return }
             Settings.rewritePresets = rewritePresets
             // Looked up when pressed too, so only ids and shortcuts matter here.
             if oldValue.map(\.id) != rewritePresets.map(\.id)

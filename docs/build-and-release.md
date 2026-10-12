@@ -65,7 +65,7 @@ detail an engineer needs.
 - **Notarization:** `RELEASE=1 ./build.sh && ./notarize.sh` signs with a secure
   timestamp (everyday builds skip it, so they work offline), submits the bundle,
   staples the ticket, checks it with `spctl` and writes
-  `Translate-Like-Me-vX.Y-macOS.zip`. It reads the team-wide notarytool profile
+  `Translate-Like-Me-vX.Y.Z-macOS.zip`. It reads the team-wide notarytool profile
   `notary-K2GT9Q4S6U` from the login keychain (`xcrun notarytool
   store-credentials`, command in the script header); other apps of the same
   team reuse it. An app that needs a hardened-runtime entitlement (the camera,
@@ -75,14 +75,16 @@ detail an engineer needs.
 
 Automated via GitHub Actions ([`.github/workflows/build.yml`](../.github/workflows/build.yml)):
 
-1. `git tag -a vX.Y -F notes.md` then `git push origin vX.Y`. The annotation's
-   first line is the title ("Translate Like Me X.Y"); its body, after a blank
-   line, is the release notes in Markdown.
+1. `git tag -a vX.Y.Z -F notes.md` then `git push origin vX.Y.Z`. The annotation's
+   first line is the title ("Translate Like Me X.Y.Z"); its body, after a blank
+   line, is the release notes in Markdown. The workflow refuses a tag that is
+   not `vX.Y.Z` or not above every earlier tag: Sparkle offers only a higher
+   version, so a lower number never reaches anybody on the newer release.
 2. The workflow runs SwiftLint and tests, imports the Developer ID
    identity and the notarytool profile into a temporary keychain, builds and
-   signs via `RELEASE=1 build.sh` (which stamps `X.Y` from the tag), notarizes
+   signs via `RELEASE=1 build.sh` (which stamps `X.Y.Z` from the tag), notarizes
    and staples via `notarize.sh`, and publishes
-   a GitHub Release with `Translate-Like-Me-vX.Y-macOS.zip` attached. The keychain
+   a GitHub Release with `Translate-Like-Me-vX.Y.Z-macOS.zip` attached. The keychain
    is deleted at the end.
 3. It also generates `appcast.xml` with Sparkle's `generate_appcast`: this
    release only, its EdDSA signature, and the tag body embedded as Markdown
@@ -122,16 +124,16 @@ builds stay ad hoc. The Developer ID certificate expires on 2031-09-17: renew it
 on the Apple Developer portal and reset the two identity secrets.
 
 `build.sh` stamps the bundle with the latest tag (`git describe --tags
---abbrev=0`), falling back to the committed `Info.plist` without tags, so a
-local build never reports an older version than the release, which Sparkle
-would then offer over it. Local bundles are for local use, not
-distribution.
+--abbrev=0`); without a tag a local build keeps the `0.0.0` placeholder from the
+committed `Info.plist` and CI refuses to build. A local build never reports
+an older version than the release, which Sparkle would then offer over it.
+Local bundles are for local use, not distribution.
 
 Verify a release before moving on (re-download, then check the signature and the
 stapled ticket):
 
 ```bash
-gh release download vX.Y -p "*.zip" -D /tmp/asset-check && \
+gh release download vX.Y.Z -p "*.zip" -D /tmp/asset-check && \
   ditto -x -k /tmp/asset-check/*.zip /tmp/asset-check/app && \
   spctl -a -vv "/tmp/asset-check/app/Translate Like Me.app" && \
   xcrun stapler validate "/tmp/asset-check/app/Translate Like Me.app"

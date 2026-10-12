@@ -83,6 +83,10 @@ final class SettingsWindow: NSWindow {
         super.setFrame(keptOnScreen(frameRect), display: flag)
     }
 
+    override func setFrame(_ frameRect: NSRect, display displayFlag: Bool, animate animateFlag: Bool) {
+        super.setFrame(keptOnScreen(frameRect), display: displayFlag, animate: animateFlag)
+    }
+
     private func keptOnScreen(_ rect: NSRect) -> NSRect {
         guard let visible = (screen ?? NSScreen.main)?.visibleFrame else { return rect }
         var kept = rect

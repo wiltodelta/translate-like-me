@@ -1,6 +1,6 @@
 #!/bin/bash
 # Notarize and staple the bundle build.sh produced, then zip it for a release:
-#   RELEASE=1 ./build.sh && ./notarize.sh   -> Translate-Like-Me-vX.Y-macOS.zip
+#   RELEASE=1 ./build.sh && ./notarize.sh   -> Translate-Like-Me-vX.Y.Z-macOS.zip
 #   ./notarize.sh --zip-only                -> the same zip, not notarized (CI branch builds)
 #
 # Needs the Developer ID signature with a secure timestamp that RELEASE=1 build.sh

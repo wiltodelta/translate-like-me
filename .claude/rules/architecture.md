@@ -56,7 +56,7 @@ Read before editing this domain.
   in `Settings.languagePairs`, edited under General > Languages) each carry an
   optional shortcut and writing style (`style`, empty for a plain translation;
   pairs may share languages); `HotKeyManager` registers one Carbon `RegisterEventHotKey`
-  per pair and the status menu lists one Translate Selection item per pair
+  per pair and the status menu lists one item per pair under Translate selection
   (pairs sharing languages get a subtitle saying which applies a style).
   The model detects the direction: text in `first` becomes `second`, anything
   else becomes `first` (`Translator.systemPrompt`). On-device detection
@@ -86,7 +86,7 @@ Read before editing this domain.
   (`RewriteSettingsView.binding(for:)`), never by index through
   `ForEach($array)`: the field re-reads its binding during the resize
   animation after a removal and crashed past the shortened array. The menu
-  adds a Rewrite Selection section only while a preset exists. `TranslationController.rewrite(preset:)` shares the copy, engine and
+  adds a Rewrite selection section only while a preset exists. `TranslationController.rewrite(preset:)` shares the copy, engine and
   paste flow with `run(pair:)` (`perform`). `Rewrite.systemPrompt` keeps the
   notes' language even beside a received message in another (21 of 21 live
   runs, 2026-10-08), keeps questions for the recipient, drops filler and

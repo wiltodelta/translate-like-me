@@ -213,7 +213,10 @@ enum Translator {
         // Together: ~5.7k tokens and correct output; 4-6s at the model's default
         // effort (2026-09-23; ~3.4s when it was forced to low). Stdout carries
         // only the answer in the default plain format; errors go to stderr, exit 1.
-        var args = ["-p", promptEnvelope(system: system, text: text), "--verbatim",
+        // `--prompt-file /dev/stdin` is the single-turn mode of `-p` with the prompt
+        // on stdin, so the selection stays out of the process list (as for codex);
+        // same output and latency as `-p` (grok 1.0.50, 2026-10-11).
+        var args = ["--prompt-file", "/dev/stdin", "--verbatim",
                     "--system-prompt-override", system,
                     "--tools", "todo_write", "--disallowed-tools", "todo_write",
                     "--no-subagents", "--max-turns", "1"]
@@ -221,7 +224,8 @@ enum Translator {
         let choice = HarnessChoice.current(for: .grok)
         if let model = choice.model { args += ["-m", model] }
         if let effort = choice.effort { args += ["--reasoning-effort", effort] }
-        let result = try await runProcess(binary: binary, args: args, stdin: nil,
+        let result = try await runProcess(binary: binary, args: args,
+                                          stdin: promptEnvelope(system: system, text: text),
                                           extraEnv: Provider.grok.cliEnvironment)
         return try cleaned(result)
     }
