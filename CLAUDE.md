@@ -24,7 +24,8 @@ detail, including the secrets and where the keys are kept (1Password):
 ## Code quality
 
 - `bash maintain.sh` runs the canonical Swift gate.
-- Lint config in `.swiftlint.yml` scans `Sources/` at 120-column lines.
+- Swift 6 language mode (swift-tools 6.0): UI types are `@MainActor`; a `Timer` or `NotificationCenter` (`queue: .main`) callback enters with `MainActor.assumeIsolated`, and `Updater.swift` and `maintain.sh` are declared twins (claude-config `bin/check-twins.py`).
+- Lint config in `.swiftlint.yml` scans `Sources/` and `Tests/` at 120-column lines (fixtures inside multiline strings exempt, `Tests/.swiftlint.yml`).
 - `Tests/TranslateLikeMeTests/` covers pure logic only. UI, Accessibility, CGEvent,
   Sparkle and CLI-subprocess code is not unit-tested; render UI changes with
   `./capture-screenshots.sh` (it also regenerates `screenshots/`, light and

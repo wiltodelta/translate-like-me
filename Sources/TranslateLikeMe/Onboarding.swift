@@ -6,8 +6,9 @@ import SwiftUI
 // Every engine is checked as soon as the window opens (EngineChecks), so the
 // results are in by the time the second step shows. Edits apply at once through
 // the shared SettingsStore, like Settings; closing the window early keeps them.
+@MainActor
 enum Onboarding {
-    static func makeWindow(store: SettingsStore, done: @escaping () -> Void) -> NSWindow {
+    static func makeWindow(store: SettingsStore, done: @escaping @MainActor () -> Void) -> NSWindow {
         let window = SettingsWindow(contentRect: .zero, styleMask: [.titled, .closable],
                                     backing: .buffered, defer: false)
         // A hosting view, not a hosting controller: a controller sizing the window
@@ -29,7 +30,7 @@ private enum OnboardingStep {
 
 private struct OnboardingView: View {
     @Bindable var store: SettingsStore
-    let done: () -> Void
+    let done: @MainActor () -> Void
     @State private var step = OnboardingStep.languages
     @State private var checks = EngineChecks()
     // Until the user picks an engine, the first one that works is picked for them.

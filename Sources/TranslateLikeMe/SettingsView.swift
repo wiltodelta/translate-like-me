@@ -354,10 +354,10 @@ private struct RemoveButton: View {
 private struct LanguagePicker: View, Equatable {
     let label: String
     let code: String
-    let pick: (String) -> Void
+    let pick: @MainActor (String) -> Void
 
     var body: some View {
-        Picker(label, selection: Binding(get: { code }, set: pick)) {
+        Picker(label, selection: Binding(get: { code }, set: { pick($0) })) {
             // A second language the Mac could not suggest waits for a pick.
             if code.isEmpty {
                 Text("Choose a Language").tag("")
@@ -368,7 +368,7 @@ private struct LanguagePicker: View, Equatable {
         .fixedSize()
     }
 
-    static func == (lhs: Self, rhs: Self) -> Bool { lhs.label == rhs.label && lhs.code == rhs.code }
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool { lhs.label == rhs.label && lhs.code == rhs.code }
 }
 
 // A pair's or Rewrite preset's writing style in a sheet; edits apply as typed,

@@ -9,11 +9,13 @@ enum SelectionService {
     // The system's Accessibility prompt (it offers to open System Settings);
     // does nothing once access is granted.
     static func promptForAccessibility() {
-        let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+        // The value of kAXTrustedCheckOptionPrompt, a C global Swift 6 treats as
+        // shared mutable state.
+        let key = "AXTrustedCheckOptionPrompt"
         _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
     }
 
-    private static let pasteboard = NSPasteboard.general
+    private static var pasteboard: NSPasteboard { .general }
 
     private enum KeyCode {
         static let cKey: CGKeyCode = 8

@@ -108,7 +108,7 @@ enum Provider: String, CaseIterable {
 
 // Thin wrapper over UserDefaults for the persisted settings.
 enum Settings {
-    private static let defaults = UserDefaults.standard
+    private static var defaults: UserDefaults { .standard }
 
     private enum Key {
         static let provider = "provider"

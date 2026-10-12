@@ -1,4 +1,6 @@
 #!/bin/bash
+# twin: maintain-swift - translate-like-me and watch-me-sleep keep this file
+# identical except lines marked twin-local (claude-config bin/check-twins.py).
 # The canonical gate: lint with fixes, tests, then the release bundle.
 
 set -e
@@ -13,4 +15,4 @@ swiftlint lint --strict --quiet
 swift test
 # The bundle, not a bare `swift build -c release`: assembly, actool, Sparkle
 # embedding, signing and the SDK stamp check would otherwise run only in CI.
-./build.sh
+./build.sh # twin-local
