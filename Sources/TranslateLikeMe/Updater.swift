@@ -2,8 +2,8 @@ import AppKit
 import Observation // twin-local
 import Sparkle
 
-// twin: updater - translate-like-me and watch-me-sleep keep this file identical
-// except lines marked twin-local (claude-config bin/check-twins.py checks it).
+// twin: updater - translate-like-me, watch-me-sleep and rota keep this file
+// identical except lines marked twin-local (claude-config bin/check-twins.py).
 //
 /// In-place updates through Sparkle: it reads the appcast each release publishes
 /// (`SUFeedURL` in Info.plist), checks once a day, verifies the EdDSA signature

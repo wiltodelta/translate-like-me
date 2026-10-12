@@ -1,5 +1,5 @@
 #!/bin/bash
-# twin: maintain-swift - translate-like-me and watch-me-sleep keep this file
+# twin: maintain-swift - translate-like-me, watch-me-sleep and rota keep this file
 # identical except lines marked twin-local (claude-config bin/check-twins.py).
 # The canonical gate: lint with fixes, tests, then the release bundle.
 
