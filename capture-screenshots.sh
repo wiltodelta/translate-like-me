@@ -10,14 +10,15 @@
 # (menu-dark.png): the script switches the system appearance and puts the
 # user's own back when it exits.
 #
-# The copy reads the real settings domain, so every value the images show that
-# is personal or would change the user's settings is overridden for this launch
-# only, through the argument domain (-key value): the language pairs and Rewrite
-# presets with their writing styles (the repository is public), and the pane
-# Settings opens on.
+# The build is the development app (com.wiltodelta.translatelikeme.dev, its own
+# settings domain), and every value the images show that is personal or would
+# change its settings is overridden for this launch only, through the argument
+# domain (-key value): the language pairs and Rewrite presets with their writing
+# styles (the repository is public), and the pane Settings opens on.
 # Nothing should be written back; the domain is exported first and imported
 # again on exit all the same, because one write on a pane's render once put the
-# sample presets into the real settings (2026-10-11).
+# sample presets into the settings (2026-10-11, when builds shared the
+# installed app's domain).
 # build.sh stamps the latest tag, so the build raises no update alert.
 
 set -euo pipefail
@@ -150,7 +151,7 @@ helper() { "$WORK/helper" "$@"; }
 
 # launch <pane>: a fresh copy with Settings set to open on <pane> (0 General, 1
 # Translation, 2 Rewrite), since switching panes in the window would write the choice back.
-# -n: a new instance even while the installed copy (same bundle id) runs.
+# -n: a new instance even if an earlier one is still quitting.
 # The keys are Settings.Key.languagePairs, .rewritePresets, .provider and
 # SettingsTabViewController.lastPaneKey; they name this script, since a renamed
 # key would put the real settings into a public image. With the pairs overridden
@@ -211,7 +212,9 @@ ORIGINAL_DARK=$(appearance 'get dark mode')
 POINTER=$(helper pointer)
 helper pointer 2 400
 
-DOMAIN=com.wiltodelta.translatelikeme
+# The development build's domain (build.sh); backed up anyway, since a run
+# overrides its settings.
+DOMAIN=com.wiltodelta.translatelikeme.dev
 defaults export "$DOMAIN" "$WORK/defaults.plist"
 
 BACKDROP_PID=""

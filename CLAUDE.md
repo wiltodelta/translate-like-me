@@ -43,15 +43,13 @@ detail, including the secrets and where the keys are kept (1Password):
   press the `AXMenuItem` by title, and read the result back from the
   defaults (`plutil -extract languagePairs raw`, base64 JSON) rather than
   sending keys, which land in whatever app is in front.
-- Live runs of a dev build read and write the installed app's settings domain
-  (`com.wiltodelta.translatelikeme`): save and restore any key a test changes,
-  or override it for one launch without writing (`open -n "Translate Like
-  Me.app" --args -provider grok`, the argument domain). A dev launch also
-  runs the launch migrations on the real settings, so `defaults export
-  com.wiltodelta.translatelikeme <file>` before the first one. Onboarding opens
-  with `-didCompleteFirstRun NO -languagePairs '<5b5d>'` (no pairs), but adding
-  a pair or picking an engine there still writes the real domain. The bundle
-  is hardened, so lldb cannot attach: read a crash's stack from
+- A build without `RELEASE=1` is `com.wiltodelta.translatelikeme.dev`: its own
+  settings domain, login item and Accessibility grant (granted once), so it
+  runs beside the installed app; if both have the same shortcuts set, quit one
+  before testing them. Override a setting for one launch with the argument
+  domain (`open -n "Translate Like Me.app" --args -provider grok`). Onboarding
+  opens with `-didCompleteFirstRun NO -languagePairs '<5b5d>'` (no pairs). The
+  bundle is hardened, so lldb cannot attach: read a crash's stack from
   `~/Library/Logs/DiagnosticReports/TranslateLikeMe-*.ips` (JSON after the
   first line).
   Probe engine CLIs with `env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN
@@ -68,7 +66,7 @@ before changing a surface. Secondary text the app draws uses
 `Color.secondaryText` (primary at 0.66 opacity), never `.secondary`, which the
 SwiftLint rule `no_system_secondary_text` refuses: the system style measured
 3.88-3.93:1 on the settings forms and 3.10:1 on the glass popup in light
-(2026-10-11), under 4.5:1. watch-me-sleep's `panelSecondary` is the same rule.
+(2026-10-11), under 4.5:1. watch-me-sleep and rota use the same token.
 Deviation from the global rules: the status menu's section headers and disabled
 rows stay as NSMenu draws them (about 1.9:1 in light), since the app does not
 draw them.

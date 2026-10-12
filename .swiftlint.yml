@@ -47,9 +47,13 @@ opt_in_rules:
   - sorted_first_last
 
 custom_rules:
-  # Secondary text the app draws uses Color.secondaryText (CLAUDE.md, Interface).
+  # Secondary text the app draws uses Color.secondaryText (claude-config docs/macos-apps.md).
   no_system_secondary_text:
     name: "System secondary text"
-    regex: '\.foregroundStyle\(\.secondary\)'
-    message: "Use Color.secondaryText: .secondary measures under 4.5:1"
+    regex: '(?<!\w)\.(secondary|tertiary)\b'
+    excluded_match_kinds:
+      - comment
+      - doccomment
+      - string
+    message: "Use Color.secondaryText: .secondary and .tertiary measure under 4.5:1"
     severity: error

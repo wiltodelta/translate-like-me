@@ -434,7 +434,7 @@ extension View {
 
 extension Color {
     // Secondary text the app draws, at 4.5:1 or more where `.secondary` is not
-    // (CLAUDE.md, Interface; watch-me-sleep's panelSecondary is the same rule).
+    // (CLAUDE.md, Interface; claude-config docs/macos-apps.md).
     static let secondaryText = Color.primary.opacity(0.66)
 }
 

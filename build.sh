@@ -42,6 +42,14 @@ if [[ "$SDK_STAMP" != "$(xcrun --show-sdk-version)" ]]; then
     exit 1
 fi
 cp "Resources/Info.plist" "$APP/Contents/Info.plist"
+# Only a release build is com.wiltodelta.translatelikeme. Every other build is
+# com.wiltodelta.translatelikeme.dev, a separate app with its own settings, login
+# item and Accessibility grant, so building and checking never touch the copy
+# someone relies on. It does not check for updates.
+if [[ "${RELEASE:-}" != 1 ]]; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.wiltodelta.translatelikeme.dev" \
+        -c "Set :SUEnableAutomaticChecks false" "$APP/Contents/Info.plist"
+fi
 # Stamp the latest release tag, as CI stamps the tag it builds, so a local build
 # never reports an older version than the release (which would make Sparkle
 # offer the release over it). --abbrev=0: the tag itself, not "2.0-5-gabc".
