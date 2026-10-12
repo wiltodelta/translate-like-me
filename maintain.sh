@@ -1,6 +1,6 @@
 #!/bin/bash
-# twin: maintain-swift - translate-like-me, watch-me-sleep and rota keep this file
-# identical except lines marked twin-local (claude-config bin/check-twins.py).
+# Shared by translate-like-me, watch-me-sleep and rota: change every copy together
+# (claude-config docs/macos-apps.md, "Shared files").
 # The canonical gate: lint with fixes, tests, then the release bundle.
 
 set -e
@@ -15,4 +15,4 @@ swiftlint lint --strict --quiet
 swift test
 # The bundle, not a bare `swift build -c release`: assembly, actool, Sparkle
 # embedding, signing and the SDK stamp check would otherwise run only in CI.
-./build.sh # twin-local
+./build.sh

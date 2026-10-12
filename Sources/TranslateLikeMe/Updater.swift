@@ -1,9 +1,9 @@
 import AppKit
-import Observation // twin-local
+import Observation
 import Sparkle
 
-// twin: updater - translate-like-me, watch-me-sleep and rota keep this file
-// identical except lines marked twin-local (claude-config bin/check-twins.py).
+// Shared by translate-like-me, watch-me-sleep and rota: change every copy together
+// (claude-config docs/macos-apps.md, "Shared files").
 //
 /// In-place updates through Sparkle: it reads the appcast each release publishes
 /// (`SUFeedURL` in Info.plist), checks once a day, verifies the EdDSA signature
@@ -14,14 +14,14 @@ import Sparkle
 /// menu or panel instead, and Sparkle's window comes forward only when the user
 /// chooses it or checks by hand.
 @MainActor
-@Observable // twin-local
-final class Updater: NSObject, SPUStandardUserDriverDelegate { // twin-local
+@Observable
+final class Updater: NSObject, SPUStandardUserDriverDelegate {
     static let shared = Updater()
 
     /// The version a scheduled check found and the user has not acted on yet.
-    private(set) var pendingVersion: String? // twin-local
+    private(set) var pendingVersion: String?
 
-    @ObservationIgnored private var controller: SPUStandardUpdaterController! // twin-local
+    @ObservationIgnored private var controller: SPUStandardUpdaterController!
 
     let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
 

@@ -8,6 +8,8 @@ with named Rewrite presets (up to three).
 SwiftUI + AppKit, SwiftPM; the one dependency is Sparkle (updates). Supports the
 three latest macOS releases (15+) on Apple silicon only.
 
+Shared rules for our macOS apps: `~/Documents/GitHub/claude-config/docs/macos-apps.md`; this file states only what differs.
+
 ## Build and release
 
 Assemble the bundle with `./build.sh` (needs Xcode 26+: `actool` compiles the
@@ -24,7 +26,6 @@ detail, including the secrets and where the keys are kept (1Password):
 ## Code quality
 
 - `bash maintain.sh` runs the canonical Swift gate.
-- Swift 6 language mode (swift-tools 6.0): UI types are `@MainActor`; a `Timer` or `NotificationCenter` (`queue: .main`) callback enters with `MainActor.assumeIsolated`, and `Updater.swift` and `maintain.sh` are declared twins (claude-config `bin/check-twins.py`).
 - Lint config in `.swiftlint.yml` scans `Sources/` and `Tests/` at 120-column lines (fixtures inside multiline strings exempt, `Tests/.swiftlint.yml`).
 - `Tests/TranslateLikeMeTests/` covers pure logic only. UI, Accessibility, CGEvent,
   Sparkle and CLI-subprocess code is not unit-tested; render UI changes with
