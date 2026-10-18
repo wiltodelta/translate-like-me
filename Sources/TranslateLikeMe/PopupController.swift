@@ -15,8 +15,8 @@ final class PopupModel {
 }
 
 // A floating, cursor-anchored popup for errors and for a translation that could
-// not replace a read-only selection, rendered in SwiftUI with a Liquid Glass
-// background (falls back to a material on macOS 15).
+// not replace a selection. An opaque semantic backing keeps text readable
+// across the full Liquid Glass tint range and arbitrary desktop content.
 struct PopupView: View {
     let model: PopupModel
 
@@ -52,20 +52,8 @@ struct PopupView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .glassy()
-    }
-}
-
-private extension View {
-    @ViewBuilder
-    func glassy() -> some View {
-        if #available(macOS 26.0, *) {
-            // The radius a system NSPopover draws on macOS 26 (measured
-            // 2026-09-22 from its window alpha), so the popup matches popovers.
-            self.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        } else {
-            self.background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-        }
+        .background(Color(nsColor: .windowBackgroundColor),
+                    in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 
@@ -110,14 +98,13 @@ final class PopupController {
         present()
     }
 
-    // Shown when the selection could not be replaced in place (a read-only field).
-    // The translation is on the clipboard by the time this appears, so the header
-    // tells the user they can paste it or select it straight from the popup.
-    // The Copy button puts the translation back on the clipboard if something
-    // else was copied since; its title turns to "Copied" as feedback.
+    // Skipped insertion never overwrites a newer clipboard. The header states
+    // whether the result is already copied; Copy is an explicit user action.
     // `noun` names the result: "Translation", or "Message" for a rewrite.
-    func showResult(_ text: String, noun: String) {
-        model.header = "Couldn't replace the selection. \(noun) copied to clipboard."
+    func showResult(_ text: String, noun: String, copied: Bool = true) {
+        model.header = copied
+            ? "Couldn't replace the selection. \(noun) copied to clipboard."
+            : "Couldn't safely replace the selection. \(noun) ready to copy."
         model.body = text
         model.action = ("Copy", { [weak self] in
             SelectionService.copyToClipboard(text)

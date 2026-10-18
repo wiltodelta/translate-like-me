@@ -89,6 +89,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     // MARK: - Settings window
 
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if let onboardingWindow, onboardingWindow.isVisible {
+            show(onboardingWindow)
+        } else {
+            showSettings()
+        }
+        return false
+    }
+
     // `pane` is the pane to show, or nil for the last viewed one.
     func showSettings(pane: SettingsPane? = nil) {
         if settingsWindow == nil {

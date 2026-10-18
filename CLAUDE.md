@@ -27,8 +27,9 @@ detail, including the secrets and where the keys are kept (1Password):
 
 - `bash maintain.sh` runs the canonical Swift gate.
 - Lint config in `.swiftlint.yml` scans `Sources/` and `Tests/` at 120-column lines (fixtures inside multiline strings exempt, `Tests/.swiftlint.yml`).
-- `Tests/TranslateLikeMeTests/` covers pure logic only. UI, Accessibility, CGEvent,
-  Sparkle and CLI-subprocess code is not unit-tested; render UI changes with
+- `Tests/TranslateLikeMeTests/` covers pure logic, selection orchestration with
+  injected effects, and `ProcessRunner` with synthetic subprocesses. UI,
+  Accessibility, CGEvent and Sparkle require native verification; render UI changes with
   `./capture-screenshots.sh` (it also regenerates `screenshots/`, light and
   dark, flipping the system to Dark Mode and back; needs
   Accessibility and Screen Recording for the terminal and a Mac left alone;
@@ -65,8 +66,9 @@ The UI follows Apple's Human Interface Guidelines; read the relevant HIG page
 before changing a surface. Secondary text the app draws uses
 `Color.secondaryText` (primary at 0.66 opacity), never `.secondary`, which the
 SwiftLint rule `no_system_secondary_text` refuses: the system style measured
-3.88-3.93:1 on the settings forms and 3.10:1 on the glass popup in light
-(2026-10-11), under 4.5:1. watch-me-sleep and rota use the same token.
+3.88-3.93:1 on the settings forms (2026-10-11), under 4.5:1.
+The result popup uses an opaque semantic backing because glass could not keep
+text above 4.5:1 across desktop colors and tint settings (2026-10-17). watch-me-sleep and rota use the same token.
 Deviation from the global rules: the status menu's section headers and disabled
 rows stay as NSMenu draws them (about 1.9:1 in light), since the app does not
 draw them.
@@ -78,4 +80,4 @@ matching files are touched.
 
 | File | Covers |
 |------|--------|
-| `architecture.md` | Status item and its menu, settings panes, onboarding and its engine checks, global hotkey, language pairs and Rewrite presets, paste-landed editability detection, providers, and update checking |
+| `architecture.md` | Status item and its menu, settings panes, onboarding and its engine checks, global hotkey, language pairs and Rewrite presets, selection validation and clipboard ownership, providers, and update checking |

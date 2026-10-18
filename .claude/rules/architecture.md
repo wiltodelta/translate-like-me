@@ -3,7 +3,7 @@ paths:
   - "Sources/**"
   - "Resources/**"
   - "Tests/**"
-description: App architecture -- the status item and its standard NSMenu, settings panes, language pairs and Rewrite presets, the Carbon global hotkey path, paste-landed editability detection, Claude/Codex/Grok provider and model resolution, and update checking
+description: App architecture -- the status item and its standard NSMenu, settings panes, language pairs and Rewrite presets, the Carbon global hotkey path, selection validation and clipboard ownership, Claude/Codex/Grok provider and model resolution, and update checking
 ---
 
 # Architecture
@@ -21,7 +21,10 @@ Read before editing this domain.
   and Rewrite, window title follows the pane, last pane restored unless a
   caller passes one in the `.openSettings` notification; a restored pane is
   not written back, a clicked or passed one is); `SettingsStore` applies every
-  change immediately. No control is focused when a pane opens
+  change immediately. The standard app-menu Settings command and ⌘, call
+  `AppDelegate.showSettings`, replacing the dummy SwiftUI Settings command.
+  Reopening brings Settings forward, or the visible onboarding window.
+  No control is focused when a pane opens
   (`SettingsTabViewController.clearFocus`): AppKit focused the Rewrite pane's
   first preset name with its text selected, so the next key renamed it. The
   window is a `SettingsWindow` that keeps every frame, the pane-switch
@@ -32,10 +35,12 @@ Read before editing this domain.
   panel: HIG Writing wants errors "as close to the problem as possible". It never
   becomes key, so its Copy / Open Settings buttons are not keyboard-reachable; that
   is deliberate (decided 2026-09-28): taking focus would steal the field the user
-  is typing in, the translation is already on the clipboard, and Settings opens
+  is typing in. A skipped insertion leaves the result available through Copy,
+  without overwriting a newer user copy, and Settings opens
   from the status menu. Its one action keeps the active accent
   (`controlActiveState = .key`), and a capped body fades at the bottom when more
-  text is below. macOS 27 hides `NSMenuItem.image` unless `preferredImageVisibility
+  text is below. Its opaque `windowBackgroundColor` backing keeps text readable
+  over arbitrary desktop colors and Liquid Glass settings. macOS 27 hides `NSMenuItem.image` unless `preferredImageVisibility
   = .visible`; the status rows and the updates item set it (`StatusMenu.showsImage`).
   A scheduled Sparkle check shows its own window only while the app is active, so a
   launch-time find is announced in the menu, not over the user's app.
@@ -49,7 +54,10 @@ Read before editing this domain.
   first language with the next free suggestion. When suggestions run out the
   second language stays empty (`LanguagePair.isComplete` false): the picker
   shows "Choose a Language", onboarding's Continue waits, the menu item opens
-  General, and a run shows a popup instead of translating. Each side's picker
+  General, and a run shows a popup instead of translating. Completion requires
+  both languages to be nonempty and distinct; an unchosen side never swaps an
+  empty value into the other side. Long names reflow onto two rows through
+  `ViewThatFits`, in both General and onboarding. Each side's picker
   is an `Equatable` `LanguagePicker` keyed on its code, so typing a pair's
   style does not rebuild a 300-item menu per keystroke.
 - Language pairs (`LanguagePair`, up to `Languages.maxPairs` = 3, stored as JSON
@@ -112,10 +120,26 @@ Read before editing this domain.
   stored engine yields to the first working one. Settings and onboarding share
   one `SettingsStore` owned by `AppDelegate`. Parallel checks made
   `Translator`'s binary cache a lock (`OSAllocatedUnfairLock`).
-- `SelectionService.pasteLanded` decides editability *after* the paste (re-copy
-  the selection; if it still holds the original text, the field is read-only).
-  Read-only targets get the translation on the clipboard plus a `PopupController`
-  popup instead of a silent lost paste.
+- `SelectionWorkflow` owns the copy/await/validate/paste/restore flow, with
+  `LiveSelectionAccess` as its native adapter and injected effects in tests.
+  `SelectionTarget` records the original process, AX element, selected range,
+  selected text and available field value. Before insertion they must still
+  match, with no intervening typing, click or app activation (`SelectionActivity`).
+  Missing AX evidence allows translation but skips automatic insertion. This
+  checks context, never AX editability, which was unreliable in web/Electron fields.
+  Copy and Paste events go to the original pid and carry an app marker so the
+  activity monitor ignores them. A newer clipboard change during the engine
+  skips insertion and remains untouched. After paste, AX context decides whether
+  replacement landed, without another Cmd+C. Successful insertion restores the
+  original rich clipboard only while the run still owns it; a read-only target
+  keeps the result unless a newer copy wins. Skipped insertion shows the result
+  with Copy, without claiming it was copied.
+- `ProcessRunner` concurrently drains stdout/stderr and writes stdin through
+  DispatchIO. A run is cancellable, with a 120-second translation deadline,
+  10-second status/lookup deadlines and an 8 MiB combined-output cap. Cancellation
+  and timeout kill the owned process group when isolated, otherwise the child,
+  close its streams and await termination. Status transport failures remain
+  failures rather than being reported as a signed-out account.
 - Providers: Claude (`claude` CLI), ChatGPT (`codex` CLI) and Grok (`grok`
   CLI), selected in Settings; each runs on the user's subscription through its
   signed-in CLI (the API-key mode was removed; `Settings.removeAPIKeys()`

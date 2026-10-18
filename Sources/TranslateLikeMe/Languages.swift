@@ -32,8 +32,8 @@ struct LanguagePair: Codable, Equatable, Identifiable {
 
     var title: String { "\(Languages.name(for: first)) ↔ \(isComplete ? Languages.name(for: second) : "…")" }
 
-    // The second language chosen; a new pair may leave it to the user.
-    var isComplete: Bool { !second.isEmpty }
+    // Both sides must be chosen and distinct, including pairs read from disk.
+    var isComplete: Bool { !first.isEmpty && !second.isEmpty && first.lowercased() != second.lowercased() }
 
     // The style as applied; empty for a plain translation.
     var trimmedStyle: String { style.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -172,10 +172,13 @@ enum Languages {
     // picking the language already on the other side swaps them.
     static func setting(_ pair: LanguagePair, first isFirst: Bool, to code: String) -> LanguagePair {
         var pair = pair
+        guard !code.isEmpty else { return pair }
         if isFirst {
             if code == pair.second { pair.second = pair.first }
             pair.first = code
         } else {
+            // There is no second language to swap into the first side yet.
+            guard code != pair.first || !pair.second.isEmpty else { return pair }
             if code == pair.first { pair.first = pair.second }
             pair.second = code
         }

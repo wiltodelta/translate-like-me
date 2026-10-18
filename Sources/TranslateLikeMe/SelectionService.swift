@@ -60,63 +60,54 @@ enum SelectionService {
 
     // Copies the current selection and returns it. Returns nil if nothing landed
     // on the pasteboard within the timeout (e.g. no selection).
-    static func copySelection() -> String? {
+    static func copySelection(from pid: pid_t, activity: SelectionActivity) -> CopiedSelection {
         let before = pasteboard.changeCount
-        postKey(KeyCode.cKey)
-
+        guard activity.isUnchanged, SelectionTarget.focusedPID == pid else {
+            return CopiedSelection(text: nil, changeCount: nil)
+        }
+        postKey(KeyCode.cKey, to: pid)
         let deadline = Date().addingTimeInterval(0.7)
         while Date() < deadline {
             if pasteboard.changeCount != before {
-                return pasteboard.string(forType: .string)
+                let mark = pasteboard.changeCount
+                let text = pasteboard.string(forType: .string)
+                guard activity.isUnchanged, pasteboard.changeCount == mark else {
+                    return CopiedSelection(text: nil, changeCount: nil)
+                }
+                return CopiedSelection(text: text, changeCount: mark)
             }
-            usleep(20_000) // 20ms
+            usleep(20_000)
         }
-        return nil
+        return CopiedSelection(text: nil, changeCount: nil)
     }
 
-    // Puts text on the pasteboard and pastes it into the frontmost app. The
-    // text is marked transient (nspasteboard.org), so clipboard managers do not
-    // keep it in their history.
-    static func paste(_ text: String) {
+    // Validate immediately before writing and again before posting to the exact
+    // original process. The returned mark belongs only to our clipboard write.
+    static func paste(_ text: String, into target: SelectionTarget, ifUnchangedSince expected: Int,
+                      activity: SelectionActivity) -> PasteAttempt? {
+        guard pasteboard.changeCount == expected, activity.isUnchanged, target.isCurrent() else { return nil }
+        let item = NSPasteboardItem()
+        item.setString(text, forType: .string)
+        item.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.TransientType"))
         pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
-        pasteboard.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.TransientType"))
-        // Small delay so the new pasteboard contents are settled before Cmd+V.
-        usleep(30_000)
-        postKey(KeyCode.vKey)
-    }
-
-    // After a paste, checks whether the selection was actually replaced. Re-copies
-    // the current selection: if it still holds the original text, the paste did not
-    // land (a read-only field, e.g. a message you are reading rather than writing).
-    // If nothing re-copies within the window, the caret collapsed after a normal
-    // paste, so the replacement is assumed to have landed.
-    //
-    // This is a behavioral check (observe what the paste actually did) rather than
-    // an Accessibility "is this settable" query, which was unreliable for editable
-    // web/Electron fields and broke the common case.
-    static func pasteLanded(replacing original: String) -> Bool {
-        usleep(120_000) // let the paste apply before re-reading the selection
-        let before = pasteboard.changeCount
-        postKey(KeyCode.cKey)
-
-        let deadline = Date().addingTimeInterval(0.35)
-        while Date() < deadline {
-            if pasteboard.changeCount != before {
-                return pasteboard.string(forType: .string) != original
-            }
-            usleep(20_000) // 20ms
+        pasteboard.writeObjects([item])
+        let mark = pasteboard.changeCount
+        guard activity.isUnchanged, target.isCurrent(), pasteboard.changeCount == mark else {
+            return PasteAttempt(changeCount: mark, posted: false)
         }
-        return true
+        postKey(KeyCode.vKey, to: target.pid)
+        return PasteAttempt(changeCount: mark, posted: true)
     }
 
-    private static func postKey(_ keyCode: CGKeyCode) {
+    private static func postKey(_ keyCode: CGKeyCode, to pid: pid_t) {
         let source = CGEventSource(stateID: .combinedSessionState)
         let downEvent = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true)
         downEvent?.flags = .maskCommand
         let upEvent = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)
         upEvent?.flags = .maskCommand
-        downEvent?.post(tap: .cghidEventTap)
-        upEvent?.post(tap: .cghidEventTap)
+        downEvent?.setIntegerValueField(.eventSourceUserData, value: SelectionActivity.eventMarker)
+        downEvent?.postToPid(pid)
+        upEvent?.setIntegerValueField(.eventSourceUserData, value: SelectionActivity.eventMarker)
+        upEvent?.postToPid(pid)
     }
 }

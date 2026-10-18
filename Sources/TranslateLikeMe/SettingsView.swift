@@ -62,7 +62,9 @@ struct GeneralSettingsView: View {
 
     private var updatesSection: some View {
         Section {
-            LabeledContent("Version", value: updater.version)
+            LabeledContent("Version") {
+                Text(updater.version).foregroundStyle(Color.secondaryText)
+            }
             Toggle("Check for updates automatically", isOn: Binding(
                 get: { updater.automaticallyChecks },
                 set: { updater.automaticallyChecks = $0 }
@@ -310,12 +312,35 @@ private struct LanguagePairRow: View {
     }
 
     private var languagesRow: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                languagePicker("First language", isFirst: true)
+                direction
+                languagePicker("Second language", isFirst: false)
+                Spacer(minLength: 8)
+                shortcutControls
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                VStack(alignment: .leading, spacing: 6) {
+                    languagePicker("First language", isFirst: true)
+                    HStack(spacing: 6) {
+                        direction
+                        languagePicker("Second language", isFirst: false)
+                    }
+                }
+                Spacer(minLength: 8)
+                shortcutControls
+            }
+        }
+    }
+
+    private var direction: some View {
+        // Direction is detected per translation.
+        Text("↔").foregroundStyle(Color.secondaryText).accessibilityHidden(true)
+    }
+
+    private var shortcutControls: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            languagePicker("First language", isFirst: true)
-            // Not a button: the direction is detected per translation.
-            Text("↔").foregroundStyle(Color.secondaryText).accessibilityHidden(true)
-            languagePicker("Second language", isFirst: false)
-            Spacer(minLength: 8)
             ShortcutField(combo: $pair.shortcut, usedBy: usedBy, owner: pair.title)
             RemoveButton(help: "Remove this pair", label: "Remove \(pair.title)", action: remove)
         }

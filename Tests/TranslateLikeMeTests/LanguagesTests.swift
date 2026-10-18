@@ -9,6 +9,19 @@ final class LanguagesTests: XCTestCase {
 
     // MARK: - Editing a pair
 
+    func testIncompleteAndIdenticalLanguagesCannotRun() {
+        for codes in [("", "en"), ("en", ""), ("", ""), ("en", "en")] {
+            XCTAssertFalse(pair(codes.0, codes.1).isComplete)
+        }
+        XCTAssertTrue(pair("en", "ru").isComplete)
+    }
+
+    func testPickingFirstLanguageForAnUnchosenSecondDoesNotEraseTheFirst() {
+        let edited = Languages.setting(pair("en", ""), first: false, to: "en")
+        XCTAssertEqual([edited.first, edited.second], ["en", ""])
+        XCTAssertFalse(edited.isComplete)
+    }
+
     func testSettingADistinctLanguageKeepsTheOtherSide() {
         let edited = Languages.setting(pair("ru", "en"), first: true, to: "de")
         XCTAssertEqual([edited.first, edited.second], ["de", "en"])

@@ -17,6 +17,7 @@ enum EngineHealth: Equatable {
         case .ready: return nil
         case .notInstalled: self = .notInstalled
         case .notLoggedIn: self = .notSignedIn
+        case .failed(let message): self = .failed(message)
         }
     }
 
@@ -39,7 +40,7 @@ enum EngineProbe {
     static let samplePair = LanguagePair(first: "en", second: "es", shortcut: nil)
 
     static func run(_ provider: Provider) async -> EngineHealth {
-        let readiness = await Task.detached { EngineStatus.check(provider: provider) }.value
+        let readiness = await EngineStatus.check(provider: provider)
         if let health = EngineHealth(readiness) { return health }
         do {
             _ = try await Translator.translate(sample, pair: samplePair, provider: provider)

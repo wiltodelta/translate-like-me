@@ -95,7 +95,7 @@ final class SettingsStore {
     // asked off the main thread and the catalog reloaded when it answers.
     private func refreshGrokDefault() {
         Task {
-            await Task.detached { EngineStatus.refreshGrokDefault() }.value
+            await EngineStatus.refreshGrokDefault()
             guard provider == .grok else { return }
             catalog.defaultModel = Settings.grokDefaultModel
         }

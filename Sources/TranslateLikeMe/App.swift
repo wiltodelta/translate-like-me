@@ -12,6 +12,12 @@ struct TranslateLikeMeApp: App {
         // Fully qualified: the app also has its own `Settings` (a UserDefaults
         // wrapper), which would otherwise shadow SwiftUI.Settings here.
         SwiftUI.Settings { EmptyView() }
+            .commands {
+                CommandGroup(replacing: .appSettings) {
+                    Button("Settings…") { appDelegate.showSettings() }
+                        .keyboardShortcut(",", modifiers: .command)
+                }
+            }
     }
 }
 

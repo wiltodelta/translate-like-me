@@ -83,7 +83,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         engineCheck?.cancel()
         let engine = Settings.provider
         engineCheck = Task {
-            let result = await Task.detached { EngineStatus.check() }.value
+            let result = await EngineStatus.check(provider: engine)
             guard !Task.isCancelled else { return }
             engineStatus = (engine, result)
             if let engineItem { applyEngineStatus(to: engineItem) }
@@ -108,6 +108,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         case .notInstalled:
             symbol = "exclamationmark.triangle"
             detail = provider.notInstalledHint
+        case .failed(let message):
+            symbol = "exclamationmark.triangle"
+            detail = message
         case .none:
             symbol = "circle.dotted"
             detail = "Checking…"

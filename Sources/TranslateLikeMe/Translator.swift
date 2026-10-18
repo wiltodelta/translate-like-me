@@ -121,7 +121,7 @@ enum Translator {
     // MARK: - CLI engines
 
     private static func runClaude(system: String, text: String) async throws -> String {
-        let binary = try resolveBinary(name: "claude")
+        let binary = try await resolveBinary(name: "claude")
         // `claude -p` is an agent harness, not a bare model endpoint: by default it
         // prepends ~20-30k tokens on every invocation - tool definitions, all of the
         // user's MCP server schemas, and their global/project CLAUDE.md - to what is
@@ -150,7 +150,7 @@ enum Translator {
     }
 
     private static func runCodex(system: String, text: String) async throws -> String {
-        let binary = try resolveBinary(name: "codex")
+        let binary = try await resolveBinary(name: "codex")
 
         // Codex prints a header and a trace to stdout; -o writes only the final
         // message to a file, which is the clean result we want.
@@ -196,7 +196,7 @@ enum Translator {
     }
 
     private static func runGrok(system: String, text: String) async throws -> String {
-        let binary = try resolveBinary(name: "grok")
+        let binary = try await resolveBinary(name: "grok")
 
         // `grok -p` is an agent harness too. Measured 2026-09-22 (grok 1.0.41,
         // default model grok-4.7, a one-line ru<->en translation):
@@ -239,79 +239,35 @@ enum Translator {
 
     private static func runProcess(binary: String, args: [String], stdin: String?,
                                    extraEnv: [String: String] = [:]) async throws -> String {
-        try await withCheckedThrowingContinuation { continuation in
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: binary)
-            process.arguments = args
-            process.currentDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory())
-            process.environment = toolEnvironment(adding: extraEnv)
-
-            let outPipe = Pipe()
-            let errPipe = Pipe()
-            process.standardOutput = outPipe
-            process.standardError = errPipe
-
-            if let stdin {
-                let inPipe = Pipe()
-                process.standardInput = inPipe
-                process.terminationHandler = { proc in
-                    finish(proc, outPipe, errPipe, continuation)
-                }
-                do {
-                    try process.run()
-                    inPipe.fileHandleForWriting.write(Data(stdin.utf8))
-                    inPipe.fileHandleForWriting.closeFile()
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            } else {
-                // No stdin: hand the child an empty input so CLIs that probe stdin
-                // (e.g. codex) don't block waiting for it.
-                process.standardInput = FileHandle.nullDevice
-                process.terminationHandler = { proc in
-                    finish(proc, outPipe, errPipe, continuation)
-                }
-                do {
-                    try process.run()
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
-    }
-
-    private static func finish(_ process: Process, _ outPipe: Pipe, _ errPipe: Pipe,
-                               _ continuation: CheckedContinuation<String, Error>) {
-        let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
-        let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
-        let stdout = String(data: outData, encoding: .utf8) ?? ""
-        let stderr = String(data: errData, encoding: .utf8) ?? ""
-        if process.terminationStatus != 0 {
+        let output = try await ProcessRunner.run(binary: binary, arguments: args, input: stdin,
+                                                  environment: toolEnvironment(adding: extraEnv))
+        let stdout = output.stdout, stderr = output.stderr
+        if output.status != 0 {
             // Limit failures print on stdout for claude and on stderr (after a
             // session header) for codex, so both streams are scanned. Other
             // failures prefer stderr and fall back to stdout, because claude
             // prints some errors, including its limit line, on stdout only.
             if let limit = LimitDetector.message(in: stderr + "\n" + stdout) {
-                continuation.resume(throwing: LimitReachedError(message: limit))
+                throw LimitReachedError(message: limit)
             } else if let jsonMessage = JSONErrorMessage.extract(from: stderr)
                 ?? JSONErrorMessage.extract(from: stdout) {
                 // codex prints API failures as `ERROR: {json}`; show the human
                 // text instead of raw JSON.
-                continuation.resume(throwing: TranslatorError.failed(jsonMessage))
+                throw TranslatorError.failed(jsonMessage)
             } else {
-                continuation.resume(throwing: TranslatorError.failed(
+                throw TranslatorError.failed(
                     FailureDetail.summary(stderr: stderr, stdout: stdout)
-                        ?? "Engine exited with status \(process.terminationStatus)."))
+                        ?? "Engine exited with status \(output.status).")
             }
         } else {
-            continuation.resume(returning: stdout)
+            return stdout
         }
     }
 
     // MARK: - Binary resolution
 
     // Non-throwing lookup used by proactive status checks (EngineStatus).
-    static func binaryPath(name: String) -> String? { try? resolveBinary(name: name) }
+    static func binaryPath(name: String) async -> String? { try? await resolveBinary(name: name) }
 
     // A PATH/HOME environment matching the one translations run under, so status
     // checks resolve the same tools and auth.
@@ -336,7 +292,7 @@ enum Translator {
     // crashed there on a concurrent insert.
     private static let binaryCache = OSAllocatedUnfairLock(initialState: [String: String]())
 
-    private static func resolveBinary(name: String) throws -> String {
+    private static func resolveBinary(name: String) async throws -> String {
         if let cached = binaryCache.withLock({ $0[name] }) { return cached }
 
         // Only tool-owned or system directories here. Machine-specific harness
@@ -354,32 +310,21 @@ enum Translator {
             binaryCache.withLock { $0[name] = candidate }
             return candidate
         }
-        if let found = loginShellWhich(name) {
+        if let found = await loginShellWhich(name) {
             binaryCache.withLock { $0[name] = found }
             return found
         }
         throw TranslatorError.binaryNotFound(name)
     }
 
-    private static func loginShellWhich(_ name: String) -> String? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        process.arguments = ["-lc", "command -v \(name)"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-        do {
-            try process.run()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            process.waitUntilExit()
-            let path = String(data: data, encoding: .utf8)?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            if !path.isEmpty, FileManager.default.isExecutableFile(atPath: path) { return path }
-        } catch {
-            return nil
-        }
-        return nil
+    private static func loginShellWhich(_ name: String) async -> String? {
+        guard let output = try? await ProcessRunner.run(
+            binary: "/bin/zsh", arguments: ["-lc", "command -v \(name)"],
+            environment: toolEnvironment(), deadline: ProcessRunner.deadline(after: 10)) else { return nil }
+        let path = output.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !path.isEmpty && FileManager.default.isExecutableFile(atPath: path) ? path : nil
     }
+
 }
 
 // The part of a failed CLI's output worth showing: codex echoes the whole prompt

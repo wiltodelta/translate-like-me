@@ -12,47 +12,39 @@ enum EngineStatus {
         case ready
         case notInstalled
         case notLoggedIn
+        case failed(String)
     }
 
     // The engine chosen in Settings by default; onboarding checks each one.
-    static func check(provider: Provider = Settings.provider) -> Readiness {
-        guard let binary = Translator.binaryPath(name: provider.cliBinaryName) else {
+    static func check(provider: Provider = Settings.provider) async -> Readiness {
+        guard let binary = await Translator.binaryPath(name: provider.cliBinaryName) else {
             return .notInstalled
         }
-        return isSignedIn(binary: binary, provider: provider) ? .ready : .notLoggedIn
+        return await readiness(binary: binary, provider: provider)
     }
 
     // grok keeps its default model in its own config, which the app does not
     // read; `grok models` (its sign-in probe) names it, so the probe records it
     // for Settings' "Default (…)" label and Effort picker. Off the main thread.
-    static func refreshGrokDefault() {
-        guard let binary = Translator.binaryPath(name: Provider.grok.cliBinaryName) else { return }
-        _ = isSignedIn(binary: binary, provider: .grok)
+    static func refreshGrokDefault() async {
+        guard let binary = await Translator.binaryPath(name: Provider.grok.cliBinaryName) else { return }
+        _ = await readiness(binary: binary, provider: .grok)
     }
 
-    private static func isSignedIn(binary: String, provider: Provider) -> Bool {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: binary)
-        process.arguments = provider.statusArguments
-        process.environment = Translator.toolEnvironment(adding: provider.cliEnvironment)
-        process.standardInput = FileHandle.nullDevice
-        let out = Pipe(), err = Pipe()
-        process.standardOutput = out
-        process.standardError = err
+    private static func readiness(binary: String, provider: Provider) async -> Readiness {
         do {
-            try process.run()
+            let result = try await ProcessRunner.run(
+                binary: binary, arguments: provider.statusArguments,
+                environment: Translator.toolEnvironment(adding: provider.cliEnvironment),
+                deadline: ProcessRunner.deadline(after: 10))
+            let output = result.stdout + result.stderr
+            if provider == .grok, let model = HarnessModels.grokDefaultModel(in: output) {
+                Settings.grokDefaultModel = model
+            }
+            return provider.isSignedIn(statusOutput: output.lowercased(), exitCode: result.status)
+                ? .ready : .notLoggedIn
         } catch {
-            return false
+            return .failed(error.localizedDescription)
         }
-        // Read before waitUntilExit to avoid a full-pipe deadlock on large output.
-        // Both streams are combined: codex prints its status on stderr.
-        let outData = out.fileHandleForReading.readDataToEndOfFile()
-        let errData = err.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        let output = (String(data: outData, encoding: .utf8) ?? "") + (String(data: errData, encoding: .utf8) ?? "")
-        if provider == .grok, let model = HarnessModels.grokDefaultModel(in: output) {
-            Settings.grokDefaultModel = model
-        }
-        return provider.isSignedIn(statusOutput: output.lowercased(), exitCode: process.terminationStatus)
     }
 }

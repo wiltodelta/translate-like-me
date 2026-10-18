@@ -47,7 +47,7 @@ in the same language, in that preset's style.
 - **Menu-bar only**: no Dock icon, no window in the way. Click the icon for a
   standard menu with status, your language pairs, and settings.
 - **Native macOS design**: built to Apple's Human Interface Guidelines, with
-  Liquid Glass on macOS 26 and later.
+  system controls and readable result panels in both appearances.
 - **In-place updates**: checks once a day and installs a new version when you
   choose to (Sparkle).
 
@@ -114,11 +114,15 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
 - Select notes, then press a preset's shortcut (add one under Settings >
   Rewrite) to replace them with a finished message. The menu then also lists
   a **Rewrite selection** section with one item per preset.
-- The icon shows a busy glyph while a translation is running.
-- If the selection can't be replaced in place (a read-only field, e.g. a message
-  you are reading rather than writing), the translation is put on the clipboard
-  and shown in a small popup near the cursor with a **Copy** button (in case you
-  copy something else before pasting it), so it is never lost.
+- Open Settings with ⌘, when the app is active, or reopen the app to bring Settings back.
+- The icon shows a busy glyph while a translation is running. A run that stops responding
+  times out after two minutes so another translation can start.
+- Automatic insertion requires the original app, field, selection and text to stay
+  unchanged. If you type, switch targets, copy something else, or the app cannot
+  verify the target through Accessibility, the result appears near the cursor with
+  a **Copy** button. Your newer clipboard contents are preserved.
+- If a paste reaches a read-only field, the result stays on the clipboard and in
+  the popup, unless you have copied something newer.
 - If something goes wrong (no text selected, or the translation fails), that same
   popup shows the message instead.
 
@@ -190,7 +194,7 @@ is set, the CLI's built-in default applies.
   text, images, files), unless you copy something else in the meantime; the
   pasted translation is marked transient so clipboard managers skip it.
 - Logs (`/usr/bin/log stream --level info --predicate 'subsystem == "com.wiltodelta.translatelikeme"'`)
-  record the app in front, the language pair and character counts, never the
+  record the app in front, the language pair and outcome, never the
   text itself.
 
 ## Updates
