@@ -52,7 +52,10 @@ final class ProcessRunnerTests: XCTestCase {
     func testDeadlineTerminatesAnUnresponsiveChild() async {
         let clock = ManualDeadline()
         let installed = expectation(description: "Child launched and deadline installed")
-        let task = Task { try await Self.run("exec sleep 600", deadline: clock.schedule(installed)) }
+        let deadline = clock.schedule(installed)
+        let task = Task { @Sendable in
+            try await ProcessRunnerTests.run("exec sleep 600", deadline: deadline)
+        }
         await fulfillment(of: [installed], timeout: 5)
         clock.expire()
         do {
@@ -64,9 +67,10 @@ final class ProcessRunnerTests: XCTestCase {
     func testCancellationTerminatesAChildThatDoesNotReadStdin() async {
         let installed = expectation(description: "Child launched")
         let clock = ManualDeadline()
-        let task = Task {
-            try await Self.run("exec sleep 600", input: String(repeating: "x", count: 1_000_000),
-                                 deadline: clock.schedule(installed))
+        let deadline = clock.schedule(installed)
+        let task = Task { @Sendable in
+            try await ProcessRunnerTests.run("exec sleep 600", input: String(repeating: "x", count: 1_000_000),
+                                            deadline: deadline)
         }
         await fulfillment(of: [installed], timeout: 5)
         task.cancel()

@@ -26,6 +26,9 @@ detail, including the secrets and where the keys are kept (1Password):
 ## Code quality
 
 - `bash maintain.sh` runs the canonical Swift gate.
+- CI can lag local Swift. In subprocess tests, use explicit `@Sendable` task
+  closures, a precomputed deadline and the concrete test type: the dynamic `Self`
+  form failed Swift 6.3.3's region-based isolation checker.
 - Lint config in `.swiftlint.yml` scans `Sources/` and `Tests/` at 120-column lines (fixtures inside multiline strings exempt, `Tests/.swiftlint.yml`).
 - `Tests/TranslateLikeMeTests/` covers pure logic, selection orchestration with
   injected effects, and `ProcessRunner` with synthetic subprocesses. UI,
