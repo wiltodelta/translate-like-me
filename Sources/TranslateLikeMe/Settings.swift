@@ -134,6 +134,11 @@ enum Settings {
 
     static let dictationID = UUID(uuidString: "0452A428-00E5-4A44-9CB9-CEED213CC9DC")!
 
+    static var dictationModel: DictationModel {
+        get { DictationModel(rawValue: defaults.string(forKey: "dictationModel") ?? "") ?? .turbo }
+        set { defaults.set(newValue.rawValue, forKey: "dictationModel") }
+    }
+
     static var dictationEnabled: Bool {
         get { defaults.bool(forKey: "dictationEnabled") }
         set { defaults.set(newValue, forKey: "dictationEnabled") }

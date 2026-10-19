@@ -11,6 +11,37 @@ final class DictationIntegrationTests: XCTestCase {
         let terms: [String]
     }
 
+    func testModelSelectionLoadsTheChosenFoldersAndRecognizesSyntheticSpeech() async throws {
+        guard let directory = ProcessInfo.processInfo.environment["TLM_DICTATION_MODEL_SAMPLES"] else {
+            throw XCTSkip("Set TLM_DICTATION_MODEL_SAMPLES to synthetic bilingual cases to verify every model")
+        }
+        let root = URL(fileURLWithPath: directory)
+        let examples = try JSONDecoder().decode([Example].self,
+            from: Data(contentsOf: root.appendingPathComponent("cases.json")))
+        XCTAssertFalse(examples.isEmpty)
+        let cache = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/com.wiltodelta.translatelikeme.dev/Dictation")
+        let engine = DictationEngine(directory: cache)
+        for model in [DictationModel.turbo, .small, .largeV3, .turbo] {
+            try await engine.prepare(model: model, download: true) { _ in }
+            let loaded = await engine.loadedModel
+            XCTAssertEqual(loaded, model, "Check the actual WhisperKit folder, not just selected preferences")
+            for example in examples {
+                let text = try await engine.transcribe(URL(fileURLWithPath: example.file))
+                for term in example.terms {
+                    XCTAssertTrue(text.localizedCaseInsensitiveContains(term), "Expected \(term); got \(text)")
+                }
+            }
+        }
+        await engine.unload()
+        for model in DictationModel.allCases {
+            try await engine.prepare(model: model, download: false) { _ in }
+            let loaded = await engine.loadedModel
+            XCTAssertEqual(loaded, model)
+        }
+        await engine.unload()
+    }
+
     // Explicit opt-in: synthetic audio only. Normal test runs never download
     // weights, request microphone access, or infer against personal recordings.
     func testLocalModelRecognizesSyntheticLanguagesAndReloadsFromCache() async throws {

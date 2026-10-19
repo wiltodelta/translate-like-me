@@ -13,9 +13,18 @@ description: "Minimal local dictation: model, recording lifecycle, cancellation,
 # Local dictation
 
 Product scope: `docs/dictation-feature-plan.md`. Implementation and verification:
-`docs/dictation.md`. One local ASR model, automatic detection of all its languages,
-one Option hold key, system microphone, no model picker or cleanup LLM.
+`docs/dictation.md`. A small curated Whisper catalog, automatic detection of all model languages,
+one Option hold key, system microphone, no cleanup LLM. Settings has a dedicated
+Dictation pane. The user explicitly added model selection after the 3.5.0 release.
 
+- `DictationModel` lists multilingual Small, Turbo (the existing default) and
+  Large v3 variants, with matching pinned tokenizer repositories and hashes.
+  Preserve Turbo and its existing cache for absent or unknown preferences. The
+  selected model persists while disabled without preparing assets or requesting
+  permissions. An enabled change prepares it automatically; a change during
+  preparation cancels and unwinds before preparing the latest selection. Block
+  changes during capture, recognition and cancellation. Keep old downloads, but
+  unload the old runtime before loading another model.
 - `DictationEngine` owns WhisperKit in an actor. Model and tokenizer revisions
   are pinned. `DictationSnapshot` checks every required Core ML component and
   hashes existing files against the pinned revision's Hub metadata, using SHA-256

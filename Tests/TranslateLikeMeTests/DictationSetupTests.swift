@@ -61,7 +61,7 @@ final class DictationSetupTests: XCTestCase {
         let base = FileManager.default.temporaryDirectory.appendingPathComponent("tlm-setup-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: base) }
         try await partialSnapshot(source: DictationEngine.modelSource,
-                                      model: DictationEngine.model, file: "config.json",
+                                      model: DictationModel.turbo.variant, file: "config.json",
                                       bytes: Data("{}\n".utf8), in: base)
         let engine = DictationEngine(directory: base)
         do {

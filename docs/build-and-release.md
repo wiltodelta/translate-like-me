@@ -37,7 +37,7 @@ detail an engineer needs.
   pairing Rota and Watch Me While I Fall Asleep use.
 - **Screenshots:** `./capture-screenshots.sh` rebuilds the app and regenerates
   `screenshots/` (the menu, General, Translation, Rewrite, and the listening and
-  recognizing dictation indicators), each in the light appearance
+  recognizing dictation indicators and the Dictation settings pane), each in the light appearance
   and in Dark Mode (`*-dark.png`, which the website serves to dark visitors).
   It switches the system appearance for the dark pass and restores the
   user's on exit. ScreenCaptureKit composites only the app and an opaque

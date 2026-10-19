@@ -15,7 +15,7 @@ It also writes for you: select rough notes, for example dictated, press a
 Rewrite preset's shortcut, and they are replaced with a clear, finished message
 in the same language, in that preset's style.
 
-Local dictation adds speech at the cursor: enable it in Settings > General,
+Local dictation adds speech at the cursor: enable it in Settings > Dictation,
 allow microphone access, and let the speech model download once. Hold the
 right Option key while speaking, then release to insert. Languages are detected automatically.
 
@@ -115,7 +115,7 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
 
 ## Usage
 
-- For dictation, turn on **Enable dictation** under **Settings > General**.
+- For dictation, turn on **Enable dictation** under **Settings > Dictation**.
   First setup downloads the model; later recognition works locally. The default
   hold key is **Right Option**. Hold it while speaking, then release to recognize
   and insert the text. In **Hold key**, you can record the left
@@ -146,8 +146,13 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
 
 ## Settings
 
-Three panes, **General**, **Translation** and **Rewrite**. Changes apply
+Four panes, **General**, **Translation**, **Rewrite** and **Dictation**. Changes apply
 immediately.
+
+- **Dictation**: enable local speech recognition, choose the Option hold key and
+  select Whisper Small, Whisper Large v3 Turbo (recommended), or Whisper Large v3. Model
+  preparation starts automatically while enabled. Downloaded models stay cached;
+  switching is unavailable during recording or recognition.
 
 - **Languages** (General): up to three pairs, and none is fine too (the menu
   then offers to add one). Each row has the two languages,

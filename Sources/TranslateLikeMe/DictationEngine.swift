@@ -3,15 +3,14 @@ import Foundation
 @preconcurrency import WhisperKit
 
 protocol DictationRecognizing: Sendable {
-    func prepare(download: Bool, progress: @escaping @Sendable (Double) -> Void) async throws
+    func prepare(model: DictationModel, download: Bool, progress: @escaping @Sendable (Double) -> Void) async throws
     func transcribe(_ audio: URL) async throws -> String
     func unload() async
 }
 
-// One pinned multilingual model. Model and tokenizer caches are private to this
+// Pinned multilingual models. Model and tokenizer caches are private to this
 // bundle id; no inference call needs an account or a network connection.
 actor DictationEngine: DictationRecognizing {
-    static let model = "openai_whisper-large-v3-v20240930_626MB"
     static let modelSource = ModelDownloadConfig(modelRepo: "argmaxinc/whisperkit-coreml",
                                                 revision: "0f63a7800b00dd0226abd051b906c246e1907482")
     private let directory: URL?
@@ -27,11 +26,18 @@ actor DictationEngine: DictationRecognizing {
     }
 
     private var kit: WhisperKit?
+    var loadedModel: DictationModel? {
+        guard let folder = kit?.modelFolder?.lastPathComponent else { return nil }
+        return DictationModel.allCases.first { $0.variant == folder }
+    }
     private var speechDetector: DictationSpeechDetector?
     private var working = false
 
-    func prepare(download: Bool = true, progress: @escaping @Sendable (Double) -> Void) async throws {
-        guard kit == nil else { return }
+    func prepare(model: DictationModel = .turbo, download: Bool = true,
+                 progress: @escaping @Sendable (Double) -> Void) async throws {
+        guard loadedModel != model else { return }
+        await unload()
+        try Task.checkCancellation()
         working = true
         defer { working = false }
         let base = try directory ?? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
@@ -44,9 +50,9 @@ actor DictationEngine: DictationRecognizing {
         guard try availableStorage(base) >= 8_000_000_000 else {
             throw DictationError.insufficientStorage
         }
-        let root = try await prepareModels(in: base, download: download, progress: progress)
+        let root = try await prepareModels(model: model, in: base, download: download, progress: progress)
         try Task.checkCancellation()
-        let tokens = try await prepareTokenizer(in: base, download: download, progress: progress)
+        let tokens = try await prepareTokenizer(model: model, in: base, download: download, progress: progress)
         try Task.checkCancellation()
         let detectorRoot = try await prepareSpeechDetector(in: base, download: download) {
             progress(0.95 + $0 * 0.05)
@@ -55,7 +61,7 @@ actor DictationEngine: DictationRecognizing {
         progress(1)
         let detector = try DictationSpeechDetector(directory: detectorRoot.appendingPathComponent(Self.detectorModel))
         let loaded = try await WhisperKit(WhisperKitConfig(
-            modelFolder: root.appendingPathComponent(Self.model).path, tokenizerFolder: tokens,
+            modelFolder: root.appendingPathComponent(model.variant).path, tokenizerFolder: tokens,
             computeOptions: ModelComputeOptions(audioEncoderCompute: .cpuAndGPU, textDecoderCompute: .cpuAndGPU),
             verbose: false, logLevel: .none, prewarm: false, load: true, download: false))
         try Task.checkCancellation()
@@ -63,12 +69,12 @@ actor DictationEngine: DictationRecognizing {
         speechDetector = detector
     }
 
-    func prepareModels(in base: URL, download: Bool,
+    func prepareModels(model: DictationModel = .turbo, in base: URL, download: Bool,
                        progress: @escaping @Sendable (Double) -> Void) async throws -> URL {
         let required = ["MelSpectrogram", "AudioEncoder", "TextDecoder"].flatMap { component in
             Self.coreMLParts.map { component + ".mlmodelc/" + $0 }
         }
-        return try await prepareSnapshot(source: Self.modelSource, variant: (Self.model, required),
+        return try await prepareSnapshot(source: Self.modelSource, variant: (model.variant, required),
                                          in: base, download: download) { progress($0 * 0.85) }
     }
 
@@ -96,18 +102,16 @@ actor DictationEngine: DictationRecognizing {
         }
     }
 
-    private func prepareTokenizer(in base: URL, download: Bool,
+    private func prepareTokenizer(model: DictationModel, in base: URL, download: Bool,
                                   progress: @escaping @Sendable (Double) -> Void) async throws -> URL {
+        let tokenizer = model.tokenizer
         let tokenizers = ModelDownloader(config: ModelDownloadConfig(
-            modelRepo: "openai/whisper-large-v3-turbo", revision: "41f01f3fe87f28c78e2fbf8b568835947dd65ed9"))
+            modelRepo: tokenizer.repository, revision: tokenizer.revision))
         let root = tokenizers.localRepoLocation(downloadBase: base)
         // Pinned files verified against that revision's Git blob ids. SDK 1.1.1's
         // cache precheck treats literal file patterns as directories, so validate
         // these two small assets explicitly before allowing an offline reload.
-        let files = [
-            "tokenizer.json": "297b13372ac43916285644fb9687add3cc62ee2a1adb60da3dc25cc94c1871fd",
-            "tokenizer_config.json": "844b642c73a91359722f47b35705f7174686df33d252695d8572cf9ac03a6389"
-        ]
+        let files = tokenizer.files
         func valid(_ name: String, _ expected: String) -> Bool {
             guard let data = try? Data(contentsOf: root.appendingPathComponent(name)) else { return false }
             return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() == expected

@@ -38,7 +38,17 @@ SAMPLE_PAIRS='[{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","first":"ru","second
 
 # --- Build ----------------------------------------------------------------------
 
-pkill -f "$EXECUTABLE" 2>/dev/null || true
+# Quit only the exact development bundle, preserving every other running app.
+swift - "$PWD/$APP_DIR" <<'SWIFT'
+import AppKit
+let bundle = URL(fileURLWithPath: CommandLine.arguments[1]).standardizedFileURL
+for app in NSWorkspace.shared.runningApplications where app.bundleURL?.standardizedFileURL == bundle {
+    guard app.terminate() else { fatalError("The development app refused to quit") }
+    let deadline = Date().addingTimeInterval(5)
+    while !app.isTerminated && Date() < deadline { RunLoop.current.run(until: Date().addingTimeInterval(0.05)) }
+    guard app.isTerminated else { fatalError("The development app did not quit") }
+}
+SWIFT
 ./build.sh >"$WORK/build.log" 2>&1 || { cat "$WORK/build.log"; exit 1; }
 
 # --- Helper: window lookup and backdrop ------------------------------------------
@@ -193,7 +203,7 @@ helper() { "$WORK/helper" "$@"; }
 # --- Accessibility driving -------------------------------------------------------
 
 # launch <pane>: a fresh copy with Settings set to open on <pane> (0 General, 1
-# Translation, 2 Rewrite), since switching panes in the window would write the choice back.
+# Translation, 2 Rewrite, 3 Dictation), since switching panes in the window would write the choice back.
 # -n: a new instance even if an earlier one is still quitting.
 # The keys are Settings.Key.languagePairs, .rewritePresets, .provider and
 # SettingsTabViewController.lastPaneKey; they name this script, since a renamed
@@ -205,7 +215,7 @@ launch() {
     local dictation_enabled=NO
     if [ "${2:-}" = settings ]; then dictation_enabled=YES; fi
     local arguments=(-settingsSelectedPane "$1" -provider anthropic
-        -dictationEnabled "$dictation_enabled" -didCompleteFirstRun YES
+        -dictationEnabled "$dictation_enabled" -dictationModel turbo -didCompleteFirstRun YES
         -dictationShortcut '<7b226b6579436f6465223a36312c226d6f64696669657273223a323034387d>'
         -languagePairs "<$(printf '%s' "$SAMPLE_PAIRS" | xxd -p | tr -d '\n')>"
         -rewritePresets "<$(printf '%s' "$SAMPLE_PRESETS" | xxd -p | tr -d '\n')>")
@@ -358,6 +368,10 @@ capture_all() {
     launch 2
     open_menu
     capture_settings Rewrite "rewrite$2"
+
+    launch 3 settings
+    open_menu
+    capture_settings Dictation "dictation$2"
 
     # Shipping indicator content with synthetic states, without microphone access.
     for state in recording recognizing; do

@@ -112,12 +112,81 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertTrue(controller.error?.contains("Try Again") == true)
     }
 
+    func testModelChangePreparesTheChosenModelBeforeAllowingAnotherRecording() async {
+        let engine = ControlledDictationEngine()
+        let recorder = ControlledDictationRecorder()
+        let controller = makeController(engine: engine, recorder: recorder)
+        controller.restore()
+        await controller.operation?.value
+        XCTAssertEqual(engine.loadedModel, .turbo)
+        engine.blockNextPreparation = true
+        controller.selectModel(.small)
+        await engine.waitForPreparation()
+        XCTAssertEqual(controller.model, .small)
+        XCTAssertEqual(controller.phase, .preparing)
+        controller.shortcutPressed()
+        XCTAssertEqual(recorder.starts, 0)
+        engine.finishPreparation()
+        await controller.operation?.value
+        XCTAssertEqual(engine.loadedModel, .small)
+        XCTAssertEqual(engine.models, [.turbo, .small])
+        XCTAssertEqual(controller.phase, .ready)
+    }
+
+    func testModelChangeDuringDownloadCancelsAndRestartsWithTheNewChoice() async {
+        let engine = ControlledDictationEngine()
+        engine.blockNextPreparation = true
+        let controller = makeController(engine: engine, recorder: ControlledDictationRecorder())
+        controller.restore()
+        await engine.waitForPreparation()
+        let previous = controller.operation
+        controller.selectModel(.largeV3)
+        XCTAssertEqual(controller.phase, .cancelling)
+        engine.finishPreparation()
+        await previous?.value
+        await controller.operation?.value
+        XCTAssertEqual(engine.models, [.turbo, .largeV3])
+        XCTAssertEqual(engine.loadedModel, .largeV3)
+        XCTAssertEqual(controller.phase, .ready)
+    }
+
+    func testModelChoicePersistsWhileDisabledWithoutPreparingOrRequestingTheMicrophone() async {
+        let engine = ControlledDictationEngine()
+        let recorder = ControlledDictationRecorder()
+        var saved: [DictationModel] = []
+        let controller = DictationController(enabled: false, engine: engine, recorder: recorder,
+            interaction: DictationInteraction(beginCapture: { _ in (nil, {}) }, endCapture: {},
+                                              showError: { _ in }, showResult: { _ in }),
+            saveModel: { saved.append($0) })
+        controller.selectModel(.small)
+        controller.selectModel(.small)
+        XCTAssertEqual(controller.model, .small)
+        XCTAssertEqual(saved, [.small])
+        XCTAssertNil(controller.operation)
+        XCTAssertTrue(engine.models.isEmpty)
+        XCTAssertEqual(recorder.permissions, 0)
+    }
+
+    func testRecordingRejectsModelChanges() async {
+        let engine = ControlledDictationEngine()
+        let recorder = ControlledDictationRecorder()
+        let controller = makeController(engine: engine, recorder: recorder)
+        controller.restore()
+        await controller.operation?.value
+        controller.shortcutPressed()
+        XCTAssertEqual(recorder.starts, 1)
+        controller.selectModel(.small)
+        XCTAssertEqual(controller.model, .turbo)
+        XCTAssertEqual(engine.models, [.turbo])
+        controller.cancel()
+    }
+
     private func makeController(engine: ControlledDictationEngine,
                                 recorder: ControlledDictationRecorder) -> DictationController {
         DictationController(enabled: true, engine: engine, recorder: recorder,
                             interaction: DictationInteraction(beginCapture: { _ in (nil, {}) },
                                                               endCapture: {}, showError: { _ in },
-                                                              showResult: { _ in }))
+                                                              showResult: { _ in }), saveModel: { _ in })
     }
 }
 
@@ -127,15 +196,18 @@ private final class ControlledDictationEngine: DictationRecognizing {
     var blockNextPreparation = false
     var failNextPreparation = false
     var preparations: [Bool] = []
+    var models: [DictationModel] = []
+    private(set) var loadedModel: DictationModel?
     var transcribed: [URL] = []
     private var pending: CheckedContinuation<Void, Never>?
     private var preparationObserver: CheckedContinuation<Void, Never>?
     private var unloadObserver: CheckedContinuation<Void, Never>?
     private var unloaded = false
 
-    func prepare(download: Bool, progress: @escaping @Sendable (Double) -> Void) async throws {
-        guard !loaded else { return }
+    func prepare(model: DictationModel, download: Bool, progress: @escaping @Sendable (Double) -> Void) async throws {
+        loaded = false
         preparations.append(download)
+        models.append(model)
         if blockNextPreparation {
             blockNextPreparation = false
             await withCheckedContinuation { pending = $0
@@ -149,6 +221,7 @@ private final class ControlledDictationEngine: DictationRecognizing {
             throw DictationError.notReady
         }
         loaded = true
+        loadedModel = model
     }
 
     func transcribe(_ audio: URL) async throws -> String {
@@ -159,6 +232,7 @@ private final class ControlledDictationEngine: DictationRecognizing {
 
     func unload() async {
         loaded = false
+        loadedModel = nil
         unloaded = true
         unloadObserver?.resume()
         unloadObserver = nil
@@ -184,11 +258,12 @@ private final class ControlledDictationRecorder: DictationRecording {
     let level = 0.5
     let isDeliveringAudio = true
     let audio = URL(fileURLWithPath: "/synthetic-dictation.wav")
+    var permissions = 0
     var starts = 0
     var stops = 0
     var hasAudio = false
 
-    func requestPermission() async -> Bool { true }
+    func requestPermission() async -> Bool { permissions += 1; return true }
     func start() throws { starts += 1; hasAudio = true }
     func stop() throws -> URL { stops += 1; return audio }
     func discard() { hasAudio = false }

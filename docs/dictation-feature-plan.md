@@ -1,14 +1,15 @@
 # Minimal dictation plan
 
-Scope decision: October 18, 2026. Target: Translate Like Me, macOS 15+ on Apple
+Scope decisions: October 18-19, 2026. Target: Translate Like Me, macOS 15+ on Apple
 silicon, initially an M5 with 16 GB or more of unified memory.
 
 The user requires a minimal implementation that works well with sensible defaults.
 This document supersedes the broader feature priorities in the
 [FluidVoice review](fluidvoice-source-review.md) and
 [Handy review](handy-source-review.md). Those are research references, not a backlog.
-The initial implementation now uses WhisperKit with one fixed multilingual
-Whisper Turbo conversion. Implementation details and verification status are in
+The implementation uses WhisperKit with a small multilingual Whisper catalog.
+The October 19 user request adds a dedicated Dictation pane and model selection;
+Turbo remains the default, with Small and Large v3 as optional alternatives. Implementation details and verification status are in
 [dictation.md](dictation.md); this scope document is not a claim that release
 acceptance or a comparative model quality benchmark is complete.
 
@@ -26,14 +27,14 @@ invoke a text-processing LLM.
 Provide one default local model and one ASR integration. Choose the default from
 measured speech quality, correction effort, latency, and memory on the target Mac.
 The user must not choose a model or an inference configuration to obtain usable
-results. A model picker is outside the first release; it can be reconsidered only
-if real user needs justify it.
+results. The optional model picker offers three curated multilingual variants. It does
+not require users to tune inference settings or choose a model during setup.
 
 ## First use and settings
 
-- Add a small Dictation section to existing Settings, with an enable control,
-  one editable Option hold key, and preparation status when relevant.
-- Enabling dictation requests microphone access and prepares the one default
+- Use a dedicated Dictation pane in Settings, with an enable control, one editable
+  Option hold key, model selection and preparation status when relevant.
+- Enabling dictation requests microphone access and prepares the selected
   model, downloading it automatically with visible progress. Interrupted setup
   offers Retry. Do not request an account, API key, or model selection.
 - Default to right Option, with left Option available in the same binding field.

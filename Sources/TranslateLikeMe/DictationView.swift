@@ -1,49 +1,99 @@
 import AppKit
 import SwiftUI
 
-struct DictationSettingsSection: View {
+struct DictationSettingsView: View {
     let store: SettingsStore
     @State private var dictation = DictationController.shared
+
+    var body: some View {
+        Form {
+            DictationControlsSection(store: store, dictation: dictation)
+            DictationModelSection(dictation: dictation)
+        }
+        .settingsPane()
+    }
+}
+
+private struct DictationControlsSection: View {
+    let store: SettingsStore
+    let dictation: DictationController
 
     var body: some View {
         Section {
             Toggle("Enable dictation", isOn: Binding(get: { dictation.enabled }, set: { dictation.setEnabled($0) }))
                 .toggleStyle(.switch)
                 .controlSize(.mini)
-            if dictation.enabled {
-                LabeledContent("Hold key") {
-                    ShortcutField(combo: Binding(get: { store.dictationShortcut },
-                                                 set: { store.dictationShortcut = $0 }),
-                                  usedBy: { store.owner(of: $0, except: Settings.dictationID) }, owner: "Dictation",
-                                  requiresOptionOnly: true)
-                        .disabled(dictation.isActive)
-                }
-                if dictation.phase == .preparing {
-                    if dictation.progress >= 1 {
-                        HStack {
-                            ProgressView().controlSize(.small)
-                            Text("Preparing for your Mac…").foregroundStyle(Color.secondaryText)
-                        }
-                    } else {
-                        ProgressView("Downloading speech model…", value: dictation.progress)
-                            .accessibilityValue("\(Int(dictation.progress * 100)) percent")
-                    }
-                } else if let error = dictation.error {
-                    Label {
-                        Text(error)
-                    } icon: {
-                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                    }
-                    Button("Try Again") { dictation.prepare() }
-                }
+            LabeledContent("Hold key") {
+                ShortcutField(combo: Binding(get: { store.dictationShortcut },
+                                             set: { store.dictationShortcut = $0 }),
+                              usedBy: { store.owner(of: $0, except: Settings.dictationID) }, owner: "Dictation",
+                              requiresOptionOnly: true)
+                    .disabled(!dictation.enabled || dictation.isActive)
             }
         } header: {
             Text("Dictation")
         } footer: {
             Text("Hold Option while speaking, then release to insert. "
-                 + "Languages are detected automatically. "
-                 + "Speech is recognized on your Mac; first setup downloads the speech model.")
+                 + "Languages are detected automatically. Uses the microphone selected in macOS.")
                 .foregroundStyle(Color.secondaryText)
+        }
+    }
+}
+
+private struct DictationModelSection: View {
+    let dictation: DictationController
+
+    var body: some View {
+        Section {
+            Picker("Model", selection: Binding(get: { dictation.model }, set: { dictation.selectModel($0) })) {
+                ForEach(DictationModel.allCases) { model in
+                    Text(model == .turbo ? "\(model.title) (Recommended)" : model.title).tag(model)
+                }
+            }
+            .disabled(dictation.isActive)
+            Text(dictation.model.summary)
+                .foregroundStyle(Color.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+            DictationPreparationStatus(dictation: dictation)
+        } header: {
+            Text("Speech model")
+        } footer: {
+            Text("While dictation is enabled, the selected model downloads once and runs on your Mac. "
+                 + "Downloaded models are kept for later use.")
+                .foregroundStyle(Color.secondaryText)
+        }
+    }
+}
+
+private struct DictationPreparationStatus: View {
+    let dictation: DictationController
+
+    var body: some View {
+        if dictation.enabled {
+            if dictation.phase == .preparing {
+                if dictation.progress >= 1 {
+                    HStack {
+                        ProgressView().controlSize(.small)
+                        Text("Preparing for your Mac…").foregroundStyle(Color.secondaryText)
+                    }
+                } else {
+                    ProgressView("Downloading speech model…", value: dictation.progress)
+                        .accessibilityValue("\(Int(dictation.progress * 100)) percent")
+                }
+            } else if let error = dictation.error {
+                Label {
+                    Text(error)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                }
+                Button("Try Again") { dictation.prepare() }
+            } else if dictation.phase == .ready {
+                LabeledContent("Status") {
+                    Text("Ready").foregroundStyle(Color.secondaryText)
+                }
+            } else if dictation.phase == .cancelling {
+                Text("Stopping the previous operation…").foregroundStyle(Color.secondaryText)
+            }
         }
     }
 }

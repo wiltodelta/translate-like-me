@@ -1,7 +1,7 @@
 # Local dictation
 
 The initial implementation follows the [minimal product scope](dictation-feature-plan.md).
-Enable it in General settings, allow microphone access, and wait for the one-time
+Enable it in Dictation settings, allow microphone access, and wait for the one-time
 model preparation. Hold right Option while speaking, then release to recognize
 and insert. This is the only recording mode. The menu opens
 settings or cancels an active session; it never starts a separate recording.
@@ -13,14 +13,18 @@ device is used each time recording starts.
 
 ## Runtime and data
 
-WhisperKit 1.1.1 runs one multilingual Whisper Turbo Core ML conversion:
-`openai_whisper-large-v3-v20240930_626MB`. Its configuration identifies four
-decoder layers and 32 encoder layers. Recognition uses automatic language
+WhisperKit 1.1.1 runs the selected multilingual Core ML model. `DictationModel`
+offers Whisper Small (`openai_whisper-small`), Whisper Large v3 Turbo
+(`openai_whisper-large-v3-v20240930_626MB`, the unchanged default) and Whisper
+Large v3 (`openai_whisper-large-v3_947MB`). Their pinned repository snapshots
+contain about 487, 627 and 948 MB respectively, excluding tokenizer and shared
+speech-detector assets. The default has four decoder layers and 32 encoder layers. Recognition uses automatic language
 detection, without a Russian/English allowlist, and transcription rather than
 translation. This is an initial integrated configuration, not a claim of model
 superiority or production quality across every supported language.
 
-`DictationEngine.swift` pins both the model repository and tokenizer revisions.
+`DictationEngine.swift` pins the shared model repository revision;
+`DictationModel.swift` pins each matching tokenizer revision and file hashes.
 WhisperKit's downloader maintains partial transfers. `DictationSnapshot` checks
 all required Core ML components and validates every existing snapshot file
 against metadata for the pinned revision: SHA-256 for LFS weights and Git blob
@@ -142,7 +146,7 @@ release, cancellation, initial flags, startup release and captured-audio release
 all failed their assertions after the nine-test isolated baseline passed.
 
 Native capture uses the signed dev bundle, synthetic language pairs, and
-`-didCompleteFirstRun YES`. General uses `-dictationEnabled YES` with
+`-didCompleteFirstRun YES`. The Dictation pane uses `-dictationEnabled YES` with
 `-dictationPreview settings`: the real enabled view renders, but the controller
 stays unprepared, never loads a model and cannot record. Other panes and indicator
 previews use `-dictationEnabled NO`. `CAPTURE_APPEARANCE=light` runs the light
@@ -411,3 +415,56 @@ The original failure was not reproduced, so this closes the pending functional
 check without attributing its earlier cause or claiming a measured failure rate.
 Physical microphone-device changes and sleep/wake remain unverified; cancellation
 and restart behavior have injected-effect coverage, not equivalent hardware evidence.
+
+### Dedicated settings pane and model selection, October 19, 2026
+
+At the user's request after 3.5.0, Dictation moves from General to its own pane.
+Existing pane indices stay unchanged. The status menu's dictation action opens
+that pane. The optional Small/Turbo/Large v3 picker retains Turbo as the default
+for existing users and absent or unrecognized preferences. Choosing a model while
+disabled only saves the choice. While enabled it prepares the selected model;
+changing during preparation cancels and unwinds first. Capture, recognition and
+cancellation block model changes. Old model files remain cached; only one runtime
+is loaded, and its identity comes from WhisperKit's actual model folder.
+
+The pinned Core ML catalog and each pinned OpenAI tokenizer were checked against
+their source repositories. The real engine loaded Turbo, Small, Large v3 and Turbo
+again, checking its actual folder and required words in two synthetic English and
+Russian utterances per step. All eight transcriptions passed. Every variant also
+loaded with downloading disabled. These are functional checks, not comparative
+accuracy, latency, RAM or 16 GB suitability measurements. The shared dev cache is
+retained for using the models; temporary synthetic audio is removed after testing.
+
+Nine controller checks passed. In an isolated source copy, four mutations were
+rejected by assertions: forcing Turbo, dropping preference persistence, allowing
+changes during capture and suppressing preparation restart. Live adapters that
+these tests do not exercise trap instead of performing desktop or microphone work.
+
+The signed dev bundle rendered 14 light/dark captures through the project recipe,
+including the new Dictation pane and all toolbar neighbors. All were inspected.
+The pane measures 500 by 440 points in both appearances, at the fixed minimum
+width; the live Ready state grows to 477 points high. AX geometry kept exposed
+controls inside the window. Sampled model-description text measured 4.83:1 in
+light and 5.62:1 in dark. A known sRGB gray plate through the same compositor read
+87 in every channel for `#575757`. Two precision candidates were dismissed after
+inspection: native mini-switch centering against text, and different left edges
+of right-aligned Ready text and a switch. Radii are not measured by the AX collector.
+
+Native AX interaction selected Small and Large v3, verified the stored preference
+and the restored picker value after relaunch, then enabled Small and observed
+Ready. The dev preference domain was restored and compared. `defaults import`
+merges newly created keys, so teardown also removes only the model, enable, hold
+binding and pane keys that this check created, after quitting its own dev process.
+No recording or real destination editing was part of this settings check.
+
+Model labels now spell out Whisper Large v3 Turbo, keeping its generation visible
+alongside Large v3. Each selection has one short description and its approximate
+download size; only Turbo carries the recommendation. Repository revisions stay
+internal. All three selections and the open picker were rendered and inspected
+in both appearances at 500 by 440 points, without clipped labels or controls.
+Description contrast remains 4.83:1 in light and 5.62:1 in dark, with zero-delta
+sRGB gray calibration through the same compositor. The precision analyzer's only
+candidate is the previously inspected native switch/text top-edge difference of
+1.88 points. The maintenance gate passed again: 142 tests passed, two opt-in tests
+were skipped, and the signed development bundle built successfully. The capture
+run restored and compared both the system appearance and all six dev preferences.

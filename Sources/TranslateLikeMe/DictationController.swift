@@ -35,6 +35,7 @@ struct DictationInteraction {
 final class DictationController {
     static let shared = DictationController()
     private(set) var enabled: Bool
+    private(set) var model: DictationModel
     private(set) var session = DictationSession()
     private(set) var progress: Double = 0
     private(set) var level: Double = 0
@@ -44,6 +45,7 @@ final class DictationController {
     @ObservationIgnored private let engine: any DictationRecognizing
     @ObservationIgnored private let recorder: any DictationRecording
     @ObservationIgnored private let interaction: DictationInteraction
+    @ObservationIgnored private let saveModel: (DictationModel) -> Void
     @ObservationIgnored private(set) var operation: Task<Void, Never>?
     @ObservationIgnored private var pressureSource: DispatchSourceMemoryPressure?
     @ObservationIgnored private var modelRelease: Task<Void, Never>?
@@ -55,16 +57,21 @@ final class DictationController {
     @ObservationIgnored private var ownsActivity = false
     @ObservationIgnored private var prepareAfterOperation = false
 
-    init(enabled: Bool, engine: any DictationRecognizing, recorder: any DictationRecording,
-         interaction: DictationInteraction) {
+    init(enabled: Bool, model: DictationModel = .turbo,
+         engine: any DictationRecognizing, recorder: any DictationRecording,
+         interaction: DictationInteraction,
+         saveModel: @escaping (DictationModel) -> Void = { Settings.dictationModel = $0 }) {
         self.enabled = enabled
+        self.model = model
         self.engine = engine
         self.recorder = recorder
         self.interaction = interaction
+        self.saveModel = saveModel
     }
 
     private convenience init() {
-        self.init(enabled: Settings.dictationEnabled, engine: DictationEngine(), recorder: DictationRecorder(),
+        self.init(enabled: Settings.dictationEnabled, model: Settings.dictationModel,
+                  engine: DictationEngine(), recorder: DictationRecorder(),
                   interaction: .live)
         let source = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
         source.setEventHandler { [weak self] in
@@ -86,6 +93,20 @@ final class DictationController {
     }
 
     func restore() { if enabled { prepare() } }
+
+    func selectModel(_ model: DictationModel) {
+        guard self.model != model, !isActive else { return }
+        self.model = model
+        saveModel(model)
+        error = nil
+        progress = 0
+        if operation != nil {
+            cancel(restartPreparation: false)
+            prepareAfterOperation = enabled
+        } else if enabled {
+            prepare()
+        }
+    }
 
     func setEnabled(_ value: Bool) {
         guard enabled != value else { return }
@@ -228,7 +249,7 @@ final class DictationController {
         await modelRelease?.value
         modelRelease = nil
         try Task.checkCancellation()
-        try await engine.prepare(download: download) { [weak self] value in
+        try await engine.prepare(model: model, download: download) { [weak self] value in
             Task { @MainActor in
                 guard let self, self.session.id == id else { return }
                 self.progress = value

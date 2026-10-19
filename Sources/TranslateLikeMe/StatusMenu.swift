@@ -217,7 +217,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     @objc private func dictationAction() {
         let controller = DictationController.shared
-        if controller.isActive { controller.cancel() } else { openLanguageSettings() }
+        if controller.isActive { controller.cancel() } else {
+            NotificationCenter.default.post(name: .openSettings, object: SettingsPane.dictation)
+        }
     }
 
     @objc private func copyLastDictation() {

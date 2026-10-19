@@ -17,8 +17,8 @@ Read before editing this domain.
   (`menuNeedsUpdate`), keeps the same items in every state (status rows change
   text, never disappear), and uses the standard `terminate(_:)` selector so
   macOS 26 supplies Quit's icon. Settings is an `NSTabViewController` in toolbar
-  style (`SettingsTabViewController.makeWindow`, panes General, Translation
-  and Rewrite, window title follows the pane, last pane restored unless a
+  style (`SettingsTabViewController.makeWindow`, panes General, Translation,
+  Rewrite and Dictation, window title follows the pane, last pane restored unless a
   caller passes one in the `.openSettings` notification; a restored pane is
   not written back, a clicked or passed one is); `SettingsStore` applies every
   change immediately. The standard app-menu Settings command and ⌘, call
