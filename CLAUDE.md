@@ -4,8 +4,8 @@ You are a **principal Swift/macOS engineer** maintaining a menu-bar app that
 translates the current selection via global hotkeys, one per language pair (up
 to three), auto-detecting the direction and applying the user's writing style,
 and rewrites selected rough notes into a finished message in the same language
-with named Rewrite presets (up to three).
-SwiftUI + AppKit, SwiftPM; the one dependency is Sparkle (updates). Supports the
+with named Rewrite presets (up to three), plus local multilingual dictation.
+SwiftUI + AppKit, SwiftPM; Sparkle for updates and WhisperKit for local ASR. Supports the
 three latest macOS releases (15+) on Apple silicon only.
 
 Shared rules for our macOS apps: `~/Documents/GitHub/claude-config/docs/macos-apps.md`; this file states only what differs.
@@ -35,12 +35,11 @@ detail, including the secrets and where the keys are kept (1Password):
   Accessibility, CGEvent and Sparkle require native verification; render UI changes with
   `./capture-screenshots.sh` (it also regenerates `screenshots/`, light and
   dark, flipping the system to Dark Mode and back; needs
-  Accessibility and Screen Recording for the terminal and a Mac left alone;
-  a closed menu mid-run, or a system overlay over the capture (an AirPods
-  notice, a stuck transparent `screencaptureui` window: `kill -TERM` it when
-  nothing is recording), fails it, rerun once; the General pane's bottom margin
-  reaches the Dock, and a Dock label there passes the covered-window check, so
-  look at the bottom of `general*.png` before committing). System Events `entire contents`
+  Accessibility and Screen Recording for the terminal and a Mac left alone).
+  ScreenCaptureKit composites only the app and an opaque backdrop, excluding
+  unrelated windows, alerts and the Dock. A closed or resized target fails the
+  capture; Settings activation settles before the frame and backdrop are measured.
+  Inspect every generated image. System Events `entire contents`
   does not reach the SwiftUI controls in Settings: press them by walking
   `AXUIElement` children and matching the title or accessibility label. A
   picker is an `AXPopUpButton` (its value is the selection): press it, then
@@ -83,4 +82,5 @@ matching files are touched.
 
 | File | Covers |
 |------|--------|
+| `dictation.md` | Minimal local dictation, model installation, recording, cancellation, and caret delivery |
 | `architecture.md` | Status item and its menu, settings panes, onboarding and its engine checks, global hotkey, language pairs and Rewrite presets, selection validation and clipboard ownership, providers, and update checking |

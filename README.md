@@ -15,6 +15,10 @@ It also writes for you: select rough notes, for example dictated, press a
 Rewrite preset's shortcut, and they are replaced with a clear, finished message
 in the same language, in that preset's style.
 
+Local dictation adds speech at the cursor: enable it in Settings > General,
+allow microphone access, and let the speech model download once. Hold the
+right Option key while speaking, then release to insert. Languages are detected automatically.
+
 <p align="center">
   <img src="screenshots/menu.png" alt="Translate Like Me - Menu bar menu" width="250">
   <img src="screenshots/general.png" alt="Translate Like Me - Settings, General pane with language pairs" width="400">
@@ -40,9 +44,12 @@ in the same language, in that preset's style.
   recipient kept as questions. Select a received message along with your notes
   to reply to it. Rewrite never translates; a pair's shortcut does that
   afterwards. Off until you add a preset.
-- **Bring your own engine**: Claude, ChatGPT or Grok through your existing
+- **Local dictation**: one multilingual Whisper model runs on your Mac. Uses the
+  system microphone, inserts at the cursor, and keeps the last result available
+  to copy if automatic insertion fails. No account or API key is needed.
+- **Bring your own translation engine**: Claude, ChatGPT or Grok through your existing
   subscription and the provider's official CLI.
-- **Your model, or the CLI's default**: pick the model and effort each CLI
+- **Your translation model, or the CLI's default**: pick the model and effort each CLI
   offers, or keep the one you set in the CLI itself; nothing is pinned in the app.
 - **Menu-bar only**: no Dock icon, no window in the way. Click the icon for a
   standard menu with status, your language pairs, and settings.
@@ -54,7 +61,9 @@ in the same language, in that preset's style.
 ## Requirements
 
 - macOS 15 (Sequoia) or later, on a Mac with Apple silicon.
-- The provider's official CLI installed and signed in (`claude` for Claude,
+- For dictation preparation, at least 8 GB of free disk space for the model and
+  temporary Core ML compilation files.
+- For translation and Rewrite, the provider's official CLI installed and signed in (`claude` for Claude,
   `codex` for ChatGPT, `grok` for Grok).
 
 ## Install
@@ -105,6 +114,15 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
    paste the replacement (⌘V).
 
 ## Usage
+
+- For dictation, turn on **Enable dictation** under **Settings > General**.
+  First setup downloads the model; later recognition works locally. The default
+  hold key is **Right Option**. Hold it while speaking, then release to recognize
+  and insert the text. In **Hold key**, you can record the left
+  Option instead. Other input during the hold cancels dictation, so an Option
+  combination does not insert speech. There is no tap-to-toggle mode or menu
+  command to start recording. Recording is bounded to five minutes. The menu
+  offers **Copy Last Dictation** after a result, without a recording history.
 
 - Select text in any app, then press a pair's shortcut (the first pair you add
   starts on **⌥⌘F**) to replace it with the translation.
@@ -173,7 +191,7 @@ invokes the official binary as a subprocess.
 
 ### Model selection
 
-The app never pins a model: it runs the model and effort picked in Settings,
+For translation and Rewrite, the app runs the model and effort picked in Settings,
 listed from each CLI's own model catalog (with the efforts each model accepts).
 With **Default**, each CLI runs with your own default model and effort, the
 ones set in Claude Code's `settings.json` (`model`, `effortLevel`), codex's
@@ -182,6 +200,10 @@ is set, the CLI's built-in default applies.
 
 ## Privacy
 
+- Dictation recognizes speech locally. Setup downloads one speech model, a small
+  speech detector and the tokenizer; recognition uses the local cache. Temporary
+  audio is deleted after recognition or cancellation, and only the last text
+  result stays in memory.
 - The text you translate and the pair's writing style go to the engine you
   picked and nowhere else: Anthropic (Claude), OpenAI (ChatGPT), or xAI (Grok),
   through its official CLI. The app has no server, analytics or telemetry.
@@ -272,7 +294,7 @@ GitHub Actions then builds the app with the tag's version, signs it with the
 Developer ID, notarizes it, and publishes a Release with
 `Translate-Like-Me-vX.Y.Z-macOS.zip` and the Sparkle `appcast.xml` attached; the
 tag annotation's body becomes both the release notes and the text of the update
-window, and its first line the release title. Use `vMAJOR.MINOR` tags. Local
+window, and its first line the release title. Use `vMAJOR.MINOR.PATCH` tags. Local
 `./build.sh` bundles carry the latest tag's version and are not meant for
 distribution.
 

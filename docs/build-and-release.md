@@ -36,12 +36,15 @@ detail an engineer needs.
   images drawn by `uv run scripts/make-menubar-icons.py`, in the outline / fill
   pairing Rota and Watch Me While I Fall Asleep use.
 - **Screenshots:** `./capture-screenshots.sh` rebuilds the app and regenerates
-  `screenshots/` (the menu with the strip of menu bar above it, General,
-  Translation, Rewrite), each in the light appearance
+  `screenshots/` (the menu, General, Translation, Rewrite, and the listening and
+  recognizing dictation indicators), each in the light appearance
   and in Dark Mode (`*-dark.png`, which the website serves to dark visitors).
   It switches the system appearance for the dark pass and restores the
-  user's on exit; its header comment explains the backdrop capture, the settings
-  overrides and the covered-window check. The terminal and the build need
+  user's on exit. ScreenCaptureKit composites only the app and an opaque
+  backdrop, excluding alerts, the Dock and unrelated windows. The script waits
+  for Settings activation to settle and verifies the target's exact frame before
+  and after capture; a closed or resized target fails. Its header comment explains
+  the settings overrides and restoration. The terminal and the build need
   Accessibility, so a build under a new signature prompts until granted. It
   ends by rebuilding the website's link preview, `site/og-image.png`
   (1200x630, `scripts/make-og-image.py`), which lays the menu screenshot
@@ -68,8 +71,8 @@ detail an engineer needs.
   `Translate-Like-Me-vX.Y.Z-macOS.zip`. It reads the team-wide notarytool profile
   `notary-K2GT9Q4S6U` from the login keychain (`xcrun notarytool
   store-credentials`, command in the script header); other apps of the same
-  team reuse it. An app that needs a hardened-runtime entitlement (the camera,
-  for example) must pass `--entitlements` to `codesign`; this one needs none.
+  team reuse it. `build.sh` passes `Resources/Entitlements.plist` to the final
+  signature so dictation can use microphone input under the hardened runtime.
 
 ## Release process
 
@@ -107,7 +110,14 @@ Sparkle (`Updater.swift`, `SPUStandardUpdaterController`) is the one updater.
 `Contents/Frameworks`, adds the `@executable_path/../Frameworks` rpath, removes
 its XPC services (they exist for sandboxed apps; this one is not), ships its
 MIT license as `Sparkle LICENSE.txt`, and signs `Autoupdate`, `Updater.app`,
-the framework and the app in that order, per Sparkle's manual-signing docs. The
+the framework and the app in that order, per Sparkle's manual-signing docs.
+The final app signature uses `Resources/Entitlements.plist` to allow microphone
+input under the hardened runtime; `Info.plist` contains the microphone purpose.
+WhisperKit is statically linked through SwiftPM. Its MIT notice and Whisper's
+MIT notice and Silero's MIT notice are copied into Resources. Dictation model,
+speech detector and tokenizer assets download
+on first enable into the bundle-id-specific Application Support directory; they
+are not bundled with the app or shared with the installed release's dev cache. The
 EdDSA private key is in the login keychain (Sparkle's `generate_keys`), in the
 1Password item as "Sparkle EdDSA private key" and in the `SPARKLE_PRIVATE_KEY`
 secret; one key serves every app of the team, and `SUPublicEDKey` in

@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let workflowLog = Logger.app("selection")
 
 struct CopiedSelection: Sendable {
     let text: String?
@@ -51,8 +54,13 @@ struct SelectionWorkflow<Access: SelectionAccess>: Sendable {
             let result = try await transform(selection)
             try Task.checkCancellation()
             // A changed target or a newer user copy wins over automatic insertion.
-            guard let target, access.changeCount == mark, access.isCurrent(target),
+            let clipboardUnchanged = access.changeCount == mark
+            guard let target, clipboardUnchanged, access.isCurrent(target),
                   let pasted = access.paste(result, into: target, ifUnchangedSince: mark) else {
+                workflowLog.notice("""
+                    Insertion skipped: original target available \(target != nil), \
+                    clipboard unchanged \(clipboardUnchanged)
+                    """)
                 access.restore(original, ifUnchangedSince: mark)
                 return .result(result, copied: false)
             }

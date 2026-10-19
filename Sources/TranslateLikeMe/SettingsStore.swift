@@ -101,6 +101,14 @@ final class SettingsStore {
         }
     }
 
+    var dictationShortcut: KeyCombo? {
+        get { Settings.dictationShortcut }
+        set {
+            Settings.dictationShortcut = newValue
+            HotKeyManager.shared.reload()
+        }
+    }
+
     // MARK: - Language pairs
 
     var canAddPair: Bool { pairs.count < Languages.maxPairs }
@@ -117,7 +125,8 @@ final class SettingsStore {
     // What already uses `combo`, other than the pair or preset `id`, named for
     // the shortcut recorder, so one shortcut never triggers two actions.
     func owner(of combo: KeyCombo, except id: UUID) -> String? {
-        pairs.first { $0.id != id && $0.shortcut == combo }.map(\.title)
+        if id != Settings.dictationID, Settings.dictationShortcut == combo { return "Dictation" }
+        return pairs.first { $0.id != id && $0.shortcut == combo }.map(\.title)
             ?? rewritePresets.first { $0.id != id && $0.shortcut == combo }.map { "the \($0.title) preset" }
     }
 

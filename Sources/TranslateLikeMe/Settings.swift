@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import Carbon
 
 enum Provider: String, CaseIterable {
     case anthropic
@@ -129,6 +130,24 @@ enum Settings {
         // Prefixes, one key per provider (harnessModel.anthropic, ...).
         static let harnessModel = "harnessModel."
         static let harnessEffort = "harnessEffort."
+    }
+
+    static let dictationID = UUID(uuidString: "0452A428-00E5-4A44-9CB9-CEED213CC9DC")!
+
+    static var dictationEnabled: Bool {
+        get { defaults.bool(forKey: "dictationEnabled") }
+        set { defaults.set(newValue, forKey: "dictationEnabled") }
+    }
+
+    static var dictationShortcut: KeyCombo? {
+        get {
+            if let data = defaults.data(forKey: "dictationShortcut") {
+                guard let saved = try? JSONDecoder().decode(KeyCombo?.self, from: data) else { return nil }
+                return Shortcut.isOptionOnly(saved) ? saved : KeyCombo(keyCode: 61, modifiers: Int(optionKey))
+            }
+            return KeyCombo(keyCode: 61, modifiers: Int(optionKey))
+        }
+        set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "dictationShortcut") }
     }
 
     // The language pairs, each with its own optional shortcut, stored as JSON.

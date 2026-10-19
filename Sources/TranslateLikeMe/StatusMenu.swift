@@ -39,6 +39,26 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(engine)
         menu.addItem(accessibilityItem())
 
+        menu.addItem(.separator())
+        let dictation = DictationController.shared
+        let title = !dictation.enabled ? "Set Up Dictation…"
+            : dictation.isActive ? "Cancel Dictation" : "Dictation Settings…"
+        let dictate = item(title, action: #selector(dictationAction))
+        switch dictation.phase {
+        case .preparing:
+            dictate.title = "Preparing Dictation…"
+            dictate.isEnabled = false
+        case .failed: dictate.title = "Finish Dictation Setup…"
+        default: break
+        }
+        if dictation.enabled, let shortcut = Settings.dictationShortcut {
+            dictate.subtitle = "Hold \(Shortcut.display(shortcut)) to dictate"
+        }
+        menu.addItem(dictate)
+        if dictation.lastResult != nil {
+            menu.addItem(item("Copy Last Dictation", action: #selector(copyLastDictation)))
+        }
+
         // The app's key action: one item per language pair, showing its shortcut.
         menu.addItem(.separator())
         menu.addItem(.sectionHeader(title: "Translate selection"))
@@ -174,6 +194,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     // The global shortcut, shown as the item's key equivalent.
     private func show(_ shortcut: KeyCombo?, on item: NSMenuItem) {
+        if let shortcut, Shortcut.isOptionOnly(shortcut) {
+            item.subtitle = Shortcut.display(shortcut)
+            return
+        }
         guard let equivalent = shortcut.flatMap(Shortcut.menuKeyEquivalent) else { return }
         item.keyEquivalent = equivalent.key
         item.keyEquivalentModifierMask = equivalent.flags
@@ -189,6 +213,15 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         guard let id = sender.representedObject as? UUID,
               let pair = Settings.languagePair(id: id) else { return }
         TranslationController.shared.run(pair: pair)
+    }
+
+    @objc private func dictationAction() {
+        let controller = DictationController.shared
+        if controller.isActive { controller.cancel() } else { openLanguageSettings() }
+    }
+
+    @objc private func copyLastDictation() {
+        if let text = DictationController.shared.lastResult { SelectionService.copyToClipboard(text) }
     }
 
     @objc private func requestAccessibility() { SelectionService.promptForAccessibility() }

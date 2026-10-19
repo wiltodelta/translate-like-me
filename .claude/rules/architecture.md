@@ -88,8 +88,8 @@ Read before editing this domain.
   Writing Tools, Wispr Flow and DeepL Write tell theirs apart by tone, and
   because a language bound into each preset is what Superwhisper users ask to
   be rid of (an earlier draft here bound one, decided against 2026-10-08).
-  `HotKeyManager.reload` registers pairs first, then presets, skipping a combo
-  already taken, and `SettingsStore.owner(of:except:)` refuses a combo either
+  `HotKeyManager.reload` installs the enabled dictation hold monitor first, then
+  registers pairs and presets, skipping a combo already taken, and `SettingsStore.owner(of:except:)` refuses a combo either
   list uses. A row holding a `TextField` binds its item by id
   (`RewriteSettingsView.binding(for:)`), never by index through
   `ForEach($array)`: the field re-reads its binding during the resize
@@ -134,6 +134,10 @@ Read before editing this domain.
   original rich clipboard only while the run still owns it; a read-only target
   keeps the result unless a newer copy wins. Skipped insertion shows the result
   with Copy, without claiming it was copied.
+  Selection diagnostics use the `selection` log category at notice level: copy
+  timeout, focus and clipboard guards, the first invalidating activity class,
+  and AX identity/range/value equality. They record metadata only, never text.
+  Filter by process id when both installed and dev copies run.
 - `ProcessRunner` concurrently drains stdout/stderr and writes stdin through
   DispatchIO. A run is cancellable, with a 120-second translation deadline,
   10-second status/lookup deadlines and an 8 MiB combined-output cap. Cancellation

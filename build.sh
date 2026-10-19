@@ -34,6 +34,11 @@ rm -rf "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices" \
 install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/$BIN"
 # Sparkle is MIT licensed, which asks for its notice to ship with it.
 cp ".build/artifacts/sparkle/Sparkle/LICENSE" "$APP/Contents/Resources/Sparkle LICENSE.txt"
+# Local speech runtime and models retain their upstream MIT notices.
+cp .build/checkouts/argmax-oss-swift/LICENSE "$APP/Contents/Resources/WhisperKit LICENSE.txt"
+cp .build/checkouts/argmax-oss-swift/NOTICES "$APP/Contents/Resources/WhisperKit NOTICES.txt"
+cp Resources/Whisper-LICENSE.txt "$APP/Contents/Resources/Whisper LICENSE.txt"
+cp Resources/Silero-LICENSE.txt "$APP/Contents/Resources/Silero LICENSE.txt"
 # Fail loudly, before anything is signed, if the linked-on SDK ever drops back
 # to the deployment target.
 SDK_STAMP="$(vtool -show-build "$APP/Contents/MacOS/$BIN" | awk '/ sdk /{print $2}')"
@@ -104,7 +109,7 @@ SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
 "${SIGN[@]}" "$SPARKLE/Versions/B/Autoupdate"
 "${SIGN[@]}" "$SPARKLE/Versions/B/Updater.app"
 "${SIGN[@]}" "$SPARKLE"
-"${SIGN[@]}" "$APP"
+"${SIGN[@]}" --entitlements Resources/Entitlements.plist "$APP"
 
 echo "Done: $PWD/$APP"
 echo "Launch with: open \"$PWD/$APP\""

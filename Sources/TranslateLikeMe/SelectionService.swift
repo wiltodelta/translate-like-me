@@ -1,4 +1,7 @@
 import Cocoa
+import os
+
+private let selectionLog = Logger.app("selection")
 
 // Reads the current selection from the frontmost app and pastes replacements,
 // by synthesizing Cmd+C / Cmd+V. Requires Accessibility permission.
@@ -62,7 +65,12 @@ enum SelectionService {
     // on the pasteboard within the timeout (e.g. no selection).
     static func copySelection(from pid: pid_t, activity: SelectionActivity) -> CopiedSelection {
         let before = pasteboard.changeCount
-        guard activity.isUnchanged, SelectionTarget.focusedPID == pid else {
+        let focused = SelectionTarget.focusedPID
+        guard activity.isUnchanged, focused == pid else {
+            selectionLog.notice("""
+                Copy skipped: target pid \(pid), focused pid \(focused ?? -1), \
+                activity \(activity.invalidationReason, privacy: .public), Accessibility \(AXIsProcessTrusted())
+                """)
             return CopiedSelection(text: nil, changeCount: nil)
         }
         postKey(KeyCode.cKey, to: pid)
@@ -72,12 +80,20 @@ enum SelectionService {
                 let mark = pasteboard.changeCount
                 let text = pasteboard.string(forType: .string)
                 guard activity.isUnchanged, pasteboard.changeCount == mark else {
+                    selectionLog.notice("""
+                        Copy interrupted: activity \(activity.invalidationReason, privacy: .public), \
+                        clipboard changed again \(pasteboard.changeCount != mark)
+                        """)
                     return CopiedSelection(text: nil, changeCount: nil)
+                }
+                if text?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false {
+                    selectionLog.notice("Copy returned no nonblank plain text")
                 }
                 return CopiedSelection(text: text, changeCount: mark)
             }
             usleep(20_000)
         }
+        selectionLog.notice("Copy timed out without a clipboard change, target pid \(pid)")
         return CopiedSelection(text: nil, changeCount: nil)
     }
 

@@ -45,15 +45,18 @@ pkill -f "$EXECUTABLE" 2>/dev/null || true
 
 cat >"$WORK/helper.swift" <<'SWIFT'
 import AppKit
+import ImageIO
+import ScreenCaptureKit
+import UniformTypeIdentifiers
 
 // menu <pid>                -> "x y w h" of the pid's open menu window
 // named <pid> <title>       -> "x y w h" of the on-screen window with that title
 // menubar                   -> the menu bar height in points
-// backdrop <x> <y> <w> <h>  -> show a plain backdrop window there (screen points,
+// backdrop <x> <y> <w> <h>   -> show a plain backdrop window there (screen points,
 //                              top-left origin) until killed
 // pointer [<x> <y>]         -> print the pointer position (top-left origin), or move it
-// clear <pid> <backdrop pid> <x> <y> <w> <h> -> exit 1 unless, front to back, only
-//                              the app's windows cover that rect above the backdrop
+// capture <pid> <backdrop pid> <target x y w h> <capture x y w h> <file>
+//                          -> composite only the still-open target and backdrop
 let args = CommandLine.arguments
 
 // On-screen windows, front to back.
@@ -72,6 +75,15 @@ func frame(_ w: [String: Any]) -> CGRect {
 func printFrame(_ w: [String: Any]) {
     let f = frame(w)
     print(Int(f.minX), Int(f.minY), Int(f.width), Int(f.height))
+}
+
+func backdropColor() -> NSColor {
+    var color = NSColor.windowBackgroundColor
+    NSApplication.shared.effectiveAppearance.performAsCurrentDrawingAppearance {
+        color = NSColor.windowBackgroundColor.usingColorSpace(.sRGB)!
+            .blended(withFraction: 0.07, of: .black)!.withAlphaComponent(1)
+    }
+    return color
 }
 
 switch args[1] {
@@ -97,10 +109,7 @@ case "backdrop":
     // Opaque, so nothing behind it shows through, and a shade darker than the
     // window, so its edge reads against the margin.
     window.isOpaque = true
-    app.effectiveAppearance.performAsCurrentDrawingAppearance {
-        window.backgroundColor = NSColor.windowBackgroundColor.usingColorSpace(.sRGB)!
-            .blended(withFraction: 0.07, of: .black)!.withAlphaComponent(1)
-    }
+    window.backgroundColor = backdropColor()
     window.level = .normal // front of the ordinary app windows, below the menu
     window.ignoresMouseEvents = true
     window.orderFrontRegardless()
@@ -112,34 +121,68 @@ case "pointer":
         let point = CGEvent(source: nil)!.location
         print(Int(point.x), Int(point.y))
     }
-case "clear":
+case "capture":
     let (pid, backdrop) = (Int32(args[2])!, Int32(args[3])!)
-    let rect = CGRect(x: Double(args[4])!, y: Double(args[5])!, width: Double(args[6])!, height: Double(args[7])!)
-    // The region must lie inside the visible frame (top-left origin), or the Dock
-    // or another screen's content is in it.
+    let targetRect = CGRect(x: Double(args[4])!, y: Double(args[5])!, width: Double(args[6])!, height: Double(args[7])!)
+    let rect = CGRect(x: Double(args[8])!, y: Double(args[9])!, width: Double(args[10])!, height: Double(args[11])!)
     let screen = NSScreen.screens[0]
-    let visible = CGRect(x: screen.visibleFrame.minX, y: screen.frame.maxY - screen.visibleFrame.maxY,
-                         width: screen.visibleFrame.width, height: screen.visibleFrame.height)
-    guard visible.contains(rect) else {
-        FileHandle.standardError.write(Data("the window does not fit the visible screen\n".utf8))
+    let scale = screen.backingScaleFactor
+    let background = backdropColor().cgColor
+    func matchesTarget(_ window: [String: Any]) -> Bool {
+        let f = frame(window)
+        return window[kCGWindowOwnerPID as String] as? Int32 == pid
+            && abs(f.minX - targetRect.minX) < 1 && abs(f.minY - targetRect.minY) < 1
+            && abs(f.width - targetRect.width) < 1 && abs(f.height - targetRect.height) < 1
+    }
+    guard let target = onScreen().first(where: matchesTarget),
+          let targetID = target[kCGWindowNumber as String] as? UInt32 else {
+        FileHandle.standardError.write(Data("The target window closed or moved before capture.\n".utf8))
         exit(1)
     }
-    var sawApp = false
-    for w in onScreen() {
-        guard frame(w).intersects(rect), (w[kCGWindowAlpha as String] as? Double ?? 1) > 0 else { continue }
-        // The Dock spans the whole screen at layer 20, transparent but for the
-        // Dock itself at the screen edge.
-        if w[kCGWindowOwnerName as String] as? String == "Dock" { continue }
-        // Desktop widgets (owned by Notification Center) and the wallpaper sit
-        // at desktop level, a negative layer, always behind app windows.
-        if (w[kCGWindowLayer as String] as? Int ?? 0) < 0 { continue }
-        let owner = w[kCGWindowOwnerPID as String] as? Int32
-        if owner == backdrop { exit(sawApp ? 0 : 1) }
-        if owner == pid { sawApp = true; continue }
-        FileHandle.standardError.write(Data("\(w[kCGWindowOwnerName as String] ?? "?") covers the capture\n".utf8))
-        exit(1)
+    let candidates = onScreen().filter { window in
+        let owner = window[kCGWindowOwnerPID as String] as? Int32
+        return (owner == pid || owner == backdrop) && frame(window).intersects(rect)
     }
-    exit(1)
+    let ids = Set(candidates.compactMap { $0[kCGWindowNumber as String] as? UInt32 })
+    Task {
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            guard let display = content.displays.first(where: { $0.displayID == CGMainDisplayID() }) else {
+                throw NSError(domain: "Capture", code: 1)
+            }
+            let included = content.windows.filter { ids.contains($0.windowID) }
+            guard included.contains(where: { $0.windowID == targetID }),
+                  included.contains(where: {
+                      $0.owningApplication?.processID == backdrop && $0.frame.contains(targetRect)
+                  }) else {
+                throw NSError(domain: "Capture", code: 2)
+            }
+            let config = SCStreamConfiguration()
+            config.sourceRect = rect
+            config.width = Int(rect.width * scale)
+            config.height = Int(rect.height * scale)
+            config.showsCursor = false
+            config.colorSpaceName = CGColorSpace.sRGB
+            config.backgroundColor = background
+            let filter = SCContentFilter(display: display, including: included)
+            let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
+            guard onScreen().contains(where: { window in
+                window[kCGWindowNumber as String] as? UInt32 == targetID && matchesTarget(window)
+            }) else { throw NSError(domain: "Capture", code: 5) }
+            let output = URL(fileURLWithPath: args[12])
+            guard let writer = CGImageDestinationCreateWithURL(output as CFURL, UTType.png.identifier as CFString,
+                                                               1, nil) else { throw NSError(domain: "Capture", code: 3) }
+            CGImageDestinationAddImage(writer, image, nil)
+            guard CGImageDestinationFinalize(writer) else { throw NSError(domain: "Capture", code: 4) }
+            print("Target: \(targetRect); composite \(Int(rect.width))x\(Int(rect.height)) pt, "
+                  + "scale \(scale), \(included.count) windows")
+            exit(0)
+        } catch {
+            FileHandle.standardError.write(Data("Capture failed: \(error)\n".utf8))
+            exit(1)
+        }
+    }
+    dispatchMain()
 default:
     exit(2)
 }
@@ -159,10 +202,15 @@ helper() { "$WORK/helper" "$@"; }
 PID=""
 launch() {
     [ -n "$PID" ] && { kill "$PID"; sleep 1; }
-    open -n "$APP_DIR" --args -settingsSelectedPane "$1" \
-        -provider anthropic \
-        -languagePairs "<$(printf '%s' "$SAMPLE_PAIRS" | xxd -p | tr -d '\n')>" \
-        -rewritePresets "<$(printf '%s' "$SAMPLE_PRESETS" | xxd -p | tr -d '\n')>"
+    local dictation_enabled=NO
+    if [ "${2:-}" = settings ]; then dictation_enabled=YES; fi
+    local arguments=(-settingsSelectedPane "$1" -provider anthropic
+        -dictationEnabled "$dictation_enabled" -didCompleteFirstRun YES
+        -dictationShortcut '<7b226b6579436f6465223a36312c226d6f64696669657273223a323034387d>'
+        -languagePairs "<$(printf '%s' "$SAMPLE_PAIRS" | xxd -p | tr -d '\n')>"
+        -rewritePresets "<$(printf '%s' "$SAMPLE_PRESETS" | xxd -p | tr -d '\n')>")
+    if [ -n "${2:-}" ]; then arguments+=(-dictationPreview "$2"); fi
+    open -n "$APP_DIR" --args "${arguments[@]}"
     PID=""
     for _ in $(seq 1 20); do
         PID=$(pgrep -f "$EXECUTABLE" | head -1 || true)
@@ -230,12 +278,11 @@ trap cleanup EXIT
 
 # Menus and windows are Liquid Glass: a single-window capture renders them
 # without what sits behind them, as flat gray. So every screenshot puts a plain
-# backdrop under the window and captures that screen region with a MARGIN of
-# backdrop on each side, window shadow included. The menu is captured with the
-# strip of menu bar above it, so the image shows where the app lives (directories
-# such as MacMenuBar ask for that); the strip holds the wallpaper and the status
-# items next to this one, nothing from a window. Nothing else on screen reaches
-# the image.
+# backdrop under the window and composites just those windows with a MARGIN of
+# backdrop on each side, window shadow included. The menu keeps space above it,
+# filled by the opaque backdrop. ScreenCaptureKit excludes the system menu bar,
+# alerts, the Dock and unrelated windows. Verify the exact target frame before
+# and after capture, since activation can resize Settings.
 MARGIN=20
 MENU_BAR=$(helper menubar)
 show_backdrop() {
@@ -243,21 +290,17 @@ show_backdrop() {
     BACKDROP_PID=$!
     sleep 1.2
 }
-# capture_region <name> <x> <y> <w> <h>: the window's frame in screen points. A
+# capture_frame <name> <x> <y> <w> <h>: the window's frame in screen points. A
 # window whose top margin reaches the menu bar (the menu) is captured up through
-# it. The region below the menu bar is checked before and after the capture, and
-# the image kept only if both pass: a window raised meanwhile (the Mac is in use)
-# would put its contents, often private, into a public image.
-capture_region() {
+# it. ScreenCaptureKit includes only this app and the opaque backdrop, so system
+# alerts, the Dock and unrelated windows cannot leak into a public image.
+capture_frame() {
     local top=$((MARGIN < $3 - MENU_BAR ? MARGIN : $3 - MENU_BAR))
     local region=("$(($2 - MARGIN))" "$(($3 - top))" "$(($4 + 2 * MARGIN))" "$(($5 + top + MARGIN))")
     local shot_region=("${region[@]}")
     [ "$top" -lt "$MARGIN" ] && shot_region=("${region[0]}" 0 "${region[2]}" "$(($3 + $5 + MARGIN))")
     local shot="$WORK/$1.png"
-    helper clear "$PID" "$BACKDROP_PID" "${region[@]}" &&
-        screencapture -x -R"$(IFS=,; echo "${shot_region[*]}")" "$shot" &&
-        helper clear "$PID" "$BACKDROP_PID" "${region[@]}" ||
-        { echo "Another window covered $1; rerun with the Mac left alone."; exit 1; }
+    helper capture "$PID" "$BACKDROP_PID" "$2" "$3" "$4" "$5" "${shot_region[@]}" "$shot"
     kill "$BACKDROP_PID"; wait "$BACKDROP_PID" 2>/dev/null || true; BACKDROP_PID=""
     mv "$shot" "$OUT/$1.png"
     echo "Captured $OUT/$1.png"
@@ -275,18 +318,27 @@ capture_settings() {
         sleep 0.2
     done
     [ -n "$frame" ] || { echo "The settings window did not open on $1."; exit 1; }
-    read -r SX SY SW SH <<<"$frame"
-    show_backdrop "$SX" "$SY" "$SW" "$SH"
-    ax 'set frontmost to true' >/dev/null # above the backdrop, key so controls render active
-    sleep 1
-    capture_region "$2" "$SX" "$SY" "$SW" "$SH"
+    local stable=NO latest=""
+    for _ in 1 2 3; do
+        read -r SX SY SW SH <<<"$frame"
+        show_backdrop "$SX" "$SY" "$SW" "$SH"
+        ax 'set frontmost to true' >/dev/null # above the backdrop, key so controls render active
+        sleep 1
+        latest=$(helper named "$PID" "$1")
+        if [ "$latest" = "$frame" ]; then stable=YES; break; fi
+        kill "$BACKDROP_PID"; wait "$BACKDROP_PID" 2>/dev/null || true; BACKDROP_PID=""
+        frame="$latest"
+        [ -n "$frame" ] || { echo "The settings window closed during capture."; exit 1; }
+    done
+    [ "$stable" = YES ] || { echo "The settings window did not settle."; exit 1; }
+    capture_frame "$2" "$SX" "$SY" "$SW" "$SH"
 }
 
 # capture_all <dark mode true|false> <file suffix>: every screen in one appearance.
 capture_all() {
     appearance "set dark mode to $1" >/dev/null
     sleep 2 # the menu bar and windows redraw
-    launch 0
+    launch 0 settings
     # The first open starts the engine check; the reopen shows its result.
     open_menu
     sleep 2 # the engine check
@@ -296,7 +348,7 @@ capture_all() {
     open_menu
     sleep 0.5
     measure_menu
-    capture_region "menu$2" "$X" "$Y" "$W" "$H"
+    capture_frame "menu$2" "$X" "$Y" "$W" "$H"
     capture_settings General "general$2"
 
     launch 1
@@ -306,10 +358,29 @@ capture_all() {
     launch 2
     open_menu
     capture_settings Rewrite "rewrite$2"
+
+    # Shipping indicator content with synthetic states, without microphone access.
+    for state in recording recognizing; do
+        launch 0 "$state"
+        local frame=""
+        for _ in $(seq 1 20); do
+            frame=$(helper named "$PID" Dictation)
+            [ -n "$frame" ] && break
+            sleep 0.2
+        done
+        [ -n "$frame" ] || { echo "Dictation indicator did not appear."; exit 1; }
+        read -r SX SY SW SH <<< "$frame"
+        show_backdrop "$SX" "$SY" "$SW" "$SH"
+        capture_frame "dictation-$state$2" "$SX" "$SY" "$SW" "$SH"
+    done
 }
 
-capture_all false ""
-capture_all true -dark
+case "${CAPTURE_APPEARANCE:-both}" in
+    light) capture_all false "" ;;
+    dark) capture_all true -dark ;;
+    both) capture_all false ""; capture_all true -dark ;;
+    *) echo "CAPTURE_APPEARANCE must be light, dark, or both." >&2; exit 2 ;;
+esac
 
 # The website's link preview lays the new menu screenshot beside the tagline.
 uv run scripts/make-og-image.py

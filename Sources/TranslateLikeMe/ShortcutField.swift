@@ -7,16 +7,20 @@ import Carbon
 // mask; Delete clears it and Esc cancels. Key SEQUENCES are not supported - the
 // first valid press wins and recording stops. A combo `usedBy` names (another
 // pair's) is refused, so one shortcut never triggers two translations.
+// Dictation requires a standalone left or right Option binding.
 struct ShortcutField: View {
     @Binding var combo: KeyCombo?
     let usedBy: (KeyCombo) -> String?
     // What the shortcut runs ("Russian ↔ English", "the Work preset"): VoiceOver
     // read the bare combo, with nothing saying whose shortcut it was.
     let owner: String
+    var requiresOptionOnly = false
 
     @State private var recording = false
     @State private var monitor: Any?
     @State private var conflict: String?
+    @State private var leftOption = OptionKeyGesture(keyCode: 58)
+    @State private var rightOption = OptionKeyGesture(keyCode: 61)
 
     private var label: some View {
         Text(recording ? "Press keys…"
@@ -65,7 +69,9 @@ struct ShortcutField: View {
                 .accessibilityLabel("Shortcut for \(owner)")
                 .accessibilityValue(recording ? "Recording" : combo.map(Shortcut.display) ?? "None")
             if recording {
-                Text(conflict.map { "Already used by \($0)." } ?? "Needs ⌘, ⌥, or ⌃. Delete clears, Esc cancels.")
+                Text(conflict.map { "Already used by \($0)." }
+                     ?? (requiresOptionOnly ? "Press left or right Option. Delete clears, Esc cancels."
+                         : "Needs ⌘, ⌥, or ⌃. Delete clears, Esc cancels."))
                     .font(.caption2)
                     .foregroundStyle(Color.secondaryText)
             }
@@ -76,32 +82,50 @@ struct ShortcutField: View {
     private func toggle() {
         if recording { stop(); return }
         recording = true
+        leftOption = OptionKeyGesture(keyCode: 58, initialFlags: NSEvent.modifierFlags)
+        rightOption = OptionKeyGesture(keyCode: 61, initialFlags: NSEvent.modifierFlags)
         // The active shortcut is a live global hotkey; pause it so pressing the
         // SAME combo here is delivered to this recorder instead of firing it.
         // This matches how KeyboardShortcuts (the de facto standard library for
         // this on macOS) handles it: pause the global registration while recording.
         HotKeyManager.shared.pause()
-        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+        monitor = NSEvent.addLocalMonitorForEvents(matching: OptionKeyGesture.events) { event in
+            if event.type == .flagsChanged {
+                let left = leftOption.flagsChanged(keyCode: Int(event.keyCode), flags: event.modifierFlags)
+                let right = rightOption.flagsChanged(keyCode: Int(event.keyCode), flags: event.modifierFlags)
+                if requiresOptionOnly && (left == .release || right == .release) {
+                    accept(KeyCombo(keyCode: left == .release ? 58 : 61, modifiers: Int(optionKey)))
+                }
+                return event
+            }
+            leftOption.cancel()
+            rightOption.cancel()
+            guard event.type == .keyDown else { return event }
             if event.keyCode == 53 { stop(); return nil } // Esc cancels
             if event.keyCode == 51 || event.keyCode == 117 { // Delete, Forward Delete
                 combo = nil
                 stop()
                 return nil
             }
+            guard !requiresOptionOnly else { NSSound.beep(); return nil }
             let mods = Shortcut.carbonModifiers(from: event.modifierFlags)
             // Shift alone isn't a usable global-hotkey modifier on macOS (it doesn't
             // reliably work), so require at least one of Cmd/Option/Control too -
             // same validation KeyboardShortcuts applies.
             guard mods & ~UInt32(shiftKey) != 0 else { NSSound.beep(); return nil }
             let recorded = KeyCombo(keyCode: Int(event.keyCode), modifiers: Int(mods))
-            if let owner = usedBy(recorded) {
-                conflict = owner
-                NSSound.beep()
-                return nil
-            }
+            accept(recorded)
+            return nil
+        }
+    }
+
+    private func accept(_ recorded: KeyCombo) {
+        if let owner = usedBy(recorded) {
+            conflict = owner
+            NSSound.beep()
+        } else {
             combo = recorded
             stop()
-            return nil
         }
     }
 

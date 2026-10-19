@@ -8,12 +8,16 @@ let package = Package(
     dependencies: [
         // In-place updates from the appcast published with each release; build.sh
         // embeds and signs the framework (docs/build-and-release.md).
-        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0")
+        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0"),
+        // Local multilingual dictation needs an on-device ASR runtime; WhisperKit
+        // runs Whisper through Core ML without a server or bundled Python.
+        .package(url: "https://github.com/argmaxinc/argmax-oss-swift", exact: "1.1.1")
     ],
     targets: [
         .executableTarget(
             name: "TranslateLikeMe",
-            dependencies: [.product(name: "Sparkle", package: "Sparkle")],
+            dependencies: [.product(name: "Sparkle", package: "Sparkle"),
+                           .product(name: "WhisperKit", package: "argmax-oss-swift")],
             path: "Sources/TranslateLikeMe"
         ),
         .testTarget(

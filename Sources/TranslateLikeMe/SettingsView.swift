@@ -14,6 +14,7 @@ struct GeneralSettingsView: View {
     var body: some View {
         Form {
             languagesSection
+            DictationSettingsSection(store: store)
             startupSection
             updatesSection
         }

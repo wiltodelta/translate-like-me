@@ -29,6 +29,8 @@
 	<string>public.app-category.productivity</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>15.0</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Dictation uses your microphone to recognize speech locally on your Mac.</string>
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>

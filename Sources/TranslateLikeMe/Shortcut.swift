@@ -15,6 +15,9 @@ enum Shortcut {
 
     // "⌘⌥T" style label for the current binding.
     static func display(keyCode: Int, modifiers: Int) -> String {
+        if isOptionOnly(KeyCombo(keyCode: keyCode, modifiers: modifiers)) {
+            return keyCode == 58 ? "Left Option" : "Right Option"
+        }
         let mods = UInt32(modifiers)
         var result = ""
         if mods & UInt32(controlKey) != 0 { result += "⌃" }
@@ -27,6 +30,10 @@ enum Shortcut {
 
     static func display(_ combo: KeyCombo) -> String {
         display(keyCode: combo.keyCode, modifiers: combo.modifiers)
+    }
+
+    static func isOptionOnly(_ combo: KeyCombo) -> Bool {
+        [58, 61].contains(combo.keyCode) && combo.modifiers == Int(optionKey)
     }
 
     static func menuKeyEquivalent(_ combo: KeyCombo) -> (key: String, flags: NSEvent.ModifierFlags)? {
