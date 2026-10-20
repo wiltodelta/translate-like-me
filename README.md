@@ -128,6 +128,10 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
   combination does not insert speech. There is no tap-to-toggle mode or menu
   command to start recording. Recording is bounded to five minutes. The menu
   offers **Copy Last Dictation** after a result, without a recording history.
+  Dictation enables macOS echo cancellation, noise suppression and media
+  ducking during recording. Effectiveness depends on the devices and playback
+  level. Complete physical voice-preservation and audible-restoration checks
+  remain open; see the [validation record](docs/release-candidate-3.7.0.md).
 
 - Select text in any app, then press a pair's shortcut (the first pair you add
   starts on **⌥⌘F**) to replace it with the translation.
@@ -326,6 +330,16 @@ distribution.
 
 Signing secrets and verification steps are in
 [`docs/build-and-release.md`](docs/build-and-release.md).
+
+Run `bash maintain.sh` for lint, tests and a signed local bundle. To check
+first-run prerequisites separately from the developer's configured Mac, run
+`python3 scripts/check-fresh-install.py`; isolation, coverage and the remaining
+native permission checks are documented in
+[`docs/fresh-install-testing.md`](docs/fresh-install-testing.md).
+For synthetic audio checks without microphone access or playback, run
+`python3 scripts/check-dictation-audio.py`. See
+[`unattended dictation testing`](docs/unattended-dictation-testing.md) for scope
+and the separate acoustic acceptance checks.
 
 ### The bundle identifier is not a local label
 

@@ -1,5 +1,8 @@
 # Local dictation
 
+Unattended verification, its command and its physical limits:
+[unattended dictation testing](unattended-dictation-testing.md).
+
 The initial implementation follows the [minimal product scope](dictation-feature-plan.md).
 Enable it in Dictation settings, allow microphone access, and wait for the one-time
 model preparation. Hold right Option while speaking, then release to recognize
@@ -43,6 +46,21 @@ clip stays intact, with no trimming at voice boundaries. The detector runs on
 CPU and its state resets for every recording. Failures propagate as errors,
 rather than silently becoming an empty result.
 
+An empty transcript currently completes without a result popup or error. Empty
+or silent samples and speech-detector rejection both return before Whisper
+decoding. A quick empty result can hide the indicator before a Recognizing frame
+is visible. Notice-level diagnostics distinguish these paths from hold
+cancellation, without logging audio or text. The new-Mac report and isolated
+controller checks are tracked in [fresh-install verification](fresh-install-testing.md).
+
+The user identified Punto Switcher as the source of the new-Mac failure and
+confirmed that fully quitting it restored dictation. This is a reported
+keyboard-utility compatibility conflict with a working shutdown workaround;
+the exact event sequence has not been captured. The hold monitor's cancellation
+on other input is a plausible explanation, not yet a measured diagnosis. The repeated-Option-event
+fix is not established as a Punto compatibility fix. Track the affected setting
+and controlled checks in the fresh-install verification document.
+
 This gate addresses observed text hallucinations on synthetic noise. WhisperKit
 1.1.1's [decoder](https://github.com/argmaxinc/argmax-oss-swift/blob/1bbc57cb7fe6410248a685b1c5a3c6d56adc2ed4/Sources/WhisperKit/Core/TextDecoder.swift#L821)
 hardcodes `noSpeechProb` to zero, so its advertised no-speech threshold cannot
@@ -50,6 +68,16 @@ reject these clips. Do not treat that field as a measured probability. Keep
 timestamp decoding enabled: disabling timestamps lost part of a sentence at a
 30-second window boundary in the long synthetic clip. Short clips retain the
 quiet tail, and punctuation-only results are discarded.
+
+Before delivery, `DictationEngine.transcript(from:)` removes trailing
+`[BLANK_AUDIO]` annotations, including repeated annotations across result chunks.
+Whisper can emit this annotation as ordinary text, which `skipSpecialTokens`
+does not filter. Other bracketed text and annotations inside a sentence stay
+intact. `DictationTranscriptTests` reproduces the reported trailing annotation
+with SDK result objects, including a long Russian sentence, repeated markers,
+marker-only output and mixed-language text. The regressions failed before the
+filter was added. This verifies output cleanup, not why a particular recording
+caused the model to emit the annotation.
 
 Before preparation, the app checks the cache volume for at least 8 GB free.
 This is a conservative preparation budget, not a measured universal Core ML
@@ -67,8 +95,36 @@ controller stays preparing until assets are ready; termination suppresses that r
 Timed two-minute eviction was removed
 because diagnostic runs showed a material reload cost. No memory-policy control is exposed.
 
-The recorder writes only its current temporary 16 kHz mono WAV. Recording is
-bounded to five minutes. The file is removed after recognition or cancellation.
+`DictationRecorder` uses `AVAudioEngine` with Apple's voice processing enabled
+before starting capture. Enabling it switches both I/O nodes to the processed
+path; the microphone is never connected to the speakers. The tap is explicitly
+`@Sendable`, so its callback does not inherit the main actor. Voice processing
+provides echo cancellation and noise suppression, with automatic gain control
+disabled to avoid amplifying quiet residual/background audio. A separate source
+renders zeros through the output graph, using the same client format as the
+processed input. This supplies the output clock that VoiceProcessingIO needs
+without playing the microphone. Stop removes the tap and explicitly disables
+voice processing before releasing the engine rather than relying on deallocation
+to complete its teardown. Other-audio ducking uses the maximum level with
+advanced ducking disabled, requesting attenuation throughout capture. Stop,
+cancellation and failure disable voice processing before recognition starts,
+releasing the processing path's ducking; no system volume setting is changed.
+Audible attenuation and recovery still need acceptance checks below. Suppression depends on the
+device pair, room and playback level; it is not a guarantee that all movie
+dialogue will disappear. See Apple's [voice processing overview](https://developer.apple.com/videos/play/wwdc2019/510/)
+and [ducking configuration](https://developer.apple.com/videos/play/wwdc2023/10235/).
+
+The recorder writes only its current temporary PCM WAV at the processed input's
+native rate and channel count. WhisperKit's audio loader converts it to 16 kHz
+mono before speech detection and recognition. `DictationAudioFile` serializes
+non-real-time tap writes, metering and file close with a lock. It finalizes the
+WAV header before recognition, rejects late callbacks and bounds recording to
+five minutes by counting captured frames. The file is removed after recognition
+or cancellation. There is no fallback to unprocessed recording if echo
+cancellation cannot start. Device/format changes that stop or invalidate the
+engine fail the active recording rather than recognize a partial file. Choose
+Try Again in Dictation settings after correcting the devices; a new recording
+creates an engine for the current system devices.
 Only the latest text result remains in memory, accessible through Copy Last
 Dictation. No transcript/audio archive, telemetry, account, or cloud inference
 is added. Passing the resulting text to existing translation or Rewrite actions
@@ -82,6 +138,8 @@ state machine as the shortcut recorder. It needs the app's existing Accessibilit
 permission for global keyboard monitoring. Monitor generations reject queued
 events after re-registration; Carbon actions explicitly cancel an armed Option
 press because Carbon can consume the intervening key before NSEvent sees it.
+Repeated flags for the same held Option are ignored. They do not cancel capture
+or rearm a hold blocked by another key or input event.
 The held-key monitor stays installed through capture. Resetting it on press
 would lose the release event. There is no dedicated dictation cancellation key:
 reaching for Escape while holding Option is awkward, and the interval after
@@ -130,6 +188,93 @@ partial-cache repair, pinned revisions and verification after downloading.
 `DictationSetupTests` also feeds a corrupted complete fixture through the real SDK,
 proving that its accepted snapshot is rejected by the app.
 
+`DictationAudioFileTests` writes synthetic PCM through the actual capture sink,
+finalizes and loads it through WhisperKit, and checks native-rate conversion,
+metering, the frame limit, rejected late writes and format-change errors without
+opening a microphone. Controller tests also cover unavailable echo cancellation
+and interrupted capture without recognizing partial audio. These checks do not
+measure acoustic suppression or prove hardware route behavior.
+
+Native verification on October 19, 2026 used the signed development bundle,
+built-in MacBook Air input/output and synthetic speech from a separate `afplay`
+process, at the existing system output volume of 19. After explicit
+VoiceProcessingIO teardown, twelve consecutive engine captures completed. Early
+RMS/bypass comparisons were inconclusive: processing changes gain/frequency
+response, and weak playback correlations can be dominated by unrelated noise.
+Neither an enabled API flag nor overall PCM energy proves useful suppression.
+
+The final comparison used the original `AVAudioRecorder` implementation from
+HEAD as its control, not bypassed VoiceProcessingIO. Six pairs alternated old
+and new capture, with minimum ducking and AGC disabled for the new recorder.
+Each clip went through the real `DictationEngine` with cached Turbo three times.
+The digital reference retained all six target words in all three runs. Target
+words appeared in four of six original clips and two of six processed clips,
+counting a clip when any repeat matched. Across eighteen inferences per arm,
+the six-word reference check counted 41 matches before and 8 after. Four pairs
+improved and two tied; the one-sided sign test over non-ties is p = 0.0625, so
+these small-sample results do not establish a reliable general improvement.
+Suppression is partial: individual playback words still pass. Other nonempty
+outputs were not classified or logged, so absence of target words does not mean
+an empty or correct transcript. Near-end speech during playback, louder media,
+other models and external devices remain unverified.
+
+A separate minimum-versus-maximum ducking experiment did not establish a
+consistent improvement. The user approved strong media ducking during the hold,
+so maximum fixed ducking is now the default. The comparison above describes the
+earlier minimum-ducking build.
+The maximum-ducking build then completed six native capture/teardown checks:
+all six read back maximum fixed ducking during capture, and both I/O nodes had
+voice processing disabled after three stops and three discards. This verifies
+the processing lifecycle, not the acoustic amount of attenuation or recovery.
+Audio, temporary launch probes and the opt-in measurement test were removed
+after analysis. Only aggregate outcomes are retained here. The silent output
+graph also has an offline render test, including execution away from the main
+actor. Isolated mutations of the frame limit, swallowed format errors and
+output format were rejected by the corresponding checks.
+
+### Maximum-ducking release validation, October 19, 2026
+
+The user selected sound verification followed by preparation of the full
+candidate. A new run used the exact current recorder and WAV-sink sources in a
+separate signed development probe, without initializing the app's hotkeys,
+settings or delivery. The control was the released `AVAudioRecorder` source
+from v3.6.0. Built-in MacBook Air microphone and speakers remained selected,
+with system output 19 and input 27 unchanged. A separate process played
+synthetic speech. Six alternating control/processed pairs each went through
+the real cached Turbo engine three times. The digital reference retained all
+six expected terms in all three runs, but every untreated acoustic control
+returned empty text (18/18 inferences). Processed clips returned nonempty text
+in 8/18 inferences, with no reference terms in any inference. Those other
+outputs were neither classified nor logged. The absent positive acoustic
+control prevents an effectiveness conclusion; zero target terms does not mean
+successful suppression or correct dictation.
+
+Six additional cycles, three stops and three discards, used an acoustic tone
+before and after processing. Only one of six pairs met the predefined
+signal-to-noise guard on both sides. These controls cannot establish reliable
+audible restoration. Across all twelve processing lifecycles, readback did
+confirm both I/O nodes processed during capture, maximum fixed ducking, AGC
+disabled, and both nodes unprocessed with the engine stopped after teardown.
+This is lifecycle evidence, not acoustic acceptance.
+
+A continuous reference player with advancing-playhead checks was prepared to
+verify playback overlap before repeating acoustic measurements. It did not
+launch: another session retained the shared desktop notice throughout the
+five-minute coordination wait. That session was left untouched. Early probe
+failures came from attempting to JSON-encode Apple's `ObjCBool` ducking field;
+converting it with `boolValue` fixed the measurement helper. They are not
+evidence of a production recorder startup failure.
+
+A usable acoustic playback control, independent near-end speech during
+playback, and audible restoration after release and cancellation remain open
+checks. The user subsequently authorized the full 3.7.0 release with these
+limits disclosed. Speech from the same speakers cannot substitute for the
+user's voice in that test. Temporary microphone recordings and generated
+audio are deleted after analysis; only source recipes and metadata are
+retained under `.build/diagnostics/full-audio-validation/`. The local candidate
+and remaining publication steps are tracked in
+[release candidate 3.7.0](release-candidate-3.7.0.md).
+
 `DictationIntegrationTests` is opt-in through `TLM_DICTATION_SAMPLES`, pointing to
 a directory with synthetic audio and `cases.json`. Normal tests skip it and never
 request microphone access or download weights. The live test prepares the pinned
@@ -139,11 +284,25 @@ speech accuracy or replace an M5 model comparison.
 
 `OptionKeyGestureTests` covers left/right identity, press/release actions,
 intervening activity, every neighboring modifier, both Options together, a
-pre-held key, and shortcut representation. `DictationTests` also covers release
-during startup and after capture begins. Global/local monitor delivery and the
+pre-held key, repeated flags and shortcut representation. `DictationTests` also covers release
+during startup and after capture begins. Hardware-generated global monitor delivery and the
 shortcut recorder still need native checks. Six isolated mutations of press,
 release, cancellation, initial flags, startup release and captured-audio release
 all failed their assertions after the nine-test isolated baseline passed.
+
+The repeated-flags regression failed with four assertions before the fix on
+October 19, 2026, then all nine Option tests passed. Previously, a second
+same-key Option-down event cancelled capture and the eventual release was
+ignored. A disposable minimal package using the production gesture, shortcut
+helper, extracted `KeyCombo` declaration and all nine gesture tests also passed;
+substituting the gesture source from v3.6.0 made the repeat regression fail with
+the same four assertions. A temporary fixture in the signed dev bundle then posted `NSEvent`
+flags-change events to its own application queue. The production local monitor
+and controller used injected recording/recognition effects. For each Option,
+press/repeat/repeat/release produced one stop and one recognition call; inserting
+the opposite Option produced cancellation with neither call. All four cases
+passed. This verifies the local event route, not physical global event delivery
+or the cause on the new Mac. Temporary instrumentation was removed afterwards.
 
 Native capture uses the signed dev bundle, synthetic language pairs, and
 `-didCompleteFirstRun YES`. The Dictation pane uses `-dictationEnabled YES` with

@@ -56,14 +56,14 @@ final class TranslationController {
     private func perform(_ action: String, subject: String, kind: PopupController.ResultKind,
                          transform: @escaping @Sendable (String) async throws -> String) {
         guard !TranslationActivity.shared.isBusy else {
-            log.info("\(action, privacy: .public) ignored: a run is already in progress")
+            log.notice("\(action, privacy: .public) ignored: a run is already in progress")
             return
         }
         TranslationActivity.shared.isBusy = true
         let application = NSWorkspace.shared.frontmostApplication
         let front = application?.bundleIdentifier ?? "unknown"
         let pid = application?.processIdentifier ?? 0
-        log.info("""
+        log.notice("""
             \(action, privacy: .public) started, \(subject, privacy: .public), \
             frontmost app: \(front, privacy: .public)
             """)

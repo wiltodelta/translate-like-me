@@ -215,3 +215,7 @@ Read before editing this domain.
   focus (the menu item turns into "Install Update…"). Packaging and keys:
   `docs/build-and-release.md`.
 - Logging goes through `Logger.app(category)`, one subsystem.
+- Isolated first-run checks and native permission verification:
+  `docs/fresh-install-testing.md`. `scripts/check-fresh-install.py` gives each
+  `FreshInstallTests` method a new process, home and preferences domain, with
+  host CLI access and network denied; ordinary `swift test` skips these checks.

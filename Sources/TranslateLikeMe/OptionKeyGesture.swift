@@ -25,7 +25,9 @@ struct OptionKeyGesture {
             blocked = !active.isEmpty
             return fire ? .release : nil
         }
-        if keyCode == self.keyCode && !held && !blocked && active == .option {
+        if keyCode == self.keyCode && !blocked && active == .option {
+            // Repeated flags for the same held key are not a new input gesture.
+            guard !held else { return nil }
             held = true
             return .press
         } else {

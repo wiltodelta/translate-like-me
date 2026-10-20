@@ -13,6 +13,29 @@ final class OptionKeyGestureTests: XCTestCase {
         }
     }
 
+    func testRepeatedOptionFlagsDoNotCancelAnActiveHold() {
+        for key in [58, 61] {
+            var gesture = OptionKeyGesture(keyCode: key)
+            XCTAssertEqual(gesture.flagsChanged(keyCode: key, flags: .option), .press)
+            for flags: NSEvent.ModifierFlags in [.option, [.option, .capsLock], .option] {
+                XCTAssertNil(gesture.flagsChanged(keyCode: key, flags: flags),
+                             "An unchanged Option hold is not intervening input")
+            }
+            XCTAssertEqual(gesture.flagsChanged(keyCode: key, flags: []), .release)
+            XCTAssertNil(gesture.flagsChanged(keyCode: key, flags: []))
+        }
+    }
+
+    func testRepeatedFlagsCannotRestartACancelledHold() {
+        var gesture = OptionKeyGesture(keyCode: 61)
+        XCTAssertEqual(gesture.flagsChanged(keyCode: 61, flags: .option), .press)
+        XCTAssertEqual(gesture.cancel(), .cancel)
+        XCTAssertNil(gesture.flagsChanged(keyCode: 61, flags: .option))
+        XCTAssertNil(gesture.flagsChanged(keyCode: 61, flags: []))
+        XCTAssertEqual(gesture.flagsChanged(keyCode: 61, flags: .option), .press)
+        XCTAssertEqual(gesture.flagsChanged(keyCode: 61, flags: []), .release)
+    }
+
     func testOppositeOptionDoesNotStartRecording() {
         var gesture = OptionKeyGesture(keyCode: 61)
         XCTAssertNil(gesture.flagsChanged(keyCode: 58, flags: .option))

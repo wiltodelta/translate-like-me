@@ -181,6 +181,37 @@ final class DictationControllerTests: XCTestCase {
         controller.cancel()
     }
 
+    func testUnavailableEchoCancellationReportsTheCauseAndReleasesCapture() async {
+        let engine = ControlledDictationEngine()
+        let recorder = ControlledDictationRecorder()
+        let controller = makeController(engine: engine, recorder: recorder)
+        controller.restore()
+        await controller.operation?.value
+        recorder.startError = .voiceProcessing
+        controller.shortcutPressed()
+        XCTAssertEqual(recorder.starts, 1)
+        XCTAssertEqual(controller.phase, .failed)
+        XCTAssertEqual(controller.error, DictationError.voiceProcessing.localizedDescription)
+        XCTAssertFalse(recorder.hasAudio)
+        XCTAssertFalse(TranslationActivity.shared.isBusy)
+        XCTAssertTrue(engine.transcribed.isEmpty)
+    }
+
+    func testInterruptedAudioNeverRecognizesPartialRecording() async {
+        let engine = ControlledDictationEngine()
+        let recorder = ControlledDictationRecorder()
+        let controller = makeController(engine: engine, recorder: recorder)
+        controller.restore()
+        await controller.operation?.value
+        controller.shortcutPressed()
+        XCTAssertTrue(recorder.hasAudio)
+        recorder.onEnd?(false)
+        XCTAssertEqual(controller.phase, .failed)
+        XCTAssertFalse(recorder.hasAudio)
+        XCTAssertFalse(TranslationActivity.shared.isBusy)
+        XCTAssertTrue(engine.transcribed.isEmpty)
+    }
+
     private func makeController(engine: ControlledDictationEngine,
                                 recorder: ControlledDictationRecorder) -> DictationController {
         DictationController(enabled: true, engine: engine, recorder: recorder,
@@ -262,9 +293,14 @@ private final class ControlledDictationRecorder: DictationRecording {
     var starts = 0
     var stops = 0
     var hasAudio = false
+    var startError: DictationError?
 
     func requestPermission() async -> Bool { permissions += 1; return true }
-    func start() throws { starts += 1; hasAudio = true }
+    func start() throws {
+        starts += 1
+        hasAudio = true
+        if let startError { throw startError }
+    }
     func stop() throws -> URL { stops += 1; return audio }
     func discard() { hasAudio = false }
 }

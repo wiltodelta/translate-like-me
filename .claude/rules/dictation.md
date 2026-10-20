@@ -52,6 +52,18 @@ Dictation pane. The user explicitly added model selection after the 3.5.0 releas
   reports ready with missing assets, and does not restart during termination.
   Do not reintroduce timed
   eviction without measuring reload latency.
+- Capture uses `AVAudioEngine` voice processing on both I/O nodes, with maximum
+  fixed other-audio ducking, automatic gain disabled and no microphone-to-speaker
+  connection. Render a separate zero-filled output for the downlink clock in the
+  processed input's client format; the default mixer format failed
+  VoiceProcessingIO initialization in the native check. Explicitly disable
+  processing after stopping the engine and removing its tap, releasing ducking
+  on release, cancellation or failure before recognition. Do not silently
+  fall back to raw input. Read the input format after enabling processing; write
+  native PCM and let WhisperKit resample on read. Tap callbacks are explicitly
+  `@Sendable` and never enter the main actor for audio writes. The locked sink
+  closes before recognition and rejects late writes. Bound capture by frame
+  count; a route/format interruption fails instead of recognizing partial audio.
 - `SelectionTarget.capture(allowingCaret: true)` is explicit to dictation; the
   default still requires a selection for translation/Rewrite. Validate the
   original element, range, text and activity. Decode AX ranges with nonnegative
@@ -81,6 +93,8 @@ Dictation pane. The user explicitly added model selection after the 3.5.0 releas
   Escape is not registered for dictation. Keep the hold monitor alive on press
   or its release will be lost. `OptionKeyGesture` observes local/global NSEvent events.
   Keys, other modifiers, clicks and scroll cancel. Carbon actions cancel too.
+  Repeated flags for the same held Option are ignored, not treated as new input;
+  they never rearm a hold already blocked by cancellation.
   Release during microphone startup drains the already-started recording;
   asynchronous model preparation never precedes capture.
   The shortcut binding recorder and runtime share the state machine. Shortcut recording pauses all registrations

@@ -140,16 +140,26 @@ final class DictationController {
                 try await prepareEngine(id)
                 guard session.accepts(id, in: .preparing), !Task.isCancelled else { return }
                 session.transition(.ready, for: id)
+                dictationLog.notice("Dictation model ready")
             } catch { handle(error, id: id) }
         }
     }
 
     func shortcutPressed() {
-        guard enabled, phase == .ready, operation == nil, !TranslationActivity.shared.isBusy else { return }
+        guard enabled, phase == .ready, operation == nil, !TranslationActivity.shared.isBusy else {
+            dictationLog.notice("""
+                Dictation press ignored: enabled \(self.enabled), phase \
+                \(String(describing: self.phase), privacy: .public), \
+                operation \(self.operation != nil), busy \(TranslationActivity.shared.isBusy)
+                """)
+            return
+        }
+        dictationLog.notice("Dictation hold pressed")
         startCapture()
     }
 
     func shortcutReleased() {
+        dictationLog.notice("Dictation hold released, phase \(String(describing: self.phase), privacy: .public)")
         switch session.releaseAction() {
         case .stop: stop()
         case .ignore: break
@@ -157,6 +167,7 @@ final class DictationController {
     }
 
     func shortcutCancelled() {
+        dictationLog.notice("Dictation hold cancelled, phase \(String(describing: self.phase), privacy: .public)")
         if phase == .starting || phase == .recording { cancel() }
     }
 
@@ -208,13 +219,16 @@ final class DictationController {
         let id = session.id
         do {
             let audio = try recorder.stop()
+            dictationLog.notice("Dictation recording drained; recognition queued")
             session.transition(.recognizing, for: id)
             operation = Task { [self] in
                 defer { complete(id) }
                 do {
                     try await prepareEngine(id, download: false)
                     guard session.accepts(id, in: .recognizing), !Task.isCancelled else { return }
+                    dictationLog.notice("Dictation recognition started")
                     let text = try await engine.transcribe(audio)
+                    dictationLog.notice("Dictation recognition finished, empty \(text.isEmpty)")
                     guard session.accepts(id, in: .recognizing), !Task.isCancelled else { return }
                     guard !text.isEmpty else {
                         session.transition(.ready, for: id)
@@ -268,11 +282,12 @@ final class DictationController {
         } else {
             let kind = String(describing: type(of: failure))
             dictationLog.error("Dictation failed (\(kind, privacy: .public))")
-            let message = if case DictationError.insufficientStorage = failure {
+            let message = switch failure {
+            case DictationError.microphone, DictationError.voiceProcessing, DictationError.insufficientStorage:
                 failure.localizedDescription
-            } else if phase == .preparing {
+            case _ where phase == .preparing:
                 String(localized: "Dictation couldn't be prepared. Check your connection, then choose Try Again.")
-            } else {
+            default:
                 String(localized: """
                     Speech couldn't be recognized. Try dictating again, or prepare dictation again in Settings.
                     """)
@@ -283,6 +298,7 @@ final class DictationController {
 
     private func fail(_ message: String, id: UUID) {
         guard session.transition(.failed, for: id) else { return }
+        dictationLog.notice("Dictation entered failed state")
         error = message
         if ownsActivity { interaction.showError(message) }
     }

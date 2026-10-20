@@ -1,6 +1,9 @@
 import CryptoKit
 import Foundation
+import os
 @preconcurrency import WhisperKit
+
+private let recognitionLog = Logger.app("dictation")
 
 protocol DictationRecognizing: Sendable {
     func prepare(model: DictationModel, download: Bool, progress: @escaping @Sendable (Double) -> Void) async throws
@@ -135,8 +138,16 @@ actor DictationEngine: DictationRecognizing {
         working = true
         defer { working = false }
         var samples = try AudioProcessor.loadAudioAsFloatArray(fromPath: audio.path)
-        guard samples.contains(where: { abs($0) > 0.00001 }) else { return "" }
-        guard try speechDetector.containsSpeech(samples) else { return "" }
+        let hasSignal = samples.contains(where: { abs($0) > 0.00001 })
+        recognitionLog.notice("Dictation audio loaded: samples \(samples.count), signal \(hasSignal)")
+        guard hasSignal else {
+            recognitionLog.notice("Dictation decoding skipped: silent or empty audio")
+            return ""
+        }
+        guard try speechDetector.containsSpeech(samples) else {
+            recognitionLog.notice("Dictation decoding skipped: speech detector rejected the audio")
+            return ""
+        }
         if samples.count < 16_000 { samples += Array(repeating: 0, count: 16_000 - samples.count) }
         // Whisper can omit a short utterance that ends at the buffer boundary.
         // Provide a trailing quiet tail after checking the complete clip for speech.
@@ -146,9 +157,20 @@ actor DictationEngine: DictationRecognizing {
         // rather than dropping words across fixed 30-second window boundaries.
         let options = DecodingOptions(task: .transcribe, language: nil, detectLanguage: true,
                                       skipSpecialTokens: true)
+        recognitionLog.notice("Dictation Whisper decoding started")
         let results = try await kit.transcribe(audioArray: samples, decodeOptions: options)
         try Task.checkCancellation()
-        let text = results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+        return Self.transcript(from: results)
+    }
+
+    static func transcript(from results: [TranscriptionResult]) -> String {
+        var text = results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+        // Whisper can spell this silence annotation with ordinary text tokens,
+        // so skipSpecialTokens does not remove it. Preserve all other brackets.
+        let silence = "[BLANK_AUDIO]"
+        while text.hasSuffix(silence) {
+            text = String(text.dropLast(silence.count)).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
         // Non-speech can decode to punctuation alone. Never insert that noise.
         return text.rangeOfCharacter(from: .alphanumerics) == nil ? "" : text
     }
@@ -163,13 +185,16 @@ actor DictationEngine: DictationRecognizing {
 }
 
 enum DictationError: LocalizedError {
-    case notReady, microphone, insufficientStorage
+    case notReady, microphone, voiceProcessing, insufficientStorage
 
     var errorDescription: String? {
         switch self {
         case .notReady: String(localized: "Dictation isn't ready. Open Settings and try preparing it again.")
         case .microphone:
             String(localized: "The microphone couldn't start. Check your system input device, then try again.")
+        case .voiceProcessing:
+            String(localized:
+                "Echo cancellation couldn't start. Check your system input and output devices, then try again.")
         case .insufficientStorage:
             String(localized: "Free at least 8 GB of disk space, then prepare dictation again in Settings.")
         }

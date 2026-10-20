@@ -53,6 +53,7 @@ final class HotKeyManager {
             registered.append(combo)
             register(keyCode: UInt32(combo.keyCode), modifiers: UInt32(combo.modifiers), action: action)
         }
+        log.notice("Shortcuts registered: \(self.refs.count), Accessibility \(AXIsProcessTrusted())")
     }
 
     // Hotkeys are registered on the app's own event target, so the CURRENTLY
@@ -79,7 +80,10 @@ final class HotKeyManager {
         for ref in refs { UnregisterEventHotKey(ref) }
         refs.removeAll()
         actions.removeAll()
-        if cancelled { DictationController.shared.shortcutCancelled() }
+        if cancelled {
+            log.notice("Dictation hold cancelled by shortcut reload")
+            DictationController.shared.shortcutCancelled()
+        }
     }
 
     private func monitorOption(keyCode: Int) {
@@ -90,23 +94,31 @@ final class HotKeyManager {
             let changed = event.type == .flagsChanged
             let code = changed ? Int(event.keyCode) : 0
             let flags = event.modifierFlags
+            let eventType = event.type.rawValue
             MainActor.assumeIsolated {
                 let manager = HotKeyManager.shared
                 guard manager.optionMonitorID == id else { return }
-                if changed {
-                    manager.apply(manager.optionGesture?.flagsChanged(keyCode: code, flags: flags))
-                } else {
-                    manager.apply(manager.optionGesture?.cancel())
+                let action = changed
+                    ? manager.optionGesture?.flagsChanged(keyCode: code, flags: flags)
+                    : manager.optionGesture?.cancel()
+                if action == .cancel {
+                    // Classify cancellation without logging typed keys or characters.
+                    log.notice("Dictation input cancellation: event type \(eventType), modifiers \(flags.rawValue)")
                 }
+                manager.apply(action)
             }
         }
-        if let global = NSEvent.addGlobalMonitorForEvents(matching: OptionKeyGesture.events, handler: observe) {
+        let global = NSEvent.addGlobalMonitorForEvents(matching: OptionKeyGesture.events, handler: observe)
+        if let global {
             optionMonitors.append(global)
         }
         if let local = NSEvent.addLocalMonitorForEvents(matching: OptionKeyGesture.events, handler: { event in
             observe(event)
             return event
         }) { optionMonitors.append(local) }
+        log.notice("""
+            Dictation hold monitor: key \(keyCode), global \(global != nil), monitors \(self.optionMonitors.count)
+            """)
     }
 
     private func apply(_ action: OptionKeyGesture.Action?) {
@@ -161,7 +173,9 @@ final class HotKeyManager {
     private func fire(id: UInt32) {
         // Carbon consumes our registered combinations before NSEvent monitors
         // receive the key, so explicitly disqualify that Option press too.
-        apply(optionGesture?.cancel())
+        let cancelled = optionGesture?.cancel()
+        if cancelled == .cancel { log.notice("Dictation hold cancelled by another registered shortcut") }
+        apply(cancelled)
         actions[id]?()
     }
 }

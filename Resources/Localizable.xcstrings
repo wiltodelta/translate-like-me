@@ -3145,6 +3145,64 @@
         }
       }
     },
+    "Echo cancellation couldn't start. Check your system input and output devices, then try again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Echounterdrückung konnte nicht gestartet werden. Prüfe die Audioeingabe- und Audioausgabegeräte deines Systems und versuche es erneut."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se ha podido iniciar la cancelación de eco. Comprueba los dispositivos de entrada y salida del sistema e inténtalo de nuevo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de démarrer l’annulation d’écho. Vérifiez les périphériques d’entrée et de sortie du système, puis réessayez."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile avviare la cancellazione dell’eco. Controlla i dispositivi di ingresso e uscita del sistema, poi riprova."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "エコーキャンセリングを開始できませんでした。システムの入力装置と出力装置を確認してから、もう一度お試しください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "에코 제거를 시작할 수 없습니다. 시스템 입력 및 출력 기기를 확인한 다음 다시 시도하십시오."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não foi possível iniciar o cancelamento de eco. Verifique os dispositivos de entrada e saída do sistema e tente novamente."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось включить эхоподавление. Проверьте устройства ввода и вывода в системе и повторите попытку."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回声消除无法启动。请检查系统输入和输出设备，然后重试。"
+          }
+        }
+      }
+    },
     "Edit Style…" : {
       "localizations" : {
         "de" : {
