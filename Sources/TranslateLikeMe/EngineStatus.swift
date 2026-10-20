@@ -38,18 +38,28 @@ enum EngineStatus {
         _ = await readiness(binary: binary, provider: provider)
     }
 
-    private static func readiness(binary: String, provider: Provider) async -> Readiness {
+    static func readiness(binary: String, provider: Provider) async -> Readiness {
         do {
             let result = try await ProcessRunner.run(
                 binary: binary, arguments: provider.statusArguments,
                 environment: Translator.toolEnvironment(adding: provider.cliEnvironment),
                 deadline: ProcessRunner.deadline(after: 10))
             let output = result.stdout + result.stderr
+            var recordedModels = false
             if provider == .grok, let model = HarnessModels.grokDefaultModel(in: output) {
                 Settings.grokDefaultModel = model
+                recordedModels = true
             }
             if provider == .antigravity, result.status == 0 {
                 Settings.antigravityModels = result.stdout
+                recordedModels = true
+            }
+            if recordedModels {
+                // A menu or onboarding probe can finish after Settings opened.
+                // Publish on the main actor so its existing store refreshes too.
+                await MainActor.run {
+                    NotificationCenter.default.post(name: .harnessModelsChanged, object: provider)
+                }
             }
             return provider.isSignedIn(statusOutput: output.lowercased(), exitCode: result.status)
                 ? .ready : .notLoggedIn
@@ -57,4 +67,8 @@ enum EngineStatus {
             return .failed(error.localizedDescription)
         }
     }
+}
+
+extension Notification.Name {
+    static let harnessModelsChanged = Notification.Name("harnessModelsChanged")
 }

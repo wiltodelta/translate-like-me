@@ -148,6 +148,12 @@ destination editor. Pointer cancellation and lifecycle invalidation still guard
 pending work. Release drains the already-started recorder even before its first
 meter update. Model preparation happens after release and cannot delay capture
 or start a microphone after the key is up.
+Recorder startup also precedes Accessibility target inspection and indicator
+construction, so a slow editor cannot postpone starting audio collection.
+This ordering is covered by a controller regression test; it does not establish
+a hardware latency figure. The measured/unmeasured boundary and candidate
+preparation strategies are recorded in
+[startup latency](dictation-startup-latency.md).
 Dictation and text transformations share the activity guard.
 A session id rejects late asynchronous results; phase validation also rejects
 late recording-meter updates after recognition has begun.

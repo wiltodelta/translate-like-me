@@ -18,6 +18,10 @@ acceptance or a comparative model quality benchmark is complete.
 The only recording flow is hold-to-talk: hold right Option, speak, then release
 to receive text at the cursor. Left Option can be assigned instead. Undo after insertion belongs to the
 destination editor; dictation has no dedicated cancellation key.
+The user explicitly confirmed that the microphone must be active only while
+the key is held. Do not add continuous background capture or a pre-press audio
+buffer. Reduce startup work within that constraint; the investigation and
+acceptance matrix are in [startup latency](dictation-startup-latency.md).
 Automatically detect and transcribe every language supported by the selected
 multilingual model, without a Russian/English allowlist or a required language
 picker. Russian, English, and mixed speech remain priority quality checks, not

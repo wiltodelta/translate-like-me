@@ -177,8 +177,9 @@ final class DictationController {
         let id = session.begin(.starting)
         let activity = SelectionActivity()
         self.activity = activity
-        (target, stopMonitoring) = interaction.beginCapture(activity)
         do {
+            // AX reads can block on the other app. Start collecting audio before
+            // inspecting its insertion target or constructing the indicator.
             try recorder.start()
             recorder.onEnd = { [weak self] success in
                 guard let self, self.session.id == id else { return }
@@ -191,6 +192,7 @@ final class DictationController {
                     self.endCapture()
                 }
             }
+            (target, stopMonitoring) = interaction.beginCapture(activity)
             let started = ContinuousClock.now
             meter = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
                 MainActor.assumeIsolated {

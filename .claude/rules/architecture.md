@@ -163,6 +163,12 @@ Read before editing this domain.
   (per-model efforts; Haiku has none; `state.model` is its default), codex and
   grok `models_cache.json`; agy keeps no cache, so its list is the last `agy
   models` output (the sign-in probe), stored in `Settings.antigravityModels`,
+  with `EngineStatus` publishing `.harnessModelsChanged` on the main actor
+  after recording a probe's catalog. `SettingsStore` subscribes for its lifetime
+  and reloads only the currently selected provider, including probes started
+  by the status menu or onboarding; a late answer cannot replace another
+  provider's catalog. The settings probe is injectable in unit tests.
+  Antigravity's catalog has
   one line per model and effort (`gemini-3.8-flash-low`) grouped into a model
   and its efforts, since agy takes `--model gemini-3.8-flash --effort low` and
   refuses an effort a model is not listed with; an effort without `--model` is

@@ -4,6 +4,28 @@ import XCTest
 
 @MainActor
 final class DictationControllerTests: XCTestCase {
+    func testMicrophoneStartsBeforeReadingTheInsertionTarget() async {
+        let engine = ControlledDictationEngine()
+        let recorder = ControlledDictationRecorder()
+        var inspectedTarget = false
+        let controller = DictationController(enabled: true, engine: engine, recorder: recorder,
+            interaction: DictationInteraction(beginCapture: { _ in
+                inspectedTarget = true
+                XCTAssertEqual(recorder.starts, 1, "Accessibility must not delay microphone startup")
+                XCTAssertTrue(recorder.hasAudio)
+                return (nil, {})
+            }, endCapture: {}, showError: { _ in }, showResult: { _ in }), saveModel: { _ in })
+        controller.restore()
+        await controller.operation?.value
+        defer { controller.cancel() }
+
+        controller.shortcutPressed()
+
+        XCTAssertTrue(inspectedTarget, "The real capture path must inspect the insertion target")
+        XCTAssertEqual(recorder.starts, 1)
+        XCTAssertTrue(controller.isActive)
+    }
+
     func testEvictedModelLoadsAfterReleaseWithoutLosingCapturedAudio() async throws {
         let engine = ControlledDictationEngine()
         let recorder = ControlledDictationRecorder()

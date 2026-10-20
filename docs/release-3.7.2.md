@@ -66,3 +66,8 @@ an annotated v3.7.2 tag, not an Info.plist edit. The development identity remain
 separate from the installed app. The workflow, published assets, Sparkle feed
 and Homebrew cask are the sources of truth for publication status; verification
 steps live in [build and release](build-and-release.md#release-process).
+
+## Antigravity model-picker report
+
+The report, reproduced cache-to-picker failure, fix and verification limits
+are recorded in [release 3.7.3](release-3.7.3.md#antigravity-model-picker-report).

@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import Observation
 
@@ -26,6 +27,8 @@ final class SettingsStore {
     private(set) var configured = HarnessChoice()
     // Keeps loadPick's assignment from being saved back (or reset) as an edit.
     @ObservationIgnored private var loadingPick = false
+    @ObservationIgnored private let refreshCatalog: (Provider) async -> Void
+    @ObservationIgnored private var modelChanges: AnyCancellable?
 
     // An unchanged value is not stored: a field hands back its unchanged text when
     // it loses focus, and storing it rewrote the settings domain (a launch's
@@ -54,10 +57,19 @@ final class SettingsStore {
         }
     }
 
-    init() {
+    init(refreshCatalog: @escaping (Provider) async -> Void = { await EngineStatus.refreshModels(for: $0) }) {
+        self.refreshCatalog = refreshCatalog
         provider = Settings.provider
         pairs = Settings.languagePairs
         rewritePresets = Settings.rewritePresets
+        modelChanges = NotificationCenter.default.publisher(for: .harnessModelsChanged)
+            .sink { [weak self] notification in
+                // EngineStatus publishes only on the main actor.
+                MainActor.assumeIsolated {
+                    guard let self, let asked = notification.object as? Provider, asked == self.provider else { return }
+                    self.catalog = HarnessModels.catalog(for: asked)
+                }
+            }
         loadPick()
     }
 
@@ -93,13 +105,12 @@ final class SettingsStore {
     }
 
     // The sign-in probe takes ~1-3 s (Provider.probeReportsModels), so it runs
-    // off the main thread and the catalog is reloaded when the CLI answers.
+    // off the main thread. EngineStatus publishes the result to every open store.
     private func refreshModels() {
         let asked = provider
+        let refresh = refreshCatalog
         Task {
-            await EngineStatus.refreshModels(for: asked)
-            guard provider == asked else { return }
-            catalog = HarnessModels.catalog(for: asked)
+            await refresh(asked)
         }
     }
 
