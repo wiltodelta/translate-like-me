@@ -24,7 +24,11 @@ final class DictationAudioValidationTests: XCTestCase {
         let cache = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support/com.wiltodelta.translatelikeme.dev/Dictation")
         let engine = DictationEngine(directory: cache)
-        try await engine.prepare(download: false) { _ in }
+        let modelName = ProcessInfo.processInfo.environment["TLM_AUDIO_CHECK_MODEL"] ?? DictationModel.turbo.rawValue
+        let model = try XCTUnwrap(DictationModel(rawValue: modelName))
+        try await engine.prepare(model: model, download: false) { _ in }
+        let loadedModel = await engine.loadedModel
+        XCTAssertEqual(loadedModel, model)
         var report: [[String: Any]] = []
         for sample in samples {
             XCTAssertEqual(sample.file, URL(fileURLWithPath: sample.file).lastPathComponent)

@@ -156,20 +156,22 @@ final class DictationControllerTests: XCTestCase {
     }
 
     func testModelChangeDuringDownloadCancelsAndRestartsWithTheNewChoice() async {
-        let engine = ControlledDictationEngine()
-        engine.blockNextPreparation = true
-        let controller = makeController(engine: engine, recorder: ControlledDictationRecorder())
-        controller.restore()
-        await engine.waitForPreparation()
-        let previous = controller.operation
-        controller.selectModel(.largeV3)
-        XCTAssertEqual(controller.phase, .cancelling)
-        engine.finishPreparation()
-        await previous?.value
-        await controller.operation?.value
-        XCTAssertEqual(engine.models, [.turbo, .largeV3])
-        XCTAssertEqual(engine.loadedModel, .largeV3)
-        XCTAssertEqual(controller.phase, .ready)
+        for model in [DictationModel.largeV3, .parakeetUltra] {
+            let engine = ControlledDictationEngine()
+            engine.blockNextPreparation = true
+            let controller = makeController(engine: engine, recorder: ControlledDictationRecorder())
+            controller.restore()
+            await engine.waitForPreparation()
+            let previous = controller.operation
+            controller.selectModel(model)
+            XCTAssertEqual(controller.phase, .cancelling)
+            engine.finishPreparation()
+            await previous?.value
+            await controller.operation?.value
+            XCTAssertEqual(engine.models, [.turbo, model])
+            XCTAssertEqual(engine.loadedModel, model)
+            XCTAssertEqual(controller.phase, .ready)
+        }
     }
 
     func testModelChoicePersistsWhileDisabledWithoutPreparingOrRequestingTheMicrophone() async {
@@ -180,10 +182,13 @@ final class DictationControllerTests: XCTestCase {
             interaction: DictationInteraction(beginCapture: { _ in (nil, {}) }, endCapture: {},
                                               showError: { _ in }, showResult: { _ in }),
             saveModel: { saved.append($0) })
-        controller.selectModel(.small)
-        controller.selectModel(.small)
-        XCTAssertEqual(controller.model, .small)
-        XCTAssertEqual(saved, [.small])
+        XCTAssertEqual(controller.model, .turbo)
+        for model in DictationModel.allCases {
+            controller.selectModel(model)
+            controller.selectModel(model)
+            XCTAssertEqual(controller.model, model)
+        }
+        XCTAssertEqual(saved, DictationModel.allCases)
         XCTAssertNil(controller.operation)
         XCTAssertTrue(engine.models.isEmpty)
         XCTAssertEqual(recorder.permissions, 0)
@@ -197,8 +202,10 @@ final class DictationControllerTests: XCTestCase {
         await controller.operation?.value
         controller.shortcutPressed()
         XCTAssertEqual(recorder.starts, 1)
-        controller.selectModel(.small)
-        XCTAssertEqual(controller.model, .turbo)
+        for model in DictationModel.allCases {
+            controller.selectModel(model)
+            XCTAssertEqual(controller.model, .turbo)
+        }
         XCTAssertEqual(engine.models, [.turbo])
         controller.cancel()
     }

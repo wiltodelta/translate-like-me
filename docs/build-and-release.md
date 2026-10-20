@@ -6,6 +6,11 @@ detail an engineer needs.
 
 ## Local build
 
+SwiftPM tools 6.2 is required to opt out of FluidAudio's unused NeMo
+text-processing binary; Swift 6 language mode and macOS 15 support remain.
+`build.sh` includes FluidAudio's resource bundle, Apache 2.0 license and third-party notices, plus the
+Parakeet model attribution and CC BY 4.0 notice.
+
 - **Build and assemble the app bundle:** `./build.sh`. It builds an arm64-only
   release binary, copies it and `Resources/` into `Translate Like Me.app`,
   compiles the Icon Composer icon, and code-signs the bundle.

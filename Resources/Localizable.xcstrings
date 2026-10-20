@@ -3670,6 +3670,64 @@
         }
       }
     },
+    "Fast dictation in 25 European languages. About 632 MB to download." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schnelles Diktieren in 25 europäischen Sprachen. Etwa 632 MB Download."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dictado rápido en 25 idiomas europeos. Unos 632 MB de descarga."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dictée rapide dans 25 langues européennes. Environ 632 Mo à télécharger."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dettatura veloce in 25 lingue europee. Download di circa 632 MB."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ヨーロッパの25言語で高速に音声入力できます。ダウンロードは約632 MBです。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "유럽 25개 언어로 빠르게 받아쓰기. 다운로드 크기 약 632MB."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ditado rápido em 25 idiomas europeus. Cerca de 632 MB para baixar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Быстрая диктовка на 25 европейских языках. Загрузка около 632 МБ."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支持25种欧洲语言的快速听写。需下载约 632 MB。"
+          }
+        }
+      }
+    },
     "Finish Dictation Setup…" : {
       "localizations" : {
         "de" : {

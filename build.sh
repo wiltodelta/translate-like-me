@@ -43,6 +43,10 @@ cp .build/checkouts/argmax-oss-swift/LICENSE "$APP/Contents/Resources/WhisperKit
 cp .build/checkouts/argmax-oss-swift/NOTICES "$APP/Contents/Resources/WhisperKit NOTICES.txt"
 cp Resources/Whisper-LICENSE.txt "$APP/Contents/Resources/Whisper LICENSE.txt"
 cp Resources/Silero-LICENSE.txt "$APP/Contents/Resources/Silero LICENSE.txt"
+cp .build/checkouts/FluidAudio/LICENSE "$APP/Contents/Resources/FluidAudio LICENSE.txt"
+ditto .build/checkouts/FluidAudio/ThirdPartyLicenses "$APP/Contents/Resources/FluidAudio Third-party licenses"
+cp Resources/Parakeet-NOTICES.txt "$APP/Contents/Resources/Parakeet NOTICES.txt"
+ditto "$BIN_DIR/FluidAudio_FluidAudio.bundle" "$APP/Contents/Resources/FluidAudio_FluidAudio.bundle"
 # Fail loudly, before anything is signed, if the linked-on SDK ever drops back
 # to the deployment target.
 SDK_STAMP="$(vtool -show-build "$APP/Contents/MacOS/$BIN" | awk '/ sdk /{print $2}')"

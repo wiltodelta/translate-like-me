@@ -35,13 +35,15 @@ struct DictationSnapshot: Sendable {
     private func invalidFiles() throws -> [URL] {
         guard FileManager.default.fileExists(atPath: folder.path) else { return [] }
         let paths = try FileManager.default.subpathsOfDirectory(atPath: folder.path)
+            .filter { !variant.isEmpty || !$0.hasPrefix(".cache/") }
         var invalid: [URL] = []
         for path in paths {
             try Task.checkCancellation()
             let file = folder.appendingPathComponent(path)
             let values = try file.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
             guard values.isRegularFile == true else { continue }
-            if try !valid(file, relative: variant + "/" + path, size: values.fileSize ?? 0) { invalid.append(file) }
+            let relative = variant.isEmpty ? path : variant + "/" + path
+            if try !valid(file, relative: relative, size: values.fileSize ?? 0) { invalid.append(file) }
         }
         return invalid
     }

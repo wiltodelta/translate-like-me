@@ -26,6 +26,28 @@ code-switching in its [original discussion](https://huggingface.co/nvidia/parake
 Ultra's improvements on monolingual benchmarks do not establish that this
 limitation has been resolved.
 
+## October 19 implementation follow-up
+
+For the existing hold-to-dictate flow, evaluate Parakeet Ultra through FluidAudio
+first, then Qwen3-ASR 1.7B with 0.6B as the smaller comparison. Nemotron 3.5
+full multilingual is the first streaming candidate if partial text during
+recording becomes a product requirement. Use the full multilingual vocabulary
+for Russian, including Russian-English mixed inputs. These are evaluation
+priorities, not locally measured winners.
+
+These families require their own inference runtime; they cannot be installed
+as extra weights in the current WhisperKit catalog. Preserve capture,
+cancellation and caret delivery while comparing recognition separately.
+The existing `DictationRecognizing` protocol provides an orchestration seam,
+but its model argument is currently the Whisper-only `DictationModel` enum.
+A production integration therefore also needs a deliberate catalog and asset
+installation change. No alternative runtime or weights were added in the October 19
+follow-up. The user approved trying Parakeet Ultra on October 20; the standalone
+[local comparison](parakeet-ultra-experiment.md) records the pinned runtime,
+weights and outcomes. The user subsequently approved the
+[app integration](parakeet-ultra-integration.md), preserving Turbo as default. The completed Whisper compute experiments and their limits are
+recorded in [model efficiency](dictation-model-efficiency.md).
+
 ## Scope and evidence
 
 Coverage includes the major downloadable ASR families encountered in current
@@ -165,7 +187,7 @@ model module alone does not establish equivalent memory behavior.
 
 | Runtime | Relevant paths | Integration consequence |
 | --- | --- | --- |
-| [FluidAudio](https://github.com/FluidInference/FluidAudio) | Native Swift, Core ML, Parakeet family, Nemotron streaming, VAD. | A compact initial experiment can compare Ultra and Nemotron within one SDK. Package traits can omit unrelated TTS and diarization subsystems. |
+| [FluidAudio](https://github.com/FluidInference/FluidAudio) | Native Swift, Core ML, Parakeet family, Nemotron streaming, VAD. | A compact initial experiment can compare Ultra and Nemotron within one SDK. In v0.17.7 the opt-out trait removes the NeMo text-processing dependency; ASR, TTS and diarization sources still share the FluidAudio target. |
 | [speech-swift](https://github.com/soniqo/speech-swift) | Native Swift modules for Qwen, Whisper, MOSS, Omnilingual, and other models. | macOS 15+ is compatible with the current app target. Pin the exact modules and weight conversion rather than treating every MLX repository as interchangeable. |
 | [WhisperKit](https://github.com/argmaxinc/argmax-oss-swift) | Native Swift and Core ML Whisper implementation. | An alternative Whisper integration; its artifact size and latency differ from whisper.cpp's GGML files. |
 | [whisper.cpp](https://github.com/ggml-org/whisper.cpp) | C/C++, quantization, Metal and optional Core ML acceleration. | Practical baseline with downloadable GGML files. Shipping a helper or bridging C/C++ is an integration choice. |

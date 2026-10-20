@@ -13,25 +13,37 @@ description: "Minimal local dictation: model, recording lifecycle, cancellation,
 # Local dictation
 
 Product scope: `docs/dictation-feature-plan.md`. Implementation and verification:
-`docs/dictation.md`. A small curated Whisper catalog, automatic detection of all model languages,
+`docs/dictation.md`. A small curated local ASR catalog, automatic detection within each model's languages,
 one Option hold key, system microphone, no cleanup LLM. Settings has a dedicated
 Dictation pane. The user explicitly added model selection after the 3.5.0 release.
+Compute-policy findings and the reproducible synthetic benchmark:
+`docs/dictation-model-efficiency.md`.
 
 - `DictationModel` lists multilingual Small, Turbo (the existing default) and
-  Large v3 variants, with matching pinned tokenizer repositories and hashes.
-  Preserve Turbo and its existing cache for absent or unknown preferences. The
-  selected model persists while disabled without preparing assets or requesting
+  Large v3, with matching pinned tokenizer repositories and hashes, plus
+  Parakeet Ultra with its bundled vocabulary (25 European languages).
+  Preserve Turbo and its existing cache for absent or unknown preferences.
+  The encoder and decoder use CPU/Neural Engine for Small, Turbo and Large v3.
+  Whisper mel stays CPU/GPU. Parakeet uses CPU/Neural Engine for encoder, decoder
+  and joint, with a CPU preprocessor. Silero stays CPU-only. Measurements and
+  first-specialization limits are in `docs/dictation-model-efficiency.md`.
+  The selected model persists while disabled without preparing assets or requesting
   permissions. An enabled change prepares it automatically; a change during
   preparation cancels and unwinds before preparing the latest selection. Block
   changes during capture, recognition and cancellation. Keep old downloads, but
   unload the old runtime before loading another model.
-- `DictationEngine` owns WhisperKit in an actor. Model and tokenizer revisions
+- `DictationEngine` owns WhisperKit or FluidAudio's Parakeet manager in one actor.
+  Parakeet installation and verification: `docs/parakeet-ultra-integration.md`.
+  Model and tokenizer revisions
   are pinned. `DictationSnapshot` checks every required Core ML component and
   hashes existing files against the pinned revision's Hub metadata, using SHA-256
   for LFS and Git blob SHA-1 for ordinary files. Remove corrupt files before
   resuming a partial download, preserve good files, and validate the result again;
   the SDK admits partial caches and trusts matching metadata without rehashing.
-  Validate tokenizer hashes explicitly; the SDK's literal
+  Parakeet validates root-level components and vocabulary; exclude Hub
+  `.cache/` metadata from that asset walk. Load only verified local files.
+  Reset the TDT decoder state per recording and suppress SDK transcript logging.
+  Validate Whisper tokenizer hashes explicitly; the SDK's literal
   file-pattern cache check only understands directories. Ordinary reload disables
   downloading. Silero checks speech presence without cutting the original clip;
   its recurrent state resets per recording. SDK 1.1.1 hardcodes `noSpeechProb`
@@ -114,3 +126,8 @@ Dictation pane. The user explicitly added model selection after the 3.5.0 releas
 - Keep a shared 20-point icon slot in the listening and recognizing indicator
   states so the text does not shift when the symbol changes. Native previews
   render those states without opening the microphone; they do not verify recording.
+
+Native capture restores the complete backed-up development preference domain
+with `setPersistentDomain`, after stopping its owned app. `defaults import`
+merges and leaves newly added keys behind; the regression and verified cleanup
+are recorded in `docs/parakeet-ultra-integration.md`.

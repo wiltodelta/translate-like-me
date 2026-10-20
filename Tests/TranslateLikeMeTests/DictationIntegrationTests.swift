@@ -22,10 +22,10 @@ final class DictationIntegrationTests: XCTestCase {
         let cache = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support/com.wiltodelta.translatelikeme.dev/Dictation")
         let engine = DictationEngine(directory: cache)
-        for model in [DictationModel.turbo, .small, .largeV3, .turbo] {
+        for model in [DictationModel.turbo, .small, .largeV3, .parakeetUltra, .turbo] {
             try await engine.prepare(model: model, download: true) { _ in }
             let loaded = await engine.loadedModel
-            XCTAssertEqual(loaded, model, "Check the actual WhisperKit folder, not just selected preferences")
+            XCTAssertEqual(loaded, model, "Check the loaded runtime, not just selected preferences")
             for example in examples {
                 let text = try await engine.transcribe(URL(fileURLWithPath: example.file))
                 for term in example.terms {

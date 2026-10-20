@@ -1,9 +1,9 @@
 import Foundation
 
-// Multilingual Core ML variants from the same pinned WhisperKit repository.
-// Each model keeps its matching tokenizer in a separate pinned cache.
+// Multilingual Core ML models. Whisper keeps its matching tokenizer in a
+// separate pinned cache; Parakeet includes its vocabulary in the model snapshot.
 enum DictationModel: String, CaseIterable, Identifiable, Sendable {
-    case small, turbo, largeV3
+    case small, turbo, largeV3, parakeetUltra
 
     var id: String { rawValue }
 
@@ -12,6 +12,7 @@ enum DictationModel: String, CaseIterable, Identifiable, Sendable {
         case .small: "Whisper Small"
         case .turbo: "Whisper Large v3 Turbo"
         case .largeV3: "Whisper Large v3"
+        case .parakeetUltra: "Parakeet Ultra"
         }
     }
 
@@ -20,14 +21,17 @@ enum DictationModel: String, CaseIterable, Identifiable, Sendable {
         case .small: String(localized: "Uses less memory. About 487 MB to download.")
         case .turbo: String(localized: "For everyday dictation. About 627 MB to download.")
         case .largeV3: String(localized: "Full-size model. About 948 MB to download.")
+        case .parakeetUltra: String(localized: "Fast dictation in 25 European languages. About 632 MB to download.")
         }
     }
 
+    // Directory inside the pinned repository; Parakeet uses the repository root.
     var variant: String {
         switch self {
         case .small: "openai_whisper-small"
         case .turbo: "openai_whisper-large-v3-v20240930_626MB"
         case .largeV3: "openai_whisper-large-v3_947MB"
+        case .parakeetUltra: ""
         }
     }
 
@@ -37,8 +41,9 @@ enum DictationModel: String, CaseIterable, Identifiable, Sendable {
         let files: [String: String]
     }
 
-    var tokenizer: Tokenizer {
+    var tokenizer: Tokenizer? {
         switch self {
+        case .parakeetUltra: nil
         case .small:
             Tokenizer(repository: "openai/whisper-small", revision: "973afd24965f72e36ca33b3055d56a652f456b4d",
                       files: [

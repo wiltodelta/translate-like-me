@@ -211,7 +211,7 @@ helper() { "$WORK/helper" "$@"; }
 # localized <English>: the title the app shows in CAPTURE_LANGUAGE, read from the
 # built bundle, for the menu items and windows the script finds by title.
 localized() {
-    if [ -z "$LANGUAGE" ]; then printf '%s' "$1"; return; fi
+    if [ -z "$LANGUAGE" ] || [ "$LANGUAGE" = en ]; then printf '%s' "$1"; return; fi
     plutil -extract "$1" raw -o - "$APP_DIR/Contents/Resources/$LANGUAGE.lproj/Localizable.strings"
 }
 
@@ -293,12 +293,39 @@ defaults export "$DOMAIN" "$WORK/defaults.plist"
 
 BACKDROP_PID=""
 cleanup() {
-    [ -n "$PID" ] && kill "$PID" 2>/dev/null && sleep 1
-    defaults import "$DOMAIN" "$WORK/defaults.plist" || true
+    local status=$? restore_failed=0
+    if [ -n "$PID" ]; then
+        kill "$PID" 2>/dev/null || true
+        for _ in $(seq 1 50); do
+            kill -0 "$PID" 2>/dev/null || break
+            sleep 0.1
+        done
+        if kill -0 "$PID" 2>/dev/null; then
+            kill -KILL "$PID" 2>/dev/null || true
+            sleep 0.2
+        fi
+    fi
+    # defaults import merges and leaves keys added during the capture behind.
+    # Replace the entire saved domain only after our app has stopped.
+    swift - "$DOMAIN" "$WORK/defaults.plist" "${PID:-0}" <<'SWIFT' || restore_failed=1
+import AppKit
+import Foundation
+if let app = NSRunningApplication(processIdentifier: Int32(CommandLine.arguments[3])!), !app.isTerminated { exit(1) }
+let saved = try PropertyListSerialization.propertyList(
+    from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2])), format: nil) as! [String: Any]
+UserDefaults.standard.setPersistentDomain(saved, forName: CommandLine.arguments[1])
+guard UserDefaults.standard.synchronize() else { exit(1) }
+SWIFT
     appearance "set dark mode to $ORIGINAL_DARK" >/dev/null || true
     helper pointer $POINTER
     [ -n "$BACKDROP_PID" ] && kill "$BACKDROP_PID" 2>/dev/null
-    rm -rf "$WORK"
+    if [ "$restore_failed" = 0 ]; then
+        rm -rf "$WORK"
+    else
+        echo "Preferences were not restored; backup retained at $WORK/defaults.plist" >&2
+        status=1
+    fi
+    exit "$status"
 }
 trap cleanup EXIT
 

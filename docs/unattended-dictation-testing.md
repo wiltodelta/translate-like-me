@@ -6,6 +6,11 @@ Keep software validation and physical echo cancellation as separate verdicts.
 
 ## Software path
 
+Parakeet installation and runtime switching are checked separately with
+`python3 scripts/check-parakeet.py`. That opt-in run downloads its pinned
+assets if needed, verifies offline reload and cancellation, and uses only
+synthetic fixtures. See [Parakeet integration](parakeet-ultra-integration.md).
+
 Run from the checkout:
 
 ```bash
@@ -16,12 +21,13 @@ The runner generates English and Russian speech with installed macOS voices,
 mixes a weaker English background into Russian speech, and adds digital silence.
 It never plays these files or opens a microphone. Full Xcode, the installed
 Samantha and Milena voices, and an already prepared development Turbo cache are
-required. It disables model downloading. Missing prerequisites fail the run.
+required by default. `--model parakeetUltra` selects an already installed
+Parakeet cache instead. It disables model downloading. Missing prerequisites fail the run.
 `--skip-build` reuses a test bundle containing `DictationAudioValidationTests`.
 
 Each fixture passes through the production `DictationAudioFile` sink as 48 kHz,
 seven-channel, noninterleaved float PCM, then through the real audio loader,
-speech detector and cached Whisper model. The discrete channel layout is
+speech detector and selected cached recognizer. The discrete channel layout is
 explicit: the convenience format initializer does not support this channel
 count. The test verifies finalized frame/channel counts, all six expected words
 in each speech case, and empty output for silence, with three recognitions per
@@ -33,6 +39,10 @@ Its report contains identifiers and counts, never transcripts. It removes
 generated audio and captured WAVs on success, failure, timeout or interruption.
 Subprocess deadlines kill the entire owned process group. Ordinary `swift test`
 skips this opt-in check.
+The recognition subprocess has a 600-second deadline including model
+preparation. Turbo uses CPU/Neural Engine; first-use specialization in the
+XCTest host can exceed the previous 180-second budget even when a separate
+CLI benchmark already prepared the same model cache.
 
 This verifies the path after voice processing. The mixed case simulates a
 residual background at that boundary. It cannot establish how much speech the

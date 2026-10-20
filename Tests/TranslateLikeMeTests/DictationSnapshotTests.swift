@@ -60,6 +60,34 @@ final class DictationSnapshotTests: XCTestCase {
         }
     }
 
+    func testVariantStillRejectsUnverifiedAssetsInsideACacheNamedDirectory() async throws {
+        let fixture = SnapshotFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        try fixture.write("model.mil", bytes: Data("program".utf8))
+        try fixture.write("weights/weight.bin", bytes: Data("weights".utf8), lfs: true)
+        let unverified = fixture.file(".cache/unverified.bin")
+        try FileManager.default.createDirectory(at: unverified.deletingLastPathComponent(),
+                                               withIntermediateDirectories: true)
+        try Data("unverified".utf8).write(to: unverified)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: unverified.path))
+        do {
+            _ = try await fixture.snapshot.prepare(download: false) { XCTFail("Offline reload must not fetch") }
+            XCTFail("Only repository-root Hub metadata may be excluded from validation")
+        } catch DictationError.notReady {} catch { XCTFail("Unexpected error: \(error)") }
+    }
+
+    func testRootSnapshotValidatesAssetsWithoutTreatingHubMetadataAsModelFiles() async throws {
+        let fixture = SnapshotFixture(variant: "")
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        try fixture.write("model.mil", bytes: Data("program".utf8))
+        try fixture.write("weights/weight.bin", bytes: Data("weights".utf8), lfs: true)
+        let metadata = fixture.root.appendingPathComponent(".cache/huggingface/download/model.mil.metadata")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: metadata.path))
+        let root = try await fixture.snapshot.prepare(download: false) { XCTFail("A complete root is offline") }
+        XCTAssertEqual(root, fixture.root)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: metadata.path))
+    }
+
     func testSnapshotRejectsMetadataFromAnotherRevision() async throws {
         let fixture = SnapshotFixture()
         defer { try? FileManager.default.removeItem(at: fixture.root) }
@@ -72,10 +100,17 @@ final class DictationSnapshotTests: XCTestCase {
     }
 }
 
-private struct SnapshotFixture: Sendable {
-    let root = FileManager.default.temporaryDirectory.appendingPathComponent("tlm-snapshot-\(UUID().uuidString)")
-    let revision = String(repeating: "a", count: 40)
-    let variant = "speech.mlmodelc"
+struct SnapshotFixture: Sendable {
+    let root: URL
+    let revision: String
+    let variant: String
+
+    init(root: URL = FileManager.default.temporaryDirectory.appendingPathComponent("tlm-snapshot-\(UUID().uuidString)"),
+         revision: String = String(repeating: "a", count: 40), variant: String = "speech.mlmodelc") {
+        self.root = root
+        self.revision = revision
+        self.variant = variant
+    }
 
     var snapshot: DictationSnapshot {
         DictationSnapshot(root: root, revision: revision, variant: variant,
@@ -96,7 +131,8 @@ private struct SnapshotFixture: Sendable {
             let blob = Data("blob \(bytes.count)\0".utf8) + bytes
             hash = Insecure.SHA1.hash(data: blob).map { String(format: "%02x", $0) }.joined()
         }
-        let metadata = root.appendingPathComponent(".cache/huggingface/download/" + variant + "/" + name + ".metadata")
+        let relative = variant.isEmpty ? name : variant + "/" + name
+        let metadata = root.appendingPathComponent(".cache/huggingface/download/" + relative + ".metadata")
         try FileManager.default.createDirectory(at: metadata.deletingLastPathComponent(),
                                                 withIntermediateDirectories: true)
         try "\(revision ?? self.revision)\n\(hash)\n1\n".write(to: metadata, atomically: true, encoding: .utf8)

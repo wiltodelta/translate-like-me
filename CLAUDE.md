@@ -5,7 +5,7 @@ translates the current selection via global hotkeys, one per language pair (up
 to three), auto-detecting the direction and applying the user's writing style,
 and rewrites selected rough notes into a finished message in the same language
 with named Rewrite presets (up to three), plus local multilingual dictation.
-SwiftUI + AppKit, SwiftPM; Sparkle for updates and WhisperKit for local ASR. Supports the
+SwiftUI + AppKit, SwiftPM; Sparkle for updates, WhisperKit and FluidAudio for local ASR. Supports the
 three latest macOS releases (15+) on Apple silicon only.
 
 Shared rules for our macOS apps: `~/Documents/GitHub/claude-config/docs/macos-apps.md`; this file states only what differs.
@@ -26,6 +26,9 @@ detail, including the secrets and where the keys are kept (1Password):
 ## Code quality
 
 - `bash maintain.sh` runs the canonical Swift gate.
+- SwiftPM tools 6.2 enables FluidAudio's opt-out trait for the unused NeMo
+  text-processing binary. Swift 6 language mode and macOS 15 remain unchanged;
+  CI's Swift 6.3.3 supports this manifest.
 - CI can lag local Swift. In subprocess tests, use explicit `@Sendable` task
   closures, a precomputed deadline and the concrete test type: the dynamic `Self`
   form failed Swift 6.3.3's region-based isolation checker.

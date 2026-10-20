@@ -16,9 +16,12 @@ import wave
 log = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parents[1]
 RATE = 48_000
+# First-use ANE specialization can recur in the XCTest host even after a CLI
+# benchmark prepared the same cache. Bound preparation and recognition together.
+CHECK_TIMEOUT = 600
 
 
-def run(arguments, *, env=None, timeout=180):
+def run(arguments, *, env=None, timeout=CHECK_TIMEOUT):
     child = subprocess.Popen([str(item) for item in arguments], cwd=ROOT, env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
                              start_new_session=True)
@@ -93,11 +96,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--skip-build", action="store_true", help="Reuse a test bundle that includes this check")
     parser.add_argument("--report", type=Path, default=ROOT / ".build/dictation-audio-check/report.json")
+    parser.add_argument("--model", choices=["turbo", "parakeetUltra"], default="turbo")
     args = parser.parse_args()
     args.report.parent.mkdir(parents=True, exist_ok=True)
     report = {"status": "failed", "microphoneUsed": False, "speakersUsed": False,
               "voiceProcessingTested": False, "physicalVoicePreservation": "not tested",
-              "scope": "Native WAV sink, resampling, speech detection and cached Turbo recognition"}
+              "model": args.model,
+              "scope": "Native WAV sink, resampling, speech detection and cached model recognition"}
     args.report.write_text(json.dumps(dict(report, status="running"), indent=2) + "\n")
     folder = None
     try:
@@ -105,12 +110,12 @@ def main():
             folder = Path(temporary)
             log.info("Generating synthetic fixtures without playback or microphone access")
             corpus(folder)
-            environment = dict(os.environ, TLM_AUDIO_CHECK=str(folder))
+            environment = dict(os.environ, TLM_AUDIO_CHECK=str(folder), TLM_AUDIO_CHECK_MODEL=args.model)
             command = ["swift", "test"]
             if args.skip_build:
                 command.append("--skip-build")
             command += ["--filter", "DictationAudioValidationTests"]
-            log.info("Running the native WAV and recognition checks, subprocess deadline 180 seconds")
+            log.info("Running the native WAV and recognition checks, subprocess deadline %s seconds", CHECK_TIMEOUT)
             output = run(command, env=environment)
             args.report.with_suffix(".log").write_text(output)
             rows = json.loads((folder / "recognition.json").read_text())

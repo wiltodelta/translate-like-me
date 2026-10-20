@@ -16,18 +16,24 @@ device is used each time recording starts.
 
 ## Runtime and data
 
-WhisperKit 1.1.1 runs the selected multilingual Core ML model. `DictationModel`
+WhisperKit 1.1.1 runs the Whisper models; FluidAudio 0.17.7 runs Parakeet Ultra. `DictationModel`
 offers Whisper Small (`openai_whisper-small`), Whisper Large v3 Turbo
 (`openai_whisper-large-v3-v20240930_626MB`, the unchanged default) and Whisper
-Large v3 (`openai_whisper-large-v3_947MB`). Their pinned repository snapshots
+Large v3 (`openai_whisper-large-v3_947MB`), plus Parakeet Ultra for 25 European
+languages including English and Russian. The three Whisper snapshots
 contain about 487, 627 and 948 MB respectively, excluding tokenizer and shared
-speech-detector assets. The default has four decoder layers and 32 encoder layers. Recognition uses automatic language
+speech-detector assets. Parakeet downloads about 632 MB and includes its own vocabulary.
+The default Turbo has four decoder layers and 32 encoder layers. Recognition uses automatic language
 detection, without a Russian/English allowlist, and transcription rather than
 translation. This is an initial integrated configuration, not a claim of model
 superiority or production quality across every supported language.
 
 `DictationEngine.swift` pins the shared model repository revision;
-`DictationModel.swift` pins each matching tokenizer revision and file hashes.
+`DictationModel.swift` pins each Whisper tokenizer revision and file hashes.
+`DictationParakeet.swift` pins the separate Parakeet repository. Its root-level
+Core ML components and vocabulary use the same snapshot checks; Hub metadata
+is excluded from the asset walk. FluidAudio loads this verified local directory
+without its automatic downloader. Each recording gets a fresh TDT decoder state.
 WhisperKit's downloader maintains partial transfers. `DictationSnapshot` checks
 all required Core ML components and validates every existing snapshot file
 against metadata for the pinned revision: SHA-256 for LFS weights and Git blob
@@ -41,13 +47,13 @@ explicitly so it does not become a hidden first-use network dependency.
 
 Preparation also downloads one small, pinned Silero v6.2.1 Core ML speech detector
 from [FluidInference's conversion](https://huggingface.co/FluidInference/silero-vad-coreml/tree/b419383c55c110e2c9271fa6ee0ea83d03c70d96).
-It checks whether a clip contains speech before Whisper sees it. The original
+It checks whether a clip contains speech before either recognizer sees it. The original
 clip stays intact, with no trimming at voice boundaries. The detector runs on
 CPU and its state resets for every recording. Failures propagate as errors,
 rather than silently becoming an empty result.
 
 An empty transcript currently completes without a result popup or error. Empty
-or silent samples and speech-detector rejection both return before Whisper
+or silent samples and speech-detector rejection both return before model
 decoding. A quick empty result can hide the indicator before a Recognizing frame
 is visible. Notice-level diagnostics distinguish these paths from hold
 cancellation, without logging audio or text. The new-Mac report and isolated
@@ -86,7 +92,10 @@ inside LLVM/MPS. The check prevents preparation in that observed low-space
 condition; it cannot reserve space against other processes filling the disk.
 
 Models live under `~/Library/Application Support/<bundle id>/Dictation`.
-Development builds use their own `.dev` id. Core ML uses CPU/GPU compute units.
+Development builds use their own `.dev` id. Small, Turbo and Large v3 permit
+CPU/Neural Engine for both the audio encoder and text decoder.
+Whisper mel stays CPU/GPU. Parakeet uses CPU/Neural Engine for encoder, decoder
+and joint, with a CPU preprocessor. Silero stays CPU-only for both runtimes.
 A loaded model stays ready; memory-pressure notifications or disabling dictation
 release it after active work completes. Press starts the recorder synchronously;
 after release, drained audio stays available while a model reload finishes.
@@ -94,6 +103,12 @@ Interrupted first preparation restarts after the cancelled task unwinds. The
 controller stays preparing until assets are ready; termination suppresses that retry.
 Timed two-minute eviction was removed
 because diagnostic runs showed a material reload cost. No memory-policy control is exposed.
+
+Compute-policy, decoder and loading experiments, their limits and the synthetic
+benchmark recipe are in [model efficiency](dictation-model-efficiency.md).
+The [Parakeet Ultra experiment](parakeet-ultra-experiment.md) records the initial
+comparison. [Parakeet integration](parakeet-ultra-integration.md) records its
+installation, lifecycle, native UI and build checks.
 
 `DictationRecorder` uses `AVAudioEngine` with Apple's voice processing enabled
 before starting capture. Enabling it switches both I/O nodes to the processed

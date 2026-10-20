@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+@preconcurrency import FluidAudio
 import os
 @preconcurrency import WhisperKit
 
@@ -29,7 +30,9 @@ actor DictationEngine: DictationRecognizing {
     }
 
     private var kit: WhisperKit?
+    private var parakeet: AsrManager?
     var loadedModel: DictationModel? {
+        if parakeet != nil { return .parakeetUltra }
         guard let folder = kit?.modelFolder?.lastPathComponent else { return nil }
         return DictationModel.allCases.first { $0.variant == folder }
     }
@@ -55,7 +58,12 @@ actor DictationEngine: DictationRecognizing {
         }
         let root = try await prepareModels(model: model, in: base, download: download, progress: progress)
         try Task.checkCancellation()
-        let tokens = try await prepareTokenizer(model: model, in: base, download: download, progress: progress)
+        let tokens: URL?
+        if model.tokenizer != nil {
+            tokens = try await prepareTokenizer(model: model, in: base, download: download, progress: progress)
+        } else {
+            tokens = nil
+        }
         try Task.checkCancellation()
         let detectorRoot = try await prepareSpeechDetector(in: base, download: download) {
             progress(0.95 + $0 * 0.05)
@@ -63,17 +71,38 @@ actor DictationEngine: DictationRecognizing {
         try Task.checkCancellation()
         progress(1)
         let detector = try DictationSpeechDetector(directory: detectorRoot.appendingPathComponent(Self.detectorModel))
-        let loaded = try await WhisperKit(WhisperKitConfig(
-            modelFolder: root.appendingPathComponent(model.variant).path, tokenizerFolder: tokens,
-            computeOptions: ModelComputeOptions(audioEncoderCompute: .cpuAndGPU, textDecoderCompute: .cpuAndGPU),
-            verbose: false, logLevel: .none, prewarm: false, load: true, download: false))
-        try Task.checkCancellation()
-        kit = loaded
+        try await loadRuntime(model: model, root: root, tokenizer: tokens)
         speechDetector = detector
+    }
+
+    private func loadRuntime(model: DictationModel, root: URL, tokenizer: URL?) async throws {
+        if model == .parakeetUltra {
+            AppLogger.minimumLevel = .error
+            AppLogger.mirrorsToConsole = false
+            let models = try AsrModels.loadLocal(from: root, version: .ultra)
+            let loaded = AsrManager(models: models)
+            do { try Task.checkCancellation() } catch {
+                await loaded.cleanup()
+                throw error
+            }
+            parakeet = loaded
+        } else {
+            guard let tokenizer else { throw DictationError.notReady }
+            let loaded = try await WhisperKit(WhisperKitConfig(
+                modelFolder: root.appendingPathComponent(model.variant).path, tokenizerFolder: tokenizer,
+                computeOptions: ModelComputeOptions(audioEncoderCompute: .cpuAndNeuralEngine,
+                                                   textDecoderCompute: .cpuAndNeuralEngine),
+                verbose: false, logLevel: .none, prewarm: false, load: true, download: false))
+            try Task.checkCancellation()
+            kit = loaded
+        }
     }
 
     func prepareModels(model: DictationModel = .turbo, in base: URL, download: Bool,
                        progress: @escaping @Sendable (Double) -> Void) async throws -> URL {
+        if model == .parakeetUltra {
+            return try await prepareParakeet(in: base, download: download, progress: progress)
+        }
         let required = ["MelSpectrogram", "AudioEncoder", "TextDecoder"].flatMap { component in
             Self.coreMLParts.map { component + ".mlmodelc/" + $0 }
         }
@@ -107,7 +136,7 @@ actor DictationEngine: DictationRecognizing {
 
     private func prepareTokenizer(model: DictationModel, in base: URL, download: Bool,
                                   progress: @escaping @Sendable (Double) -> Void) async throws -> URL {
-        let tokenizer = model.tokenizer
+        guard let tokenizer = model.tokenizer else { throw DictationError.notReady }
         let tokenizers = ModelDownloader(config: ModelDownloadConfig(
             modelRepo: tokenizer.repository, revision: tokenizer.revision))
         let root = tokenizers.localRepoLocation(downloadBase: base)
@@ -134,7 +163,7 @@ actor DictationEngine: DictationRecognizing {
     }
 
     func transcribe(_ audio: URL) async throws -> String {
-        guard let kit, let speechDetector else { throw DictationError.notReady }
+        guard kit != nil || parakeet != nil, let speechDetector else { throw DictationError.notReady }
         working = true
         defer { working = false }
         var samples = try AudioProcessor.loadAudioAsFloatArray(fromPath: audio.path)
@@ -153,6 +182,14 @@ actor DictationEngine: DictationRecognizing {
         // Provide a trailing quiet tail after checking the complete clip for speech.
         samples += Array(repeating: 0, count: 8_000)
         try Task.checkCancellation()
+        if let parakeet {
+            recognitionLog.notice("Dictation Parakeet decoding started")
+            var state = try TdtDecoderState()
+            let result = try await parakeet.transcribe(samples, decoderState: &state)
+            try Task.checkCancellation()
+            return Self.cleanedTranscript(result.text)
+        }
+        guard let kit else { throw DictationError.notReady }
         // Timestamp tokens let Whisper resume at the last complete segment,
         // rather than dropping words across fixed 30-second window boundaries.
         let options = DecodingOptions(task: .transcribe, language: nil, detectLanguage: true,
@@ -164,7 +201,11 @@ actor DictationEngine: DictationRecognizing {
     }
 
     static func transcript(from results: [TranscriptionResult]) -> String {
-        var text = results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+        cleanedTranscript(results.map(\.text).joined(separator: " "))
+    }
+
+    private static func cleanedTranscript(_ source: String) -> String {
+        var text = source.trimmingCharacters(in: .whitespacesAndNewlines)
         // Whisper can spell this silence annotation with ordinary text tokens,
         // so skipSpecialTokens does not remove it. Preserve all other brackets.
         let silence = "[BLANK_AUDIO]"
@@ -178,9 +219,12 @@ actor DictationEngine: DictationRecognizing {
     func unload() async {
         guard !working else { return }
         let previous = kit
+        let previousParakeet = parakeet
+        parakeet = nil
         kit = nil
         speechDetector = nil
         await previous?.unloadModels()
+        await previousParakeet?.cleanup()
     }
 }
 
