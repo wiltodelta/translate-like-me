@@ -58,8 +58,15 @@ Compute-policy findings and the reproducible synthetic benchmark:
   or transcripts. Keep the model resident until memory pressure or disabling;
   release after active work. Clear the actor's model reference before an await so
   a new request cannot take a model being unloaded. Await any queued release
-  before preparing the next session. Start the recorder synchronously on press;
-  reload the model only after release, while retaining the drained audio.
+  before preparing the next session. Enqueue capture immediately on press and
+  show its starting indicator before inspecting the AX target;
+  `DictationCaptureWorker` serializes all engine access and teardown off the UI.
+  A locked request gates the final hardware start against release/cancellation.
+  The stop task must finalize the WAV before model reload or recognition. Enqueue
+  discard on the same queue before another start; never open an idle microphone.
+  Flush capture cleanup synchronously at application termination, before exiting.
+  Queue-startup findings and rejected idle-ducking cache: `docs/dictation-startup.md`.
+  Reload the model only after release, while retaining the drained audio.
   Interrupted initial preparation retries after the old task unwinds, never
   reports ready with missing assets, and does not restart during termination.
   Do not reintroduce timed
@@ -77,7 +84,7 @@ Compute-policy findings and the reproducible synthetic benchmark:
   closes before recognition and rejects late writes. Bound capture by frame
   count; a route/format interruption fails instead of recognizing partial audio.
 - In configuration callbacks, read the current engine from recorder state
-  inside the main actor, guarded by capture identity. Do not capture
+  inside the capture queue, guarded by request identity. Do not capture
   `AVAudioEngine` across a Sendable closure: the CI SDK does not mark it
   Sendable, even when the newer local SDK accepts that capture. Offline tests
   create and use their engine inside one task, returning only sample values;
@@ -115,7 +122,7 @@ Compute-policy findings and the reproducible synthetic benchmark:
   Keys, other modifiers, clicks and scroll cancel. Carbon actions cancel too.
   Repeated flags for the same held Option are ignored, not treated as new input;
   they never rearm a hold already blocked by cancellation.
-  Release during microphone startup drains the already-started recording;
+  Release during microphone startup drains active capture or cancels its pending start;
   asynchronous model preparation never precedes capture.
   The shortcut binding recorder and runtime share the state machine. Shortcut recording pauses all registrations
   and monitors, including reloads triggered by completion; generations discard

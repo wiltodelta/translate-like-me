@@ -4,6 +4,63 @@ import XCTest
 
 @MainActor
 final class DictationControllerTests: XCTestCase {
+    func testCaptureFeedbackPrecedesStartingTheMicrophone() async {
+        let engine = ControlledDictationEngine()
+        let recorder = ControlledDictationRecorder()
+        var feedbackShown = false
+        let controller = DictationController(enabled: true, engine: engine, recorder: recorder,
+            interaction: DictationInteraction(beginCapture: { _ in
+                XCTAssertTrue(feedbackShown)
+                XCTAssertEqual(recorder.starts, 1)
+                return (nil, {})
+            }, endCapture: {}, showError: { _ in }, showResult: { _ in }, showCapture: {
+                feedbackShown = true
+                XCTAssertEqual(recorder.starts, 0)
+            }), saveModel: { _ in })
+        controller.restore()
+        await controller.operation?.value
+        XCTAssertEqual(controller.phase, .ready)
+        controller.shortcutPressed()
+        XCTAssertTrue(feedbackShown)
+        controller.cancel()
+    }
+
+    func testRecognitionWaitsForTheRecordingToFinishDraining() async {
+        let engine = ControlledDictationEngine()
+        let recorder = ControlledDictationRecorder()
+        recorder.blockDrain = true
+        let controller = makeController(engine: engine, recorder: recorder)
+        controller.restore()
+        await controller.operation?.value
+        controller.shortcutPressed()
+        controller.shortcutReleased()
+        await recorder.waitForDrain()
+        XCTAssertEqual(controller.phase, .recognizing)
+        XCTAssertTrue(engine.transcribed.isEmpty)
+        recorder.finishDrain()
+        await controller.operation?.value
+        XCTAssertEqual(engine.transcribed, [recorder.audio])
+        XCTAssertFalse(recorder.hasAudio)
+    }
+
+    func testCancellationWhileDrainingNeverRecognizesTheDiscardedAudio() async {
+        let engine = ControlledDictationEngine()
+        let recorder = ControlledDictationRecorder()
+        recorder.blockDrain = true
+        let controller = makeController(engine: engine, recorder: recorder)
+        controller.restore()
+        await controller.operation?.value
+        controller.shortcutPressed()
+        controller.shortcutReleased()
+        await recorder.waitForDrain()
+        controller.cancel()
+        XCTAssertFalse(recorder.hasAudio)
+        recorder.finishDrain()
+        await controller.operation?.value
+        XCTAssertTrue(engine.transcribed.isEmpty)
+        XCTAssertEqual(controller.phase, .ready)
+    }
+
     func testMicrophoneStartsBeforeReadingTheInsertionTarget() async {
         let engine = ControlledDictationEngine()
         let recorder = ControlledDictationRecorder()
@@ -109,7 +166,7 @@ final class DictationControllerTests: XCTestCase {
         controller.restore()
         await engine.waitForPreparation()
         controller.cancel()
-        controller.cancel(restartPreparation: false)
+        controller.shutdown()
         engine.finishPreparation()
         await controller.operation?.value
         XCTAssertEqual(engine.preparations, [true])
@@ -323,6 +380,9 @@ private final class ControlledDictationRecorder: DictationRecording {
     var stops = 0
     var hasAudio = false
     var startError: DictationError?
+    var blockDrain = false
+    private var drain: CheckedContinuation<URL, Error>?
+    private var drainObserver: CheckedContinuation<Void, Never>?
 
     func requestPermission() async -> Bool { permissions += 1; return true }
     func start() throws {
@@ -330,6 +390,23 @@ private final class ControlledDictationRecorder: DictationRecording {
         hasAudio = true
         if let startError { throw startError }
     }
-    func stop() throws -> URL { stops += 1; return audio }
+    func stop() throws -> Task<URL, Error> {
+        stops += 1
+        return Task {
+            if blockDrain {
+                return try await withCheckedThrowingContinuation { continuation in
+                    drain = continuation
+                    drainObserver?.resume()
+                    drainObserver = nil
+                }
+            }
+            return audio
+        }
+    }
+    func waitForDrain() async {
+        if drain == nil { await withCheckedContinuation { drainObserver = $0 } }
+    }
+    func finishDrain() { drain?.resume(returning: audio); drain = nil }
     func discard() { hasAudio = false }
+    func shutdown() { discard() }
 }

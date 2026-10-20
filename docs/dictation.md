@@ -97,7 +97,7 @@ CPU/Neural Engine for both the audio encoder and text decoder.
 Whisper mel stays CPU/GPU. Parakeet uses CPU/Neural Engine for encoder, decoder
 and joint, with a CPU preprocessor. Silero stays CPU-only for both runtimes.
 A loaded model stays ready; memory-pressure notifications or disabling dictation
-release it after active work completes. Press starts the recorder synchronously;
+release it after active work completes. Press enqueues microphone initialization;
 after release, drained audio stays available while a model reload finishes.
 Interrupted first preparation restarts after the cancelled task unwinds. The
 controller stays preparing until assets are ready; termination suppresses that retry.
@@ -110,7 +110,17 @@ The [Parakeet Ultra experiment](parakeet-ultra-experiment.md) records the initia
 comparison. [Parakeet integration](parakeet-ultra-integration.md) records its
 installation, lifecycle, native UI and build checks.
 
-`DictationRecorder` uses `AVAudioEngine` with Apple's voice processing enabled
+`DictationRecorder` queues capture immediately and publishes metering through a
+locked request. `DictationCaptureWorker` owns every engine operation on a serial
+user-initiated queue, including configuration callbacks and teardown. The starting
+indicator is requested before microphone setup and AX target inspection. Release
+closes the request's hardware-start gate immediately; the stop task then drains and
+finalizes the WAV before recognition. Cancellation queues discard before a later
+start. This keeps hardware initialization off the UI and prevents a queued startup
+from opening the microphone after an early release. See the
+[startup investigation](dictation-startup.md) for the remaining hardware latency.
+
+The worker uses `AVAudioEngine` with Apple's voice processing enabled
 before starting capture. Enabling it switches both I/O nodes to the processed
 path; the microphone is never connected to the speakers. The tap is explicitly
 `@Sendable`, so its callback does not inherit the main actor. Voice processing
@@ -160,11 +170,11 @@ would lose the release event. There is no dedicated dictation cancellation key:
 reaching for Escape while holding Option is awkward, and the interval after
 release can be too short to use reliably. Undo after insertion belongs to the
 destination editor. Pointer cancellation and lifecycle invalidation still guard
-pending work. Release drains the already-started recorder even before its first
-meter update. Model preparation happens after release and cannot delay capture
-or start a microphone after the key is up.
-Recorder startup also precedes Accessibility target inspection and indicator
-construction, so a slow editor cannot postpone starting audio collection.
+pending work. Release drains capture even before its first meter update, or
+cancels hardware startup if it has not begun. Model preparation happens after
+release and cannot delay capture or start a microphone after the key is up.
+The starting indicator is requested first, then recorder startup is queued before
+Accessibility target inspection, so a slow editor cannot postpone hardware setup.
 This ordering is covered by a controller regression test; it does not establish
 a hardware latency figure. The measured/unmeasured boundary and candidate
 preparation strategies are recorded in
@@ -603,6 +613,41 @@ insertion is established by the user's observation, not by AX text confirmation.
 This is a functional native check, not a pass-rate measurement. The full
 maintenance gate passed with 138 tests passing and one opt-in ASR fixture test
 skipped; the signed dev bundle passed strict signature verification.
+
+### Microphone startup latency, October 20, 2026
+
+The user reported delayed Listening feedback after installing 3.7.4. A read-only
+correlation of six installed-app holds with Core Audio events in a 95-second
+window found 820-1,472 ms from press to the voice processor's processing-start
+message, median 1,030 ms. Target-captured messages followed 2-16 ms later.
+These processing-start messages are not measurements of the first tap buffer
+or the first visible frame. The agent did not open the microphone, retain
+recordings or read transcript text for this investigation.
+
+The 3.7.4 recorder creates an AVAudioEngine and enables VoiceProcessingIO
+on every hold, synchronously on the main actor. Its stop path destroys that
+engine and disables voice processing to release other-audio ducking. The
+indicator is constructed only after recorder startup and AX target capture;
+a 50 ms timer changes Starting to Listening after the sink has received frames.
+The installed logs show voice-processing device configuration during the delay,
+so changing the model cannot address this startup path. Missing early speech
+is consistent with short clips being shorter than the hold, but exact first
+buffer timing and lost words have not been measured.
+
+The follow-up [startup investigation](dictation-startup.md) measured the
+preparation/reuse candidate and rejected it because ducking persisted while idle.
+Version 3.7.5 instead moves setup and teardown off the UI, requests starting
+feedback first, and gates late hardware start on the held key. Physical startup
+latency remains unresolved. A continuously running microphone
+would change the privacy and audio-session policy and requires an explicit
+product choice; it is not an implemented or measured remedy. Apple documents
+that `AVAudioEngine.prepare()` preallocates startup resources, whereas `stop()`
+releases prepared resources. Neither contract proves a latency improvement
+for this voice-processing graph; benchmark the actual lifecycle before choosing.
+See [prepare](https://developer.apple.com/documentation/avfaudio/avaudioengine/prepare())
+and [AVAudioEngine](https://developer.apple.com/documentation/avfaudio/avaudioengine).
+The metadata-only correlation is stored in
+`.build/diagnostics/dictation-startup/observed-startup.json`.
 
 ### Return right after insertion, October 20, 2026
 

@@ -1,5 +1,11 @@
 # Dictation startup latency
 
+> Historical investigation through version 3.7.4. The synchronous recorder path
+> and pending native checks below are superseded by the measured worker-queue
+> implementation and rejected prepared cache in the
+> [October 20 startup investigation](dictation-startup.md). The measurement
+> contract remains applicable.
+
 Investigation started October 19, 2026 after the user reported losing the
 beginning of speech when speaking immediately after the hold key. Fast capture
 is a product requirement; recognition speed is a separate measurement.

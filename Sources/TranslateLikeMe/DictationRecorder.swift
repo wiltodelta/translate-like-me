@@ -1,8 +1,5 @@
 import AVFoundation
 import Foundation
-import os
-
-private let captureLog = Logger.app("dictation")
 
 @MainActor
 protocol DictationRecording: AnyObject {
@@ -11,18 +8,17 @@ protocol DictationRecording: AnyObject {
     var isDeliveringAudio: Bool { get }
     func requestPermission() async -> Bool
     func start() throws
-    func stop() throws -> URL
+    func stop() throws -> Task<URL, Error>
     func discard()
+    func shutdown()
 }
 
-// Capture only the voice-processed input, never route the microphone to speakers.
-// Only the current recording lives on disk, until recognition or cancellation.
+// The serial capture worker owns every AVAudioEngine access. MainActor owns
+// callbacks and the current request. A press enqueues hardware initialization.
 @MainActor
 final class DictationRecorder: DictationRecording {
-    private var engine: AVAudioEngine?
-    private var capture: DictationAudioFile?
-    private var configurationObserver: NSObjectProtocol?
-    private var file: URL?
+    private let worker = DictationCaptureWorker()
+    private var request: DictationCaptureRequest?
     var onEnd: ((Bool) -> Void)?
 
     func requestPermission() async -> Bool {
@@ -35,63 +31,39 @@ final class DictationRecorder: DictationRecording {
 
     func start() throws {
         discard()
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("tlm-dictation-\(UUID().uuidString).wav")
-        file = url
-        do {
-            try startEngine(at: url)
-        } catch {
-            discard()
-            throw error
-        }
-    }
-
-    private func startEngine(at url: URL) throws {
-        let engine = AVAudioEngine()
-        let input = engine.inputNode
-        do {
-            try input.setVoiceProcessingEnabled(true)
-        } catch {
-            captureLog.error("Voice processing setup failed: \(String(describing: error), privacy: .public)")
-            throw DictationError.voiceProcessing
-        }
-        guard input.isVoiceProcessingEnabled, engine.outputNode.isVoiceProcessingEnabled else {
-            throw DictationError.voiceProcessing
-        }
-        input.isVoiceProcessingBypassed = false
-        // Avoid automatic level boosts to quiet residual audio and room noise.
-        input.isVoiceProcessingAGCEnabled = false
-        input.voiceProcessingOtherAudioDuckingConfiguration = .init(enableAdvancedDucking: false, duckingLevel: .max)
-        // Voice processing can change the device format. Read it after enabling,
-        // and let WhisperKit convert the processed WAV to 16 kHz mono on read.
-        let format = input.outputFormat(forBus: 0)
-        Self.connectSilentOutput(to: engine, format: format)
-        let capture = try DictationAudioFile(url: url, format: format)
-        self.engine = engine
-        self.capture = capture
-        input.installTap(onBus: 0, bufferSize: 1_024, format: capture.format) { @Sendable [weak self] buffer, _ in
-            guard let success = capture.append(buffer) else { return }
+        let request = DictationCaptureRequest()
+        self.request = request
+        worker.start(request) { [weak self] success in
             Task { @MainActor [weak self] in
-                guard let self, self.file == url, self.capture === capture else { return }
+                guard let self, self.request === request else { return }
                 self.onEnd?(success)
             }
         }
-        do {
-            try engine.start()
-        } catch {
-            captureLog.error("Audio engine startup failed: \(String(describing: error), privacy: .public)")
-            throw DictationError.microphone
-        }
-        configurationObserver = NotificationCenter.default.addObserver(
-            forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated {
-                guard let self, self.capture === capture, let engine = self.engine,
-                      !engine.isRunning || engine.inputNode.outputFormat(forBus: 0) != capture.format else { return }
-                captureLog.error("Audio engine stopped or changed its input format during dictation")
-                self.onEnd?(false)
-            }
-        }
+    }
+
+    var level: Double { request?.sink?.level ?? 0 }
+    var isDeliveringAudio: Bool { request?.sink?.isDeliveringAudio ?? false }
+
+    func stop() throws -> Task<URL, Error> {
+        guard let request else { throw DictationError.microphone }
+        request.end()
+        onEnd = nil
+        return worker.stop(request)
+    }
+
+    func discard() {
+        onEnd = nil
+        guard let request else { return }
+        self.request = nil
+        request.end()
+        worker.discard(request)
+    }
+
+    func shutdown() {
+        request?.end()
+        onEnd = nil
+        worker.shutdown()
+        request = nil
     }
 
     nonisolated static func connectSilentOutput(to engine: AVAudioEngine, format: AVAudioFormat) {
@@ -112,40 +84,4 @@ final class DictationRecorder: DictationRecording {
         engine.connect(silence, to: mixer, format: format)
     }
 
-    var level: Double { capture?.level ?? 0 }
-    var isDeliveringAudio: Bool { capture?.isDeliveringAudio ?? false }
-
-    func stop() throws -> URL {
-        guard let file, let capture else { throw DictationError.microphone }
-        stopEngine()
-        try capture.finish()
-        self.capture = nil
-        return file
-    }
-
-    func discard() {
-        stopEngine()
-        try? capture?.finish()
-        capture = nil
-        if let file { try? FileManager.default.removeItem(at: file) }
-        file = nil
-    }
-
-    private func stopEngine() {
-        onEnd = nil
-        if let configurationObserver {
-            NotificationCenter.default.removeObserver(configurationObserver)
-            self.configurationObserver = nil
-        }
-        if let engine {
-            engine.stop()
-            engine.inputNode.removeTap(onBus: 0)
-            do {
-                try engine.inputNode.setVoiceProcessingEnabled(false)
-            } catch {
-                captureLog.error("Voice processing teardown failed: \(String(describing: error), privacy: .public)")
-            }
-            self.engine = nil
-        }
-    }
 }

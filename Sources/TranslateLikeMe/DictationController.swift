@@ -10,6 +10,7 @@ struct DictationInteraction {
     var endCapture: () -> Void
     var showError: (String) -> Void
     var showResult: (String) -> Void
+    var showCapture: () -> Void = {}
 
     static let live = DictationInteraction(beginCapture: { activity in
         let application = NSWorkspace.shared.frontmostApplication
@@ -23,11 +24,11 @@ struct DictationInteraction {
             dictationLog.notice("Dictation captured a window target, original pid \(pid)")
         }
         let stop = activity.monitor()
-        DictationIndicator.shared.show()
         return (target, stop)
     }, endCapture: { DictationIndicator.shared.hide() },
        showError: { PopupController.shared.showError($0) },
-       showResult: { PopupController.shared.showResult($0, kind: .dictation, copied: false) })
+       showResult: { PopupController.shared.showResult($0, kind: .dictation, copied: false) },
+       showCapture: { DictationIndicator.shared.show() })
 }
 
 @MainActor
@@ -177,9 +178,10 @@ final class DictationController {
         let id = session.begin(.starting)
         let activity = SelectionActivity()
         self.activity = activity
+        interaction.showCapture()
         do {
             // AX reads can block on the other app. Start collecting audio before
-            // inspecting its insertion target or constructing the indicator.
+            // inspecting its insertion target. Hardware starts on the capture queue.
             try recorder.start()
             recorder.onEnd = { [weak self] success in
                 guard let self, self.session.id == id else { return }
@@ -220,12 +222,14 @@ final class DictationController {
         meter = nil
         let id = session.id
         do {
-            let audio = try recorder.stop()
-            dictationLog.notice("Dictation recording drained; recognition queued")
+            let drain = try recorder.stop()
             session.transition(.recognizing, for: id)
             operation = Task { [self] in
                 defer { complete(id) }
                 do {
+                    let audio = try await drain.value
+                    try Task.checkCancellation()
+                    dictationLog.notice("Dictation recording drained; recognition queued")
                     try await prepareEngine(id, download: false)
                     guard session.accepts(id, in: .recognizing), !Task.isCancelled else { return }
                     dictationLog.notice("Dictation recognition started")
@@ -251,6 +255,11 @@ final class DictationController {
             handle(error, id: id)
             endCapture()
         }
+    }
+
+    func shutdown() {
+        cancel(restartPreparation: false)
+        recorder.shutdown()
     }
 
     func cancel(restartPreparation: Bool = true) {

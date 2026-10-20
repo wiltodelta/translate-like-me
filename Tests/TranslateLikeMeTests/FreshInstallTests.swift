@@ -214,6 +214,10 @@ private final class FreshInstallRecorder: DictationRecording {
     var stops = 0
     func requestPermission() async -> Bool { permitted }
     func start() throws { starts += 1 }
-    func stop() throws -> URL { stops += 1; return URL(fileURLWithPath: "/synthetic.wav") }
+    func stop() throws -> Task<URL, Error> {
+        stops += 1
+        return Task { URL(fileURLWithPath: "/synthetic.wav") }
+    }
     func discard() {}
+    func shutdown() {}
 }
