@@ -34,6 +34,13 @@ final class DictationTests: XCTestCase {
         }
     }
 
+    func testFocusedPIDFallsBackToFrontmostOnlyWhenAccessibilityCannotAnswer() {
+        // A nonactivating panel holds focus over the frontmost app: AX names it.
+        XCTAssertEqual(SelectionTarget.focusedPID(accessibility: 41, frontmost: 52_802), 41)
+        XCTAssertEqual(SelectionTarget.focusedPID(accessibility: nil, frontmost: 52_802), 52_802)
+        XCTAssertNil(SelectionTarget.focusedPID(accessibility: nil, frontmost: nil))
+    }
+
     func testEmptyRichEditorDropsPlaceholderNewlineAfterDictation() {
         let target = caretTarget()
         let text = "Привет, world!"

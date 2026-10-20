@@ -538,6 +538,23 @@ disabled for translation. The user subsequently confirmed that dictation worked
 in Slack. The app's later logs also recorded confirmed delivery after an initially
 negative AX check; these are functional observations, not a pass-rate benchmark.
 
+On October 20 the user reported the symptom again in Slack's compose editor
+with 3.7.3 installed and a screenshot of the selected text under the error. The
+persisted diagnostics recorded four translations over 17 seconds, each
+`Copy skipped: target pid 52802, focused pid -1, activity none, Accessibility
+true`, while `NSWorkspace` named Slack frontmost. The system-wide AX focused
+application had not answered, so the copy guard posted no Cmd+C and the run read
+as no selection. Shortly after, with Slack brought forward, a read-only probe
+saw the system-wide query name Slack and its focused `AXTextArea` report a
+140-character selected range, so the unanswered state was transient and was not
+reproduced. A probe without a window server connection got
+`kAXErrorCannotComplete` for every frontmost app and is not a witness for this.
+`SelectionTarget.focusedPID` now falls back to the frontmost app only when AX
+fails to answer, and logs the AX error code; an AX answer naming another process
+still blocks the copy. Element, range, text and activity guards are unchanged,
+so insertion still needs AX evidence. A unit test pins the order and caught the
+swapped-order mutation. The fix has not been exercised in the unanswered state.
+
 ### Custom-rendered destination, October 19, 2026
 
 The user reported that super.engineering retained the transcript in the result

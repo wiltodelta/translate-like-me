@@ -131,6 +131,10 @@ Read before editing this domain.
   match, with no intervening typing, click or app activation (`SelectionActivity`).
   Missing AX evidence allows translation but skips automatic insertion. This
   checks context, never AX editability, which was unreliable in web/Electron fields.
+  The focused process is AX's system-wide focused application, else the
+  frontmost app (`SelectionTarget.focusedPID`): frontmost Slack once left the
+  former unanswered, and the copy guard read every run as no selection. A
+  failed AX answer logs its error code.
   Copy and Paste events go to the original pid and carry an app marker so the
   activity monitor ignores them. A newer clipboard change during the engine
   skips insertion and remains untouched. After paste, AX context decides whether

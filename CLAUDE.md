@@ -55,6 +55,9 @@ detail, including the secrets and where the keys are kept (1Password):
   bundle is hardened, so lldb cannot attach: read a crash's stack from
   `~/Library/Logs/DiagnosticReports/TranslateLikeMe-*.ips` (JSON after the
   first line).
+  A standalone AX probe must touch `NSApplication.shared` first: without a
+  window server connection the system-wide element answered
+  `kAXErrorCannotComplete` for every frontmost app (2026-10-20).
   Probe engine CLIs with `env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN
   -u ANTHROPIC_BASE_URL`, or the harness's own variables redirect `claude`.
   Check a prompt change live with a temporary XCTest that calls

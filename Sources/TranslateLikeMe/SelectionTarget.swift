@@ -155,12 +155,26 @@ struct SelectionTarget: @unchecked Sendable {
         return unsafeDowncast(value, to: AXUIElement.self)
     }
 
+    // AX decides whenever it answers, since it names a nonactivating panel
+    // holding focus over the frontmost app; frontmost Slack once left it
+    // unanswered, and every run read as no selection.
     static var focusedPID: pid_t? {
-        guard let application = element(attribute(AXUIElementCreateSystemWide(), kAXFocusedApplicationAttribute)) else {
+        focusedPID(accessibility: accessibilityFocusedPID,
+                   frontmost: NSWorkspace.shared.frontmostApplication?.processIdentifier)
+    }
+
+    static func focusedPID(accessibility: pid_t?, frontmost: pid_t?) -> pid_t? {
+        accessibility ?? frontmost
+    }
+
+    private static var accessibilityFocusedPID: pid_t? {
+        let (value, error) = copyAttribute(AXUIElementCreateSystemWide(), kAXFocusedApplicationAttribute)
+        guard error == .success else {
+            targetLog.notice("Accessibility named no focused application, error \(error.rawValue)")
             return nil
         }
         var pid: pid_t = 0
-        guard AXUIElementGetPid(application, &pid) == .success else { return nil }
+        guard let application = element(value), AXUIElementGetPid(application, &pid) == .success else { return nil }
         return pid
     }
 
@@ -169,9 +183,14 @@ struct SelectionTarget: @unchecked Sendable {
     }
 
     private static func attribute(_ element: AXUIElement, _ key: String) -> CFTypeRef? {
+        let (value, error) = copyAttribute(element, key)
+        return error == .success ? value : nil
+    }
+
+    private static func copyAttribute(_ element: AXUIElement, _ key: String) -> (CFTypeRef?, AXError) {
         var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, key as CFString, &value) == .success else { return nil }
-        return value
+        let error = AXUIElementCopyAttributeValue(element, key as CFString, &value)
+        return (value, error)
     }
 }
 
