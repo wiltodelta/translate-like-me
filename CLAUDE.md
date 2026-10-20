@@ -61,6 +61,11 @@ detail, including the secrets and where the keys are kept (1Password):
   `Translator.translate` or `Translator.rewrite` behind an env-var guard
   (`swift test --filter`, three runs per case, delete it after), rather than
   by pressing hotkeys: keystrokes land in whatever window is in front.
+  Every `agy` probe or live test lands in Antigravity's history
+  (`~/.gemini/antigravity-cli`); deleting its summary rows does not stick (agy
+  restores them at startup), so keep live agy runs few.
+  `-AppleInterfaceStyle Dark` in the argument domain does not darken the app;
+  render Dark Mode by flipping the system appearance, as `capture-screenshots.sh` does.
 
 ## Interface
 

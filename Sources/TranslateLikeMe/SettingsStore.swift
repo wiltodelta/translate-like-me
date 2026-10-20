@@ -74,30 +74,32 @@ final class SettingsStore {
         loadingPick = true
         defer { loadingPick = false }
         catalog = HarnessModels.catalog(for: provider)
-        if provider == .grok { refreshGrokDefault() }
+        if provider.probeReportsModels { refreshModels() }
         configured = HarnessDefaults.configured(for: provider)
         pick = Settings.harnessPick(for: provider)
     }
 
     private func pickChanged() {
         guard !loadingPick else { return }
-        // A model change can leave an effort the new model does not accept; the
-        // reset re-enters didSet, which saves.
-        if let effort = pick.effort, let allowed = catalog.efforts(for: pick.model ?? defaultModel),
-           !allowed.contains(where: { $0.id == effort }) {
+        // A model change can leave an effort the new model does not accept, or a
+        // model whose efforts are unknown, which hides the Effort picker (Default
+        // on agy); the reset re-enters didSet, which saves.
+        if let effort = pick.effort,
+           !(catalog.efforts(for: pick.model ?? defaultModel)?.contains { $0.id == effort } ?? false) {
             pick.effort = nil
             return
         }
         Settings.setHarnessPick(pick, for: provider)
     }
 
-    // grok's default model comes from running `grok models` (~1 s), so it is
-    // asked off the main thread and the catalog reloaded when it answers.
-    private func refreshGrokDefault() {
+    // The sign-in probe takes ~1-3 s (Provider.probeReportsModels), so it runs
+    // off the main thread and the catalog is reloaded when the CLI answers.
+    private func refreshModels() {
+        let asked = provider
         Task {
-            await EngineStatus.refreshGrokDefault()
-            guard provider == .grok else { return }
-            catalog.defaultModel = Settings.grokDefaultModel
+            await EngineStatus.refreshModels(for: asked)
+            guard provider == asked else { return }
+            catalog = HarnessModels.catalog(for: asked)
         }
     }
 

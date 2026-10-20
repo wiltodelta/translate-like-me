@@ -136,7 +136,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             symbol = "circle.dotted"
             detail = EngineStatus.checkingText
         }
-        item.title = provider.shortName
+        item.title = provider.name
         item.subtitle = detail
         item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
         showsImage(item)

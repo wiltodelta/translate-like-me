@@ -56,6 +56,7 @@ enum Translator {
         case .anthropic: return try await runClaude(system: system, text: text)
         case .openai: return try await runCodex(system: system, text: text)
         case .grok: return try await runGrok(system: system, text: text)
+        case .antigravity: return try await runAntigravity(system: system, text: text)
         }
     }
 
@@ -122,7 +123,7 @@ enum Translator {
     // MARK: - CLI engines
 
     private static func runClaude(system: String, text: String) async throws -> String {
-        let binary = try await resolveBinary(name: "claude")
+        let binary = try await resolveBinary(name: Provider.anthropic.cliBinaryName)
         // `claude -p` is an agent harness, not a bare model endpoint: by default it
         // prepends ~20-30k tokens on every invocation - tool definitions, all of the
         // user's MCP server schemas, and their global/project CLAUDE.md - to what is
@@ -151,7 +152,7 @@ enum Translator {
     }
 
     private static func runCodex(system: String, text: String) async throws -> String {
-        let binary = try await resolveBinary(name: "codex")
+        let binary = try await resolveBinary(name: Provider.openai.cliBinaryName)
 
         // Codex prints a header and a trace to stdout; -o writes only the final
         // message to a file, which is the clean result we want.
@@ -197,7 +198,7 @@ enum Translator {
     }
 
     private static func runGrok(system: String, text: String) async throws -> String {
-        let binary = try await resolveBinary(name: "grok")
+        let binary = try await resolveBinary(name: Provider.grok.cliBinaryName)
 
         // `grok -p` is an agent harness too. Measured 2026-09-22 (grok 1.0.41,
         // default model grok-4.7, a one-line ru<->en translation):
@@ -231,6 +232,26 @@ enum Translator {
         return try cleaned(result)
     }
 
+    // agy runs as the app's own isolated agent (Antigravity explains why).
+    // --disable-slash-commands: a selection starting with "/" is never expanded
+    // as a command or skill. Only a model and effort picked in Settings are
+    // passed; agy otherwise runs the model selected in it, and ignores an effort
+    // given without a model.
+    private static func runAntigravity(system: String, text: String) async throws -> String {
+        let binary = try await resolveBinary(name: Provider.antigravity.cliBinaryName)
+        var args = ["--agent", Antigravity.agentName, "--disable-slash-commands",
+                    "--input-format", "stream-json", "--output-format", "stream-json", "-p="]
+        let choice = HarnessChoice.current(for: .antigravity)
+        if let model = choice.model {
+            args += ["--model", model]
+            if let effort = choice.effort { args += ["--effort", effort] }
+        }
+        let output = try await runProcess(binary: binary, args: args,
+                                          stdin: Antigravity.streamMessage(promptEnvelope(system: system, text: text)),
+                                          directory: try Antigravity.workspace())
+        return try cleaned(Antigravity.response(inStream: output))
+    }
+
     // CLIs without a system-prompt flag carry it inside the single prompt.
     private static func promptEnvelope(system: String, text: String) -> String {
         system + "\n\nInput: " + text + "\nOutput:"
@@ -239,9 +260,10 @@ enum Translator {
     // MARK: - Process
 
     private static func runProcess(binary: String, args: [String], stdin: String?,
-                                   extraEnv: [String: String] = [:]) async throws -> String {
+                                   extraEnv: [String: String] = [:], directory: URL? = nil) async throws -> String {
         let output = try await ProcessRunner.run(binary: binary, arguments: args, input: stdin,
-                                                  environment: toolEnvironment(adding: extraEnv))
+                                                  environment: toolEnvironment(adding: extraEnv),
+                                                  directory: directory)
         let stdout = output.stdout, stderr = output.stderr
         if output.status != 0 {
             // Limit failures print on stdout for claude and on stderr (after a
@@ -276,10 +298,11 @@ enum Translator {
     static func toolEnvironment(adding extra: [String: String] = [:]) -> [String: String] {
         var env = ProcessInfo.processInfo.environment
         // Translations run on the user's CLI sign-in; an API key or endpoint
-        // inherited from the login environment would silently switch claude or
-        // codex to per-use API billing or another provider.
+        // inherited from the login environment would silently switch claude,
+        // codex or agy (which reads GEMINI_API_KEY and GOOGLE_API_KEY) to per-use
+        // API billing or another provider.
         for key in ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL",
-                    "OPENAI_API_KEY", "OPENAI_BASE_URL"] {
+                    "OPENAI_API_KEY", "OPENAI_BASE_URL", "GEMINI_API_KEY", "GOOGLE_API_KEY"] {
             env[key] = nil
         }
         let home = NSHomeDirectory()
@@ -351,9 +374,10 @@ enum FailureDetail {
 
 // Recognizes a signed-out CLI in its failure text. Phrases from real output:
 // grok 1.0.41 "Error: Not signed in." and "You are not authenticated."; claude and
-// codex say "not logged in". Case-insensitive, whole phrase.
+// codex say "not logged in"; agy 1.4.2 "Error: authentication required. Run 'agy'
+// to log in, then retry." Case-insensitive, whole phrase.
 enum SignInDetector {
-    private static let phrases = ["not signed in", "not logged in", "not authenticated"]
+    private static let phrases = ["not signed in", "not logged in", "not authenticated", "authentication required"]
 
     static func matches(_ text: String) -> Bool {
         let lowered = text.lowercased()

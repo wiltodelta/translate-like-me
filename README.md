@@ -47,8 +47,8 @@ right Option key while speaking, then release to insert. Languages are detected 
 - **Local dictation**: one multilingual Whisper model runs on your Mac. Uses the
   system microphone, inserts at the cursor, and keeps the last result available
   to copy if automatic insertion fails. No account or API key is needed.
-- **Bring your own translation engine**: Claude, ChatGPT or Grok through your existing
-  subscription and the provider's official CLI.
+- **Bring your own translation engine**: Claude, ChatGPT, Grok or Gemini through your
+  existing subscription and the provider's official CLI.
 - **Your translation model, or the CLI's default**: pick the model and effort each CLI
   offers, or keep the one you set in the CLI itself; nothing is pinned in the app.
 - **Menu-bar only**: no Dock icon, no window in the way. Click the icon for a
@@ -68,8 +68,8 @@ right Option key while speaking, then release to insert. Languages are detected 
 - macOS 15 (Sequoia) or later, on a Mac with Apple silicon.
 - For dictation preparation, at least 8 GB of free disk space for the model and
   temporary Core ML compilation files.
-- For translation and Rewrite, the provider's official CLI installed and signed in (`claude` for Claude,
-  `codex` for ChatGPT, `grok` for Grok).
+- For translation and Rewrite, the provider's official CLI installed and signed in: `claude`
+  (Claude Code), `codex` (Codex), `grok` (Grok Build) or `agy` (Antigravity).
 
 ## Install
 
@@ -109,7 +109,7 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
    Mac on ⌥⌘F: its languages (Language & Region), then your keyboard layouts,
    then your region, then English. When the Mac knows only one language, the
    second is left for you to choose. Every language macOS has is offered. Then pick an
-   engine: each one (Claude, ChatGPT, Grok) is checked right away with a short
+   engine: each one (Claude Code, Codex, Grok Build, Antigravity) is checked right away with a short
    test translation, so the list shows which work on your Mac and, for the
    others, what to fix (install the tool or sign in). Coming
    back from Terminal after signing in checks again. Everything stays editable
@@ -172,7 +172,7 @@ immediately.
   name, its shortcut, and a remove button, with its writing style below; an
   empty style gives a clear, neutral message. Rewrite runs on the translation
   engine.
-- **Translation engine**: provider (Claude / ChatGPT / Grok), and a **Model**
+- **Translation engine**: the CLI (Claude Code / Codex / Grok Build / Antigravity), and a **Model**
   and **Effort** picker listing what the CLI itself offers; **Default** keeps
   the CLI's configured default.
 - **Launch at login**: start the app automatically when you log in.
@@ -181,21 +181,25 @@ immediately.
 
 ## Providers
 
-Three providers, each through its official CLI and your subscription:
+Four providers, each through its official CLI and your subscription:
 
-| Provider           | CLI                             |
-|--------------------|---------------------------------|
-| Anthropic (Claude) | `claude -p` (Pro/Max)           |
-| OpenAI (ChatGPT)   | `codex exec` (ChatGPT)          |
-| xAI (Grok)         | `grok --prompt-file` (grok.com) |
+| Provider           | CLI                                         |
+|--------------------|---------------------------------------------|
+| Anthropic (Claude) | `claude -p` (Pro/Max)                       |
+| OpenAI (ChatGPT)   | `codex exec` (ChatGPT)                      |
+| xAI (Grok)         | `grok --prompt-file` (grok.com)             |
+| Google (Gemini)    | `agy -p`, Antigravity CLI (Google AI plan)  |
 
 The app runs the provider's official CLI as a subprocess, using the plan you
 are already signed in to. No API key and no per-token billing beyond your
 plan. For `codex`, run `codex login` once (ChatGPT account) before using it;
-for `grok`, run `grok login` once.
+for `grok`, run `grok login` once; for `agy`, run `agy` once and sign in.
+Antigravity CLI installs from [antigravity.google](https://antigravity.google);
+it runs as an agent the app defines, with no tools and none of your own
+Antigravity rules, skills or MCP servers.
 
 Using the official CLIs with a subscription is an intended, supported way to run
-Claude Code / Codex / Grok Build programmatically. Extracting a subscription OAuth token and using
+Claude Code / Codex / Grok Build / Antigravity CLI programmatically. Extracting a subscription OAuth token and using
 it in your own API client is not allowed; this app never does that. It only
 invokes the official binary as a subprocess.
 
@@ -205,8 +209,10 @@ For translation and Rewrite, the app runs the model and effort picked in Setting
 listed from each CLI's own model catalog (with the efforts each model accepts).
 With **Default**, each CLI runs with your own default model and effort, the
 ones set in Claude Code's `settings.json` (`model`, `effortLevel`), codex's
-`config.toml` (`model`, `model_reasoning_effort`), or grok's config; where none
-is set, the CLI's built-in default applies.
+`config.toml` (`model`, `model_reasoning_effort`), grok's config, or the model
+selected in Antigravity; where none is set, the CLI's built-in default
+applies. Antigravity has no default the app can read, so its Effort picker
+appears once you pick a model.
 
 ## Privacy
 
@@ -215,13 +221,14 @@ is set, the CLI's built-in default applies.
   audio is deleted after recognition or cancellation, and only the last text
   result stays in memory.
 - The text you translate and the pair's writing style go to the engine you
-  picked and nowhere else: Anthropic (Claude), OpenAI (ChatGPT), or xAI (Grok),
-  through its official CLI. The app has no server, analytics or telemetry.
+  picked and nowhere else: Anthropic (Claude), OpenAI (ChatGPT), xAI (Grok), or
+  Google (Gemini), through its official CLI. The app has no server, analytics or telemetry.
 - Each CLI receives the text on standard input, never as a command-line
   argument, so it does not show up in the process list.
 - The claude and codex CLIs run with session history off, so translations are
   not kept in `~/.claude` or `~/.codex`. The grok CLI has no such switch and may
-  keep its own history.
+  keep its own history. Antigravity CLI has none either: each translation is
+  kept in its history (`~/.gemini/antigravity-cli`), titled by the model.
 - The clipboard is put back after a translation, with every type it held (rich
   text, images, files), unless you copy something else in the meantime; the
   pasted translation is marked transient so clipboard managers skip it.
@@ -259,7 +266,8 @@ install in place with a relaunch. Automatic checks can be turned off in Settings
   then relaunch the app. It is required to read the selection and paste the result.
 - **No Effort picker:** the model in use takes no effort setting (Claude Code
   offers none for Haiku), or the engine's default model is not known yet (Grok,
-  until its sign-in check has run once). Pick another model to see it.
+  until its sign-in check has run once), or Antigravity is on **Default**. Pick
+  a model to see it.
 - **macOS asks for Accessibility again after updating to 2.2:** 2.2 is the first
   release signed with a Developer ID, a different signature from earlier builds.
   Grant it once more; later updates keep the grant. A build from source without

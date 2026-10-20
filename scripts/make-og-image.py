@@ -39,7 +39,7 @@ MUTED = (81, 81, 84)
 
 TITLE = "Translate Like Me"
 TAGLINE = ["Translate selected text", "in any Mac app, in your", "own writing style"]
-NOTE = "Free and open source. Claude, ChatGPT or Grok."
+NOTE = "Free and open source. Claude, ChatGPT, Grok or Gemini."
 
 
 def font(size: int, weight: str) -> ImageFont.FreeTypeFont:

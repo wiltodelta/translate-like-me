@@ -5,8 +5,8 @@ import Foundation
 // user hits the shortcut, instead of only surfacing it as an error afterwards.
 //
 // The checks are cheap: a filesystem lookup for the CLI, and `claude auth status`
-// / `codex login status` (each ~0.1-0.2s) / `grok models` (~0.9s). Run off the
-// main thread.
+// / `codex login status` (each ~0.1-0.2s) / `grok models` (~0.9s) / `agy models`
+// (~3s). Run off the main thread.
 enum EngineStatus {
     // The status words the menu and onboarding share.
     static var readyText: String { String(localized: "Ready", comment: "Engine or dictation status") }
@@ -29,12 +29,13 @@ enum EngineStatus {
         return await readiness(binary: binary, provider: provider)
     }
 
-    // grok keeps its default model in its own config, which the app does not
-    // read; `grok models` (its sign-in probe) names it, so the probe records it
-    // for Settings' "Default (…)" label and Effort picker. Off the main thread.
-    static func refreshGrokDefault() async {
-        guard let binary = await Translator.binaryPath(name: Provider.grok.cliBinaryName) else { return }
-        _ = await readiness(binary: binary, provider: .grok)
+    // Some CLIs keep what Settings' model picker needs where the app cannot
+    // read it: grok its default model (for the "Default (…)" label and Effort
+    // picker), agy its model list. Their sign-in probe prints it, so the probe
+    // records it (Provider.probeReportsModels). Off the main thread.
+    static func refreshModels(for provider: Provider) async {
+        guard let binary = await Translator.binaryPath(name: provider.cliBinaryName) else { return }
+        _ = await readiness(binary: binary, provider: provider)
     }
 
     private static func readiness(binary: String, provider: Provider) async -> Readiness {
@@ -46,6 +47,9 @@ enum EngineStatus {
             let output = result.stdout + result.stderr
             if provider == .grok, let model = HarnessModels.grokDefaultModel(in: output) {
                 Settings.grokDefaultModel = model
+            }
+            if provider == .antigravity, result.status == 0 {
+                Settings.antigravityModels = result.stdout
             }
             return provider.isSignedIn(statusOutput: output.lowercased(), exitCode: result.status)
                 ? .ready : .notLoggedIn

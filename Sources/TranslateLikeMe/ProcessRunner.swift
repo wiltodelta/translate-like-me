@@ -38,10 +38,13 @@ enum ProcessRunner {
         }
     }
 
+    // `directory` is the child's working directory, the temporary directory by
+    // default.
     static func run(binary: String, arguments: [String], input: String? = nil,
-                    environment: [String: String], deadline: @escaping Deadline = deadline(after: 120),
+                    environment: [String: String], directory: URL? = nil,
+                    deadline: @escaping Deadline = deadline(after: 120),
                     outputLimit: Int = 8 * 1024 * 1024) async throws -> Output {
-        let session = Session(outputLimit: outputLimit, deadline: deadline)
+        let session = Session(outputLimit: outputLimit, deadline: deadline, directory: directory)
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 session.start(binary: binary, arguments: arguments, input: input,
@@ -70,9 +73,10 @@ private final class Session: @unchecked Sendable {
     private var stoppingError: Error?
     private var cancelDeadline: (@Sendable () -> Void)?
 
-    init(outputLimit: Int, deadline: @escaping ProcessRunner.Deadline) {
+    init(outputLimit: Int, deadline: @escaping ProcessRunner.Deadline, directory: URL?) {
         self.outputLimit = outputLimit
         scheduleDeadline = deadline
+        process.currentDirectoryURL = directory ?? URL(fileURLWithPath: NSTemporaryDirectory())
     }
 
     func start(binary: String, arguments: [String], input: String?, environment: [String: String],
@@ -97,7 +101,6 @@ private final class Session: @unchecked Sendable {
         process.executableURL = URL(fileURLWithPath: binary)
         process.arguments = arguments
         process.environment = environment
-        process.currentDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory())
         let out = Pipe(), err = Pipe(), stdin = Pipe()
         process.standardOutput = out
         process.standardError = err

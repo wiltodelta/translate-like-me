@@ -75,6 +75,10 @@ enum JSONErrorMessage {
 //      try again at Aug 19th, 2026 8:29 PM."
 //   Anthropic/OpenAI API 429 bodies ("...would exceed your monthly text-token
 //   limit", "You exceeded your current quota...").
+//   agy -p       stderr, exit 1, captured 2026-10-19 (agy 1.4.2):
+//     "error: Individual quota reached. Please upgrade your subscription to
+//      increase your limits. Resets in 96h39m4s.", then an `AGY_ERROR: {json}`
+//     line repeating it.
 enum LimitDetector {
     // A line matches when it contains every phrase of some pair,
     // case-insensitive, with "_" counted as a space so JSON keys like
@@ -85,6 +89,7 @@ enum LimitDetector {
         ["usage limit"],
         ["exceed", "limit"],
         ["exceeded", "quota"],
+        ["quota reached"],
         ["rate limit"]
     ]
 
@@ -98,7 +103,7 @@ enum LimitDetector {
                 continue
             }
             var cleaned = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            for prefix in ["ERROR:", "\u{26A0}\u{FE0F}", "\u{26A0}"] where cleaned.hasPrefix(prefix) {
+            for prefix in ["error:", "\u{26A0}\u{FE0F}", "\u{26A0}"] where cleaned.lowercased().hasPrefix(prefix) {
                 cleaned = String(cleaned.dropFirst(prefix.count))
                     .trimmingCharacters(in: .whitespaces)
             }

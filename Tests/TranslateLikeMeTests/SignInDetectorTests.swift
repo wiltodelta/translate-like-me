@@ -22,7 +22,7 @@ final class SignInDetectorTests: XCTestCase {
 
     func testPopupAndMenuShareOneSentence() {
         let error = TranslatorError.notSignedIn(.grok)
-        XCTAssertEqual(error.errorDescription, "Not signed in to Grok. Run grok login in Terminal.")
+        XCTAssertEqual(error.errorDescription, "Not signed in to Grok Build. Run grok login in Terminal.")
         XCTAssertEqual(error.errorDescription, Provider.grok.notSignedInHint)
     }
 }

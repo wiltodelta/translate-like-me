@@ -40,7 +40,7 @@ struct HarnessModel: Equatable {
     let id: String
     let name: String
     // In the CLI's own order; empty when the model takes no effort setting.
-    let efforts: [HarnessEffort]
+    var efforts: [HarnessEffort]
     // The alias the CLI also accepts for this family ("opus"), nil where none.
     var alias: String?
 }
@@ -69,7 +69,8 @@ struct HarnessCatalog: Equatable {
 
 // Each CLI's own model list, read from the cache the CLI keeps and refreshes:
 // claude `~/.claude/cache/model-catalog/<account>-cc.json`, codex
-// `$CODEX_HOME/models_cache.json`, grok `$GROK_HOME/models_cache.json`. These are
+// `$CODEX_HOME/models_cache.json`, grok `$GROK_HOME/models_cache.json`; agy keeps
+// none, so its list is the last `agy models` output (EngineStatus). These are
 // internal files, parsed defensively: an unreadable one gives an empty catalog
 // (claude falls back to its documented aliases), so Settings offers "Default"
 // and a translation never depends on the format.
@@ -86,6 +87,8 @@ enum HarnessModels {
                 .map(parseGrok) ?? HarnessCatalog()
             catalog.defaultModel = Settings.grokDefaultModel
             return catalog
+        case .antigravity:
+            return Settings.antigravityModels.map(parseAntigravity) ?? HarnessCatalog()
         }
     }
 
@@ -159,6 +162,43 @@ enum HarnessModels {
                 return model.isEmpty ? nil : model
             }
             .first
+    }
+
+    // `agy models` prints "Fetching available models..." and then one
+    // "<id>\t<name>" line per model and effort, the effort closing both
+    // ("gemini-3.8-flash-low\tGemini 3.8 Flash (Low)", agy 1.4.2, 2026-10-19).
+    // agy takes the model and effort apart (`--model gemini-3.8-flash --effort
+    // low`, Medium when no effort is given) and refuses an effort a model is not
+    // listed with, so the lines are grouped into one model per base id. A line
+    // without that shape stays a model with no efforts. Which model agy uses by
+    // default is not printed.
+    static func parseAntigravity(_ output: String) -> HarnessCatalog {
+        var models: [HarnessModel] = []
+        for line in output.split(separator: "\n") {
+            let fields = line.split(separator: "\t", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+            guard fields.count == 2, !fields[0].isEmpty, !fields[0].contains(" ") else { continue }
+            var (id, name) = (fields[0], fields[1].isEmpty ? fields[0] : fields[1])
+            var level: HarnessEffort?
+            if name.hasSuffix(")"), let open = name.range(of: " (", options: .backwards) {
+                let label = String(name[open.upperBound..<name.index(before: name.endIndex)])
+                let suffix = "-" + label.lowercased()
+                if id.hasSuffix(suffix), id.count > suffix.count {
+                    level = effort(label.lowercased(), name: label)
+                    id = String(id.dropLast(suffix.count))
+                    name = String(name[..<open.lowerBound])
+                }
+            }
+            if let index = models.firstIndex(where: { $0.id == id }) {
+                if let level { models[index].efforts.append(level) }
+            } else {
+                models.append(HarnessModel(id: id, name: name, efforts: level.map { [$0] } ?? []))
+            }
+        }
+        // agy lists Medium before High and Low.
+        let order = ["low", "medium", "high", "xhigh", "max"]
+        let rank = { (id: String) in order.firstIndex(of: id) ?? order.count }
+        for index in models.indices { models[index].efforts.sort { rank($0.id) < rank($1.id) } }
+        return HarnessCatalog(models: models)
     }
 
     private static func effort(_ id: Any?, name: Any?) -> HarnessEffort? {

@@ -30,6 +30,19 @@ final class ProcessRunnerTests: XCTestCase {
         XCTAssertEqual(result.stderr, "err")
     }
 
+    // agy finds the app's agent in its working directory (Antigravity.workspace).
+    func testRunsInTheGivenDirectory() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("cwd-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let result = try await ProcessRunner.run(binary: "/bin/pwd", arguments: ["-P"], environment: [:],
+                                                 directory: directory)
+        // pwd -P prints /private/var where the URL says /var.
+        let physical = try XCTUnwrap(realpath(directory.path, nil))
+        defer { free(physical) }
+        XCTAssertEqual(result.stdout.trimmingCharacters(in: .newlines), String(cString: physical))
+    }
+
     func testAbsentInputDeliversEOF() async throws {
         let result = try await Self.run("exec cat")
         XCTAssertEqual(result.status, 0)

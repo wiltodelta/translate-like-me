@@ -97,7 +97,7 @@ struct TranslationSettingsView: View {
     private var engineSection: some View {
         Section {
             Picker("Service", selection: $store.provider) {
-                ForEach(Provider.allCases, id: \.self) { Text($0.shortName).tag($0) }
+                ForEach(Provider.allCases, id: \.self) { Text($0.name).tag($0) }
             }
             modelPickers
         } header: {
@@ -143,7 +143,7 @@ struct TranslationSettingsView: View {
     private var engineFooter: String {
         let provider = store.provider
         return String(localized: """
-            Runs the \(provider.cliProductName) command-line tool you are signed in to (not the desktop app). \
+            Runs the \(provider.name) command-line tool you are signed in to (not the desktop app). \
             No extra cost beyond your plan. \(provider.modelSummary)
             """, comment: "The first placeholder is a product (Claude Code), the second a sentence about its model")
     }

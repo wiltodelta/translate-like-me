@@ -2621,6 +2621,64 @@
         }
       }
     },
+    "Default uses the model selected in Antigravity." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„Standard“ verwendet das in Antigravity ausgewählte Modell."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "«Predeterminado» usa el modelo seleccionado en Antigravity."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "« Par défaut » utilise le modèle sélectionné dans Antigravity."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Predefinito usa il modello selezionato in Antigravity."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「デフォルト」では、Antigravityで選択されているモデルを使用します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기본값은 Antigravity에서 선택한 모델을 사용합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“Padrão” usa o modelo selecionado no Antigravity."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вариант «По умолчанию» берет модель, выбранную в Antigravity."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“默认”使用在 Antigravity 中选择的模型。"
+          }
+        }
+      }
+    },
     "Delete" : {
       "comment" : "Key name",
       "localizations" : {
@@ -5360,7 +5418,7 @@
       }
     },
     "Not signed in to %@. Run %@ in Terminal." : {
-      "comment" : "The first placeholder is a service (Claude), the second a command to type",
+      "comment" : "The first placeholder is a command-line tool (Claude Code), the second a command to type",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -7994,6 +8052,122 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未找到 %@ 命令行工具（%@）。"
+          }
+        }
+      }
+    },
+    "The Antigravity CLI reported an error." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antigravity CLI hat einen Fehler gemeldet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antigravity CLI ha informado de un error."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antigravity CLI a signalé une erreur."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antigravity CLI ha segnalato un errore."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antigravity CLIからエラーが報告されました。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antigravity CLI에서 오류를 보고했습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Antigravity CLI informou um erro."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antigravity CLI сообщил об ошибке."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antigravity CLI 报告了一个错误。"
+          }
+        }
+      }
+    },
+    "The Antigravity CLI returned no result." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antigravity CLI hat kein Ergebnis zurückgegeben."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antigravity CLI no ha devuelto ningún resultado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antigravity CLI n’a renvoyé aucun résultat."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antigravity CLI non ha restituito alcun risultato."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antigravity CLIから結果が返されませんでした。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antigravity CLI가 결과를 반환하지 않았습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Antigravity CLI não retornou nenhum resultado."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antigravity CLI не вернул результат."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antigravity CLI 未返回任何结果。"
           }
         }
       }

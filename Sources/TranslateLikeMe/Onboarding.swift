@@ -143,7 +143,7 @@ private struct EngineRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(provider.shortName)
+            Text(provider.name)
             HStack(spacing: 4) {
                 if health == .checking || health == nil {
                     ProgressView().controlSize(.mini)

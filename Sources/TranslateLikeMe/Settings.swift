@@ -6,13 +6,17 @@ enum Provider: String, CaseIterable {
     case anthropic
     case openai
     case grok
+    case antigravity
 
-    // Short friendly name for status rows and Settings ("Claude", "ChatGPT").
-    var shortName: String {
+    // The CLI's product name, shown wherever an engine is named: the user picks,
+    // installs and signs in to a CLI, not a plan, and agy serves Claude and
+    // GPT-OSS models besides Gemini (decided 2026-10-19).
+    var name: String {
         switch self {
-        case .anthropic: return "Claude"
-        case .openai: return "ChatGPT"
-        case .grok: return "Grok"
+        case .anthropic: return "Claude Code"
+        case .openai: return "Codex"
+        case .grok: return "Grok Build"
+        case .antigravity: return "Antigravity"
         }
     }
 
@@ -21,15 +25,7 @@ enum Provider: String, CaseIterable {
         case .anthropic: return "claude"
         case .openai: return "codex"
         case .grok: return "grok"
-        }
-    }
-
-    // The CLI's product name as users know it, for Settings copy.
-    var cliProductName: String {
-        switch self {
-        case .anthropic: return "Claude Code"
-        case .openai: return "Codex"
-        case .grok: return "Grok Build"
+        case .antigravity: return "agy"
         }
     }
 
@@ -39,29 +35,32 @@ enum Provider: String, CaseIterable {
         case .anthropic: return String(localized: "Default uses the model and effort from your Claude Code settings.")
         case .openai: return String(localized: "Default uses the model and reasoning effort from your Codex config.")
         case .grok: return String(localized: "Default uses the model and effort from your Grok Build config.")
+        case .antigravity: return String(localized: "Default uses the model selected in Antigravity.")
         }
     }
 
     // How to sign in to the CLI, for the status menu's hint (verified against
-    // each CLI's --help, 2026-09-23).
+    // each CLI's --help, 2026-09-23). agy has no login command: it signs in when
+    // started without arguments (agy 1.4.2).
     var loginCommand: String {
         switch self {
         case .anthropic: return "claude auth login"
         case .openai: return "codex login"
         case .grok: return "grok login"
+        case .antigravity: return "agy"
         }
     }
 
     // The one sentence for a signed-out CLI, shared by the status menu row and the
     // translation popup so the two always give the same fix.
     var notSignedInHint: String {
-        String(localized: "Not signed in to \(shortName). Run \(loginCommand) in Terminal.",
-               comment: "The first placeholder is a service (Claude), the second a command to type")
+        String(localized: "Not signed in to \(name). Run \(loginCommand) in Terminal.",
+               comment: "The first placeholder is a command-line tool (Claude Code), the second a command to type")
     }
 
     // The status menu row's and onboarding's sentence for a missing CLI.
     var notInstalledHint: String {
-        String(localized: "The \(cliBinaryName) command-line tool (\(cliProductName)) was not found.",
+        String(localized: "The \(cliBinaryName) command-line tool (\(name)) was not found.",
                comment: "The first placeholder is a command (claude), the second its product (Claude Code)")
     }
 
@@ -88,11 +87,24 @@ enum Provider: String, CaseIterable {
     //   grok:   has no status command; `models` prints "You are logged in with
     //           grok.com." or "You are not authenticated.", exit 0 either way
     //           (grok 1.0.41, ~0.9s).
+    //   agy:    has no status command either; `models` lists the models, exit 0,
+    //           or prints "Error: Please sign in to view available models.",
+    //           exit 1 (agy 1.4.2, ~3s).
     var statusArguments: [String] {
         switch self {
         case .anthropic: return ["auth", "status"]
         case .openai: return ["login", "status"]
-        case .grok: return ["models"]
+        case .grok, .antigravity: return ["models"]
+        }
+    }
+
+    // Whether the sign-in probe's output also feeds Settings' model picker:
+    // grok names its default model there, agy lists its models
+    // (Settings.grokDefaultModel, Settings.antigravityModels).
+    var probeReportsModels: Bool {
+        switch self {
+        case .grok, .antigravity: return true
+        case .anthropic, .openai: return false
         }
     }
 
@@ -105,6 +117,8 @@ enum Provider: String, CaseIterable {
             return exitCode == 0 && output.contains("logged in") && !output.contains("not logged in")
         case .grok:
             return exitCode == 0 && output.contains("you are logged in")
+        case .antigravity:
+            return exitCode == 0 && !output.contains("sign in")
         }
     }
 }
@@ -124,6 +138,7 @@ enum Settings {
         static let rewritePresets = "rewritePresets"
         static let didCompleteFirstRun = "didCompleteFirstRun"
         static let grokDefaultModel = "grokDefaultModel"
+        static let antigravityModels = "antigravityModels"
         // Before pairs: one pair and one shortcut, read only to migrate.
         static let languageA = "languageA"
         static let languageB = "languageB"
@@ -199,6 +214,13 @@ enum Settings {
     static var grokDefaultModel: String? {
         get { defaults.string(forKey: Key.grokDefaultModel) }
         set { defaults.set(newValue, forKey: Key.grokDefaultModel) }
+    }
+
+    // The last `agy models` listing (EngineStatus): agy keeps no model cache file
+    // the app could read.
+    static var antigravityModels: String? {
+        get { defaults.string(forKey: Key.antigravityModels) }
+        set { defaults.set(newValue, forKey: Key.antigravityModels) }
     }
 
     static func languagePair(id: LanguagePair.ID) -> LanguagePair? {

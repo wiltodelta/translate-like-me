@@ -1,6 +1,6 @@
 # Translate Like Me
 
-> Free, open source macOS menu bar app that translates the selected text in any app in place with a global hotkey, in the user's own writing style, using Claude, ChatGPT or Grok through the user's subscription and the provider's official CLI.
+> Free, open source macOS menu bar app that translates the selected text in any app in place with a global hotkey, in the user's own writing style, using Claude, ChatGPT, Grok or Gemini through the user's subscription and the provider's official CLI.
 
 Local dictation uses a multilingual Whisper model on the Mac. Hold right Option while speaking, then release to recognize and insert. Supported languages are detected automatically, and the system microphone is used. First setup downloads the model; later recognition runs locally without an account or API key.
 

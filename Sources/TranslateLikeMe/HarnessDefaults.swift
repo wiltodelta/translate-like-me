@@ -8,15 +8,16 @@ import Foundation
 // model tied to another provider (a settings `env` that reroutes claude, a
 // codex `model_provider`) is not passed, because the isolated run cannot see
 // that provider; only the effort is. Codex profiles are not followed.
-// grok is not isolated from its config.toml, so it applies its defaults itself.
+// grok is not isolated from its config.toml, and agy keeps its selected model
+// in its own state, so both apply their defaults themselves.
 enum HarnessDefaults {
-    // The configured defaults for a provider's CLI; grok applies its own, so the
-    // app knows none for it.
+    // The configured defaults for a provider's CLI; grok and agy apply their
+    // own, so the app knows none for them.
     static func configured(for provider: Provider) -> HarnessChoice {
         switch provider {
         case .anthropic: return claude()
         case .openai: return codex()
-        case .grok: return HarnessChoice()
+        case .grok, .antigravity: return HarnessChoice()
         }
     }
 

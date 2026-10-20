@@ -3,7 +3,7 @@ paths:
   - "Sources/**"
   - "Resources/**"
   - "Tests/**"
-description: App architecture -- the status item and its standard NSMenu, settings panes, language pairs and Rewrite presets, the Carbon global hotkey path, selection validation and clipboard ownership, Claude/Codex/Grok provider and model resolution, and update checking
+description: App architecture -- the status item and its standard NSMenu, settings panes, language pairs and Rewrite presets, the Carbon global hotkey path, selection validation and clipboard ownership, Claude/Codex/Grok/Antigravity provider and model resolution, and update checking
 ---
 
 # Architecture
@@ -147,18 +147,26 @@ Read before editing this domain.
   and timeout kill the owned process group when isolated, otherwise the child,
   close its streams and await termination. Status transport failures remain
   failures rather than being reported as a signed-out account.
-- Providers: Claude (`claude` CLI), ChatGPT (`codex` CLI) and Grok (`grok`
-  CLI), selected in Settings; each runs on the user's subscription through its
+- Providers: Claude (`claude` CLI), ChatGPT (`codex` CLI), Grok (`grok`
+  CLI) and Antigravity (`agy` CLI), selected in Settings and named everywhere by
+  their CLI (`Provider.name`: Claude Code, Codex, Grok Build, Antigravity), since
+  the user picks and signs in to a CLI and agy serves more than Gemini; each runs on the user's subscription through its
   signed-in CLI (the API-key mode was removed; `Settings.removeAPIKeys()`
   deletes what it stored at launch). Per-provider facts live as `Provider`
-  properties (`shortName`, `cliBinaryName`, `cliProductName`,
+  properties (`name`, `cliBinaryName`,
   `loginCommand`, the model summary, `cliEnvironment`, `statusArguments` with
-  `isSignedIn(statusOutput:exitCode:)`), not as `== .grok` special cases.
+  `isSignedIn(statusOutput:exitCode:)`, `probeReportsModels`), not as `== .grok`
+  special cases.
 - Translations run the model and effort picked in Settings, else the CLI
   default (`HarnessChoice.current`). The pickers list `HarnessModels`, read from
   each CLI's own cache: claude `~/.claude/cache/model-catalog/<account>-cc.json`
   (per-model efforts; Haiku has none; `state.model` is its default), codex and
-  grok `models_cache.json`. They are internal files parsed defensively: an
+  grok `models_cache.json`; agy keeps no cache, so its list is the last `agy
+  models` output (the sign-in probe), stored in `Settings.antigravityModels`,
+  one line per model and effort (`gemini-3.8-flash-low`) grouped into a model
+  and its efforts, since agy takes `--model gemini-3.8-flash --effort low` and
+  refuses an effort a model is not listed with; an effort without `--model` is
+  ignored, so none is passed alone. They are internal files parsed defensively: an
   unreadable one gives an empty list and "Default" only (claude falls back to
   its documented aliases). `HarnessCatalog.model(_:)` finds a model by id, else
   a claude alias ("opus" in the user's settings) as the first catalog model
@@ -173,7 +181,8 @@ Read before editing this domain.
   `model`/`model_reasoning_effort`) and passes them back as flags; grok reads
   its own config, and its default model (for the "Default (…)" label and the
   Effort picker) is the "Default model:" line of `grok models`, the sign-in
-  probe, cached in `Settings.grokDefaultModel`. A default effort the picked model does not list is dropped.
+  probe, cached in `Settings.grokDefaultModel`; agy runs the model selected in
+  it, which it does not print. A default effort the picked model does not list is dropped.
   Known gap: codex still loads the
   global `$CODEX_HOME/AGENTS.md` into every translation (measured ~9.3k tokens
   for a 37 KB file, 2026-09-23); codex 0.156 has no flag for it (see
@@ -183,9 +192,21 @@ Read before editing this domain.
   `~/.claude` rules, skills and MCP servers and may act as an agent instead of
   translating (flag rationale in `Translator.runGrok`). Its sign-in check is
   `grok models` output.
+- agy has no system-prompt, tools-off or ignore-config flag, so it runs as the
+  app's own custom agent (`Antigravity.agentDefinition`, written to
+  `.agents/agents/translatelikeme/agent.md` under Application Support, which is
+  its working directory): `inheritCustomizations: false`,
+  `excludeDefaultComponents: true`, `tools: []`, the prompt in the message
+  through `--input-format stream-json`. Measured 2026-10-19 (agy 1.4.2): ~1k
+  input tokens instead of ~20.9k, no file, command or network tool, 5-9 s per
+  translation. A Gemini safety-filter notice arrives as a SUCCESS result and is
+  turned into a failure (`Antigravity.response`). agy has no ephemeral mode;
+  every run stays in its history (`~/.gemini/antigravity-cli`), kept by
+  decision (2026-10-19).
 - Exhausted-limit failures surface as `LimitReachedError`: `LimitDetector`
   (LimitReached.swift) matches real CLI payloads, API quota bodies included (claude prints its limit
-  line on stdout, codex on stderr; grok's limit payload is not yet captured)
+  line on stdout, codex on stderr, agy "Individual quota reached" on stderr;
+  grok's limit payload is not yet captured)
   and `PopupController.showLimitReached` shows the engine's reset time with an
   Open Settings action. `EngineStatus` stays
   sign-in-based: `claude usage` is too slow (~26s) for proactive checks.

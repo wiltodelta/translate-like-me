@@ -35,4 +35,26 @@ final class SettingsStorePickTests: XCTestCase {
             XCTAssertEqual(Settings.harnessPick(for: .grok), .init(model: "grok-4.5", effort: nil))
         }
     }
+
+    // agy prints no default model, so Default hides the Effort picker and an
+    // effort picked with a model goes with it.
+    func testDefaultModelDropsAnEffortItsPickerHides() {
+        let savedProvider = Settings.provider, savedModels = Settings.antigravityModels
+        defer {
+            Settings.setHarnessPick(.init(), for: .antigravity)
+            Settings.antigravityModels = savedModels
+            Settings.provider = savedProvider
+        }
+        Settings.antigravityModels = "gemini-3.8-flash-low\tGemini 3.8 Flash (Low)\n"
+            + "gemini-3.8-flash-high\tGemini 3.8 Flash (High)"
+        Settings.provider = .antigravity
+        let store = SettingsStore()
+        store.pick = .init(model: "gemini-3.8-flash", effort: "high")
+        XCTAssertEqual(store.effortOptions.map(\.id), ["low", "high"])
+        XCTAssertEqual(Settings.harnessPick(for: .antigravity), .init(model: "gemini-3.8-flash", effort: "high"))
+
+        store.pick.model = nil
+        XCTAssertEqual(store.effortOptions, [])
+        XCTAssertEqual(Settings.harnessPick(for: .antigravity), .init())
+    }
 }
