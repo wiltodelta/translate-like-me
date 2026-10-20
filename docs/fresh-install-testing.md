@@ -204,7 +204,7 @@ not the separate logging-only diagnostic build's 142 passing tests.
 
 The user subsequently chose sound verification followed by preparation of the
 full candidate, including voice processing and maximum media ducking. The
-[3.7.0 candidate](release-candidate-3.7.0.md) includes trailing `[BLANK_AUDIO]`
+[3.7.1 release](release-3.7.1.md) includes trailing `[BLANK_AUDIO]`
 cleanup, repeated-Option handling, metadata diagnostics and verification tools
 alongside the recorder changes. The latest
 [acoustic verification](dictation.md#maximum-ducking-release-validation-october-19-2026)
@@ -212,6 +212,6 @@ does not establish suppression effectiveness or audible restoration: its
 untreated speech controls were empty and five of six recovery-tone pairs
 failed the signal-to-noise guard. Natural speech during playback and usable
 acoustic controls remain open checks. The user subsequently authorized the
-full 3.7.0 release with these limits disclosed; the authorization and scope are
+full release with these limits disclosed; the authorization and scope are
 recorded in the release document. Punto compatibility is not fixed; quitting
 Punto is the user-confirmed workaround.

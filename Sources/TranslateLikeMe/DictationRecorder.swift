@@ -86,7 +86,7 @@ final class DictationRecorder: DictationRecording {
             forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {
-                guard let self, self.capture === capture,
+                guard let self, self.capture === capture, let engine = self.engine,
                       !engine.isRunning || engine.inputNode.outputFormat(forBus: 0) != capture.format else { return }
                 captureLog.error("Audio engine stopped or changed its input format during dictation")
                 self.onEnd?(false)

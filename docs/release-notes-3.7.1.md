@@ -1,4 +1,4 @@
-Translate Like Me 3.7.0
+Translate Like Me 3.7.1
 
 - Use the interface in Russian, German, French, Spanish, Japanese, Simplified Chinese, Brazilian Portuguese, Italian or Korean, following your macOS language.
 - Translate and Rewrite with Antigravity CLI, alongside Claude Code, Codex and Grok Build. Engine names now match their command-line tools.

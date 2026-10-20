@@ -1,8 +1,8 @@
-# Release 3.7.0
+# Release 3.7.1
 
 The user explicitly authorized publication on October 19, 2026 after the
 unattended software checks and disclosure of the remaining acoustic limits.
-[Release notes](release-notes-3.7.0.md) describe the shipped changes and limits.
+[Release notes](release-notes-3.7.1.md) describe the shipped changes and limits.
 The user does not need to perform the earlier timed reading procedure.
 
 ## Scope
@@ -43,11 +43,21 @@ acoustic acceptance. Future [unattended verification](unattended-dictation-testi
 can use a prerecorded independent source instead of a live reader. Compare on
 the same build and device pair with a usable untreated playback control.
 
+## CI compatibility
+
+The first v3.7.0 tag did not publish a release. Both its main and tag workflows
+failed during test compilation because the CI SDK's `AVAudioEngine` is not
+Sendable. Capturing the engine in a notification closure and then crossing into
+`MainActor.assumeIsolated` failed the compiler's region-isolation check. The
+callback now reads the recorder's current engine inside the main actor, guarded
+by capture identity, instead of capturing the engine across that boundary.
+The existing remote tag is retained; publication proceeds with v3.7.1.
+
 ## Publication
 
 The user has authorized committing the reviewed changes, pushing the release,
-notarization and publication through the tag workflow. Version 3.7.0 comes from
-an annotated v3.7.0 tag, not an Info.plist edit. The development identity remains
+notarization and publication through the tag workflow. Version 3.7.1 comes from
+an annotated v3.7.1 tag, not an Info.plist edit. The development identity remains
 separate from the installed app. The workflow, published assets, Sparkle feed
 and Homebrew cask are the sources of truth for publication status; verification
 steps live in [build and release](build-and-release.md#release-process).

@@ -64,6 +64,10 @@ Dictation pane. The user explicitly added model selection after the 3.5.0 releas
   `@Sendable` and never enter the main actor for audio writes. The locked sink
   closes before recognition and rejects late writes. Bound capture by frame
   count; a route/format interruption fails instead of recognizing partial audio.
+- In configuration callbacks, read the current engine from recorder state
+  inside the main actor, guarded by capture identity. Do not capture
+  `AVAudioEngine` across a Sendable closure: the CI SDK does not mark it
+  Sendable, even when the newer local SDK accepts that capture.
 - `SelectionTarget.capture(allowingCaret: true)` is explicit to dictation; the
   default still requires a selection for translation/Rewrite. Validate the
   original element, range, text and activity. Decode AX ranges with nonnegative
