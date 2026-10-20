@@ -204,7 +204,7 @@ not the separate logging-only diagnostic build's 142 passing tests.
 
 The user subsequently chose sound verification followed by preparation of the
 full candidate, including voice processing and maximum media ducking. The
-[3.7.1 release](release-3.7.1.md) includes trailing `[BLANK_AUDIO]`
+[3.7.2 release](release-3.7.2.md) includes trailing `[BLANK_AUDIO]`
 cleanup, repeated-Option handling, metadata diagnostics and verification tools
 alongside the recorder changes. The latest
 [acoustic verification](dictation.md#maximum-ducking-release-validation-october-19-2026)

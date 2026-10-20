@@ -131,7 +131,7 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
   Dictation enables macOS echo cancellation, noise suppression and media
   ducking during recording. Effectiveness depends on the devices and playback
   level. Complete physical voice-preservation and audible-restoration checks
-  remain open; see the [validation record](docs/release-3.7.1.md).
+  remain open; see the [validation record](docs/release-3.7.2.md).
 
 - Select text in any app, then press a pair's shortcut (the first pair you add
   starts on **⌥⌘F**) to replace it with the translation.

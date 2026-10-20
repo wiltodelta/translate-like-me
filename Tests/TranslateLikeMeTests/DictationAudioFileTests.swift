@@ -5,16 +5,15 @@ import XCTest
 @testable import TranslateLikeMe
 
 final class DictationAudioFileTests: XCTestCase {
-    @MainActor
     func testSilentOutputMatchesTheCaptureFormatAndRendersZerosOffTheMainActor() async throws {
-        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1))
-        let engine = AVAudioEngine()
-        DictationRecorder.connectSilentOutput(to: engine, format: format)
-        XCTAssertEqual(engine.outputNode.inputFormat(forBus: 0), format)
-        try engine.enableManualRenderingMode(.offline, format: format, maximumFrameCount: 128)
-        try engine.start()
-        defer { engine.stop() }
         let samples = try await Task.detached { @Sendable in
+            let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1))
+            let engine = AVAudioEngine()
+            DictationRecorder.connectSilentOutput(to: engine, format: format)
+            XCTAssertEqual(engine.outputNode.inputFormat(forBus: 0), format)
+            try engine.enableManualRenderingMode(.offline, format: format, maximumFrameCount: 128)
+            try engine.start()
+            defer { engine.stop() }
             let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 128))
             let channel = try XCTUnwrap(buffer.floatChannelData?[0])
             channel.initialize(repeating: 0.5, count: 128)

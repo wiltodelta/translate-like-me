@@ -1,8 +1,8 @@
-# Release 3.7.1
+# Release 3.7.2
 
 The user explicitly authorized publication on October 19, 2026 after the
 unattended software checks and disclosure of the remaining acoustic limits.
-[Release notes](release-notes-3.7.1.md) describe the shipped changes and limits.
+[Release notes](release-notes-3.7.2.md) describe the shipped changes and limits.
 The user does not need to perform the earlier timed reading procedure.
 
 ## Scope
@@ -51,13 +51,18 @@ Sendable. Capturing the engine in a notification closure and then crossing into
 `MainActor.assumeIsolated` failed the compiler's region-isolation check. The
 callback now reads the recorder's current engine inside the main actor, guarded
 by capture identity, instead of capturing the engine across that boundary.
-The existing remote tag is retained; publication proceeds with v3.7.1.
+The v3.7.1 follow-up compiled the app, then failed on the same kind of capture
+in the offline rendering test. The test now creates, renders and stops its
+engine within one detached task, returning only sample values. The stateless
+graph helper is nonisolated and never accesses recorder state. Neither engine
+nor format crosses the task boundary. The existing remote tags are retained;
+publication proceeds with v3.7.2 only after main passes CI.
 
 ## Publication
 
 The user has authorized committing the reviewed changes, pushing the release,
-notarization and publication through the tag workflow. Version 3.7.1 comes from
-an annotated v3.7.1 tag, not an Info.plist edit. The development identity remains
+notarization and publication through the tag workflow. Version 3.7.2 comes from
+an annotated v3.7.2 tag, not an Info.plist edit. The development identity remains
 separate from the installed app. The workflow, published assets, Sparkle feed
 and Homebrew cask are the sources of truth for publication status; verification
 steps live in [build and release](build-and-release.md#release-process).

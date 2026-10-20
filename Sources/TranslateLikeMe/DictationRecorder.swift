@@ -94,7 +94,7 @@ final class DictationRecorder: DictationRecording {
         }
     }
 
-    static func connectSilentOutput(to engine: AVAudioEngine, format: AVAudioFormat) {
+    nonisolated static func connectSilentOutput(to engine: AVAudioEngine, format: AVAudioFormat) {
         // Voice processing needs a rendered output clock even for capture-only
         // dictation. An input tap alone can leave the downlink without timestamps.
         let silence = AVAudioSourceNode { @Sendable isSilent, _, _, audioBuffers in

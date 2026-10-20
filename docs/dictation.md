@@ -273,7 +273,7 @@ user's voice in that test. Temporary microphone recordings and generated
 audio are deleted after analysis; only source recipes and metadata are
 retained under `.build/diagnostics/full-audio-validation/`. The local candidate
 and remaining publication steps are tracked in
-[release 3.7.1](release-3.7.1.md).
+[release 3.7.2](release-3.7.2.md).
 
 `DictationIntegrationTests` is opt-in through `TLM_DICTATION_SAMPLES`, pointing to
 a directory with synthetic audio and `cases.json`. Normal tests skip it and never
