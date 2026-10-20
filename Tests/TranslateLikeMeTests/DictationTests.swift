@@ -187,6 +187,26 @@ final class DictationTests: XCTestCase {
         XCTAssertEqual(access.state.withLock { $0.clipboard }, "original rich clipboard")
     }
 
+    func testInputAfterWindowDispatchKeepsDelivery() async throws {
+        let access = DictationAccess()
+        let delivery = DictationDelivery(access: access, requiresTextConfirmation: false, pause: { _ in
+            access.state.withLock { $0.userInput = true }
+        })
+        let outcome = try await delivery.insert("text", into: "caret")
+        XCTAssertEqual(outcome, .dispatched)
+        XCTAssertEqual(access.state.withLock { $0.pastes }, ["text"])
+        XCTAssertEqual(access.state.withLock { $0.clipboard }, "original rich clipboard")
+    }
+
+    func testInputBeforeDispatchRetainsResult() async throws {
+        let access = DictationAccess()
+        access.state.withLock { $0.userInput = true }
+        let delivery = DictationDelivery(access: access, requiresTextConfirmation: false, pause: { _ in })
+        let outcome = try await delivery.insert("text", into: "caret")
+        XCTAssertEqual(outcome, .retained)
+        XCTAssertTrue(access.state.withLock { $0.pastes.isEmpty })
+    }
+
     func testDeliveryWaitsForDelayedAccessibilityAcknowledgement() async throws {
         let access = DictationAccess()
         access.state.withLock { $0.acknowledgementDelay = .milliseconds(300) }
@@ -285,6 +305,7 @@ private struct DictationAccess: SelectionAccess {
         var elapsed: Duration = .zero
         var acknowledgementDelay: Duration = .zero
         var verificationCount = 0
+        var userInput = false
     }
     let state = OSAllocatedUnfairLock(initialState: State())
     var changeCount: Int { state.withLock { $0.count } }
@@ -303,7 +324,8 @@ private struct DictationAccess: SelectionAccess {
         XCTFail("Dictation must not copy a selection")
         return .init(text: nil, changeCount: nil)
     }
-    func isCurrent(_ target: String) -> Bool { captureTarget() == target }
+    func isCurrent(_ target: String) -> Bool { !state.withLock { $0.userInput } && targetUnchanged(target) }
+    func targetUnchanged(_ target: String) -> Bool { captureTarget() == target }
     func paste(_ text: String, into target: String, ifUnchangedSince mark: Int) -> PasteAttempt? {
         state.withLock {
             guard $0.target == target, $0.count == mark else { return nil }

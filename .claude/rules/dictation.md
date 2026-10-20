@@ -92,7 +92,9 @@ Dictation pane. The user explicitly added model selection after the 3.5.0 releas
   caret at its UTF-16 end. Do not trim arbitrary user whitespace.
   Missing target evidence yields the result popup, not a global paste elsewhere.
   Delivery distinguishes confirmed text, window dispatch without AX text proof,
-  and a retained result. Keep the last transcript available for explicit Copy.
+  and a retained result. After a window dispatch recheck only window identity:
+  input queues behind the paste, and Return right after it is not a failure.
+  Keep the last transcript available for explicit Copy.
 - Hold-to-talk is the only recording mode. Default to right Option; the binding
   field accepts left or right Option only. Press begins capture, release finishes,
   other input cancels. No toggle, menu-start path or dedicated cancellation key.

@@ -65,7 +65,9 @@ struct DictationDelivery<Access: SelectionAccess> {
         await pause(.milliseconds(600))
         try Task.checkCancellation()
         if !requiresTextConfirmation {
-            let unchanged = access.isCurrent(target)
+            // Input after the posted paste queues behind it: a Return pressed as
+            // soon as the text appears must not turn delivery into a failure.
+            let unchanged = access.targetUnchanged(target)
             deliveryLog.notice("Dictation paste dispatched without AX text confirmation, window unchanged \(unchanged)")
             return unchanged ? .dispatched : .retained
         }

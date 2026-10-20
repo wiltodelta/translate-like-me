@@ -169,7 +169,9 @@ that window's AX identity and the uninterrupted activity monitor as its target.
 Its exposed children must be standard window controls only; ordinary accessible
 content and unknown children do not qualify for this path.
 It posts Paste to the original process only while that window remains focused.
-This path records dispatch, without claiming AX text confirmation. It cannot
+This path records dispatch, without claiming AX text confirmation. After dispatch
+only the window's identity is rechecked: input queues behind the posted paste, so
+Return pressed as soon as the text appears does not retain the result. It cannot
 detect a programmatic focus change inside a window whose fields are not exposed.
 The most recent result remains available through Copy Last Dictation. Translation
 and Rewrite retain their requirement for a real text selection and AX field evidence.
@@ -569,6 +571,18 @@ insertion is established by the user's observation, not by AX text confirmation.
 This is a functional native check, not a pass-rate measurement. The full
 maintenance gate passed with 138 tests passing and one opt-in ASR fixture test
 skipped; the signed dev bundle passed strict signature verification.
+
+### Return right after insertion, October 20, 2026
+
+The user reported the result popup after pressing Return as soon as dictated text
+appeared. The window path rechecked the activity monitor at the end of the 720 ms
+clipboard wait, so that keystroke counted as an interruption. In seven days of
+installed and dev logs for super.engineering, 9 of 124 window dispatches were
+retained after the paste was posted: 8 invalidated by keyboard and 1 by pointer
+activity. The pre-dispatch guard already requires unchanged activity, so the
+post-dispatch check now compares only the window identity. A regression test
+failed with the previous check and passes with the change; a window change after
+dispatch and input before it still retain the result.
 
 ### Release candidate check, October 19, 2026
 

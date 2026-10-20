@@ -222,8 +222,9 @@ struct LiveSelectionAccess: SelectionAccess {
             targetLog.notice("Insertion invalidated by \(activity.invalidationReason, privacy: .public) activity")
             return false
         }
-        return target.isCurrent()
+        return targetUnchanged(target)
     }
+    func targetUnchanged(_ target: SelectionTarget) -> Bool { target.isCurrent() }
     func paste(_ text: String, into target: SelectionTarget, ifUnchangedSince mark: Int) -> PasteAttempt? {
         SelectionService.paste(text, into: target, ifUnchangedSince: mark, activity: activity)
     }
