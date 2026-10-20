@@ -109,7 +109,8 @@ Read before editing this domain.
   Each run, translate or rewrite, logs its frontmost app, outcome, and
   failures through `os.Logger`: `/usr/bin/log stream --level info --predicate
   'subsystem == "com.wiltodelta.translatelikeme"'` (plain `log` is a zsh
-  builtin).
+  builtin). `swift test` logs to the same subsystem from `xctest`; add
+  `process == "TranslateLikeMe"` when tallying real runs.
 - Onboarding (`Onboarding`, a `SettingsWindow` hosting an `NSHostingView`: an
   `NSHostingController` sized by `preferredContentSize` aborted in a layout
   loop) opens at launch until `Settings.didCompleteFirstRun`, which closing it
