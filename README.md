@@ -312,8 +312,10 @@ adds every new string from the code to it, as Xcode does, and fails until each
 one is translated into every language, so a string never ships in English
 alone. Edit the catalog in Xcode or as JSON.
 
-Releases are automated. The app version comes from the git tag, so cutting a
-release is just tagging and pushing:
+Releases are automated. Complete the local checks, push the candidate commit
+to main and wait for the entire CI run to pass on that exact commit before
+creating its release tag. Fix failed preparation under the same planned version;
+failed attempts do not consume version numbers. Then tag and push:
 
 ```bash
 git tag -a vX.Y.Z -F notes.md   # first line "Translate Like Me X.Y.Z", blank line, then the notes

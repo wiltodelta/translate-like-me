@@ -85,23 +85,28 @@ detail an engineer needs.
 
 Automated via GitHub Actions ([`.github/workflows/build.yml`](../.github/workflows/build.yml)):
 
-1. `git tag -a vX.Y.Z -F notes.md` then `git push origin vX.Y.Z`. The annotation's
+1. Complete the local pre-commit gate, push the candidate commit to main and
+   wait for the entire main CI run to succeed on that exact commit. Fix a failed
+   candidate and repeat this step under the same planned version. Follow the
+   global sequential-release rule; preparation failures never consume versions.
+2. Only then run `git tag -a vX.Y.Z -F notes.md` and `git push origin vX.Y.Z`.
+   Never push the candidate commit and its final release tag together. The annotation's
    first line is the title ("Translate Like Me X.Y.Z"); its body, after a blank
    line, is the release notes in Markdown. The workflow refuses a tag that is
    not `vX.Y.Z` or not above every earlier tag: Sparkle offers only a higher
    version, so a lower number never reaches anybody on the newer release.
-2. The workflow runs SwiftLint and tests, imports the Developer ID
+3. The workflow runs SwiftLint and tests, imports the Developer ID
    identity and the notarytool profile into a temporary keychain, builds and
    signs via `RELEASE=1 build.sh` (which stamps `X.Y.Z` from the tag), notarizes
    and staples via `notarize.sh`, and publishes
    a GitHub Release with `Translate-Like-Me-vX.Y.Z-macOS.zip` attached. The keychain
    is deleted at the end.
-3. It also generates `appcast.xml` with Sparkle's `generate_appcast`: this
+4. It also generates `appcast.xml` with Sparkle's `generate_appcast`: this
    release only, its EdDSA signature, and the tag body embedded as Markdown
    release notes (also the GitHub release body). The app's `SUFeedURL` is
    `releases/latest/download/appcast.xml`, so publishing the release is what
    offers it to installed copies.
-4. A second job, `homebrew`, points the cask in
+5. A second job, `homebrew`, points the cask in
    [wiltodelta/homebrew-tap](https://github.com/wiltodelta/homebrew-tap)
    (`Casks/translate-like-me.rb`) at the new release, committing the new
    `version` and the zip's `sha256` (the build job's `zip-sha256` output). It
