@@ -26,15 +26,18 @@ private struct DictationControlsSection: View {
             LabeledContent("Hold key") {
                 ShortcutField(combo: Binding(get: { store.dictationShortcut },
                                              set: { store.dictationShortcut = $0 }),
-                              usedBy: { store.owner(of: $0, except: Settings.dictationID) }, owner: "Dictation",
+                              usedBy: { store.owner(of: $0, except: Settings.dictationID) },
+                              owner: .dictation,
                               requiresOptionOnly: true)
                     .disabled(!dictation.enabled || dictation.isActive)
             }
         } header: {
             Text("Dictation")
         } footer: {
-            Text("Hold Option while speaking, then release to insert. "
-                 + "Languages are detected automatically. Uses the microphone selected in macOS.")
+            Text("""
+                Hold Option while speaking, then release to insert. Languages are detected automatically. Uses \
+                the microphone selected in macOS.
+                """)
                 .foregroundStyle(Color.secondaryText)
         }
     }
@@ -47,7 +50,7 @@ private struct DictationModelSection: View {
         Section {
             Picker("Model", selection: Binding(get: { dictation.model }, set: { dictation.selectModel($0) })) {
                 ForEach(DictationModel.allCases) { model in
-                    Text(model == .turbo ? "\(model.title) (Recommended)" : model.title).tag(model)
+                    (model == .turbo ? Text("\(model.title) (Recommended)") : Text(model.title)).tag(model)
                 }
             }
             .disabled(dictation.isActive)
@@ -58,8 +61,10 @@ private struct DictationModelSection: View {
         } header: {
             Text("Speech model")
         } footer: {
-            Text("While dictation is enabled, the selected model downloads once and runs on your Mac. "
-                 + "Downloaded models are kept for later use.")
+            Text("""
+                While dictation is enabled, the selected model downloads once and runs on your Mac. Downloaded \
+                models are kept for later use.
+                """)
                 .foregroundStyle(Color.secondaryText)
         }
     }
@@ -78,7 +83,7 @@ private struct DictationPreparationStatus: View {
                     }
                 } else {
                     ProgressView("Downloading speech model…", value: dictation.progress)
-                        .accessibilityValue("\(Int(dictation.progress * 100)) percent")
+                        .accessibilityValue(Text(dictation.progress, format: .percent.precision(.fractionLength(0))))
                 }
             } else if let error = dictation.error {
                 Label {
@@ -104,7 +109,7 @@ struct DictationIndicatorContent: View {
     let cancel: () -> Void
 
     private var listening: Bool { phase == .recording }
-    private var title: String {
+    private var title: LocalizedStringKey {
         switch phase {
         case .recording: "Listening…"
         case .recognizing: "Recognizing…"
@@ -169,7 +174,7 @@ final class DictationIndicator {
             let window = DictationPanel(contentRect: NSRect(x: 0, y: 0, width: 280, height: 80),
                                          styleMask: [.borderless, .nonactivatingPanel],
                                          backing: .buffered, defer: false)
-            window.title = "Dictation"
+            window.title = String(localized: "Dictation")
             window.isOpaque = false
             window.backgroundColor = .clear
             window.hasShadow = true

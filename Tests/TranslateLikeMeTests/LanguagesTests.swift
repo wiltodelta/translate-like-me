@@ -76,9 +76,20 @@ final class LanguagesTests: XCTestCase {
         XCTAssertFalse(codes.contains("zh"))
         XCTAssertFalse(codes.contains("ur-Aran")) // a style of the Arabic script
         XCTAssertEqual(Languages.name(for: "ka"), "Georgian")
-        XCTAssertEqual(Languages.all.map(\.name), Languages.all.map(\.name).sorted {
+        XCTAssertEqual(Languages.all.map(\.displayName), Languages.all.map(\.displayName).sorted {
             $0.localizedStandardCompare($1) == .orderedAscending
         })
+    }
+
+    // The pickers name languages in the interface language, capitalized as menu
+    // items even where the language writes its names in lowercase; the prompt
+    // keeps the English name.
+    func testDisplayNamesFollowTheInterfaceLanguage() {
+        XCTAssertEqual(Languages.displayName(of: "en", in: Locale(identifier: "ru")), "Английский")
+        XCTAssertEqual(Languages.displayName(of: "zh-Hans", in: Locale(identifier: "fr")), "Chinois simplifié")
+        XCTAssertEqual(Languages.displayName(of: "pt-BR", in: Locale(identifier: "de")), "Portugiesisch (Brasilien)")
+        XCTAssertEqual(Languages.displayName(of: "ru", in: Locale(identifier: "ja")), "ロシア語")
+        XCTAssertEqual(Languages.name(for: "ru"), "Russian")
     }
 
     // Every language a pair stored before the full list keeps its code.

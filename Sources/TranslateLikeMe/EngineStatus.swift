@@ -8,6 +8,12 @@ import Foundation
 // / `codex login status` (each ~0.1-0.2s) / `grok models` (~0.9s). Run off the
 // main thread.
 enum EngineStatus {
+    // The status words the menu and onboarding share.
+    static var readyText: String { String(localized: "Ready", comment: "Engine or dictation status") }
+    static var checkingText: String {
+        String(localized: "Checking…", comment: "Engine status while it is being checked")
+    }
+
     enum Readiness: Equatable {
         case ready
         case notInstalled

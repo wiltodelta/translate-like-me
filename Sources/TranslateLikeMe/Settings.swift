@@ -36,9 +36,9 @@ enum Provider: String, CaseIterable {
     // How "Default" picks the model, for Settings copy (HarnessDefaults).
     var modelSummary: String {
         switch self {
-        case .anthropic: return "Default uses the model and effort from your Claude Code settings."
-        case .openai: return "Default uses the model and reasoning effort from your Codex config."
-        case .grok: return "Default uses the model and effort from your Grok Build config."
+        case .anthropic: return String(localized: "Default uses the model and effort from your Claude Code settings.")
+        case .openai: return String(localized: "Default uses the model and reasoning effort from your Codex config.")
+        case .grok: return String(localized: "Default uses the model and effort from your Grok Build config.")
         }
     }
 
@@ -55,12 +55,14 @@ enum Provider: String, CaseIterable {
     // The one sentence for a signed-out CLI, shared by the status menu row and the
     // translation popup so the two always give the same fix.
     var notSignedInHint: String {
-        "Not signed in to \(shortName). Run \(loginCommand) in Terminal."
+        String(localized: "Not signed in to \(shortName). Run \(loginCommand) in Terminal.",
+               comment: "The first placeholder is a service (Claude), the second a command to type")
     }
 
     // The status menu row's and onboarding's sentence for a missing CLI.
     var notInstalledHint: String {
-        "The \(cliBinaryName) command-line tool (\(cliProductName)) was not found."
+        String(localized: "The \(cliBinaryName) command-line tool (\(cliProductName)) was not found.",
+               comment: "The first placeholder is a command (claude), the second its product (Claude Code)")
     }
 
     // Extra environment for every run of this provider's CLI, translations and

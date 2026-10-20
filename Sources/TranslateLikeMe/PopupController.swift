@@ -79,7 +79,7 @@ final class PopupController {
     private init() {}
 
     func showError(_ message: String) {
-        model.header = "Error"
+        model.header = String(localized: "Error", comment: "Popup header")
         model.body = message
         model.action = nil
         present()
@@ -89,26 +89,48 @@ final class PopupController {
     // from the engine, plus a direct route to Settings where the engine can
     // be switched to the other provider or auth mode.
     func showLimitReached(_ message: String) {
-        model.header = "Limit reached"
-        model.body = message + "\n\nSwitch engines in Settings, or wait for the limit to reset."
-        model.action = ("Open Settings", { [weak self] in
+        model.header = String(localized: "Limit reached", comment: "Popup header")
+        model.body = message + "\n\n" + String(localized: "Switch engines in Settings, or wait for the limit to reset.")
+        model.action = (String(localized: "Open Settings"), { [weak self] in
             self?.hide()
             NotificationCenter.default.post(name: .openSettings, object: nil)
         })
         present()
     }
 
+    // What a result is, for the popup's header: whole sentences, since many
+    // languages agree the verb ("copied") with the noun.
+    enum ResultKind {
+        case translation
+        case message
+        case dictation
+
+        func header(copied: Bool) -> String {
+            switch (self, copied) {
+            case (.translation, true):
+                String(localized: "Couldn't replace the selection. Translation copied to clipboard.")
+            case (.translation, false):
+                String(localized: "Couldn't safely replace the selection. Translation ready to copy.")
+            case (.message, true):
+                String(localized: "Couldn't replace the selection. Message copied to clipboard.")
+            case (.message, false):
+                String(localized: "Couldn't safely replace the selection. Message ready to copy.")
+            case (.dictation, true):
+                String(localized: "Couldn't replace the selection. Dictation copied to clipboard.")
+            case (.dictation, false):
+                String(localized: "Couldn't safely replace the selection. Dictation ready to copy.")
+            }
+        }
+    }
+
     // Skipped insertion never overwrites a newer clipboard. The header states
     // whether the result is already copied; Copy is an explicit user action.
-    // `noun` names the result: "Translation", or "Message" for a rewrite.
-    func showResult(_ text: String, noun: String, copied: Bool = true) {
-        model.header = copied
-            ? "Couldn't replace the selection. \(noun) copied to clipboard."
-            : "Couldn't safely replace the selection. \(noun) ready to copy."
+    func showResult(_ text: String, kind: ResultKind, copied: Bool = true) {
+        model.header = kind.header(copied: copied)
         model.body = text
-        model.action = ("Copy", { [weak self] in
+        model.action = (String(localized: "Copy", comment: "Button that copies the result"), { [weak self] in
             SelectionService.copyToClipboard(text)
-            self?.model.action = ("Copied", {})
+            self?.model.action = (String(localized: "Copied", comment: "The Copy button after a click"), {})
         })
         present()
     }

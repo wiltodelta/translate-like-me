@@ -16,7 +16,8 @@ enum Shortcut {
     // "⌘⌥T" style label for the current binding.
     static func display(keyCode: Int, modifiers: Int) -> String {
         if isOptionOnly(KeyCombo(keyCode: keyCode, modifiers: modifiers)) {
-            return keyCode == 58 ? "Left Option" : "Right Option"
+            return keyCode == 58 ? String(localized: "Left Option", comment: "Key name")
+                : String(localized: "Right Option", comment: "Key name")
         }
         let mods = UInt32(modifiers)
         var result = ""
@@ -46,7 +47,7 @@ enum Shortcut {
         11: "B", 12: "Q", 13: "W", 14: "E", 15: "R", 16: "Y", 17: "T",
         18: "1", 19: "2", 20: "3", 21: "4", 22: "6", 23: "5", 24: "=", 25: "9", 26: "7",
         28: "8", 29: "0", 31: "O", 32: "U", 34: "I", 35: "P", 37: "L", 38: "J", 40: "K",
-        45: "N", 46: "M", 49: "Space", 36: "Return", 48: "Tab", 51: "Delete", 53: "Esc",
+        45: "N", 46: "M",
         // Punctuation
         27: "-", 30: "]", 33: "[", 39: "'", 41: ";", 42: "\\", 43: ",", 44: "/", 47: ".", 50: "`",
         // Function keys
@@ -57,7 +58,14 @@ enum Shortcut {
     ]
 
     static func keyName(_ code: Int) -> String {
-        names[code] ?? "Key \(code)"
+        switch code {
+        case 49: String(localized: "Space", comment: "Key name")
+        case 36: String(localized: "Return", comment: "Key name")
+        case 48: String(localized: "Tab", comment: "Key name")
+        case 51: String(localized: "Delete", comment: "Key name")
+        case 53: String(localized: "Esc", comment: "Key name")
+        default: names[code] ?? String(localized: "Key \(code)", comment: "An unnamed key, by its key code")
+        }
     }
 
     // The NSMenuItem key equivalent that shows the binding in a menu, or nil for

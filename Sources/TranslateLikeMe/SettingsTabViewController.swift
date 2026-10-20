@@ -24,10 +24,13 @@ final class SettingsTabViewController: NSTabViewController {
     static func makeWindow(store: SettingsStore) -> (window: NSWindow, tabs: SettingsTabViewController) {
         let tabs = SettingsTabViewController()
         tabs.tabStyle = .toolbar
-        tabs.addPane("General", symbol: "gearshape", GeneralSettingsView(store: store))
-        tabs.addPane("Translation", symbol: "translate", TranslationSettingsView(store: store))
-        tabs.addPane("Rewrite", symbol: "text.bubble", RewriteSettingsView(store: store))
-        tabs.addPane("Dictation", symbol: "mic", DictationSettingsView(store: store))
+        tabs.addPane(String(localized: "General", comment: "Settings pane"), symbol: "gearshape",
+                     GeneralSettingsView(store: store))
+        tabs.addPane(String(localized: "Translation", comment: "Settings pane"), symbol: "translate",
+                     TranslationSettingsView(store: store))
+        tabs.addPane(String(localized: "Rewrite", comment: "Settings pane"), symbol: "text.bubble",
+                     RewriteSettingsView(store: store))
+        tabs.addPane(String(localized: "Dictation"), symbol: "mic", DictationSettingsView(store: store))
         let window = SettingsWindow(contentViewController: tabs)
         window.styleMask = [.titled, .closable]
         window.toolbarStyle = .preference

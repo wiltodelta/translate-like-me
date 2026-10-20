@@ -9,6 +9,13 @@ detail an engineer needs.
 - **Build and assemble the app bundle:** `./build.sh`. It builds an arm64-only
   release binary, copies it and `Resources/` into `Translate Like Me.app`,
   compiles the Icon Composer icon, and code-signs the bundle.
+- **Localization:** the app target compiles with `-emit-localized-strings`
+  (`Package.swift`), so the compiler lists every localizable string;
+  `build.sh` runs `scripts/sync-strings.py`, which syncs them into
+  `Resources/Localizable.xcstrings` and stops the build on any string not
+  translated into every language, and `xcstringstool compile` writes one
+  `<language>.lproj` per localization, English included (CLAUDE.md,
+  Localization).
 - **Native build system, on purpose:** SwiftPM's default swiftbuild (Xcode 27,
   measured 2026-09-23) stamps the binary's `LC_BUILD_VERSION` sdk with the
   deployment target (15.0) instead of the SDK it compiled against, and AppKit

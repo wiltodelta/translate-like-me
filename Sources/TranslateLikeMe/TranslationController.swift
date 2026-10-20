@@ -32,25 +32,28 @@ final class TranslationController {
     // Translates the selection with `pair` (each pair has its own shortcut).
     func run(pair: LanguagePair) {
         guard pair.isComplete else {
-            PopupController.shared.showError("Choose two different languages for this pair in Settings first.")
+            PopupController.shared.showError(
+                String(localized: "Choose two different languages for this pair in Settings first."))
             return
         }
-        perform("Translate", subject: pair.title, noun: "Translation") {
+        // Logged in English, like every log line, not in the interface language.
+        let subject = "\(Languages.name(for: pair.first)) ↔ \(Languages.name(for: pair.second))"
+        perform("Translate", subject: subject, kind: .translation) {
             try await Translator.translate($0, pair: pair)
         }
     }
 
     // Rewrites the selected notes into a finished message with `preset`.
     func rewrite(preset: RewritePreset) {
-        perform("Rewrite", subject: "preset \(preset.title)", noun: "Message") {
+        perform("Rewrite", subject: "preset \(preset.title)", kind: .message) {
             try await Translator.rewrite($0, preset: preset)
         }
     }
 
     // Copies the selection, runs it through `transform`, and pastes the result
-    // back in place. `action` and `subject` label the log lines; `noun` names
+    // back in place. `action` and `subject` label the log lines; `kind` names
     // the result in the popup shown when the paste cannot land.
-    private func perform(_ action: String, subject: String, noun: String,
+    private func perform(_ action: String, subject: String, kind: PopupController.ResultKind,
                          transform: @escaping @Sendable (String) async throws -> String) {
         guard !TranslationActivity.shared.isBusy else {
             log.info("\(action, privacy: .public) ignored: a run is already in progress")
@@ -75,12 +78,13 @@ final class TranslationController {
             do {
                 switch try await workflow.run(transform: transform) {
                 case .noSelection:
-                    PopupController.shared.showError("No text selected. Select some text first, then try again.")
+                    PopupController.shared.showError(
+                        String(localized: "No text selected. Select some text first, then try again."))
                 case .pasted:
                     log.info("\(action, privacy: .public) done, selection replaced")
                 case .result(let result, let copied):
                     log.info("\(action, privacy: .public) done, result shown without automatic insertion")
-                    PopupController.shared.showResult(result, noun: noun, copied: copied)
+                    PopupController.shared.showResult(result, kind: kind, copied: copied)
                 }
             } catch {
                 // The message can quote the engine's output, so it stays private.

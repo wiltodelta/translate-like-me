@@ -124,10 +124,10 @@ final class SettingsStore {
 
     // What already uses `combo`, other than the pair or preset `id`, named for
     // the shortcut recorder, so one shortcut never triggers two actions.
-    func owner(of combo: KeyCombo, except id: UUID) -> String? {
-        if id != Settings.dictationID, Settings.dictationShortcut == combo { return "Dictation" }
-        return pairs.first { $0.id != id && $0.shortcut == combo }.map(\.title)
-            ?? rewritePresets.first { $0.id != id && $0.shortcut == combo }.map { "the \($0.title) preset" }
+    func owner(of combo: KeyCombo, except id: UUID) -> ShortcutOwner? {
+        if id != Settings.dictationID, Settings.dictationShortcut == combo { return .dictation }
+        return pairs.first { $0.id != id && $0.shortcut == combo }.map { .pair($0.title) }
+            ?? rewritePresets.first { $0.id != id && $0.shortcut == combo }.map { .preset($0.title) }
     }
 
     // MARK: - Rewrite presets

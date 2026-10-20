@@ -18,7 +18,7 @@ enum Onboarding {
         let content = NSHostingView(rootView: OnboardingView(store: store, done: done))
         window.contentView = content
         window.setContentSize(content.fittingSize)
-        window.title = "Welcome to Translate Like Me"
+        window.title = String(localized: "Welcome to Translate Like Me")
         return window
     }
 }
@@ -93,8 +93,10 @@ private struct OnboardingView: View {
         } header: {
             Text("Choose a translation engine").font(.title2.bold())
         } footer: {
-            Text("Translate Like Me uses an AI subscription you already have, through the service's "
-                 + "command-line tool you are signed in to. Each one was tried with a short test translation.")
+            Text("""
+                Translate Like Me uses an AI subscription you already have, through the service's command-line \
+                tool you are signed in to. Each one was tried with a short test translation.
+                """)
                 .foregroundStyle(Color.secondaryText)
         }
     }
@@ -162,12 +164,14 @@ private struct EngineRow: View {
 
     private var detail: String {
         switch health {
-        case .checking, nil: return "Checking…"
-        case .working: return "Ready"
+        case .checking, nil: return EngineStatus.checkingText
+        case .working: return EngineStatus.readyText
         case .notInstalled: return provider.notInstalledHint
         case .notSignedIn: return provider.notSignedInHint
         case .limitReached(let message): return message
-        case .failed(let message): return "The test translation failed: \(message)"
+        case .failed(let message):
+            return String(localized: "The test translation failed: \(message)",
+                          comment: "The placeholder is the engine's own error message, often in English")
         }
     }
 }

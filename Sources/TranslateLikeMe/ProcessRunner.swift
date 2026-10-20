@@ -17,9 +17,9 @@ enum ProcessRunner {
 
         var errorDescription: String? {
             switch self {
-            case .timedOut: "The engine took too long to respond. Try again."
-            case .outputTooLarge: "The engine returned too much output. Try a smaller selection."
-            case .io: "Couldn't communicate with the engine. Try again."
+            case .timedOut: String(localized: "The engine took too long to respond. Try again.")
+            case .outputTooLarge: String(localized: "The engine returned too much output. Try a smaller selection.")
+            case .io: String(localized: "Couldn't communicate with the engine. Try again.")
             }
         }
     }

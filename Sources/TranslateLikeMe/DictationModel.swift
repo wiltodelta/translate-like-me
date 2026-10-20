@@ -17,9 +17,9 @@ enum DictationModel: String, CaseIterable, Identifiable, Sendable {
 
     var summary: String {
         switch self {
-        case .small: "Uses less memory. About 487 MB to download."
-        case .turbo: "For everyday dictation. About 627 MB to download."
-        case .largeV3: "Full-size model. About 948 MB to download."
+        case .small: String(localized: "Uses less memory. About 487 MB to download.")
+        case .turbo: String(localized: "For everyday dictation. About 627 MB to download.")
+        case .largeV3: String(localized: "Full-size model. About 948 MB to download.")
         }
     }
 

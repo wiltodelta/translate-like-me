@@ -10,21 +10,21 @@ import Carbon
 // Dictation requires a standalone left or right Option binding.
 struct ShortcutField: View {
     @Binding var combo: KeyCombo?
-    let usedBy: (KeyCombo) -> String?
-    // What the shortcut runs ("Russian ↔ English", "the Work preset"): VoiceOver
-    // read the bare combo, with nothing saying whose shortcut it was.
-    let owner: String
+    let usedBy: (KeyCombo) -> ShortcutOwner?
+    // What the shortcut runs: VoiceOver read the bare combo, with nothing
+    // saying whose shortcut it was.
+    let owner: ShortcutOwner
     var requiresOptionOnly = false
 
     @State private var recording = false
     @State private var monitor: Any?
-    @State private var conflict: String?
+    @State private var conflict: ShortcutOwner?
     @State private var leftOption = OptionKeyGesture(keyCode: 58)
     @State private var rightOption = OptionKeyGesture(keyCode: 61)
 
     private var label: some View {
-        Text(recording ? "Press keys…"
-             : combo.map(Shortcut.display) ?? "Record Shortcut")
+        Text(recording ? String(localized: "Press keys…")
+             : combo.map(Shortcut.display) ?? String(localized: "Record Shortcut"))
             // Monospaced for the glyphs of a recorded combo only, not for prose.
             .font(combo != nil && !recording ? .body.monospaced() : .body)
             // Never truncated: a long second language squeezed "Record Shortcut"
@@ -61,17 +61,21 @@ struct ShortcutField: View {
         }
     }
 
+    private var recordingHint: String {
+        requiresOptionOnly ? String(localized: "Press left or right Option. Delete clears, Esc cancels.")
+            : String(localized: "Needs ⌘, ⌥, or ⌃. Delete clears, Esc cancels.")
+    }
+
     var body: some View {
         // The hint has its own row below the button while recording, instead of
         // competing for the row's narrow trailing width.
         VStack(alignment: .trailing, spacing: 4) {
             recorderButton
-                .accessibilityLabel("Shortcut for \(owner)")
-                .accessibilityValue(recording ? "Recording" : combo.map(Shortcut.display) ?? "None")
+                .accessibilityLabel(owner.label)
+                .accessibilityValue(recording ? String(localized: "Recording", comment: "A shortcut being recorded")
+                                    : combo.map(Shortcut.display) ?? String(localized: "None", comment: "No shortcut"))
             if recording {
-                Text(conflict.map { "Already used by \($0)." }
-                     ?? (requiresOptionOnly ? "Press left or right Option. Delete clears, Esc cancels."
-                         : "Needs ⌘, ⌥, or ⌃. Delete clears, Esc cancels."))
+                Text(conflict?.conflict ?? recordingHint)
                     .font(.caption2)
                     .foregroundStyle(Color.secondaryText)
             }
@@ -139,5 +143,29 @@ struct ShortcutField: View {
         }
         // Re-arm the global hotkey with the persisted (possibly just recorded) one.
         HotKeyManager.shared.resume()
+    }
+}
+
+// What a shortcut belongs to. Each case has whole sentences of its own, since
+// languages inflect the name differently in each sentence.
+enum ShortcutOwner: Equatable {
+    case pair(String)
+    case preset(String)
+    case dictation
+
+    var label: String {
+        switch self {
+        case .pair(let title): String(localized: "Shortcut for the \(title) pair")
+        case .preset(let title): String(localized: "Shortcut for the \(title) preset")
+        case .dictation: String(localized: "Dictation shortcut")
+        }
+    }
+
+    var conflict: String {
+        switch self {
+        case .pair(let title): String(localized: "Already used by the \(title) pair.")
+        case .preset(let title): String(localized: "Already used by the \(title) preset.")
+        case .dictation: String(localized: "Already used by Dictation.")
+        }
     }
 }

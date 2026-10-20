@@ -20,13 +20,21 @@
 # sample presets into the settings (2026-10-11, when builds shared the
 # installed app's domain).
 # build.sh stamps the latest tag, so the build raises no update alert.
+#
+# CAPTURE_LANGUAGE=ru (any localization in Resources/Localizable.xcstrings)
+# launches the app in that language and writes to CAPTURE_OUT instead, to check
+# a localization's layout; the README keeps the English images.
 
 set -euo pipefail
 cd "$(dirname "$0")"
 
 APP_DIR="Translate Like Me.app"
 EXECUTABLE="$PWD/$APP_DIR/Contents/MacOS/TranslateLikeMe"
-OUT="screenshots"
+LANGUAGE="${CAPTURE_LANGUAGE:-}"
+OUT="${CAPTURE_OUT:-screenshots}"
+[ -z "$LANGUAGE" ] || [ "$OUT" != screenshots ] ||
+    { echo "CAPTURE_LANGUAGE needs a CAPTURE_OUT directory; screenshots/ stays English." >&2; exit 2; }
+mkdir -p "$OUT"
 WORK=$(mktemp -d)
 # Two sample pairs, Russian-English on ⌥⌘F with a sample style and a plain
 # Russian-English on ⌥⌘G, as the JSON Settings.languagePairs stores, passed as
@@ -200,6 +208,13 @@ SWIFT
 swiftc -O "$WORK/helper.swift" -o "$WORK/helper" 2>"$WORK/helper.log" || { cat "$WORK/helper.log"; exit 1; }
 helper() { "$WORK/helper" "$@"; }
 
+# localized <English>: the title the app shows in CAPTURE_LANGUAGE, read from the
+# built bundle, for the menu items and windows the script finds by title.
+localized() {
+    if [ -z "$LANGUAGE" ]; then printf '%s' "$1"; return; fi
+    plutil -extract "$1" raw -o - "$APP_DIR/Contents/Resources/$LANGUAGE.lproj/Localizable.strings"
+}
+
 # --- Accessibility driving -------------------------------------------------------
 
 # launch <pane>: a fresh copy with Settings set to open on <pane> (0 General, 1
@@ -219,6 +234,7 @@ launch() {
         -dictationShortcut '<7b226b6579436f6465223a36312c226d6f64696669657273223a323034387d>'
         -languagePairs "<$(printf '%s' "$SAMPLE_PAIRS" | xxd -p | tr -d '\n')>"
         -rewritePresets "<$(printf '%s' "$SAMPLE_PRESETS" | xxd -p | tr -d '\n')>")
+    if [ -n "$LANGUAGE" ]; then arguments+=(-AppleLanguages "($LANGUAGE)"); fi
     if [ -n "${2:-}" ]; then arguments+=(-dictationPreview "$2"); fi
     open -n "$APP_DIR" --args "${arguments[@]}"
     PID=""
@@ -320,7 +336,7 @@ capture_frame() {
 
 # capture_settings <window title> <name>: open Settings from the menu and capture it.
 capture_settings() {
-    ax "click menu item \"Settings…\" of menu 1 of $STATUS_ITEM" >/dev/null
+    ax "click menu item \"$(localized "Settings…")\" of menu 1 of $STATUS_ITEM" >/dev/null
     local frame=""
     for _ in $(seq 1 20); do
         frame=$(helper named "$PID" "$1")
@@ -359,26 +375,28 @@ capture_all() {
     sleep 0.5
     measure_menu
     capture_frame "menu$2" "$X" "$Y" "$W" "$H"
-    capture_settings General "general$2"
+    capture_settings "$(localized General)" "general$2"
 
     launch 1
     open_menu
-    capture_settings Translation "settings$2"
+    capture_settings "$(localized Translation)" "settings$2"
 
     launch 2
     open_menu
-    capture_settings Rewrite "rewrite$2"
+    capture_settings "$(localized Rewrite)" "rewrite$2"
 
     launch 3 settings
     open_menu
-    capture_settings Dictation "dictation$2"
+    capture_settings "$(localized Dictation)" "dictation$2"
 
     # Shipping indicator content with synthetic states, without microphone access.
+    local indicator
+    indicator=$(localized Dictation)
     for state in recording recognizing; do
         launch 0 "$state"
         local frame=""
         for _ in $(seq 1 20); do
-            frame=$(helper named "$PID" Dictation)
+            frame=$(helper named "$PID" "$indicator")
             [ -n "$frame" ] && break
             sleep 0.2
         done
@@ -397,4 +415,4 @@ case "${CAPTURE_APPEARANCE:-both}" in
 esac
 
 # The website's link preview lays the new menu screenshot beside the tagline.
-uv run scripts/make-og-image.py
+[ "$OUT" != screenshots ] || uv run scripts/make-og-image.py

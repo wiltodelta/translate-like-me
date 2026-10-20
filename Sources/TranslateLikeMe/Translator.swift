@@ -13,10 +13,11 @@ enum TranslatorError: LocalizedError {
             // The status menu's own wording, so the popup and the menu give one fix.
             return provider.notSignedInHint
         case .binaryNotFound(let name):
-            return "Couldn't find the '\(name)' command-line tool. Install it and sign in, "
-                + "then try again."
+            return String(localized: """
+                Couldn't find the '\(name)' command-line tool. Install it and sign in, then try again.
+                """, comment: "The placeholder is a command, such as claude")
         case .empty:
-            return "The translation engine returned no text."
+            return String(localized: "The translation engine returned no text.")
         case .failed(let message):
             return message
         }
@@ -257,7 +258,8 @@ enum Translator {
             } else {
                 throw TranslatorError.failed(
                     FailureDetail.summary(stderr: stderr, stdout: stdout)
-                        ?? "Engine exited with status \(output.status).")
+                        ?? String(localized: "Engine exited with status \(output.status).",
+                                  comment: "The placeholder is a process exit code"))
             }
         } else {
             return stdout

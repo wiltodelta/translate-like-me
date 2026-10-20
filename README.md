@@ -55,6 +55,11 @@ right Option key while speaking, then release to insert. Languages are detected 
   standard menu with status, your language pairs, and settings.
 - **Native macOS design**: built to Apple's Human Interface Guidelines, with
   system controls and readable result panels in both appearances.
+- **In your language**: the app speaks English, Russian, German, French,
+  Spanish, Japanese, Simplified Chinese, Brazilian Portuguese, Italian and
+  Korean, following the macOS language (System Settings > General > Language &
+  Region, where Applications can also set one for this app alone). Language
+  names in the pickers follow it too.
 - **In-place updates**: checks once a day and installs a new version when you
   choose to (Sparkle).
 
@@ -273,7 +278,7 @@ API keys saved by versions up to 2.6, which had an API-key mode, are removed
 from the keychain the first time a later version starts.
 
 Remove it from System Settings > Privacy & Security > Accessibility and from
-General > Login Items as well.
+General > Login Items & Extensions as well.
 
 ## Building and releasing
 
@@ -286,6 +291,14 @@ Build a bundle locally:
 `./capture-screenshots.sh` rebuilds the app and regenerates the screenshots,
 light and dark, switching the system to Dark Mode for a moment (the terminal
 needs Accessibility and Screen Recording access).
+`CAPTURE_LANGUAGE=de CAPTURE_OUT=<dir> ./capture-screenshots.sh` captures the
+same screens in another localization, to check its layout.
+
+Interface strings live in the String Catalog `Resources/Localizable.xcstrings`
+(and `Resources/InfoPlist.xcstrings` for the microphone prompt). `./build.sh`
+adds every new string from the code to it, as Xcode does, and fails until each
+one is translated into every language, so a string never ships in English
+alone. Edit the catalog in Xcode or as JSON.
 
 Releases are automated. The app version comes from the git tag, so cutting a
 release is just tagging and pushing:

@@ -28,7 +28,8 @@ struct GeneralSettingsView: View {
         } header: {
             Text("Languages")
         } footer: {
-            Text(LanguagePairList.explanation + " Needs Accessibility permission (macOS will ask).")
+            Text("\(LanguagePairList.explanation) Needs Accessibility permission (macOS will ask).",
+                 comment: "The placeholder is the explanation of language pairs, a few sentences")
                 .foregroundStyle(Color.secondaryText)
         }
     }
@@ -52,8 +53,8 @@ struct GeneralSettingsView: View {
         } header: {
             Text("Startup")
         } footer: {
-            Text(loginItemError.map { "Couldn't change this: \($0)" }
-                 ?? "Start Translate Like Me automatically when you log in to your Mac.")
+            Text(loginItemError
+                 ?? String(localized: "Start Translate Like Me automatically when you log in to your Mac."))
                 .foregroundStyle(Color.secondaryText)
         }
     }
@@ -96,9 +97,7 @@ struct TranslationSettingsView: View {
     private var engineSection: some View {
         Section {
             Picker("Service", selection: $store.provider) {
-                Text("Claude").tag(Provider.anthropic)
-                Text("ChatGPT").tag(Provider.openai)
-                Text("Grok").tag(Provider.grok)
+                ForEach(Provider.allCases, id: \.self) { Text($0.shortName).tag($0) }
             }
             modelPickers
         } header: {
@@ -137,13 +136,16 @@ struct TranslationSettingsView: View {
     }
 
     private static func defaultLabel(_ value: String?) -> String {
-        value.map { "Default (\($0))" } ?? "Default"
+        value.map { String(localized: "Default (\($0))", comment: "Picker item; the placeholder is a model or effort")
+        } ?? String(localized: "Default", comment: "Picker item for the CLI's own default model or effort")
     }
 
     private var engineFooter: String {
         let provider = store.provider
-        return "Runs the \(provider.cliProductName) command-line tool you are signed in to "
-            + "(not the desktop app). No extra cost beyond your plan. \(provider.modelSummary)"
+        return String(localized: """
+            Runs the \(provider.cliProductName) command-line tool you are signed in to (not the desktop app). \
+            No extra cost beyond your plan. \(provider.modelSummary)
+            """, comment: "The first placeholder is a product (Claude Code), the second a sentence about its model")
     }
 }
 
@@ -152,11 +154,13 @@ struct TranslationSettingsView: View {
 struct RewriteSettingsView: View {
     @Bindable var store: SettingsStore
 
-    static let explanation = "Select rough notes in any app, for example dictated, and press a preset's "
-        + "shortcut to replace them with a clear, finished message in the same language, in the preset's "
-        + "style. Every fact is kept, and questions stay questions for the recipient. Select a received "
-        + "message together with your notes to reply to it. To send the message in another language, "
-        + "translate it with a pair's shortcut afterwards. Uses the translation engine."
+    static let explanation: LocalizedStringKey = """
+        Select rough notes in any app, for example dictated, and press a preset's shortcut to replace them \
+        with a clear, finished message in the same language, in the preset's style. Every fact is kept, and \
+        questions stay questions for the recipient. Select a received message together with your notes to \
+        reply to it. To send the message in another language, translate it with a pair's shortcut \
+        afterwards. Uses the translation engine.
+        """
 
     var body: some View {
         Form {
@@ -206,7 +210,7 @@ struct RewriteSettingsView: View {
 private struct RewritePresetRow: View {
     @Binding var preset: RewritePreset
     let remove: () -> Void
-    let usedBy: (KeyCombo) -> String?
+    let usedBy: (KeyCombo) -> ShortcutOwner?
     @State private var editingStyle = false
 
     var body: some View {
@@ -218,11 +222,11 @@ private struct RewritePresetRow: View {
                     .accessibilityLabel("Preset name")
                     .frame(maxWidth: 200)
                 Spacer(minLength: 8)
-                ShortcutField(combo: $preset.shortcut, usedBy: usedBy, owner: "the \(preset.title) preset")
+                ShortcutField(combo: $preset.shortcut, usedBy: usedBy, owner: .preset(preset.title))
                 RemoveButton(help: "Remove this preset", label: "Remove the \(preset.title) preset", action: remove)
             }
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(style.isEmpty ? "Clear, neutral message, no writing style" : style)
+                (style.isEmpty ? Text("Clear, neutral message, no writing style") : Text(style))
                     .foregroundStyle(Color.secondaryText)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -233,9 +237,11 @@ private struct RewritePresetRow: View {
         }
         .sheet(isPresented: $editingStyle) {
             StyleEditor(title: "Writing style for \(preset.title)", style: $preset.style,
-                        hint: "Makes this preset's messages sound like you. Describe the tone and any rules, for "
-                            + "example: \"Casual and friendly, short sentences, no emoji.\" Leave empty for "
-                            + "a clear, neutral message.")
+                        hint: """
+                            Makes this preset's messages sound like you. Describe the tone and any rules, for \
+                            example: "Casual and friendly, short sentences, no emoji." Leave empty for a clear, \
+                            neutral message.
+                            """)
         }
     }
 }
@@ -245,10 +251,12 @@ private struct RewritePresetRow: View {
 struct LanguagePairList: View {
     @Bindable var store: SettingsStore
 
-    static let explanation = "Select text in any app and press a pair's shortcut to replace it with "
-        + "the translation. The source language is detected automatically; text in neither language is "
-        + "translated into the first one. A pair's writing style makes its translations sound like you; "
-        + "two pairs can share languages, one with your style and one without, for someone else's text."
+    static let explanation = String(localized: """
+        Select text in any app and press a pair's shortcut to replace it with the translation. The source \
+        language is detected automatically; text in neither language is translated into the first one. A \
+        pair's writing style makes its translations sound like you; two pairs can share languages, one with \
+        your style and one without, for someone else's text.
+        """)
 
     var body: some View {
         if store.pairs.isEmpty {
@@ -280,7 +288,7 @@ struct LanguagePairList: View {
 private struct LanguagePairRow: View {
     @Binding var pair: LanguagePair
     let remove: () -> Void
-    let usedBy: (KeyCombo) -> String?
+    let usedBy: (KeyCombo) -> ShortcutOwner?
     @State private var editingStyle = false
 
     var body: some View {
@@ -290,7 +298,7 @@ private struct LanguagePairRow: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Group {
                     if pair.isComplete {
-                        Text(style.isEmpty ? "Plain translation, no writing style" : style)
+                        (style.isEmpty ? Text("Plain translation, no writing style") : Text(style))
                             .foregroundStyle(Color.secondaryText)
                     } else {
                         Text("Choose the second language to use this pair.")
@@ -305,27 +313,29 @@ private struct LanguagePairRow: View {
         }
         .sheet(isPresented: $editingStyle) {
             StyleEditor(title: "Writing style for \(pair.title)", style: $pair.style,
-                        hint: "Makes this pair's translations sound like you. Describe the tone, for example: "
-                            + "\"Casual and friendly, short sentences.\" Leave empty for a plain translation, "
-                            + "for example for someone else's text.")
+                        hint: """
+                            Makes this pair's translations sound like you. Describe the tone, for example: \
+                            "Casual and friendly, short sentences." Leave empty for a plain translation, for \
+                            example for someone else's text.
+                            """)
         }
     }
 
     private var languagesRow: some View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                languagePicker("First language", isFirst: true)
+                languagePicker(isFirst: true)
                 direction
-                languagePicker("Second language", isFirst: false)
+                languagePicker(isFirst: false)
                 Spacer(minLength: 8)
                 shortcutControls
             }
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 VStack(alignment: .leading, spacing: 6) {
-                    languagePicker("First language", isFirst: true)
+                    languagePicker(isFirst: true)
                     HStack(spacing: 6) {
                         direction
-                        languagePicker("Second language", isFirst: false)
+                        languagePicker(isFirst: false)
                     }
                 }
                 Spacer(minLength: 8)
@@ -336,18 +346,19 @@ private struct LanguagePairRow: View {
 
     private var direction: some View {
         // Direction is detected per translation.
-        Text("↔").foregroundStyle(Color.secondaryText).accessibilityHidden(true)
+        Text(verbatim: "↔").foregroundStyle(Color.secondaryText).accessibilityHidden(true)
     }
 
     private var shortcutControls: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            ShortcutField(combo: $pair.shortcut, usedBy: usedBy, owner: pair.title)
+            ShortcutField(combo: $pair.shortcut, usedBy: usedBy, owner: .pair(pair.title))
             RemoveButton(help: "Remove this pair", label: "Remove \(pair.title)", action: remove)
         }
     }
 
-    private func languagePicker(_ label: String, isFirst: Bool) -> some View {
-        LanguagePicker(label: label, code: isFirst ? pair.first : pair.second) {
+    private func languagePicker(isFirst: Bool) -> some View {
+        LanguagePicker(label: isFirst ? String(localized: "First language") : String(localized: "Second language"),
+                       code: isFirst ? pair.first : pair.second) {
             pair = Languages.setting(pair, first: isFirst, to: $0)
         }
         .equatable()
@@ -358,8 +369,8 @@ private struct LanguagePairRow: View {
 // glyph's own 13 pt it sat under HIG Accessibility's 20 pt macOS minimum, for
 // the one destructive control in the row. 24 pt keeps the row's height.
 private struct RemoveButton: View {
-    let help: String
-    let label: String
+    let help: LocalizedStringKey
+    let label: LocalizedStringKey
     let action: () -> Void
 
     var body: some View {
@@ -387,7 +398,7 @@ private struct LanguagePicker: View, Equatable {
             if code.isEmpty {
                 Text("Choose a Language").tag("")
             }
-            ForEach(Languages.all) { Text($0.name).tag($0.code) }
+            ForEach(Languages.all) { Text($0.displayName).tag($0.code) }
         }
         .labelsHidden()
         .fixedSize()
@@ -400,17 +411,17 @@ private struct LanguagePicker: View, Equatable {
 // like the rest of Settings. HIG (Sheets): a sheet for a focused task, dismissed
 // with Done.
 private struct StyleEditor: View {
-    let title: String
+    let title: LocalizedStringKey
     @Binding var style: String
-    let hint: String
+    let hint: LocalizedStringKey
     @Environment(\.dismiss) private var dismiss
 
     // A simple, neutral starter so the box isn't empty. Intentionally generic -
-    // the user edits it into their own voice.
-    private static let template = """
+    // the user edits it into their own voice, in the app's language.
+    private static let template = String(localized: """
     Friendly and casual, like a message to a colleague. Short, clear sentences. \
     Plain everyday words, no jargon or filler.
-    """
+    """, comment: "A starter writing style the user edits; the translation engine reads it as instructions")
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

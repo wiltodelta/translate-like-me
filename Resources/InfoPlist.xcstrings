@@ -1,0 +1,72 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "NSMicrophoneUsageDescription": {
+      "comment": "The reason macOS shows when it asks for microphone access",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dictation uses your microphone to recognize speech locally on your Mac."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Диктовка использует микрофон для распознавания речи локально на вашем Mac."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diktieren verwendet dein Mikrofon, um Sprache lokal auf deinem Mac zu erkennen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La dictée utilise votre micro pour reconnaître la parole localement sur votre Mac."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El dictado usa el micrófono para reconocer el habla de forma local en tu Mac."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "音声入力では、Mac上でローカルに音声を認識するためにマイクを使用します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "听写会使用你的麦克风，在你的 Mac 上本地识别语音。"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O ditado usa o microfone para reconhecer a fala localmente no seu Mac."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La dettatura usa il microfono per riconoscere il parlato localmente sul tuo Mac."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "받아쓰기는 마이크를 사용하여 Mac에서 로컬로 음성을 인식합니다."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

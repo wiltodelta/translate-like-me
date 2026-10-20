@@ -32,7 +32,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private func rebuild() {
         menu.removeAllItems()
 
-        menu.addItem(.sectionHeader(title: "Status"))
+        menu.addItem(.sectionHeader(title: String(localized: "Status")))
         let engine = item("", action: #selector(openEngineSettings))
         engineItem = engine
         applyEngineStatus(to: engine)
@@ -41,53 +41,54 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
         let dictation = DictationController.shared
-        let title = !dictation.enabled ? "Set Up Dictation…"
-            : dictation.isActive ? "Cancel Dictation" : "Dictation Settings…"
+        let title = !dictation.enabled ? String(localized: "Set Up Dictation…")
+            : dictation.isActive ? String(localized: "Cancel Dictation") : String(localized: "Dictation Settings…")
         let dictate = item(title, action: #selector(dictationAction))
         switch dictation.phase {
         case .preparing:
-            dictate.title = "Preparing Dictation…"
+            dictate.title = String(localized: "Preparing Dictation…")
             dictate.isEnabled = false
-        case .failed: dictate.title = "Finish Dictation Setup…"
+        case .failed: dictate.title = String(localized: "Finish Dictation Setup…")
         default: break
         }
         if dictation.enabled, let shortcut = Settings.dictationShortcut {
-            dictate.subtitle = "Hold \(Shortcut.display(shortcut)) to dictate"
+            dictate.subtitle = String(localized: "Hold \(Shortcut.display(shortcut)) to dictate",
+                                      comment: "Menu subtitle; the placeholder is a key, such as Right Option")
         }
         menu.addItem(dictate)
         if dictation.lastResult != nil {
-            menu.addItem(item("Copy Last Dictation", action: #selector(copyLastDictation)))
+            menu.addItem(item(String(localized: "Copy Last Dictation"), action: #selector(copyLastDictation)))
         }
 
         // The app's key action: one item per language pair, showing its shortcut.
         menu.addItem(.separator())
-        menu.addItem(.sectionHeader(title: "Translate selection"))
+        menu.addItem(.sectionHeader(title: String(localized: "Translate selection")))
         let pairs = Settings.languagePairs
         for pair in pairs {
             let shared = pairs.contains { $0.id != pair.id && $0.first == pair.first && $0.second == pair.second }
             menu.addItem(translateItem(pair, showsStyle: shared))
         }
         if pairs.isEmpty {
-            menu.addItem(item("Add a Language Pair…", action: #selector(openLanguageSettings)))
+            menu.addItem(item(String(localized: "Add a Language Pair…"), action: #selector(openLanguageSettings)))
         }
 
         // Rewrite is off until a preset is added in Settings, and so is its section.
         let presets = Settings.rewritePresets
         if !presets.isEmpty {
             menu.addItem(.separator())
-            menu.addItem(.sectionHeader(title: "Rewrite selection"))
+            menu.addItem(.sectionHeader(title: String(localized: "Rewrite selection")))
             for preset in presets { menu.addItem(rewriteItem(preset)) }
         }
 
         // macOS 26 gives Settings… its standard gear icon, so its group gets an
         // icon on every item (HIG: uniform treatment within a group).
         menu.addItem(.separator())
-        menu.addItem(item("Settings…", key: ",", action: #selector(openSettings)))
+        menu.addItem(item(String(localized: "Settings…"), key: ",", action: #selector(openSettings)))
         menu.addItem(updatesItem())
 
         // The standard terminate(_:) selector, so the system treats it as Quit.
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit Translate Like Me",
+        menu.addItem(NSMenuItem(title: String(localized: "Quit Translate Like Me"),
                                 action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
 
@@ -121,7 +122,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         switch readiness {
         case .ready:
             symbol = "checkmark.circle"
-            detail = "Ready"
+            detail = EngineStatus.readyText
         case .notLoggedIn:
             symbol = "exclamationmark.triangle"
             detail = provider.notSignedInHint
@@ -133,7 +134,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             detail = message
         case .none:
             symbol = "circle.dotted"
-            detail = "Checking…"
+            detail = EngineStatus.checkingText
         }
         item.title = provider.shortName
         item.subtitle = detail
@@ -157,9 +158,11 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     // Enabled only while access is missing: it is the way to grant it.
     private func accessibilityItem() -> NSMenuItem {
         let trusted = AXIsProcessTrusted()
-        let item = self.item(trusted ? "Accessibility" : "Allow Accessibility Access…",
+        let item = self.item(trusted ? String(localized: "Accessibility", comment: "The macOS permission")
+                                : String(localized: "Allow Accessibility Access…"),
                              action: #selector(requestAccessibility))
-        item.subtitle = trusted ? "Allowed" : "Needed to copy and replace the selection"
+        item.subtitle = trusted ? String(localized: "Allowed", comment: "Accessibility permission status")
+            : String(localized: "Needed to copy and replace the selection")
         item.image = NSImage(systemSymbolName: trusted ? "checkmark.circle" : "exclamationmark.triangle",
                              accessibilityDescription: nil)
         item.isEnabled = !trusted
@@ -177,9 +180,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         if !pair.isComplete {
             // Opens General > Languages, where the language is chosen.
             item.action = #selector(openLanguageSettings)
-            item.subtitle = "Choose the second language in Settings"
+            item.subtitle = String(localized: "Choose the second language in Settings")
         } else if showsStyle {
-            item.subtitle = pair.trimmedStyle.isEmpty ? "Plain translation" : "In your writing style"
+            item.subtitle = pair.trimmedStyle.isEmpty ? String(localized: "Plain translation")
+                : String(localized: "In your writing style")
         }
         show(pair.shortcut, on: item)
         return item
@@ -246,9 +250,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     // the title changes rather than a window taking focus.
     private func updatesItem() -> NSMenuItem {
         let pending = Updater.shared.pendingVersion
-        let updates = item(pending == nil ? "Check for Updates…" : "Install Update…",
-                           action: #selector(checkForUpdates))
-        updates.subtitle = pending.map { "Version \($0) is available" }
+        let title = pending == nil ? String(localized: "Check for Updates…") : String(localized: "Install Update…")
+        let updates = item(title, action: #selector(checkForUpdates))
+        updates.subtitle = pending.map { String(localized: "Version \($0) is available") }
         updates.image = NSImage(systemSymbolName: pending == nil ? "arrow.triangle.2.circlepath"
                                     : "arrow.down.circle", accessibilityDescription: nil)
         showsImage(updates)

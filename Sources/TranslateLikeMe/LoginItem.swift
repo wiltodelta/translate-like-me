@@ -23,12 +23,15 @@ enum LoginItem {
             // Registered, but switched off by the user in Login Items: no error
             // is thrown, so say where to allow it.
             if enabled, SMAppService.mainApp.status == .requiresApproval {
-                return "allow Translate Like Me in System Settings > General > Login Items."
+                return String(localized: """
+                    Allow Translate Like Me in System Settings > General > Login Items & Extensions.
+                    """)
             }
             return nil
         } catch {
             log.error("Login item update failed: \(error.localizedDescription, privacy: .public)")
-            return error.localizedDescription
+            return String(localized: "Couldn't change this: \(error.localizedDescription)",
+                          comment: "The placeholder is the system's error message")
         }
     }
 }

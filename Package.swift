@@ -18,7 +18,12 @@ let package = Package(
             name: "TranslateLikeMe",
             dependencies: [.product(name: "Sparkle", package: "Sparkle"),
                            .product(name: "WhisperKit", package: "argmax-oss-swift")],
-            path: "Sources/TranslateLikeMe"
+            path: "Sources/TranslateLikeMe",
+            // The compiler lists every localizable string it type-checked, one
+            // .stringsdata per source file, for scripts/sync-strings.py (build.sh).
+            // Set here rather than through -Xswiftc so dependencies write none.
+            swiftSettings: [.unsafeFlags(["-emit-localized-strings", "-emit-localized-strings-path",
+                                          Context.packageDirectory + "/.build/localized-strings"])]
         ),
         .testTarget(
             name: "TranslateLikeMeTests",

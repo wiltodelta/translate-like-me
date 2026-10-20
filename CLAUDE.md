@@ -75,6 +75,32 @@ Deviation from the global rules: the status menu's section headers and disabled
 rows stay as NSMenu draws them (about 1.9:1 in light), since the app does not
 draw them.
 
+## Localization
+
+The interface ships in English (the development language), ru, de, fr, es,
+ja, zh-Hans, pt-BR, it and ko. Strings live in `Resources/Localizable.xcstrings`
+(`InfoPlist.xcstrings` for the microphone prompt); the app target compiles
+with `-emit-localized-strings` (`Package.swift`, so dependencies write none),
+and `build.sh` runs `scripts/sync-strings.py`, which syncs the catalog in
+place and fails on a stale string, a missing or unreviewed translation, a
+format specifier that differs from the English, or InfoPlist English that
+differs from `Info.plist`. A new string therefore needs all nine translations
+before the bundle builds (`--prune-stale` removes strings the code dropped).
+Write AppKit text as `String(localized:)` and pass SwiftUI literals straight
+to `Text`/`Button`: `+` between literals, or a ternary mixing a literal with a
+`String`, yields a plain `String` that is never localized. Compose no
+sentence from fragments whose grammar depends on each other (gender, case);
+give each variant its own string (`PopupController.ResultKind`, `ShortcutOwner`). Prompts sent
+to the engines, log lines, product names and CLI commands stay English.
+System Settings paths use Apple's own name per language: the `.loctable`
+files of the matching pane in `/System/Library/ExtensionKit/Extensions/` and
+AppKit's `MenuCommands.loctable` give them (`plutil -convert json`).
+Render a localization with `CAPTURE_LANGUAGE=de CAPTURE_OUT=<dir>
+./capture-screenshots.sh`; German runs longest. Add translations by script
+with `json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True,
+separators=(",", " : "))` and no trailing newline, byte-identical to what
+`xcstringstool sync` writes.
+
 ## Rules and conventions
 
 Topic-specific rules live in `.claude/rules/*.md` and are auto-loaded when

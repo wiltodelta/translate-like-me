@@ -45,7 +45,10 @@ Read before editing this domain.
   A scheduled Sparkle check shows its own window only while the app is active, so a
   launch-time find is announced in the menu, not over the user's app.
 - `Languages.all` is every language with a macOS locale (307, from
-  `Locale.availableIdentifiers`, English names), split by script where a
+  `Locale.availableIdentifiers`), each with its English `name` for the
+  engine's prompt and a `displayName` in the interface language
+  (`Bundle.main.preferredLocalizations`, not `Locale.current`, capitalized as
+  a menu item) that the pickers and pair titles show and sort by, split by script where a
   language has several (not `Aran`, a Nastaliq style), Portuguese by region;
   stored codes are BCP 47. New pairs take languages from
   `Languages.suggestions`: system languages, then each enabled keyboard

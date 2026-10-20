@@ -19,6 +19,10 @@ BUILD=(swift build -c release --arch arm64 --build-system native)
 echo "Building (release, arm64)..."
 "${BUILD[@]}" 2> >(grep -v "build-system native' has been deprecated" >&2)
 BIN_DIR="$("${BUILD[@]}" --show-bin-path 2>/dev/null)"
+# Merges the strings the compiler listed (Package.swift) into the String
+# Catalog, as Xcode does on each build, and fails, before anything is
+# assembled, on a string missing a translation.
+python3 -I scripts/sync-strings.py .build/localized-strings
 
 echo "Assembling $APP..."
 rm -rf "$APP"
@@ -79,6 +83,11 @@ grep -q ".macOS(\"$MIN_MACOS\")" Package.swift ||
 xcrun actool "$PWD/Resources/AppIcon.icon" --compile "$PWD/$APP/Contents/Resources" \
     --platform macosx --minimum-deployment-target "$MIN_MACOS" --app-icon AppIcon \
     --output-partial-info-plist "$(mktemp -t tlm-icon)" >/dev/null
+# One <language>.lproj per localization, English included: without en.lproj an
+# English-first Mac would resolve to its second preferred language.
+for CATALOG in Localizable InfoPlist; do
+    xcrun xcstringstool compile "Resources/$CATALOG.xcstrings" --output-directory "$APP/Contents/Resources" >/dev/null
+done
 cp "Resources/MenuBarIcon.png" "$APP/Contents/Resources/MenuBarIcon.png"
 cp "Resources/MenuBarBusy.png" "$APP/Contents/Resources/MenuBarBusy.png"
 

@@ -167,9 +167,11 @@ enum DictationError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notReady: "Dictation isn't ready. Open Settings and try preparing it again."
-        case .microphone: "The microphone couldn't start. Check your system input device, then try again."
-        case .insufficientStorage: "Free at least 8 GB of disk space, then prepare dictation again in Settings."
+        case .notReady: String(localized: "Dictation isn't ready. Open Settings and try preparing it again.")
+        case .microphone:
+            String(localized: "The microphone couldn't start. Check your system input device, then try again.")
+        case .insufficientStorage:
+            String(localized: "Free at least 8 GB of disk space, then prepare dictation again in Settings.")
         }
     }
 }

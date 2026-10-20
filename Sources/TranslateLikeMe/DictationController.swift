@@ -27,7 +27,7 @@ struct DictationInteraction {
         return (target, stop)
     }, endCapture: { DictationIndicator.shared.hide() },
        showError: { PopupController.shared.showError($0) },
-       showResult: { PopupController.shared.showResult($0, noun: "Dictation", copied: false) })
+       showResult: { PopupController.shared.showResult($0, kind: .dictation, copied: false) })
 }
 
 @MainActor
@@ -130,9 +130,10 @@ final class DictationController {
         operation = Task { [self] in
             defer { complete(id) }
             guard await recorder.requestPermission() else {
-                fail("Microphone access is off. Allow Translate Like Me in "
-                     + "System Settings > Privacy & Security > Microphone.",
-                     id: id)
+                fail(String(localized: """
+                    Microphone access is off. Allow Translate Like Me in System Settings > Privacy & Security > \
+                    Microphone.
+                    """), id: id)
                 return
             }
             do {
@@ -173,7 +174,9 @@ final class DictationController {
                 if success {
                     self.stop()
                 } else {
-                    self.fail("Recording stopped unexpectedly. Check your microphone, then try again.", id: id)
+                    self.fail(String(localized: """
+                        Recording stopped unexpectedly. Check your microphone, then try again.
+                        """), id: id)
                     self.endCapture()
                 }
             }
@@ -268,9 +271,11 @@ final class DictationController {
             let message = if case DictationError.insufficientStorage = failure {
                 failure.localizedDescription
             } else if phase == .preparing {
-                "Dictation couldn't be prepared. Check your connection, then choose Try Again."
+                String(localized: "Dictation couldn't be prepared. Check your connection, then choose Try Again.")
             } else {
-                "Speech couldn't be recognized. Try dictating again, or prepare dictation again in Settings."
+                String(localized: """
+                    Speech couldn't be recognized. Try dictating again, or prepare dictation again in Settings.
+                    """)
             }
             fail(message, id: id)
         }

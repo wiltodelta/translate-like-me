@@ -17,7 +17,7 @@ struct RewritePreset: Codable, Equatable, Identifiable {
     // The name as shown in the menu and labels; a cleared name still reads as one.
     var title: String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "Untitled Preset" : trimmed
+        return trimmed.isEmpty ? String(localized: "Untitled Preset") : trimmed
     }
 
     // The style as applied; empty for a neutral message.
@@ -45,8 +45,9 @@ enum Rewrite {
     // name uses, for the user to rename. No shortcut until one is recorded.
     static func newPreset(after presets: [RewritePreset]) -> RewritePreset {
         let names = Set(presets.map(\.title))
-        let number = (1...).first { !names.contains("Preset \($0)") } ?? 1
-        return RewritePreset(name: "Preset \(number)", shortcut: nil)
+        let name = { (number: Int) in String(localized: "Preset \(number)", comment: "A new preset's name") }
+        let number = (1...).first { !names.contains(name($0)) } ?? 1
+        return RewritePreset(name: name(number), shortcut: nil)
     }
 
     static func systemPrompt(preset: RewritePreset) -> String {

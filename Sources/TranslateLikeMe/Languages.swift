@@ -2,11 +2,13 @@ import Carbon
 import Foundation
 
 // A language the user can pick for a translation pair. `name` is the English
-// name shown in the UI and fed to the model; `code` is the persisted id, a BCP 47
-// tag, with a script or region only where the written language differs.
+// name fed to the model, `displayName` the name shown in the UI, in the app's
+// own language; `code` is the persisted id, a BCP 47 tag, with a script or
+// region only where the written language differs.
 struct Language: Identifiable, Hashable {
     let code: String
     let name: String
+    let displayName: String
     var id: String { code }
 }
 
@@ -30,7 +32,9 @@ struct LanguagePair: Codable, Equatable, Identifiable {
     // Applied to this pair's translations; blank means a plain translation.
     var style = ""
 
-    var title: String { "\(Languages.name(for: first)) ↔ \(isComplete ? Languages.name(for: second) : "…")" }
+    var title: String {
+        "\(Languages.displayName(for: first)) ↔ \(isComplete ? Languages.displayName(for: second) : "…")"
+    }
 
     // Both sides must be chosen and distinct, including pairs read from disk.
     var isComplete: Bool { !first.isEmpty && !second.isEmpty && first.lowercased() != second.lowercased() }
@@ -54,7 +58,7 @@ extension LanguagePair {
 
 enum Languages {
     // Every language macOS has a locale for (307 on macOS 27), named in English
-    // and sorted by name. A language written in several scripts is listed once
+    // and in the app's language, and sorted by the latter. A language written in several scripts is listed once
     // per script (zh-Hans, zh-Hant, sr-Cyrl, sr-Latn), except Aran, a Nastaliq
     // style of the Arabic script rather than a script of its own. Portuguese is
     // listed by region, as the two written standards differ.
@@ -78,10 +82,23 @@ enum Languages {
             }
         }
         let english = Locale(identifier: "en")
+        let interface = interfaceLocale
         return codes
-            .map { Language(code: $0, name: english.localizedString(forIdentifier: $0) ?? $0) }
-            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            .map { Language(code: $0, name: english.localizedString(forIdentifier: $0) ?? $0,
+                            displayName: displayName(of: $0, in: interface)) }
+            .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
     }()
+
+    // The language the interface resolved to among the app's localizations, not
+    // Locale.current, whose language can be one the app has no strings for.
+    static var interfaceLocale: Locale { Locale(identifier: Bundle.main.preferredLocalizations.first ?? "en") }
+
+    // A language's name as `locale` writes it, capitalized as a menu item:
+    // French, Russian and others write language names in lowercase.
+    static func displayName(of code: String, in locale: Locale) -> String {
+        guard let name = locale.localizedString(forIdentifier: code) else { return code }
+        return name.prefix(1).uppercased(with: locale) + name.dropFirst()
+    }
 
     // Keyed by lowercased code, so lookups ignore case ("zh-hant").
     private static let byCode = Dictionary(uniqueKeysWithValues: all.map { ($0.code.lowercased(), $0) })
@@ -96,8 +113,13 @@ enum Languages {
         legacyCodes[code] ?? code
     }
 
+    // The English name, for the model's prompt.
     static func name(for code: String) -> String {
         byCode[code.lowercased()]?.name ?? code
+    }
+
+    static func displayName(for code: String) -> String {
+        byCode[code.lowercased()]?.displayName ?? code
     }
 
     // The listed language for a system language identifier ("ru-US",
