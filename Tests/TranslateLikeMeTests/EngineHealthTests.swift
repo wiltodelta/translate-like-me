@@ -12,6 +12,7 @@ final class EngineHealthTests: XCTestCase {
         XCTAssertEqual(EngineHealth(LimitReachedError(message: "Resets at 5pm")), .limitReached("Resets at 5pm"))
         XCTAssertEqual(EngineHealth(TranslatorError.notSignedIn(.grok)), .notSignedIn)
         XCTAssertEqual(EngineHealth(TranslatorError.binaryNotFound("grok")), .notInstalled)
+        XCTAssertEqual(EngineHealth(LocalModelError.notDownloaded(.gemma4E2B)), .notInstalled)
         XCTAssertEqual(EngineHealth(TranslatorError.failed("Model not found")), .failed("Model not found"))
     }
 }

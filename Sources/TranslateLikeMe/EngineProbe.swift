@@ -26,7 +26,7 @@ enum EngineHealth: Equatable {
         switch error {
         case let limit as LimitReachedError: self = .limitReached(limit.message)
         case TranslatorError.notSignedIn: self = .notSignedIn
-        case TranslatorError.binaryNotFound: self = .notInstalled
+        case TranslatorError.binaryNotFound, LocalModelError.notDownloaded: self = .notInstalled
         default: self = .failed(error.localizedDescription)
         }
     }
@@ -42,12 +42,17 @@ enum EngineProbe {
     static func run(_ provider: Provider) async -> EngineHealth {
         let readiness = await EngineStatus.check(provider: provider)
         if let health = EngineHealth(readiness) { return health }
+        let health: EngineHealth
         do {
             _ = try await Translator.translate(sample, pair: samplePair, provider: provider)
-            return .working
+            health = .working
         } catch {
-            return EngineHealth(error)
+            health = EngineHealth(error)
         }
+        // The test run loaded a local model (up to 7.5 GB); onboarding checks
+        // every engine, so it is freed now rather than after the idle delay.
+        if !provider.usesCLI { await LocalEngine.shared.releaseIfIdle(reason: "check") }
+        return health
     }
 }
 

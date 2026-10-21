@@ -3,7 +3,7 @@ paths:
   - "Sources/**"
   - "Resources/**"
   - "Tests/**"
-description: App architecture -- the status item and its standard NSMenu, settings panes, language pairs and Rewrite presets, the Carbon global hotkey path, selection validation and clipboard ownership, Claude/Codex/Grok/Antigravity provider and model resolution, and update checking
+description: App architecture -- the status item and its standard NSMenu, settings panes, language pairs and Rewrite presets, the Carbon global hotkey path, selection validation and clipboard ownership, Claude/Codex/Grok/Antigravity provider and model resolution, the on-device MLX engine, and update checking
 ---
 
 # Architecture
@@ -170,6 +170,21 @@ Read before editing this domain.
   `loginCommand`, the model summary, `cliEnvironment`, `statusArguments` with
   `isSignedIn(statusOutput:exitCode:)`, `probeReportsModels`), not as `== .grok`
   special cases.
+- The fifth engine, `Provider.local` ("Local model"), runs a model on this Mac
+  with MLX in process (`LocalEngine`); `usesCLI` is false and the CLI facts are
+  never read for it. `LocalModel` pins TranslateGemma 12B (default, 16 GB Macs)
+  and Gemma 4 E2B with their turn formats; `Settings.localModel` holds the pick,
+  `LocalModelControls` shows it with its download in the Translation pane and
+  in onboarding, and `LocalModelDownloads` owns download, cancel and removal.
+  `EngineStatus` reads a verified download as ready (`LocalModelFiles`: a marker
+  and exact sizes; hashes are checked once, after downloading). The engine
+  keeps one model resident and frees it after 10 idle minutes, on memory
+  pressure, or when the model is switched. A translation that comes back
+  unchanged is asked once more with the pair reversed
+  (`Translator.translateLocally`; both models echoed English when it was the
+  pair's second language). It shares Qwen dictation's `mlx.metallib`, which
+  `MLXKernels.use()` points MLX at before either loads a model. Benchmark, prompt format, tokenizer
+  check and build detail: `docs/local-translation.md`.
 - Translations run the model and effort picked in Settings, else the CLI
   default (`HarnessChoice.current`). The pickers list `HarnessModels`, read from
   each CLI's own cache: claude `~/.claude/cache/model-catalog/<account>-cc.json`

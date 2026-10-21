@@ -4,7 +4,7 @@ import os
 import XCTest
 @testable import TranslateLikeMe
 
-final class DictationSnapshotTests: XCTestCase {
+final class ModelSnapshotTests: XCTestCase {
     func testCompleteSnapshotValidatesGitAndLFSFilesWithoutFetching() async throws {
         let fixture = SnapshotFixture()
         defer { try? FileManager.default.removeItem(at: fixture.root) }
@@ -55,7 +55,7 @@ final class DictationSnapshotTests: XCTestCase {
                     }
                 }
                 XCTFail("A completed transport is not proof of a valid snapshot")
-            } catch DictationError.notReady {} catch { XCTFail("Unexpected error: \(error)") }
+            } catch is ModelSnapshot.Incomplete {} catch { XCTFail("Unexpected error: \(error)") }
             XCTAssertEqual(calls.withLock { $0 }, 1)
         }
     }
@@ -73,7 +73,7 @@ final class DictationSnapshotTests: XCTestCase {
         do {
             _ = try await fixture.snapshot.prepare(download: false) { XCTFail("Offline reload must not fetch") }
             XCTFail("Only repository-root Hub metadata may be excluded from validation")
-        } catch DictationError.notReady {} catch { XCTFail("Unexpected error: \(error)") }
+        } catch is ModelSnapshot.Incomplete {} catch { XCTFail("Unexpected error: \(error)") }
     }
 
     func testRootSnapshotValidatesAssetsWithoutTreatingHubMetadataAsModelFiles() async throws {
@@ -96,7 +96,7 @@ final class DictationSnapshotTests: XCTestCase {
         do {
             _ = try await fixture.snapshot.prepare(download: false) { XCTFail("Offline reload must not fetch") }
             XCTFail("A cache hit must belong to the pinned revision")
-        } catch DictationError.notReady {} catch { XCTFail("Unexpected error: \(error)") }
+        } catch is ModelSnapshot.Incomplete {} catch { XCTFail("Unexpected error: \(error)") }
     }
 }
 
@@ -112,9 +112,9 @@ struct SnapshotFixture: Sendable {
         self.variant = variant
     }
 
-    var snapshot: DictationSnapshot {
-        DictationSnapshot(root: root, revision: revision, variant: variant,
-                          required: ["model.mil", "weights/weight.bin"])
+    var snapshot: ModelSnapshot {
+        ModelSnapshot(root: root, revision: revision, variant: variant,
+                      required: ["model.mil", "weights/weight.bin"])
     }
 
     func file(_ name: String) -> URL { root.appendingPathComponent(variant + "/" + name) }

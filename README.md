@@ -48,7 +48,9 @@ right Option key while speaking, then release to insert. Languages are detected 
   system microphone, inserts at the cursor, and keeps the last result available
   to copy if automatic insertion fails. No account or API key is needed.
 - **Bring your own translation engine**: Claude, ChatGPT, Grok or Gemini through your
-  existing subscription and the provider's official CLI.
+  existing subscription and the provider's official CLI, or a local model that
+  runs on your Mac (TranslateGemma 12B or Gemma 4 E2B), offline and with no
+  account.
 - **Your translation model, or the CLI's default**: pick the model and effort each CLI
   offers, or keep the one you set in the CLI itself; nothing is pinned in the app.
 - **Menu-bar only**: no Dock icon, no window in the way. Click the icon for a
@@ -69,7 +71,9 @@ right Option key while speaking, then release to insert. Languages are detected 
 - For dictation preparation, at least 8 GB of free disk space for the model and
   temporary Core ML compilation files.
 - For translation and Rewrite, the provider's official CLI installed and signed in: `claude`
-  (Claude Code), `codex` (Codex), `grok` (Grok Build) or `agy` (Antigravity).
+  (Claude Code), `codex` (Codex), `grok` (Grok Build) or `agy` (Antigravity);
+  or, for the local model, 16 GB of memory for TranslateGemma 12B (8 GB for
+  Gemma 4 E2B) and room for its download (6.7 GB or 3.6 GB) with 2 GB to spare.
 
 ## Install
 
@@ -109,9 +113,10 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
    Mac on ⌥⌘F: its languages (Language & Region), then your keyboard layouts,
    then your region, then English. When the Mac knows only one language, the
    second is left for you to choose. Every language macOS has is offered. Then pick an
-   engine: each one (Claude Code, Codex, Grok Build, Antigravity) is checked right away with a short
+   engine: each one (Claude Code, Codex, Grok Build, Antigravity, Local model) is checked right away with a short
    test translation, so the list shows which work on your Mac and, for the
-   others, what to fix (install the tool or sign in). Coming
+   others, what to fix (install the tool, sign in, or download the local
+   model, which choosing it offers right there). Coming
    back from Terminal after signing in checks again. Everything stays editable
    in Settings.
 2. Grant **Accessibility** in **System Settings > Privacy & Security >
@@ -179,14 +184,16 @@ immediately.
   engine.
 - **Translation engine**: the CLI (Claude Code / Codex / Grok Build / Antigravity), and a **Model**
   and **Effort** picker listing what the CLI itself offers; **Default** keeps
-  the CLI's configured default.
+  the CLI's configured default. For **Local model**, the model with its
+  download, which you can cancel, resume or remove.
 - **Launch at login**: start the app automatically when you log in.
 - **Updates**: current version, automatic daily checks on or off, and a "Check
   for Updates…" button.
 
 ## Providers
 
-Four providers, each through its official CLI and your subscription:
+Four providers, each through its official CLI and your subscription, and a
+local model:
 
 | Provider           | CLI                                         |
 |--------------------|---------------------------------------------|
@@ -202,6 +209,26 @@ for `grok`, run `grok login` once; for `agy`, run `agy` once and sign in.
 Antigravity CLI installs from [antigravity.google](https://antigravity.google);
 it runs as an agent the app defines, with no tools and none of your own
 Antigravity rules, skills or MCP servers.
+
+### Local model
+
+**Local model** runs on your Mac with [MLX](https://github.com/ml-explore/mlx-swift),
+in the app's own process: no CLI, account or network after the download.
+Settings > Translation offers two models, downloaded once from Hugging Face
+and checked against their published hashes:
+
+| Model | Download | Memory | Notes |
+|---|---|---|---|
+| TranslateGemma 12B (default) | 6.7 GB | 16 GB Mac | The most accurate, writing styles and Rewrite included |
+| Gemma 4 E2B | 3.6 GB | 8 GB Mac | About three times faster; less accurate (below) |
+
+In a 15-case test on an M5 (`docs/local-translation.md`), TranslateGemma 12B
+translated every case and resolved spoken self-corrections in Rewrite; Gemma 4
+E2B kept the corrected-away detail in every Rewrite run and translated a third
+language into the pair's second language. Either can return a sentence
+unchanged; the app then asks once more, which fixed every such case in testing. The model stays
+in memory for ten minutes after the last translation. TranslateGemma is
+provided under the Gemma Terms of Use, Gemma 4 under the Apache 2.0 license.
 
 Using the official CLIs with a subscription is an intended, supported way to run
 Claude Code / Codex / Grok Build / Antigravity CLI programmatically. Extracting a subscription OAuth token and using
@@ -227,7 +254,8 @@ appears once you pick a model.
   result stays in memory.
 - The text you translate and the pair's writing style go to the engine you
   picked and nowhere else: Anthropic (Claude), OpenAI (ChatGPT), xAI (Grok), or
-  Google (Gemini), through its official CLI. The app has no server, analytics or telemetry.
+  Google (Gemini), through its official CLI. With the local model they never
+  leave your Mac. The app has no server, analytics or telemetry.
 - Each CLI receives the text on standard input, never as a command-line
   argument, so it does not show up in the process list.
 - The claude and codex CLIs run with session history off, so translations are

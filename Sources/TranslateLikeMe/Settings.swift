@@ -7,6 +7,9 @@ enum Provider: String, CaseIterable {
     case openai
     case grok
     case antigravity
+    // A model running on this Mac (LocalEngine); it has no CLI, so the CLI
+    // facts below are never read for it.
+    case local
 
     // The CLI's product name, shown wherever an engine is named: the user picks,
     // installs and signs in to a CLI, not a plan, and agy serves Claude and
@@ -17,8 +20,11 @@ enum Provider: String, CaseIterable {
         case .openai: return "Codex"
         case .grok: return "Grok Build"
         case .antigravity: return "Antigravity"
+        case .local: return String(localized: "Local model", comment: "The translation engine that runs on this Mac")
         }
     }
+
+    var usesCLI: Bool { self != .local }
 
     var cliBinaryName: String {
         switch self {
@@ -26,6 +32,7 @@ enum Provider: String, CaseIterable {
         case .openai: return "codex"
         case .grok: return "grok"
         case .antigravity: return "agy"
+        case .local: return ""
         }
     }
 
@@ -36,6 +43,7 @@ enum Provider: String, CaseIterable {
         case .openai: return String(localized: "Default uses the model and reasoning effort from your Codex config.")
         case .grok: return String(localized: "Default uses the model and effort from your Grok Build config.")
         case .antigravity: return String(localized: "Default uses the model selected in Antigravity.")
+        case .local: return ""
         }
     }
 
@@ -48,6 +56,7 @@ enum Provider: String, CaseIterable {
         case .openai: return "codex login"
         case .grok: return "grok login"
         case .antigravity: return "agy"
+        case .local: return ""
         }
     }
 
@@ -58,10 +67,12 @@ enum Provider: String, CaseIterable {
                comment: "The first placeholder is a command-line tool (Claude Code), the second a command to type")
     }
 
-    // The status menu row's and onboarding's sentence for a missing CLI.
+    // The status menu row's and onboarding's sentence for a missing CLI, or a
+    // local model not downloaded yet.
     var notInstalledHint: String {
-        String(localized: "The \(cliBinaryName) command-line tool (\(name)) was not found.",
-               comment: "The first placeholder is a command (claude), the second its product (Claude Code)")
+        guard usesCLI else { return LocalModelError.notDownloaded(Settings.localModel).localizedDescription }
+        return String(localized: "The \(cliBinaryName) command-line tool (\(name)) was not found.",
+                      comment: "The first placeholder is a command (claude), the second its product (Claude Code)")
     }
 
     // Extra environment for every run of this provider's CLI, translations and
@@ -95,6 +106,7 @@ enum Provider: String, CaseIterable {
         case .anthropic: return ["auth", "status"]
         case .openai: return ["login", "status"]
         case .grok, .antigravity: return ["models"]
+        case .local: return []
         }
     }
 
@@ -104,7 +116,7 @@ enum Provider: String, CaseIterable {
     var probeReportsModels: Bool {
         switch self {
         case .grok, .antigravity: return true
-        case .anthropic, .openai: return false
+        case .anthropic, .openai, .local: return false
         }
     }
 
@@ -119,6 +131,8 @@ enum Provider: String, CaseIterable {
             return exitCode == 0 && output.contains("you are logged in")
         case .antigravity:
             return exitCode == 0 && !output.contains("sign in")
+        case .local:
+            return true
         }
     }
 }
@@ -154,6 +168,12 @@ enum Settings {
     static var dictationModel: DictationModel {
         get { DictationModel(rawValue: defaults.string(forKey: "dictationModel") ?? "") ?? .turbo }
         set { defaults.set(newValue.rawValue, forKey: "dictationModel") }
+    }
+
+    // The model the local engine runs, picked in Settings > Translation.
+    static var localModel: LocalModel {
+        get { LocalModel(rawValue: defaults.string(forKey: "localModel") ?? "") ?? .default }
+        set { defaults.set(newValue.rawValue, forKey: "localModel") }
     }
 
     static var dictationEnabled: Bool {

@@ -37,7 +37,7 @@ final class FreshInstallTests: XCTestCase {
         XCTAssertNotNil(stored?["languagePairs"], "Writes must belong to the disposable host")
         XCTAssertEqual(Settings.dictationModel, .turbo)
         XCTAssertEqual(Settings.dictationShortcut, KeyCombo(keyCode: 61, modifiers: Int(optionKey)))
-        for provider in Provider.allCases {
+        for provider in Provider.allCases where provider.usesCLI {
             let readiness = await EngineStatus.check(provider: provider)
             XCTAssertEqual(readiness, .notInstalled)
             let health = await EngineProbe.run(provider)
@@ -50,10 +50,21 @@ final class FreshInstallTests: XCTestCase {
             }
             XCTAssertNil(HarnessDefaults.configured(for: provider).model)
         }
+        // A fresh install has no local model and never loads or downloads one.
+        let localReadiness = await EngineStatus.check(provider: .local)
+        XCTAssertEqual(localReadiness, .notInstalled)
+        let localHealth = await EngineProbe.run(.local)
+        XCTAssertEqual(localHealth, .notInstalled)
+        do {
+            _ = try await Translator.translate("Hello", pair: EngineProbe.samplePair, provider: .local)
+            XCTFail("A missing local model must never silently succeed")
+        } catch LocalModelError.notDownloaded(let model) {
+            XCTAssertEqual(model, .translateGemma12B)
+        }
     }
 
     func testSignedOutTools() async throws {
-        for provider in Provider.allCases {
+        for provider in Provider.allCases where provider.usesCLI {
             try installTool(provider, signedIn: false)
             let readiness = await EngineStatus.check(provider: provider)
             XCTAssertEqual(readiness, .notLoggedIn)
@@ -63,7 +74,7 @@ final class FreshInstallTests: XCTestCase {
     }
 
     func testSyntheticTranslationThroughRealSubprocesses() async throws {
-        for provider in Provider.allCases {
+        for provider in Provider.allCases where provider.usesCLI {
             try installTool(provider, signedIn: true)
             let health = await EngineProbe.run(provider)
             XCTAssertEqual(health, .working)
@@ -167,6 +178,7 @@ final class FreshInstallTests: XCTestCase {
         case .openai: status = signedIn ? "Logged in using ChatGPT" : "Not logged in"
         case .grok: status = signedIn ? "You are logged in with grok.com." : "You are not authenticated."
         case .antigravity: status = signedIn ? "synthetic-model\tSynthetic Model" : "Error: Please sign in."
+        case .local: throw XCTSkip("The local engine has no command-line tool")
         }
         // Synthetic tools test invocation and output handling, never vendor availability.
         let response = provider == .antigravity

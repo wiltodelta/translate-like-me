@@ -32,7 +32,7 @@ disabling releases it; an evicted model reloads after recording ends. Model
 loading is outside microphone startup. Keep these two latency questions separate,
 as described in [capture startup](dictation-startup-latency.md).
 
-`DictationSnapshot` hashes cached files before a reload. This is an integrity
+`ModelSnapshot` hashes cached files before a reload. This is an integrity
 boundary added because the SDK accepts partial or corrupt caches. Removing
 these checks to improve a loading number would change that guarantee. It cannot
 speed up a dictation with the model already resident.

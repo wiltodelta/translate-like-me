@@ -217,10 +217,10 @@ localized() {
 
 # --- Accessibility driving -------------------------------------------------------
 
-# launch <pane>: a fresh copy with Settings set to open on <pane> (0 General, 1
+# launch <pane> [<dictation preview>] [<provider>]: a fresh copy with Settings set to open on <pane> (0 General, 1
 # Translation, 2 Rewrite, 3 Dictation), since switching panes in the window would write the choice back.
 # -n: a new instance even if an earlier one is still quitting.
-# The keys are Settings.Key.languagePairs, .rewritePresets, .provider and
+# The keys are Settings.Key.languagePairs, .rewritePresets, .provider, localModel and
 # SettingsTabViewController.lastPaneKey; they name this script, since a renamed
 # key would put the real settings into a public image. With the pairs overridden
 # the launch also writes none of its own and moves no old style into them.
@@ -229,7 +229,7 @@ launch() {
     [ -n "$PID" ] && { kill "$PID"; sleep 1; }
     local dictation_enabled=NO
     if [ "${2:-}" = settings ]; then dictation_enabled=YES; fi
-    local arguments=(-settingsSelectedPane "$1" -provider anthropic
+    local arguments=(-settingsSelectedPane "$1" -provider "${3:-anthropic}" -localModel translategemma-12b
         -dictationEnabled "$dictation_enabled" -dictationModel turbo -didCompleteFirstRun YES
         -dictationShortcut '<7b226b6579436f6465223a36312c226d6f64696669657273223a323034387d>'
         -languagePairs "<$(printf '%s' "$SAMPLE_PAIRS" | xxd -p | tr -d '\n')>"
@@ -407,6 +407,10 @@ capture_all() {
     launch 1
     open_menu
     capture_settings "$(localized Translation)" "settings$2"
+
+    launch 1 "" local
+    open_menu
+    capture_settings "$(localized Translation)" "settings-local$2"
 
     launch 2
     open_menu

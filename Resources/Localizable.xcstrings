@@ -118,6 +118,188 @@
         }
       }
     },
+    "%@ is not downloaded yet. Download it in Settings > Translation." : {
+      "comment" : "The placeholder is a model name, such as TranslateGemma 12B",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ist noch nicht geladen. Lade es unter „Einstellungen“ > „Übersetzung“."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ aún no se ha descargado. Descárgalo en Ajustes > Traducción."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ n’est pas encore téléchargé. Téléchargez-le dans Réglages > Traduction."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ non è ancora stato scaricato. Scaricalo in Impostazioni > Traduzione."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@はまだダウンロードされていません。「設定」>「翻訳」でダウンロードしてください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@이(가) 아직 다운로드되지 않았습니다. 설정 > 번역에서 다운로드하십시오."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ainda não foi baixado. Baixe-o em Ajustes > Tradução."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ещё не загружена. Загрузите её в разделе «Настройки» > «Перевод»."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚未下载 %@。请在“设置”>“翻译”中下载。"
+          }
+        }
+      }
+    },
+    "%@ needs a Mac with at least %lld GB of memory. Choose a smaller model in Settings > Translation." : {
+      "comment" : "The first placeholder is a model name, the second a number of gigabytes",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ braucht einen Mac mit mindestens %2$lld GB Arbeitsspeicher. Wähle unter „Einstellungen“ > „Übersetzung“ ein kleineres Modell."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ needs a Mac with at least %2$lld GB of memory. Choose a smaller model in Settings > Translation."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ necesita un Mac con al menos %2$lld GB de memoria. Elige un modelo más pequeño en Ajustes > Traducción."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ nécessite un Mac avec au moins %2$lld Go de mémoire. Choisissez un modèle plus petit dans Réglages > Traduction."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ richiede un Mac con almeno %2$lld GB di memoria. Scegli un modello più piccolo in Impostazioni > Traduzione."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@には%2$lld GB以上のメモリを搭載したMacが必要です。「設定」>「翻訳」で小さいモデルを選択してください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@은(는) 메모리가 %2$lldGB 이상인 Mac이 필요합니다. 설정 > 번역에서 더 작은 모델을 선택하십시오."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ precisa de um Mac com pelo menos %2$lld GB de memória. Escolha um modelo menor em Ajustes > Tradução."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Для %1$@ нужен Mac с памятью не менее %2$lld ГБ. Выберите модель поменьше в разделе «Настройки» > «Перевод»."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ 需要至少配备 %2$lld GB 内存的 Mac。请在“设置”>“翻译”中选择较小的模型。"
+          }
+        }
+      }
+    },
+    "About three times faster, and lighter. About 3.6 GB to download. Less accurate: it can translate a third language into the wrong one of your pair, and in Rewrite keep a detail you corrected while speaking." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etwa dreimal schneller und leichter. Etwa 3,6 GB Download. Weniger genau: Es kann eine dritte Sprache in die falsche Sprache deines Paares übersetzen und beim Umschreiben ein Detail behalten, das du beim Sprechen korrigiert hast."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unas tres veces más rápido y más ligero. Unos 3,6 GB de descarga. Menos preciso: puede traducir un tercer idioma al idioma equivocado de tu par y, al reescribir, conservar un detalle que corregiste al hablar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Environ trois fois plus rapide, et plus léger. Environ 3,6 Go à télécharger. Moins précis : il peut traduire une troisième langue dans la mauvaise langue de votre paire et, en réécriture, garder un détail que vous avez corrigé en parlant."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Circa tre volte più veloce e più leggero. Download di circa 3,6 GB. Meno preciso: può tradurre una terza lingua nella lingua sbagliata della coppia e, nella riscrittura, mantenere un dettaglio che hai corretto parlando."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "約3倍速く、軽量です。ダウンロードは約3.6 GBです。精度は低めで、第3の言語をペアの誤った言語に翻訳したり、書き直しで話しながら訂正した内容を残したりすることがあります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "약 3배 빠르고 가볍습니다. 다운로드 크기 약 3.6GB. 정확도가 낮아 제3의 언어를 쌍의 잘못된 언어로 번역하거나, 다시 쓰기에서 말하면서 정정한 내용을 남길 수 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerca de três vezes mais rápido e mais leve. Cerca de 3,6 GB para baixar. Menos preciso: pode traduzir um terceiro idioma para o idioma errado do seu par e, ao reescrever, manter um detalhe que você corrigiu enquanto falava."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Примерно втрое быстрее и легче. Загрузка около 3,6 ГБ. Менее точная: может перевести третий язык не на тот язык пары, а при переписывании оставить деталь, которую вы поправили по ходу речи."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "速度约快三倍，也更轻量。需下载约 3.6 GB。准确度较低：可能把第三种语言译成语言对中错误的那一种，改写时也可能保留你在口述中已更正的细节。"
+          }
+        }
+      }
+    },
     "Accessibility" : {
       "comment" : "The macOS permission",
       "localizations" : {
@@ -754,6 +936,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "返回"
+          }
+        }
+      }
+    },
+    "Cancel" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abbrechen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annuler"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annulla"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キャンセル"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "취소"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отменить"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消"
           }
         }
       }
@@ -2913,6 +3153,64 @@
         }
       }
     },
+    "Download" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laden"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descargar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Télécharger"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scarica"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ダウンロード"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다운로드"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baixar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Загрузить"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下载"
+          }
+        }
+      }
+    },
     "Downloading speech model…" : {
       "localizations" : {
         "de" : {
@@ -2967,6 +3265,65 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在下载语音模型…"
+          }
+        }
+      }
+    },
+    "Downloading… %@" : {
+      "comment" : "The placeholder is a percentage",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird geladen … %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descargando… %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Téléchargement… %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download… %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ダウンロード中… %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다운로드 중… %@"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baixando… %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Загрузка… %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在下载… %@"
           }
         }
       }
@@ -3608,6 +3965,65 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "适合日常听写。需下载约 627 MB。"
+          }
+        }
+      }
+    },
+    "Free at least %@ of disk space, then download again." : {
+      "comment" : "The placeholder is an amount of disk space, such as 8.7 GB",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib mindestens %@ Speicherplatz frei und lade dann erneut."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Libera al menos %@ de espacio en disco y vuelve a descargar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Libérez au moins %@ d’espace disque, puis relancez le téléchargement."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Libera almeno %@ di spazio su disco, poi scarica di nuovo."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@以上のディスク領域を空けてから、もう一度ダウンロードしてください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "디스크 공간을 %@ 이상 확보한 다음 다시 다운로드하십시오."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Libere pelo menos %@ de espaço em disco e baixe novamente."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Освободите на диске не менее %@, затем загрузите снова."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请释放至少 %@ 磁盘空间，然后重新下载。"
           }
         }
       }
@@ -4546,6 +4962,65 @@
         }
       }
     },
+    "Local model" : {
+      "comment" : "The translation engine that runs on this Mac",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lokales Modell"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modelo local"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modèle local"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modello locale"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ローカルモデル"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "로컬 모델"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modelo local"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Локальная модель"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本地模型"
+          }
+        }
+      }
+    },
     "Makes this pair's translations sound like you. Describe the tone, for example: \"Casual and friendly, short sentences.\" Leave empty for a plain translation, for example for someone else's text." : {
       "localizations" : {
         "de" : {
@@ -5239,6 +5714,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无"
+          }
+        }
+      }
+    },
+    "Not downloaded" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht geladen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin descargar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non téléchargé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non scaricato"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未ダウンロード"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다운로드되지 않음"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não baixado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не загружена"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未下载"
           }
         }
       }
@@ -6355,6 +6888,64 @@
         }
       }
     },
+    "Remove Download" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download entfernen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar descarga"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer le téléchargement"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rimuovi download"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ダウンロードを削除"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다운로드 삭제"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remover download"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалить загрузку"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除下载"
+          }
+        }
+      }
+    },
     "Remove the %@ preset" : {
       "localizations" : {
         "de" : {
@@ -6760,6 +7351,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "右侧 Option 键"
+          }
+        }
+      }
+    },
+    "Runs on this Mac: the text never leaves it, and translation works offline. The model downloads once from Hugging Face. TranslateGemma is provided under the Gemma Terms of Use, Gemma 4 under the Apache 2.0 license." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Läuft auf diesem Mac: Der Text verlässt ihn nie, und die Übersetzung funktioniert offline. Das Modell wird einmal von Hugging Face geladen. TranslateGemma wird unter den Gemma-Nutzungsbedingungen bereitgestellt, Gemma 4 unter der Apache-2.0-Lizenz."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Funciona en este Mac: el texto nunca sale de él y la traducción funciona sin conexión. El modelo se descarga una vez desde Hugging Face. TranslateGemma se ofrece bajo los Términos de uso de Gemma, y Gemma 4 bajo la licencia Apache 2.0."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fonctionne sur ce Mac : le texte ne le quitte jamais, et la traduction marche hors ligne. Le modèle se télécharge une fois depuis Hugging Face. TranslateGemma est fourni selon les conditions d’utilisation de Gemma, Gemma 4 sous licence Apache 2.0."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Funziona su questo Mac: il testo non lo lascia mai e la traduzione funziona offline. Il modello si scarica una volta da Hugging Face. TranslateGemma è fornito secondo i Termini di utilizzo di Gemma, Gemma 4 con licenza Apache 2.0."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このMac上で動作します。テキストがMacの外に出ることはなく、オフラインでも翻訳できます。モデルはHugging Faceから一度だけダウンロードします。TranslateGemmaはGemma利用規約、Gemma 4はApache 2.0ライセンスに基づいて提供されています。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 Mac에서 실행됩니다. 텍스트가 Mac 밖으로 나가지 않으며 오프라인에서도 번역됩니다. 모델은 Hugging Face에서 한 번만 다운로드합니다. TranslateGemma는 Gemma 이용 약관, Gemma 4는 Apache 2.0 라이선스에 따라 제공됩니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Funciona neste Mac: o texto nunca sai dele, e a tradução funciona offline. O modelo é baixado uma vez do Hugging Face. O TranslateGemma é fornecido sob os Termos de Uso do Gemma, e o Gemma 4 sob a licença Apache 2.0."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Работает на этом Mac: текст не покидает его, и перевод работает без интернета. Модель загружается один раз с Hugging Face. TranslateGemma распространяется на условиях Gemma Terms of Use, Gemma 4 по лицензии Apache 2.0."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在这台 Mac 上运行：文本不会离开这台 Mac，离线也能翻译。模型从 Hugging Face 下载一次。TranslateGemma 依据 Gemma 使用条款提供，Gemma 4 依据 Apache 2.0 许可证提供。"
           }
         }
       }
@@ -8114,6 +8763,64 @@
         }
       }
     },
+    "The download was incomplete or damaged. Download it again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Download war unvollständig oder beschädigt. Lade erneut."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La descarga quedó incompleta o dañada. Vuelve a descargar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le téléchargement est incomplet ou endommagé. Téléchargez à nouveau."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il download è incompleto o danneggiato. Scarica di nuovo."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ダウンロードが不完全か、破損しています。もう一度ダウンロードしてください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다운로드가 완료되지 않았거나 손상되었습니다. 다시 다운로드하십시오."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O download ficou incompleto ou danificado. Baixe novamente."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Загрузка не завершилась или повреждена. Загрузите снова."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下载不完整或已损坏。请重新下载。"
+          }
+        }
+      }
+    },
     "The engine returned too much output. Try a smaller selection." : {
       "localizations" : {
         "de" : {
@@ -8288,6 +8995,64 @@
         }
       }
     },
+    "The most accurate, writing styles and Rewrite included. About 6.7 GB to download, needs 16 GB of memory." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Am genauesten, auch mit Schreibstil und beim Umschreiben. Etwa 6,7 GB Download, braucht 16 GB Arbeitsspeicher."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El más preciso, también con estilo de escritura y al reescribir. Unos 6,7 GB de descarga; necesita 16 GB de memoria."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le plus précis, y compris avec un style d’écriture et pour la réécriture. Environ 6,7 Go à télécharger, nécessite 16 Go de mémoire."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il più preciso, anche con lo stile di scrittura e nella riscrittura. Download di circa 6,7 GB, richiede 16 GB di memoria."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最も正確で、文体の指定や書き直しにも対応します。ダウンロードは約6.7 GB、16 GBのメモリが必要です。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "가장 정확하며 글쓰기 스타일과 다시 쓰기에도 잘 맞습니다. 다운로드 크기 약 6.7GB, 메모리 16GB가 필요합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O mais preciso, inclusive com estilo de escrita e ao reescrever. Cerca de 6,7 GB para baixar; precisa de 16 GB de memória."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Самая точная, в том числе со стилем письма и при переписывании. Загрузка около 6,7 ГБ, нужно 16 ГБ памяти."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最准确，写作风格和改写同样出色。需下载约 6.7 GB，需要 16 GB 内存。"
+          }
+        }
+      }
+    },
     "The test translation failed: %@" : {
       "comment" : "The placeholder is the engine's own error message, often in English",
       "localizations" : {
@@ -8405,60 +9170,60 @@
         }
       }
     },
-    "Translate Like Me uses an AI subscription you already have, through the service's command-line tool you are signed in to. Each one was tried with a short test translation." : {
+    "Translate Like Me uses an AI subscription you already have, through the service's command-line tool you are signed in to, or a model that runs on this Mac. Each one was tried with a short test translation." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Translate Like Me nutzt ein KI-Abo, das du bereits hast, über das Befehlszeilentool des Dienstes, bei dem du angemeldet bist. Jeder Dienst wurde mit einer kurzen Testübersetzung geprüft."
+            "value" : "Translate Like Me nutzt ein KI-Abo, das du bereits hast, über das Befehlszeilentool des Dienstes, bei dem du angemeldet bist, oder ein Modell, das auf diesem Mac läuft. Jeder Dienst wurde mit einer kurzen Testübersetzung geprüft."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Translate Like Me usa una suscripción de IA que ya tienes, a través de la herramienta de línea de comandos del servicio en la que has iniciado sesión. Cada una se ha probado con una breve traducción de prueba."
+            "value" : "Translate Like Me usa una suscripción de IA que ya tienes, a través de la herramienta de línea de comandos del servicio en la que has iniciado sesión, o un modelo que funciona en este Mac. Cada una se ha probado con una breve traducción de prueba."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Translate Like Me utilise un abonnement IA que vous avez déjà, via l’outil en ligne de commande du service auquel vous êtes connecté. Chacun a été essayé avec une courte traduction test."
+            "value" : "Translate Like Me utilise un abonnement IA que vous avez déjà, via l’outil en ligne de commande du service auquel vous êtes connecté, ou un modèle qui fonctionne sur ce Mac. Chacun a été essayé avec une courte traduction test."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Translate Like Me usa un abbonamento IA che hai già, tramite lo strumento da riga di comando del servizio a cui hai effettuato l'accesso. Ognuno è stato provato con una breve traduzione di prova."
+            "value" : "Translate Like Me usa un abbonamento IA che hai già, tramite lo strumento da riga di comando del servizio a cui hai effettuato l'accesso, oppure un modello che funziona su questo Mac. Ognuno è stato provato con una breve traduzione di prova."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Translate Like Meは、契約済みのAIサブスクリプションを、サインイン済みのサービスのコマンドラインツール経由で使用します。各サービスを短いテスト翻訳で確認しました。"
+            "value" : "Translate Like Meは、契約済みのAIサブスクリプションをサインイン済みのサービスのコマンドラインツール経由で使用するか、このMac上で動作するモデルを使用します。それぞれを短いテスト翻訳で確認しました。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Translate Like Me는 로그인되어 있는 서비스의 명령어 라인 도구를 통해 이미 사용 중인 AI 구독을 사용합니다. 각 서비스는 짧은 테스트 번역으로 확인했습니다."
+            "value" : "Translate Like Me는 로그인되어 있는 서비스의 명령어 라인 도구를 통해 이미 사용 중인 AI 구독을 사용하거나, 이 Mac에서 실행되는 모델을 사용합니다. 각각 짧은 테스트 번역으로 확인했습니다."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O Translate Like Me usa uma assinatura de IA que você já tem, por meio da ferramenta de linha de comando do serviço em que você iniciou sessão. Cada um foi testado com uma breve tradução de teste."
+            "value" : "O Translate Like Me usa uma assinatura de IA que você já tem, por meio da ferramenta de linha de comando do serviço em que você iniciou sessão, ou um modelo que funciona neste Mac. Cada um foi testado com uma breve tradução de teste."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Translate Like Me использует вашу подписку на ИИ-сервис через его инструмент командной строки, в котором вы выполнили вход. Каждый сервис проверен коротким тестовым переводом."
+            "value" : "Translate Like Me использует вашу подписку на ИИ-сервис через его инструмент командной строки, в котором вы выполнили вход, или модель, работающую на этом Mac. Каждый вариант проверен коротким тестовым переводом."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Translate Like Me 通过你已登录的服务命令行工具，使用你已有的 AI 订阅。每个服务都已用一段简短的测试翻译试过。"
+            "value" : "Translate Like Me 通过你已登录的服务命令行工具使用你已有的 AI 订阅，或使用在这台 Mac 上运行的模型。每一项都已用一段简短的测试翻译试过。"
           }
         }
       }

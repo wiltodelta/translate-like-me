@@ -89,6 +89,9 @@ enum HarnessModels {
             return catalog
         case .antigravity:
             return Settings.antigravityModels.map(parseAntigravity) ?? HarnessCatalog()
+        // Picked from LocalModel in Settings, not from a CLI's catalog.
+        case .local:
+            return HarnessCatalog()
         }
     }
 

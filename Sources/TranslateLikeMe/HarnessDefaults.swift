@@ -17,7 +17,7 @@ enum HarnessDefaults {
         switch provider {
         case .anthropic: return claude()
         case .openai: return codex()
-        case .grok, .antigravity: return HarnessChoice()
+        case .grok, .antigravity, .local: return HarnessChoice()
         }
     }
 

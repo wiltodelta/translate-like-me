@@ -19,8 +19,8 @@ ROOT = Path(__file__).resolve().parents[1]
 CACHE = Path.home() / "Library/Application Support/com.wiltodelta.translatelikeme.dev/Dictation"
 SOURCES = [ROOT / "scripts/DictationBenchmark.swift"] + [
     ROOT / "Sources/TranslateLikeMe" / (name + ".swift") for name in
-    ["DictationEngine", "DictationModel", "DictationSnapshot", "DictationSpeechDetector",
-     "DictationQwen", "DictationQwenDecoding", "Logging"]
+    ["DictationEngine", "DictationModel", "ModelSnapshot", "DictationSpeechDetector",
+     "DictationQwen", "DictationQwenDecoding", "MLXKernels", "Logging"]
 ]
 
 
