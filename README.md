@@ -125,6 +125,11 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
 
 ## Usage
 
+First launch walks through translation languages, a translation engine and local
+dictation. You can skip translation to set up dictation alone, or leave dictation
+disabled and enable it later in Settings. Microphone access and the speech-model
+download start only when you enable dictation.
+
 The **Copy Last Result** submenu keeps the latest Translation, Rewrite and
 Dictation separately, even after successful insertion. Unavailable results are
 dimmed. Results stay in memory until you quit; errors leave earlier results

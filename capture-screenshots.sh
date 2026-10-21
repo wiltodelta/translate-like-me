@@ -44,6 +44,9 @@ WORK=$(mktemp -d)
 SAMPLE_PRESETS='[{"id":"8F9619FF-8B86-D011-B42D-00C04FC964FF","name":"Work","shortcut":{"keyCode":38,"modifiers":2304},"style":"Clear and polite, short paragraphs."},{"id":"9F9619FF-8B86-D011-B42D-00C04FC964FF","name":"Friends","shortcut":{"keyCode":40,"modifiers":2304},"style":"Casual, short sentences, no emoji."}]'
 SAMPLE_PAIRS='[{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","first":"ru","second":"en","shortcut":{"keyCode":3,"modifiers":2304},"style":"Casual and friendly, short sentences."},{"id":"7F9619FF-8B86-D011-B42D-00C04FC964FF","first":"ru","second":"en","shortcut":{"keyCode":5,"modifiers":2304},"style":""}]'
 
+# CAPTURE_APPEARANCE=current captures without changing the theme or pointer.
+# CAPTURE_ONBOARDING_ONLY=1 with CAPTURE_OUT=<dir> traverses translation and
+# dictation-only setup without real engine probes or microphone access.
 # CAPTURE_MENU_ONLY=1 refreshes just menu.png and menu-dark.png (and the link preview).
 # CAPTURE_RESULTS_ONLY=1 with CAPTURE_OUT=<dir> checks empty, partial and full
 # recovery submenus. Its synthetic launch fixtures never call a model or record audio.
@@ -67,6 +70,7 @@ SWIFT
 
 cat >"$WORK/helper.swift" <<'SWIFT'
 import AppKit
+import ApplicationServices
 import ImageIO
 import ScreenCaptureKit
 import UniformTypeIdentifiers
@@ -108,7 +112,77 @@ func backdropColor() -> NSColor {
     return color
 }
 
+func captureFailure(_ message: String) -> Never {
+    FileHandle.standardError.write(Data((message + "\n").utf8))
+    exit(1)
+}
+
+func requireUnlockedSession() {
+    let probe = Process()
+    let output = Pipe()
+    probe.executableURL = URL(fileURLWithPath: "/usr/sbin/ioreg")
+    probe.arguments = ["-n", "Root", "-d1", "-a"]
+    probe.standardOutput = output
+    do { try probe.run() } catch { captureFailure("Could not read the console session") }
+    let data = output.fileHandleForReading.readDataToEndOfFile()
+    probe.waitUntilExit()
+    let plist = try? PropertyListSerialization.propertyList(from: data, format: nil)
+    let root = (plist as? [String: Any]) ?? (plist as? [[String: Any]])?.first
+    let console = (root?["IOConsoleUsers"] as? [[String: Any]])?
+        .first { $0["kCGSSessionOnConsoleKey"] as? Bool == true }
+    guard probe.terminationStatus == 0, let console else {
+        captureFailure("Could not read the active console session")
+    }
+    guard console["CGSSessionScreenIsLocked"] as? Bool != true,
+          NSWorkspace.shared.frontmostApplication?.bundleIdentifier != "com.apple.loginwindow" else {
+        captureFailure("The console session is locked")
+    }
+}
+
+// SwiftUI buttons are below AX children that System Events does not expose.
+func axAttribute(_ node: AXUIElement, _ key: String) -> CFTypeRef? {
+    var value: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(node, key as CFString, &value) == .success else { return nil }
+    return value
+}
+
+func axMatches(_ node: AXUIElement, key: String, value: String, visited: inout Int) -> [AXUIElement] {
+    visited += 1
+    guard visited < 10000 else { captureFailure("The AX walk exceeded its bound") }
+    let keys = key == "text" ? [kAXValueAttribute, kAXTitleAttribute, kAXDescriptionAttribute] : [key]
+    var matches = keys.contains { axAttribute(node, $0) as? String == value } ? [node] : []
+    for child in axAttribute(node, kAXChildrenAttribute) as? [AXUIElement] ?? [] {
+        matches += axMatches(child, key: key, value: value, visited: &visited)
+    }
+    return matches
+}
+
 switch args[1] {
+case "press-id", "expect", "expect-disabled":
+    NSApplication.shared.setActivationPolicy(.prohibited)
+    let app = AXUIElementCreateApplication(Int32(args[2])!)
+    let key = args[1] == "expect" ? "text" : kAXIdentifierAttribute
+    var visited = 0
+    var rawWindows: CFTypeRef?
+    let error = AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &rawWindows)
+    guard error == .success, let windows = rawWindows as? [AXUIElement] else {
+        captureFailure("AXWindows failed: \(error.rawValue), trusted: \(AXIsProcessTrusted())")
+    }
+    let matches = windows.flatMap { axMatches($0, key: key, value: args[3], visited: &visited) }
+    guard !matches.isEmpty, args[1] == "expect" || matches.count == 1 else {
+        captureFailure("Expected an AX target for \(args[3]), found \(matches.count) in \(visited) elements")
+    }
+    let node = matches[0]
+    if args[1] == "press-id" {
+        requireUnlockedSession()
+        guard axAttribute(node, kAXEnabledAttribute) as? Bool == true,
+              AXUIElementPerformAction(node, kAXPressAction as CFString) == .success else {
+            captureFailure("The AX target could not be pressed")
+        }
+    } else if args[1] == "expect-disabled" {
+        guard axAttribute(node, kAXEnabledAttribute) as? Bool == false else { captureFailure("Expected disabled control") }
+    }
+    print("Verified \(args[1]): \(args[3])")
 case "screen":
     let frame = NSScreen.screens[0].frame
     print(Int(frame.width), Int(frame.height))
@@ -240,13 +314,19 @@ localized() {
 PID=""
 launch() {
     [ -n "$PID" ] && { kill "$PID"; sleep 1; }
-    local dictation_enabled=NO
+    local dictation_enabled=NO completed_first_run=YES pairs_json="$SAMPLE_PAIRS"
     if [ "${2:-}" = settings ]; then dictation_enabled=YES; fi
+    if [ "${CAPTURE_ONBOARDING_ONLY:-0}" = 1 ]; then
+        dictation_enabled=NO
+        completed_first_run=NO
+    fi
+    if [ "${CAPTURE_EMPTY_PAIRS:-0}" = 1 ]; then pairs_json='[]'; fi
     local arguments=(-settingsSelectedPane "$1" -provider "${3:-anthropic}" -localModel translategemma-12b
-        -dictationEnabled "$dictation_enabled" -dictationModel turbo -didCompleteFirstRun YES
+        -dictationEnabled "$dictation_enabled" -dictationModel turbo -didCompleteFirstRun "$completed_first_run"
         -dictationShortcut '<7b226b6579436f6465223a36312c226d6f64696669657273223a323034387d>'
-        -languagePairs "<$(printf '%s' "$SAMPLE_PAIRS" | xxd -p | tr -d '\n')>"
+        -languagePairs "<$(printf '%s' "$pairs_json" | xxd -p | tr -d '\n')>"
         -rewritePresets "<$(printf '%s' "$SAMPLE_PRESETS" | xxd -p | tr -d '\n')>")
+    if [ "${CAPTURE_ONBOARDING_ONLY:-0}" = 1 ]; then arguments+=(-onboardingPreview YES); fi
     if [ -n "${4:-}" ]; then arguments+=(-lastResultsPreview "$4"); fi
     if [ -n "$LANGUAGE" ]; then arguments+=(-AppleLanguages "($LANGUAGE)"); fi
     if [ -n "${2:-}" ]; then arguments+=(-dictationPreview "$2"); fi
@@ -290,6 +370,8 @@ measure_menu() {
 # Status-bar menus follow the menu bar's appearance, not the app's, so only the
 # system-wide switch turns the menu dark too.
 appearance() {
+    # Current mode observes the system; it never writes another session's theme.
+    if [ "${CAPTURE_APPEARANCE:-both}" = current ] && [ "$1" != 'get dark mode' ]; then return; fi
     osascript -e "tell application \"System Events\" to tell appearance preferences to $1"
 }
 ORIGINAL_DARK=$(appearance 'get dark mode')
@@ -298,7 +380,7 @@ ORIGINAL_DARK=$(appearance 'get dark mode')
 # the pointer waits at the screen's left edge (no hot corner there) and is put
 # back afterwards. Moving it is not a click: nothing receives an event.
 POINTER=$(helper pointer)
-helper pointer 2 400
+[ "${CAPTURE_APPEARANCE:-both}" = current ] || helper pointer 2 400
 
 # The development build's domain (build.sh); backed up anyway, since a run
 # overrides its settings.
@@ -331,7 +413,7 @@ UserDefaults.standard.setPersistentDomain(saved, forName: CommandLine.arguments[
 guard UserDefaults.standard.synchronize() else { exit(1) }
 SWIFT
     appearance "set dark mode to $ORIGINAL_DARK" >/dev/null || true
-    helper pointer $POINTER
+    [ "${CAPTURE_APPEARANCE:-both}" = current ] || helper pointer $POINTER
     [ -n "$BACKDROP_PID" ] && kill "$BACKDROP_PID" 2>/dev/null
     if [ "$restore_failed" = 0 ]; then
         rm -rf "$WORK"
@@ -361,13 +443,20 @@ show_backdrop() {
 # window whose top margin reaches the menu bar (the menu) is captured up through
 # it. ScreenCaptureKit includes only this app and the opaque backdrop, so system
 # alerts, the Dock and unrelated windows cannot leak into a public image.
+verify_current_appearance() {
+    [ -z "${CURRENT_DARK:-}" ] || [ "$(appearance 'get dark mode')" = "$CURRENT_DARK" ] ||
+        { echo "The system appearance changed during capture; rerun the affected pass." >&2; exit 1; }
+}
+
 capture_frame() {
+    verify_current_appearance
     local top=$((MARGIN < $3 - MENU_BAR ? MARGIN : $3 - MENU_BAR))
     local region=("$(($2 - MARGIN))" "$(($3 - top))" "$(($4 + 2 * MARGIN))" "$(($5 + top + MARGIN))")
     local shot_region=("${region[@]}")
     [ "$top" -lt "$MARGIN" ] && shot_region=("${region[0]}" 0 "${region[2]}" "$(($3 + $5 + MARGIN))")
     local shot="$WORK/$1.png"
     helper capture "$PID" "$BACKDROP_PID" "$2" "$3" "$4" "$5" "${shot_region[@]}" "$shot"
+    verify_current_appearance
     kill "$BACKDROP_PID"; wait "$BACKDROP_PID" 2>/dev/null || true; BACKDROP_PID=""
     mv "$shot" "$OUT/$1.png"
     echo "Captured $OUT/$1.png"
@@ -378,13 +467,17 @@ capture_frame() {
 # capture_settings <window title> <name>: open Settings from the menu and capture it.
 capture_settings() {
     ax "click menu item \"$(localized "Settings…")\" of menu 1 of $STATUS_ITEM" >/dev/null
+    capture_window "$@"
+}
+
+capture_window() {
     local frame=""
     for _ in $(seq 1 20); do
         frame=$(helper named "$PID" "$1")
         [ -n "$frame" ] && break
         sleep 0.2
     done
-    [ -n "$frame" ] || { echo "The settings window did not open on $1."; exit 1; }
+    [ -n "$frame" ] || { echo "The target window did not open on $1."; exit 1; }
     local stable=NO latest=""
     for _ in 1 2 3; do
         read -r SX SY SW SH <<<"$frame"
@@ -395,10 +488,56 @@ capture_settings() {
         if [ "$latest" = "$frame" ]; then stable=YES; break; fi
         kill "$BACKDROP_PID"; wait "$BACKDROP_PID" 2>/dev/null || true; BACKDROP_PID=""
         frame="$latest"
-        [ -n "$frame" ] || { echo "The settings window closed during capture."; exit 1; }
+        [ -n "$frame" ] || { echo "The target window closed during capture."; exit 1; }
     done
-    [ "$stable" = YES ] || { echo "The settings window did not settle."; exit 1; }
+    [ "$stable" = YES ] || { echo "The target window did not settle."; exit 1; }
+    [ "$(ax 'get frontmost')" = true ] || { echo "The target lost focus before capture."; exit 1; }
     capture_frame "$2" "$SX" "$SY" "$SW" "$SH"
+    [ "$(ax 'get frontmost')" = true ] || { echo "The target lost focus during capture."; exit 1; }
+}
+
+# Traverse real first-run routes with synthetic engine health, never a mic request.
+capture_onboarding() {
+    appearance "set dark mode to $1" >/dev/null
+    sleep 2
+    launch 3 settings
+    local title
+    title=$(localized "Welcome to Translate Like Me")
+    capture_window "$title" "onboarding-languages$2"
+    helper expect "$PID" "$(localized 'Choose your language pairs')"
+    helper press-id "$PID" onboarding.continue
+    sleep 0.5
+    helper expect "$PID" "$(localized 'Choose a translation engine')"
+    capture_window "$title" "onboarding-engine$2"
+    helper press-id "$PID" onboarding.continue
+    sleep 0.5
+    helper expect "$PID" "$(localized 'Set up dictation')"
+    capture_window "$title" "onboarding-dictation$2"
+    helper press-id "$PID" onboarding.back
+    sleep 0.3
+    helper expect "$PID" "$(localized 'Choose a translation engine')"
+    helper press-id "$PID" onboarding.back
+    sleep 0.3
+    helper expect "$PID" "$(localized 'Choose your language pairs')"
+
+    CAPTURE_EMPTY_PAIRS=1 launch 3 settings
+    capture_window "$title" "onboarding-languages-empty$2"
+    helper expect-disabled "$PID" onboarding.continue
+    helper press-id "$PID" onboarding.skipTranslation
+    sleep 0.5
+    helper expect "$PID" "$(localized 'Set up dictation')"
+    capture_window "$title" "onboarding-dictation-only$2"
+    helper press-id "$PID" onboarding.back
+    sleep 0.3
+    helper expect "$PID" "$(localized 'Choose your language pairs')"
+    helper press-id "$PID" onboarding.skipTranslation
+    sleep 0.3
+    helper press-id "$PID" onboarding.done
+    sleep 0.5
+    [ -z "$(helper named "$PID" "$title")" ] || { echo "Onboarding did not close."; exit 1; }
+    [ "$(defaults read "$DOMAIN" didCompleteFirstRun)" = 1 ] || { echo "First run was not completed."; exit 1; }
+    open_menu
+    capture_settings "$(localized Dictation)" "onboarding-settings$2"
 }
 
 # Capture the shipping submenu with all, some or no results, using only synthetic text.
@@ -420,9 +559,11 @@ capture_results() {
         local union_x union_y union_w union_h
         read -r union_x union_y union_w union_h < <(helper menus "$PID")
         [ "$union_w" -gt "$W" ] || { echo "The results submenu did not open."; exit 1; }
+        verify_current_appearance
         helper capture "$PID" "$BACKDROP_PID" "$X" "$Y" "$W" "$H" \
             "$((union_x - MARGIN))" "$union_y" "$((union_w + 2 * MARGIN))" "$((union_h + MARGIN))" \
             "$OUT/results-$state$suffix.png"
+        verify_current_appearance
         echo "Results $state: parent ${W}x${H} pt, combined ${union_w}x${union_h} pt"
         close_menu
         kill "$BACKDROP_PID"; wait "$BACKDROP_PID" 2>/dev/null || true; BACKDROP_PID=""
@@ -431,6 +572,7 @@ capture_results() {
 
 # capture_all <dark mode true|false> <file suffix>: every screen in one appearance.
 capture_all() {
+    if [ "${CAPTURE_ONBOARDING_ONLY:-0}" = 1 ]; then capture_onboarding "$1" "$2"; return; fi
     if [ "${CAPTURE_RESULTS_ONLY:-0}" = 1 ]; then capture_results "$1" "$2"; return; fi
     appearance "set dark mode to $1" >/dev/null
     sleep 2 # the menu bar and windows redraw
@@ -486,7 +628,10 @@ case "${CAPTURE_APPEARANCE:-both}" in
     light) capture_all false "" ;;
     dark) capture_all true -dark ;;
     both) capture_all false ""; capture_all true -dark ;;
-    *) echo "CAPTURE_APPEARANCE must be light, dark, or both." >&2; exit 2 ;;
+    current)
+        CURRENT_DARK=$(appearance 'get dark mode')
+        if [ "$CURRENT_DARK" = true ]; then capture_all true -dark; else capture_all false ""; fi ;;
+    *) echo "CAPTURE_APPEARANCE must be light, dark, both, or current." >&2; exit 2 ;;
 esac
 
 # The website's link preview lays the new menu screenshot beside the tagline.

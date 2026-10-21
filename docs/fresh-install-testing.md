@@ -108,7 +108,11 @@ Record the exact app version, installation source, macOS version and hardware;
 compare the installed release with the candidate build separately.
 
 1. Start with no CLI sign-ins or downloaded speech model. Confirm that onboarding
-   and settings show missing prerequisites rather than readiness.
+   offers language pairs, translation engines and dictation. With no pairs,
+   Continue stays disabled but Skip Translation reaches dictation; Back returns
+   to languages. Dictation can be left disabled with Done. Microphone permission
+   and the speech-model download start only after enabling it. On the translation
+   engine page and in Settings, show missing prerequisites rather than readiness.
 2. Grant Accessibility, quit and reopen the test copy, and confirm its menu reads
    Allowed. Install and sign in to one translation CLI, then run its real engine
    check and translate a synthetic selection in TextEdit.

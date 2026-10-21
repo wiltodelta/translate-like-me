@@ -1,11 +1,11 @@
 import AppKit
 import SwiftUI
 
-// The first-launch setup: the user adds their language pairs (a new user starts
-// with none), then picks an engine from the ones that actually translate here.
-// Every engine is checked as soon as the window opens (EngineChecks), so the
-// results are in by the time the second step shows. Edits apply at once through
-// the shared SettingsStore, like Settings; closing the window early keeps them.
+// First-launch setup: translation languages and engine, then optional local
+// dictation. Translation can be skipped to set up dictation alone.
+// Engines are checked only on their page, so dictation-only setup never invokes
+// a translation service. Edits apply at once through the shared SettingsStore,
+// like Settings; closing the window early keeps them.
 @MainActor
 enum Onboarding {
     static func makeWindow(store: SettingsStore, done: @escaping @MainActor () -> Void) -> NSWindow {
@@ -15,7 +15,11 @@ enum Onboarding {
         // by preferredContentSize looped through layout passes until AppKit
         // aborted (measured 2026-10-05). Sized up front so center() sees the
         // real frame.
-        let content = NSHostingView(rootView: OnboardingView(store: store, done: done))
+        // Synthetic engine health for native captures, without CLI or model calls.
+        let preview = Bundle.main.bundleIdentifier == "com.wiltodelta.translatelikeme.dev"
+            && UserDefaults.standard.bool(forKey: "onboardingPreview")
+        let checks = preview ? EngineChecks(probe: { _ in .working }) : EngineChecks()
+        let content = NSHostingView(rootView: OnboardingView(store: store, checks: checks, done: done))
         window.contentView = content
         window.setContentSize(content.fittingSize)
         window.title = String(localized: "Welcome to Translate Like Me")
@@ -23,9 +27,10 @@ enum Onboarding {
     }
 }
 
-private enum OnboardingStep {
+private enum OnboardingStep: Equatable {
     case languages
     case engine
+    case dictation
 }
 
 // One change, so picking an already downloaded model checks it once.
@@ -37,10 +42,19 @@ private struct LocalChoice: Equatable {
 private struct OnboardingView: View {
     @Bindable var store: SettingsStore
     let done: @MainActor () -> Void
-    @State private var step = OnboardingStep.languages
-    @State private var checks = EngineChecks()
+    @State private var path: [OnboardingStep] = [.languages]
+    @State private var checks: EngineChecks
+    @State private var dictation = DictationController.shared
     // Until the user picks an engine, the first one that works is picked for them.
     @State private var userPicked = false
+
+    init(store: SettingsStore, checks: EngineChecks, done: @escaping @MainActor () -> Void) {
+        self.store = store
+        self.done = done
+        _checks = State(initialValue: checks)
+    }
+
+    private var step: OnboardingStep { path.last ?? .languages }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -48,25 +62,34 @@ private struct OnboardingView: View {
                 switch step {
                 case .languages: languagesStep
                 case .engine: engineStep
+                case .dictation:
+                    DictationSetupSections(store: store, dictation: dictation, introductory: true)
                 }
             }
             .settingsPane(width: 520, reserved: 60)
             Divider()
             buttons.padding(16)
         }
-        .onAppear(perform: checkAll)
+        .onChange(of: step) {
+            if step == .engine {
+                for provider in Provider.allCases where checks.health[provider] == nil { checks.check(provider) }
+            } else {
+                checks.cancelAll()
+            }
+        }
         .onDisappear { checks.cancelAll() }
         .onChange(of: checks.health) { pickWorkingEngine() }
         // A finished download, or another model picked, is tried like the rest.
         .onChange(of: LocalChoice(model: store.localModel,
                                   ready: LocalModelDownloads.shared.state(of: store.localModel) == .ready)) {
-            checks.check(.local)
+            if step == .engine { checks.check(.local) }
         }
         // Back from Terminal after `claude auth login` or an install: check those
         // again so the list catches up without a click. A check still running is
         // left alone, and a spent limit or failed run waits for Check Again,
         // since each recheck is a real translation.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            guard step == .engine else { return }
             for provider in Provider.allCases
             where [.notSignedIn, .notInstalled].contains(checks.health[provider]) {
                 checks.check(provider)
@@ -134,16 +157,28 @@ private struct OnboardingView: View {
         HStack {
             switch step {
             case .languages:
+                Button("Skip Translation") { path.append(.dictation) }
+                    .accessibilityIdentifier("onboarding.skipTranslation")
                 Spacer()
-                Button("Continue") { step = .engine }
+                Button("Continue") { path.append(.engine) }
+                    .accessibilityIdentifier("onboarding.continue")
                     .keyboardShortcut(.defaultAction)
                     .disabled(store.pairs.isEmpty || !store.pairs.allSatisfy(\.isComplete))
             case .engine:
-                Button("Back") { step = .languages }
+                Button("Back") { path.removeLast() }
+                    .accessibilityIdentifier("onboarding.back")
                 Button("Check Again", action: checkAll)
                     .disabled(Provider.allCases.contains { checks.health[$0] == .checking })
                 Spacer()
+                Button("Continue") { path.append(.dictation) }
+                    .accessibilityIdentifier("onboarding.continue")
+                    .keyboardShortcut(.defaultAction)
+            case .dictation:
+                Button("Back") { path.removeLast() }
+                    .accessibilityIdentifier("onboarding.back")
+                Spacer()
                 Button("Done", action: done)
+                    .accessibilityIdentifier("onboarding.done")
                     .keyboardShortcut(.defaultAction)
             }
         }

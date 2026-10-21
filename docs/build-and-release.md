@@ -67,7 +67,14 @@ must stay out of the app. CMake is required locally and installed in CI.
   for Settings activation to settle and verifies the target's exact frame before
   and after capture; a closed or resized target fails. Its header comment explains
   the settings overrides and restoration. The terminal and the build need
-  Accessibility, so a build under a new signature prompts until granted. It
+  Accessibility, so a build under a new signature prompts until granted.
+  `CAPTURE_ONBOARDING_ONLY=1 CAPTURE_OUT=<dir> ./capture-screenshots.sh`
+  traverses translation setup and the dictation-only route, including Back and
+  Done, with synthetic engine health and no microphone access. Add
+  `CAPTURE_APPEARANCE=current` to leave the system theme and pointer untouched;
+  the capture fails if the theme changes while a frame is being recorded.
+  `CAPTURE_RESULTS_ONLY=1 CAPTURE_OUT=<dir> ./capture-screenshots.sh` checks
+  the recovery submenu's empty, partial and full states. The default run
   ends by rebuilding the website's link preview, `site/og-image.png`
   (1200x630, `scripts/make-og-image.py`), which lays the menu screenshot
   beside the icon and tagline.

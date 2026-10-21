@@ -7,16 +7,28 @@ struct DictationSettingsView: View {
 
     var body: some View {
         Form {
-            DictationControlsSection(store: store, dictation: dictation)
-            DictationModelSection(dictation: dictation)
+            DictationSetupSections(store: store, dictation: dictation)
         }
         .settingsPane()
+    }
+}
+
+// Settings and first-run setup share the same enable, shortcut and model flow.
+struct DictationSetupSections: View {
+    let store: SettingsStore
+    let dictation: DictationController
+    var introductory = false
+
+    var body: some View {
+        DictationControlsSection(store: store, dictation: dictation, introductory: introductory)
+        DictationModelSection(dictation: dictation)
     }
 }
 
 private struct DictationControlsSection: View {
     let store: SettingsStore
     let dictation: DictationController
+    let introductory: Bool
 
     var body: some View {
         Section {
@@ -32,13 +44,25 @@ private struct DictationControlsSection: View {
                     .disabled(!dictation.enabled || dictation.isActive)
             }
         } header: {
-            Text("Dictation")
+            if introductory {
+                Text("Set up dictation").font(.title2.bold())
+            } else {
+                Text("Dictation")
+            }
         } footer: {
-            Text("""
-                Hold Option while speaking, then release to insert. Languages are detected automatically. Uses \
-                the microphone selected in macOS.
-                """)
-                .foregroundStyle(Color.secondaryText)
+            VStack(alignment: .leading, spacing: 6) {
+                if introductory {
+                    Text("""
+                        Enable dictation to allow microphone access and download a speech model. You can also set it \
+                        up later in Settings.
+                        """)
+                }
+                Text("""
+                    Hold Option while speaking, then release to insert. Languages are detected automatically. Uses \
+                    the microphone selected in macOS.
+                    """)
+            }
+            .foregroundStyle(Color.secondaryText)
         }
     }
 }

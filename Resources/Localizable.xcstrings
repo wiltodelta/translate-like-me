@@ -3618,6 +3618,64 @@
         }
       }
     },
+    "Enable dictation to allow microphone access and download a speech model. You can also set it up later in Settings." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktiviere Diktieren, um den Mikrofonzugriff zu erlauben und ein Sprachmodell herunterzuladen. Du kannst es auch später in den Einstellungen einrichten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activa el dictado para permitir el acceso al micrófono y descargar un modelo de voz. También puedes configurarlo más tarde en Ajustes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activez la dictée pour autoriser l’accès au microphone et télécharger un modèle vocal. Vous pouvez aussi la configurer plus tard dans Réglages."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attiva la dettatura per consentire l’accesso al microfono e scaricare un modello vocale. Puoi configurarla anche in seguito in Impostazioni."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音声入力を有効にすると、マイクへのアクセスが求められ、音声モデルがダウンロードされます。後で設定から有効にすることもできます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "받아쓰기를 켜면 마이크 접근을 허용하고 음성 모델을 다운로드할 수 있습니다. 나중에 설정에서 구성할 수도 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ative o ditado para permitir o acesso ao microfone e baixar um modelo de fala. Você também pode configurá-lo mais tarde em Ajustes."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Включите диктовку, чтобы разрешить доступ к микрофону и скачать речевую модель. Это также можно сделать позже в настройках."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启用听写以允许访问麦克风并下载语音模型。你也可以稍后在设置中进行配置。"
+          }
+        }
+      }
+    },
     "Engine exited with status %d." : {
       "comment" : "The placeholder is a process exit code",
       "localizations" : {
@@ -7768,6 +7826,64 @@
         }
       }
     },
+    "Set up dictation" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diktieren einrichten"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configura el dictado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configurer la dictée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configura la dettatura"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音声入力を設定"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "받아쓰기 설정"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configure o ditado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Настройте диктовку"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置听写"
+          }
+        }
+      }
+    },
     "Settings…" : {
       "localizations" : {
         "de" : {
@@ -7938,6 +8054,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "“%@”预设的快捷键"
+          }
+        }
+      }
+    },
+    "Skip Translation" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Übersetzung überspringen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Omitir Traducción"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ignorer la traduction"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Salta traduzione"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻訳の設定をスキップ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "번역 건너뛰기"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pular Tradução"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пропустить перевод"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳过翻译"
           }
         }
       }

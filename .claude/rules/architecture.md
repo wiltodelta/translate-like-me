@@ -118,15 +118,22 @@ Read before editing this domain.
 - Onboarding (`Onboarding`, a `SettingsWindow` hosting an `NSHostingView`: an
   `NSHostingController` sized by `preferredContentSize` aborted in a layout
   loop) opens at launch until `Settings.didCompleteFirstRun`, which closing it
-  sets. Step one is `LanguagePairList`, shared with General > Languages; step
-  two lists the providers with `EngineChecks`, started when the window opens:
+  sets. Step one is `LanguagePairList`, shared with General > Languages; Skip
+  Translation goes straight to Dictation, even with no pairs. Step two lists the
+  providers with `EngineChecks`, started only on entry to that step and cancelled
+  on exit; unfinished results are removed so Back can restart them:
   `EngineProbe` runs `EngineStatus.check` and then one real test translation
   (`Translator.translate(_:pair:provider:)`), mapped to `EngineHealth`.
   Not-installed and signed-out engines are rechecked when the app becomes
   active (back from a `login` in Terminal); a spent limit or failed run waits
   for Check Again, each recheck being a real translation. Until the user picks, a definitively failing
   stored engine yields to the first working one. Settings and onboarding share
-  one `SettingsStore` owned by `AppDelegate`. Parallel checks made
+  one `SettingsStore` owned by `AppDelegate`. The last step shares
+  `DictationSetupSections` with Settings: enable, hold key, model and preparation
+  status. Enabling is explicit; Done can leave it disabled or let preparation
+  continue. Back returns along the visited steps. Native onboarding captures use
+  a development-only `onboardingPreview` with injected engine health, never real
+  CLI probes or microphone access. Parallel checks made
   `Translator`'s binary cache a lock (`OSAllocatedUnfairLock`).
 - `SelectionWorkflow` owns the copy/await/validate/paste/restore flow, with
   `LiveSelectionAccess` as its native adapter and injected effects in tests.

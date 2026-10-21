@@ -63,12 +63,18 @@ enum EngineProbe {
 final class EngineChecks {
     private(set) var health: [Provider: EngineHealth] = [:]
     @ObservationIgnored private var runs: [Provider: Task<Void, Never>] = [:]
+    @ObservationIgnored private let probe: @Sendable (Provider) async -> EngineHealth
+
+    init(probe: @escaping @Sendable (Provider) async -> EngineHealth = { await EngineProbe.run($0) }) {
+        self.probe = probe
+    }
 
     func check(_ provider: Provider) {
         runs[provider]?.cancel()
         health[provider] = .checking
+        let probe = probe
         runs[provider] = Task {
-            let result = await EngineProbe.run(provider)
+            let result = await probe(provider)
             guard !Task.isCancelled else { return }
             health[provider] = result
         }
@@ -77,5 +83,7 @@ final class EngineChecks {
     func cancelAll() {
         runs.values.forEach { $0.cancel() }
         runs.removeAll()
+        // A cancelled check must be restartable when its page is visited again.
+        health = health.filter { $0.value != .checking }
     }
 }
