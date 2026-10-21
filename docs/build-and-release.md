@@ -1,8 +1,8 @@
 # Build and release
 
-Relocated from the repo root `CLAUDE.md`. User-facing install and release
-instructions also live in [`README.md`](../README.md); this file carries the
-detail an engineer needs.
+Relocated from the repo root `CLAUDE.md`. Installation and the product overview
+live in the [README](../README.md), with setup, usage, and troubleshooting in
+the [user guide](user-guide.md). This file carries the engineering procedures.
 
 ## Local build
 

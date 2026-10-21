@@ -51,7 +51,7 @@ During release preparation the native settings UI remained unverified because
 another session owned the shared Rota notice. This software check does not establish what the fixed
 development build renders; the installed app was left untouched during local checks. Effort
 remains hidden on Default until an explicit model is selected, as documented
-in [model selection](../README.md#model-selection).
+in [model selection](user-guide.md#model-selection).
 
 ## Dictation startup
 

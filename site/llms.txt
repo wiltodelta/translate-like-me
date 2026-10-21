@@ -4,5 +4,6 @@
 
 Local dictation uses a multilingual speech model on the Mac. Hold right Option while speaking, then release to recognize and insert. Supported languages are detected automatically, and the system microphone is used. First setup downloads the model; later recognition runs locally without an account or API key.
 
-- [README](https://github.com/wiltodelta/translate-like-me/blob/main/README.md): features, requirements, install, settings, providers, privacy, troubleshooting
+- [README](https://github.com/wiltodelta/translate-like-me/blob/main/README.md): overview, screenshots, install, engines, privacy, building from source
+- [User guide](https://github.com/wiltodelta/translate-like-me/blob/main/docs/user-guide.md): requirements, setup, usage, settings, providers, privacy, troubleshooting, uninstall
 - [Releases](https://github.com/wiltodelta/translate-like-me/releases): signed and notarized downloads with release notes
