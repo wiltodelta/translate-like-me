@@ -8,22 +8,24 @@ final class LocalGenerationTests: XCTestCase {
     func testCancelledConsumerWaitsForTheProducerToDrain() async {
         let gate = TestGate()
         let completed = OSAllocatedUnfairLock(initialState: (producer: false, consumer: false))
+        let cancelled = expectation(description: "Cancellation reached the SDK producer")
         let stream = AsyncStream<Generation> { _ in }
         let producer = Task {
-            await gate.wait()
-            completed.withLock { $0.producer = true }
+            await withTaskCancellationHandler {
+                await gate.wait()
+                completed.withLock { $0.producer = true }
+            } onCancel: {
+                cancelled.fulfill()
+            }
         }
         let consumer = Task {
             defer { completed.withLock { $0.consumer = true } }
             return try await LocalGeneration.collect(stream, producer: producer)
         }
         consumer.cancel()
-        for _ in 0..<1_000 {
-            if producer.isCancelled { break }
-            await Task.yield()
-        }
+        // Wait for the cancellation event, not a fixed number of scheduler turns.
+        await fulfillment(of: [cancelled], timeout: 5)
         XCTAssertTrue(producer.isCancelled, "Cancellation must reach the SDK producer")
-        for _ in 0..<100 { await Task.yield() }
         XCTAssertFalse(completed.withLock { $0.consumer }, "A cancelled consumer must still drain GPU work")
         await gate.open()
         do {

@@ -108,6 +108,13 @@ Jinja). On the shipping translation prompt it produced the same ids as Python
   `generateTask` producer is awaited even after consumer cancellation, before model
   access is released. Only a normal EOS completion can return text; reaching the
   token limit reports an error instead of inserting a partial translation.
+  The cancellation-drain test waits for the producer's cancellation notification.
+  Counting `Task.yield()` calls raced the CI scheduler on October 21, 2026;
+  yields are not a completion signal. The event proves cancellation propagation;
+  the blocked-producer assertion is not a deterministic oracle for removal of
+  `await producer.value`, because consumer scheduling can mask an early return.
+  A deterministic negative test for that drain remains a coverage gap; production
+  still directly awaits the producer before checking cancellation.
 - `LocalModelFiles` downloads one file at a time, so progress follows bytes
   (the Hub client weighs each file equally), resumes partial files, refuses a
   download that would leave less than 2 GB free, verifies every file against
