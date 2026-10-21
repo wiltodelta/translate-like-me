@@ -22,7 +22,7 @@ Dictation pane. The user explicitly added model selection after the 3.5.0 releas
 Compute-policy findings and the reproducible synthetic benchmark:
 `docs/dictation-model-efficiency.md`.
 
-- `DictationModel` lists Whisper Turbo (localized without a version in its title)
+- `DictationModel` lists Whisper Turbo (original name, without a version in its title)
   and Qwen3-ASR 1.7B 8-bit (30 languages). Fresh profiles select Turbo through
   16 GiB and Qwen above 16 GiB; existing valid choices remain authoritative.
   `DictationLanguagePreference` snapshots languages from complete translation

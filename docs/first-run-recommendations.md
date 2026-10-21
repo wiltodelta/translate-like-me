@@ -49,8 +49,8 @@ checks remain necessary before the models can be used.
   An offer is not a claim that the model already works.
 - Dictation offers Whisper Turbo and Qwen only. Saved Small, Large v3 and unknown
   preferences resolve to Turbo without deleting cached downloads. The visible
-  Turbo title omits the version and is localized as «Виспер турбо» in Russian.
-  New strings have all nine translations. The recommendation badge follows memory.
+  Turbo title omits the version and retains its original name in every language,
+  as do the other model names. Descriptive strings have all nine translations. The recommendation badge follows memory.
 - Settings order is General, Dictation, Translation, Rewrite. Persisted pane IDs
   remain 0, 3, 1, 2. String tab identifiers map stable IDs to positions; numeric
   identifiers caused a native `isEqualToString:` exception. Explicit same-pane

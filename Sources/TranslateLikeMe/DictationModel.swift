@@ -8,7 +8,7 @@ enum DictationModel: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .turbo: String(localized: "Whisper Turbo")
+        case .turbo: "Whisper Turbo"
         case .qwen3ASR: "Qwen3-ASR 1.7B (8-bit)"
         }
     }
