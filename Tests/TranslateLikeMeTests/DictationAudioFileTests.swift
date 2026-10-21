@@ -5,25 +5,6 @@ import XCTest
 @testable import TranslateLikeMe
 
 final class DictationAudioFileTests: XCTestCase {
-    func testSilentOutputMatchesTheCaptureFormatAndRendersZerosOffTheMainActor() async throws {
-        let samples = try await Task.detached { @Sendable in
-            let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1))
-            let engine = AVAudioEngine()
-            DictationRecorder.connectSilentOutput(to: engine, format: format)
-            XCTAssertEqual(engine.outputNode.inputFormat(forBus: 0), format)
-            try engine.enableManualRenderingMode(.offline, format: format, maximumFrameCount: 128)
-            try engine.start()
-            defer { engine.stop() }
-            let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 128))
-            let channel = try XCTUnwrap(buffer.floatChannelData?[0])
-            channel.initialize(repeating: 0.5, count: 128)
-            XCTAssertEqual(try engine.renderOffline(128, to: buffer), .success)
-            XCTAssertEqual(buffer.frameLength, 128)
-            return Array(UnsafeBufferPointer(start: channel, count: 128))
-        }.value
-        XCTAssertTrue(samples.allSatisfy { $0 == 0 })
-    }
-
     func testFinalizedNativePCMCanBeReadAsWhisperAudio() throws {
         let url = temporaryFile()
         defer { try? FileManager.default.removeItem(at: url) }
@@ -84,6 +65,22 @@ final class DictationAudioFileTests: XCTestCase {
         XCTAssertEqual(capture.append(changed), false)
         XCTAssertNil(capture.append(changed))
         XCTAssertThrowsError(try capture.finish())
+    }
+
+    func testRelayWritesOnlyWhileAHoldIsAttached() throws {
+        let url = temporaryFile()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1))
+        let chunk = try buffer(format: format, frames: 160, value: 0.25)
+        let relay = DictationTapRelay()
+        let sink = try DictationAudioFile(url: url, format: format)
+        relay.deliver(chunk)
+        relay.attach(sink, ended: { _ in })
+        relay.deliver(chunk)
+        relay.detach()
+        relay.deliver(chunk)
+        try sink.finish()
+        XCTAssertEqual(try AVAudioFile(forReading: url).length, 160)
     }
 
     private func temporaryFile() -> URL {

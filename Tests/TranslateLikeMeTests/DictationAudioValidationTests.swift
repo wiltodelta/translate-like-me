@@ -11,8 +11,8 @@ final class DictationAudioValidationTests: XCTestCase {
         let expectEmpty: Bool
     }
 
-    // No microphone, speakers or downloads. This checks the path after voice
-    // processing, not preservation of a physical voice by the echo canceller.
+    // No microphone, speakers or downloads. This checks the path after capture,
+    // not preservation of a physical voice by a real microphone and room.
     func testSyntheticAudioThroughCaptureFileAndRecognition() async throws {
         guard let directory = ProcessInfo.processInfo.environment["TLM_AUDIO_CHECK"] else {
             throw XCTSkip("Run python3 scripts/check-dictation-audio.py for unattended synthetic validation")

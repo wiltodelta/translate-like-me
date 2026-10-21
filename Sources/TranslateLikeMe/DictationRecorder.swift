@@ -7,6 +7,8 @@ protocol DictationRecording: AnyObject {
     var level: Double { get }
     var isDeliveringAudio: Bool { get }
     func requestPermission() async -> Bool
+    func warmUp(rebuild: Bool)
+    func coolDown()
     func start() throws
     func stop() throws -> Task<URL, Error>
     func discard()
@@ -14,7 +16,8 @@ protocol DictationRecording: AnyObject {
 }
 
 // The serial capture worker owns every AVAudioEngine access. MainActor owns
-// callbacks and the current request. A press enqueues hardware initialization.
+// callbacks and the current request. Warm-up prepares the input between holds
+// without opening the microphone; a press enqueues only the hardware start.
 @MainActor
 final class DictationRecorder: DictationRecording {
     private let worker = DictationCaptureWorker()
@@ -28,6 +31,14 @@ final class DictationRecorder: DictationRecording {
         default: return false
         }
     }
+
+    // Only an existing grant is used: initializing input must never prompt.
+    func warmUp(rebuild: Bool) {
+        guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else { return }
+        worker.prepare(rebuild: rebuild)
+    }
+
+    func coolDown() { worker.release() }
 
     func start() throws {
         discard()
@@ -65,23 +76,4 @@ final class DictationRecorder: DictationRecording {
         worker.shutdown()
         request = nil
     }
-
-    nonisolated static func connectSilentOutput(to engine: AVAudioEngine, format: AVAudioFormat) {
-        // Voice processing needs a rendered output clock even for capture-only
-        // dictation. An input tap alone can leave the downlink without timestamps.
-        let silence = AVAudioSourceNode { @Sendable isSilent, _, _, audioBuffers in
-            isSilent.pointee = true
-            for buffer in UnsafeMutableAudioBufferListPointer(audioBuffers) {
-                if let data = buffer.mData { memset(data, 0, Int(buffer.mDataByteSize)) }
-            }
-            return noErr
-        }
-        engine.attach(silence)
-        let mixer = engine.mainMixerNode
-        // VoiceProcessingIO requires matching client input/output formats. The
-        // mixer's default output can differ in both rate and channel count.
-        engine.connect(mixer, to: engine.outputNode, format: format)
-        engine.connect(silence, to: mixer, format: format)
-    }
-
 }

@@ -46,6 +46,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         ) { _ in
             MainActor.assumeIsolated { DictationController.shared.cancel() }
         }
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { _ in
+            MainActor.assumeIsolated { DictationController.shared.systemDidWake() }
+        }
         // Render enabled settings for native capture without loading a model or
         // requesting microphone access. This launch-only fixture never records.
         let dictationPreview = UserDefaults.standard.string(forKey: "dictationPreview")

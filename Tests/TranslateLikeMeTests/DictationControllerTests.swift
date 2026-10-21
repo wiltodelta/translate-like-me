@@ -267,17 +267,17 @@ final class DictationControllerTests: XCTestCase {
         controller.cancel()
     }
 
-    func testUnavailableEchoCancellationReportsTheCauseAndReleasesCapture() async {
+    func testMicrophoneStartupFailureReportsTheCauseAndReleasesCapture() async {
         let engine = ControlledDictationEngine()
         let recorder = ControlledDictationRecorder()
         let controller = makeController(engine: engine, recorder: recorder)
         controller.restore()
         await controller.operation?.value
-        recorder.startError = .voiceProcessing
+        recorder.startError = .microphone
         controller.shortcutPressed()
         XCTAssertEqual(recorder.starts, 1)
         XCTAssertEqual(controller.phase, .failed)
-        XCTAssertEqual(controller.error, DictationError.voiceProcessing.localizedDescription)
+        XCTAssertEqual(controller.error, DictationError.microphone.localizedDescription)
         XCTAssertFalse(recorder.hasAudio)
         XCTAssertFalse(TranslationActivity.shared.isBusy)
         XCTAssertTrue(engine.transcribed.isEmpty)
@@ -304,6 +304,38 @@ final class DictationControllerTests: XCTestCase {
                             interaction: DictationInteraction(beginCapture: { _ in (nil, {}) },
                                                               endCapture: {}, showError: { _ in },
                                                               showResult: { _ in }), saveModel: { _ in })
+    }
+}
+
+// Input preparation between holds (raw prepared capture).
+extension DictationControllerTests {
+    func testInputIsPreparedOnlyAfterMicrophoneAccessIsGranted() async {
+        let engine = ControlledDictationEngine()
+        let denied = ControlledDictationRecorder()
+        denied.permitted = false
+        let refused = makeController(engine: engine, recorder: denied)
+        refused.restore()
+        await refused.operation?.value
+        XCTAssertEqual(denied.permissions, 1)
+        XCTAssertTrue(denied.warmUps.isEmpty)
+
+        let recorder = ControlledDictationRecorder()
+        let controller = makeController(engine: engine, recorder: recorder)
+        controller.restore()
+        await controller.operation?.value
+        XCTAssertEqual(recorder.warmUps, [false])
+        controller.systemDidWake()
+        XCTAssertEqual(recorder.warmUps, [false, true])
+    }
+
+    func testWakeDoesNotPrepareInputWhileDisabled() {
+        let recorder = ControlledDictationRecorder()
+        let controller = DictationController(enabled: false, engine: ControlledDictationEngine(), recorder: recorder,
+            interaction: DictationInteraction(beginCapture: { _ in (nil, {}) }, endCapture: {},
+                                              showError: { _ in }, showResult: { _ in }),
+            saveModel: { _ in })
+        controller.systemDidWake()
+        XCTAssertTrue(recorder.warmUps.isEmpty)
     }
 }
 
@@ -376,6 +408,8 @@ private final class ControlledDictationRecorder: DictationRecording {
     let isDeliveringAudio = true
     let audio = URL(fileURLWithPath: "/synthetic-dictation.wav")
     var permissions = 0
+    var permitted = true
+    var warmUps: [Bool] = []
     var starts = 0
     var stops = 0
     var hasAudio = false
@@ -384,7 +418,9 @@ private final class ControlledDictationRecorder: DictationRecording {
     private var drain: CheckedContinuation<URL, Error>?
     private var drainObserver: CheckedContinuation<Void, Never>?
 
-    func requestPermission() async -> Bool { permissions += 1; return true }
+    func requestPermission() async -> Bool { permissions += 1; return permitted }
+    func warmUp(rebuild: Bool) { warmUps.append(rebuild) }
+    func coolDown() {}
     func start() throws {
         starts += 1
         hasAudio = true

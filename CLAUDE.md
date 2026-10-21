@@ -72,6 +72,14 @@ detail, including the secrets and where the keys are kept (1Password):
   restores them at startup), so keep live agy runs few.
   `-AppleInterfaceStyle Dark` in the argument domain does not darken the app;
   render Dark Mode by flipping the system appearance, as `capture-screenshots.sh` does.
+  A standalone microphone probe gets the dev bundle's grant only as an `.app`
+  with the dev bundle id, Developer ID signature, hardened runtime and the
+  audio-input entitlement, launched with `open -W -n --stdout`; a bare binary
+  reads not-determined. Make a Bluetooth probe refuse unless the default input
+  is Bluetooth: AirPods dropped off the Mac mid-session and a run silently
+  measured the built-in microphone. A `.build` cloned into another worktree
+  fails release builds until `.build/arm64-apple-macosx/release/ModuleCache` is
+  deleted, because its modules embed the old path.
 
 ## Interface
 

@@ -95,6 +95,9 @@ final class DictationController {
 
     func restore() { if enabled { prepare() } }
 
+    // Sleep can leave the prepared input bound to a stale device.
+    func systemDidWake() { if enabled { recorder.warmUp(rebuild: true) } }
+
     func selectModel(_ model: DictationModel) {
         guard self.model != model, !isActive else { return }
         self.model = model
@@ -119,6 +122,7 @@ final class DictationController {
         } else {
             prepareAfterOperation = false
             cancel()
+            recorder.coolDown()
         }
         HotKeyManager.shared.reload()
     }
@@ -137,6 +141,7 @@ final class DictationController {
                     """), id: id)
                 return
             }
+            recorder.warmUp(rebuild: false)
             do {
                 try await prepareEngine(id)
                 guard session.accepts(id, in: .preparing), !Task.isCancelled else { return }
@@ -294,7 +299,7 @@ final class DictationController {
             let kind = String(describing: type(of: failure))
             dictationLog.error("Dictation failed (\(kind, privacy: .public))")
             let message = switch failure {
-            case DictationError.microphone, DictationError.voiceProcessing, DictationError.insufficientStorage:
+            case DictationError.microphone, DictationError.insufficientStorage:
                 failure.localizedDescription
             case _ where phase == .preparing:
                 String(localized: "Dictation couldn't be prepared. Check your connection, then choose Try Again.")

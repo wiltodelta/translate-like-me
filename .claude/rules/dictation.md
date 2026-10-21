@@ -65,30 +65,41 @@ Compute-policy findings and the reproducible synthetic benchmark:
   The stop task must finalize the WAV before model reload or recognition. Enqueue
   discard on the same queue before another start; never open an idle microphone.
   Flush capture cleanup synchronously at application termination, before exiting.
-  Queue-startup findings and rejected idle-ducking cache: `docs/dictation-startup.md`.
+  Startup findings, the raw prepared input and the rejected idle-ducking cache:
+  `docs/dictation-startup.md`.
   Reload the model only after release, while retaining the drained audio.
   Interrupted initial preparation retries after the old task unwinds, never
   reports ready with missing assets, and does not restart during termination.
   Do not reintroduce timed
   eviction without measuring reload latency.
-- Capture uses `AVAudioEngine` voice processing on both I/O nodes, with maximum
-  fixed other-audio ducking, automatic gain disabled and no microphone-to-speaker
-  connection. Render a separate zero-filled output for the downlink clock in the
-  processed input's client format; the default mixer format failed
-  VoiceProcessingIO initialization in the native check. Explicitly disable
-  processing after stopping the engine and removing its tap, releasing ducking
-  on release, cancellation or failure before recognition. Do not silently
-  fall back to raw input. Read the input format after enabling processing; write
-  native PCM and let WhisperKit resample on read. Tap callbacks are explicitly
-  `@Sendable` and never enter the main actor for audio writes. The locked sink
+- Capture uses raw `AVAudioEngine` input, without voice processing: its per-press
+  initialization cost about 1.2 s and lost first words, and a prepared
+  voice-processing unit kept media ducked while idle (user decision 2026-10-20,
+  `docs/dictation-startup.md`). Between holds the worker keeps the engine
+  prepared but stopped, with the relay tap installed; it opens no microphone
+  (process input-running reads zero). Warm up only with an existing grant, after
+  preparation's permission check; rebuild after wake, on an idle configuration
+  change, or when the default input or its format differs from the one the
+  engine was built on. The I/O unit's current device is the engine's aggregate,
+  not the input; compare the default input recorded at build. Re-prepare after
+  every stop or discard and drop a graph that failed to start; disabling
+  dictation releases the engine, after a hold in progress ends.
+  The press mutes the default output (`DictationOutputMute`) only if it was
+  unmuted, persisting the device UID until release; release unmutes only if it is
+  still muted, and launch undoes a mute left by a crash. Never lower volume or
+  change it otherwise. Install the tap with a nil format and read the format
+  after it: AirPods changed format between a read and the tap, and a stale tap
+  format raises an uncatchable Objective-C exception. Write native PCM and let
+  WhisperKit resample on read. Tap
+  callbacks are explicitly `@Sendable` and never enter the main actor for audio
+  writes; the relay forwards only while a hold's sink is attached. The locked sink
   closes before recognition and rejects late writes. Bound capture by frame
   count; a route/format interruption fails instead of recognizing partial audio.
-- In configuration callbacks, read the current engine from recorder state
-  inside the capture queue, guarded by request identity. Do not capture
+- In configuration callbacks, read the current engine from worker state
+  inside the capture queue, guarded by the engine generation. Do not capture
   `AVAudioEngine` across a Sendable closure: the CI SDK does not mark it
   Sendable, even when the newer local SDK accepts that capture. Offline tests
-  create and use their engine inside one task, returning only sample values;
-  the stateless graph helper is nonisolated.
+  create and use their engine inside one task, returning only sample values.
 - `SelectionTarget.capture(allowingCaret: true)` is explicit to dictation; the
   default still requires a selection for translation/Rewrite. Validate the
   original element, range, text and activity. Decode AX ranges with nonnegative

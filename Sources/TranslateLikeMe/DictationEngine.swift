@@ -229,16 +229,13 @@ actor DictationEngine: DictationRecognizing {
 }
 
 enum DictationError: LocalizedError {
-    case notReady, microphone, voiceProcessing, insufficientStorage
+    case notReady, microphone, insufficientStorage
 
     var errorDescription: String? {
         switch self {
         case .notReady: String(localized: "Dictation isn't ready. Open Settings and try preparing it again.")
         case .microphone:
             String(localized: "The microphone couldn't start. Check your system input device, then try again.")
-        case .voiceProcessing:
-            String(localized:
-                "Echo cancellation couldn't start. Check your system input and output devices, then try again.")
         case .insufficientStorage:
             String(localized: "Free at least 8 GB of disk space, then prepare dictation again in Settings.")
         }

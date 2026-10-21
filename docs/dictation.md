@@ -120,24 +120,29 @@ start. This keeps hardware initialization off the UI and prevents a queued start
 from opening the microphone after an early release. See the
 [startup investigation](dictation-startup.md) for the remaining hardware latency.
 
-The worker uses `AVAudioEngine` with Apple's voice processing enabled
-before starting capture. Enabling it switches both I/O nodes to the processed
-path; the microphone is never connected to the speakers. The tap is explicitly
-`@Sendable`, so its callback does not inherit the main actor. Voice processing
-provides echo cancellation and noise suppression, with automatic gain control
-disabled to avoid amplifying quiet residual/background audio. A separate source
-renders zeros through the output graph, using the same client format as the
-processed input. This supplies the output clock that VoiceProcessingIO needs
-without playing the microphone. Stop removes the tap and explicitly disables
-voice processing before releasing the engine rather than relying on deallocation
-to complete its teardown. Other-audio ducking uses the maximum level with
-advanced ducking disabled, requesting attenuation throughout capture. Stop,
-cancellation and failure disable voice processing before recognition starts,
-releasing the processing path's ducking; no system volume setting is changed.
-Audible attenuation and recovery still need acceptance checks below. Suppression depends on the
-device pair, room and playback level; it is not a guarantee that all movie
-dialogue will disappear. See Apple's [voice processing overview](https://developer.apple.com/videos/play/wwdc2019/510/)
-and [ducking configuration](https://developer.apple.com/videos/play/wwdc2023/10235/).
+The worker captures raw `AVAudioEngine` input, without Apple's voice processing.
+VoiceProcessingIO initialization took about 1.2 s per press, so speech that began
+with the press was lost, and a prepared voice-processing unit kept other audio
+ducked while idle. The user chose raw prepared input on October 20, 2026; the
+measurements are in the [startup investigation](dictation-startup.md#raw-prepared-input-october-20-2026).
+Echo cancellation and noise suppression are therefore gone. Their earlier
+benefit was not established (see the comparison below).
+Between holds the engine is prepared but stopped, with its tap installed. It
+opens no microphone: the process input-running property reads zero. A press
+only starts the hardware. The tap forwards audio through a relay only while a
+hold's sink is attached. Stop and discard re-prepare the engine; disabling
+dictation releases it. Wake, an idle configuration change, or a different
+default input or format rebuilds it. The engine's I/O unit reports its own
+aggregate device, so the worker compares the default input it recorded at build.
+The tap is installed with a nil format, because a stale explicit format raised
+an uncatchable exception when AirPods changed format.
+
+During a hold the default output device is muted, if it was unmuted, so media
+does not reach the recording. `DictationOutputMute` records the device UID in
+preferences while it holds the mute. Release, cancellation and failure unmute
+only a device that is still muted, leaving a device the user unmuted meanwhile.
+The next launch undoes a mute that a crash left behind. The system volume level
+is never changed.
 
 The recorder writes only its current temporary PCM WAV at the processed input's
 native rate and channel count. WhisperKit's audio loader converts it to 16 kHz
@@ -145,8 +150,7 @@ mono before speech detection and recognition. `DictationAudioFile` serializes
 non-real-time tap writes, metering and file close with a lock. It finalizes the
 WAV header before recognition, rejects late callbacks and bounds recording to
 five minutes by counting captured frames. The file is removed after recognition
-or cancellation. There is no fallback to unprocessed recording if echo
-cancellation cannot start. Device/format changes that stop or invalidate the
+or cancellation. Device/format changes that stop or invalidate the
 engine fail the active recording rather than recognize a partial file. Choose
 Try Again in Dictation settings after correcting the devices; a new recording
 creates an engine for the current system devices.
@@ -224,9 +228,13 @@ proving that its accepted snapshot is rejected by the app.
 `DictationAudioFileTests` writes synthetic PCM through the actual capture sink,
 finalizes and loads it through WhisperKit, and checks native-rate conversion,
 metering, the frame limit, rejected late writes and format-change errors without
-opening a microphone. Controller tests also cover unavailable echo cancellation
+opening a microphone. Controller tests also cover microphone startup failure
 and interrupted capture without recognizing partial audio. These checks do not
 measure acoustic suppression or prove hardware route behavior.
+
+The voice-processing records from here through the maximum-ducking release
+validation describe the recorder removed on October 20, 2026; they are kept as
+history and as the evidence behind that decision.
 
 Native verification on October 19, 2026 used the signed development bundle,
 built-in MacBook Air input/output and synthetic speech from a separate `afplay`
@@ -648,6 +656,8 @@ See [prepare](https://developer.apple.com/documentation/avfaudio/avaudioengine/p
 and [AVAudioEngine](https://developer.apple.com/documentation/avfaudio/avaudioengine).
 The metadata-only correlation is stored in
 `.build/diagnostics/dictation-startup/observed-startup.json`.
+The [raw prepared input](dictation-startup.md#raw-prepared-input-october-20-2026)
+replaced voice processing later that day, at the user's choice.
 
 ### Return right after insertion, October 20, 2026
 

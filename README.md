@@ -128,10 +128,9 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
   combination does not insert speech. There is no tap-to-toggle mode or menu
   command to start recording. Recording is bounded to five minutes. The menu
   offers **Copy Last Dictation** after a result, without a recording history.
-  Dictation enables macOS echo cancellation, noise suppression and media
-  ducking during recording. Effectiveness depends on the devices and playback
-  level. Complete physical voice-preservation and audible-restoration checks
-  remain open; see the [validation record](docs/release-3.7.2.md).
+  The microphone is ready between holds without recording, so capture
+  starts about 0.2 s after the press, measured on the built-in microphone and on
+  AirPods. While you hold the key, system sound output is muted, then restored.
 
 - Select text in any app, then press a pair's shortcut (the first pair you add
   starts on **⌥⌘F**) to replace it with the translation.

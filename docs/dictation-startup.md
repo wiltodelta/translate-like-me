@@ -1,5 +1,8 @@
 # Dictation startup investigation
 
+> The voice-processing recorder described through "Verification of the queued
+> implementation" was replaced by raw prepared input; see the last section.
+
 October 20, 2026. The user approved optimizing startup without background
 microphone capture. The reported installed version was 3.7.4.
 
@@ -91,3 +94,83 @@ release and cancellation remain asynchronous. The local maintenance gate passed
 the signed bundle build. Version 3.7.5 packages this feedback and capture-queue
 change. A further hardware-latency improvement under the current no-background-
 microphone and idle-volume constraints remains unproven.
+
+## Raw prepared input, October 20, 2026
+
+The user still reported that the starting state was long enough to confuse,
+and that speech beginning with the press lost its first words. They chose raw
+input prepared between holds, and muting media during the hold, over keeping
+voice processing. Market review: VoiceInk (AUHAL, `AudioUnitInitialize` ahead,
+only start on press), TypeWhisper and OpenSuperWhisper (`prepare()` without
+start), Handy and OpenWhispr (raw input) do not use voice processing for
+ducking; Superwhisper, Handy and TypeWhisper pause, mute or lower media
+themselves. Wispr Flow and Aqua recommend a built-in microphone over Bluetooth,
+whose HFP switch adds its own delay.
+
+A signed development probe on the built-in MacBook Air microphone ran each
+mode in its own process, eight holds per process, two processes per mode.
+Press to first nonempty tap buffer:
+
+| Mode | Median | Range |
+|---|---|---|
+| Voice processing, built per press (3.7.5 path) | 1,238 ms | to 2,151 ms; 1 of 16 delivered no audio within 3 s |
+| Raw input, engine built per press | 391 ms | 251-675 ms |
+| Raw input, engine prepared beforehand | 160 ms | 128-216 ms |
+
+Mixing voice-processing and raw engines in one process raised
+`format.sampleRate == inputHWFormat.sampleRate` at tap installation, so each
+mode ran separately. The prepared idle state read process input-running zero.
+That is the property the system microphone indicator follows; the indicator was
+not inspected visually.
+
+The first worker build measured 314-344 ms median: its stale-device check
+compared the default input with `kAudioOutputUnitProperty_CurrentDevice`, which
+returned the engine's aggregate device (115, against input 77 and output 70),
+so every press rebuilt the engine. An instrumented copy then attributed the
+start to about 1 ms of file creation, about 1 ms of muting and 58-105 ms of
+`engine.start()`. With the check comparing the default input recorded at build,
+the exact production sources (`DictationRecorder`, `DictationCaptureWorker`,
+`DictationCaptureRequest`, `DictationAudioFile`, `DictationOutputMute`) in three
+fresh processes gave 30 of 30 captures: median 179 ms, p95 231 ms, maximum
+280 ms. Every hold read input-running zero while prepared, one during capture
+and zero after its stop or discard, and zero after shutdown. The default output
+read muted during each hold and unmuted afterwards, with no recovery record
+left. Stops wrote the expected 14,400 frames (300 ms at 48 kHz).
+After the worker stopped only a running engine, so a discard following a stop
+keeps the re-prepared graph, two more processes gave 20 of 20 captures, median
+175 ms, maximum 288 ms, with the same input and mute readbacks.
+A process that exited during a hold left the speakers muted with the recovery
+record set; the next launch unmuted them and removed the record. The complete
+development preference domain matched its backup afterwards. These timings
+measure first audio, not perceived speech capture. USB inputs were not measured.
+
+### AirPods
+
+With AirPods as default input and output, holds six seconds apart so the
+headset could leave its call mode between them, each probe process refused to
+run unless the default input was Bluetooth at launch. Every process of the
+shipping path was bracketed by AirPods at its own launch and the next one's.
+
+| Path | Holds | Failed | Median | Range |
+|---|---|---|---|---|
+| Raw prepared input (final worker) | 16 | 0 | 180 ms | 127-304 ms |
+| Raw prepared input (before the tap fix below) | 16 | 0 | 142 ms | 122-447 ms |
+| Voice processing, built per press (3.7.5 path) | 8 | 0 | 1,716 ms | 911-2,058 ms |
+
+The AirPods output read muted during each hold and unmuted afterwards. Raw
+input built per press was not measured on AirPods: its first attempt crashed,
+and the AirPods then disconnected from the Mac twice during the session.
+
+That crash was `Failed to create tap due to format mismatch` (2 ch, 44.1 kHz):
+the AirPods input changed format (24 kHz at launch) between reading the input
+format and installing a tap with it. AVFAudio raises an Objective-C exception
+there, which terminates the process. The worker had the same read-then-tap
+order, so it now installs the tap with a nil format and reads the format after
+installation. A later change trips the stale check or the configuration
+observer before a hold, or fails the sink's format check during one, rather
+than crashing. The race was observed once and has not been reproduced on demand,
+so the fix is not proven against a repeat.
+Probe sources and metadata-only JSON results are in the gitignored
+`.build/diagnostics/dictation-raw-input/` of the worktree that measured them;
+the verdicts above are the record.
+

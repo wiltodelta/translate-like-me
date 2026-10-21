@@ -1,5 +1,10 @@
 # Unattended dictation verification
 
+> Since October 20, 2026 capture uses raw input without voice processing; see
+> [raw prepared input](dictation-startup.md#raw-prepared-input-october-20-2026).
+> The echo-cancellation, ducking-restoration and foreground-preservation sections
+> describe the removed path. The software path still applies.
+
 The user requested checks without reading a phrase, responding to timed prompts
 or pressing the dictation key. Do not restart the earlier interactive procedure.
 Keep software validation and physical echo cancellation as separate verdicts.
