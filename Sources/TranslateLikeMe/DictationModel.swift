@@ -1,9 +1,8 @@
 import Foundation
 
-// Multilingual Core ML models. Whisper keeps its matching tokenizer in a
-// separate pinned cache; Parakeet includes its vocabulary in the model snapshot.
+// Local multilingual speech models with pinned weights and tokenizer assets.
 enum DictationModel: String, CaseIterable, Identifiable, Sendable {
-    case small, turbo, largeV3, parakeetUltra
+    case small, turbo, largeV3, qwen3ASR
 
     var id: String { rawValue }
 
@@ -12,7 +11,7 @@ enum DictationModel: String, CaseIterable, Identifiable, Sendable {
         case .small: "Whisper Small"
         case .turbo: "Whisper Large v3 Turbo"
         case .largeV3: "Whisper Large v3"
-        case .parakeetUltra: "Parakeet Ultra"
+        case .qwen3ASR: "Qwen3-ASR 1.7B (8-bit)"
         }
     }
 
@@ -21,17 +20,17 @@ enum DictationModel: String, CaseIterable, Identifiable, Sendable {
         case .small: String(localized: "Uses less memory. About 487 MB to download.")
         case .turbo: String(localized: "For everyday dictation. About 627 MB to download.")
         case .largeV3: String(localized: "Full-size model. About 948 MB to download.")
-        case .parakeetUltra: String(localized: "Fast dictation in 25 European languages. About 632 MB to download.")
+        case .qwen3ASR: String(localized: "Supports 30 languages. About 2.5 GB to download.")
         }
     }
 
-    // Directory inside the pinned repository; Parakeet uses the repository root.
+    // Directory inside the pinned repository.
     var variant: String {
         switch self {
         case .small: "openai_whisper-small"
         case .turbo: "openai_whisper-large-v3-v20240930_626MB"
         case .largeV3: "openai_whisper-large-v3_947MB"
-        case .parakeetUltra: ""
+        case .qwen3ASR: ""
         }
     }
 
@@ -43,7 +42,7 @@ enum DictationModel: String, CaseIterable, Identifiable, Sendable {
 
     var tokenizer: Tokenizer? {
         switch self {
-        case .parakeetUltra: nil
+        case .qwen3ASR: nil
         case .small:
             Tokenizer(repository: "openai/whisper-small", revision: "973afd24965f72e36ca33b3055d56a652f456b4d",
                       files: [

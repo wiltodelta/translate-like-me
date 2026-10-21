@@ -16,13 +16,13 @@ device is used each time recording starts.
 
 ## Runtime and data
 
-WhisperKit 1.1.1 runs the Whisper models; FluidAudio 0.17.7 runs Parakeet Ultra. `DictationModel`
+WhisperKit 1.1.1 runs the Whisper models; MLX Audio Swift 0.1.6 runs Qwen. `DictationModel`
 offers Whisper Small (`openai_whisper-small`), Whisper Large v3 Turbo
 (`openai_whisper-large-v3-v20240930_626MB`, the unchanged default) and Whisper
-Large v3 (`openai_whisper-large-v3_947MB`), plus Parakeet Ultra for 25 European
-languages including English and Russian. The three Whisper snapshots
+Large v3 (`openai_whisper-large-v3_947MB`), plus Qwen3-ASR 1.7B 8-bit for 30 languages.
+The three Whisper snapshots
 contain about 487, 627 and 948 MB respectively, excluding tokenizer and shared
-speech-detector assets. Parakeet downloads about 632 MB and includes its own vocabulary.
+speech-detector assets. Qwen downloads about 2.5 GB, including its tokenizer inputs.
 The default Turbo has four decoder layers and 32 encoder layers. Recognition uses automatic language
 detection, without a Russian/English allowlist, and transcription rather than
 translation. This is an initial integrated configuration, not a claim of model
@@ -30,10 +30,10 @@ superiority or production quality across every supported language.
 
 `DictationEngine.swift` pins the shared model repository revision;
 `DictationModel.swift` pins each Whisper tokenizer revision and file hashes.
-`DictationParakeet.swift` pins the separate Parakeet repository. Its root-level
-Core ML components and vocabulary use the same snapshot checks; Hub metadata
-is excluded from the asset walk. FluidAudio loads this verified local directory
-without its automatic downloader. Each recording gets a fresh TDT decoder state.
+`DictationQwen.swift` pins the MLX export and verifies the required weights and
+input tokenizer files. Qwen runs natively on the GPU; its derived tokenizer is
+kept outside the verified snapshot. See [Qwen integration](qwen-integration.md)
+for lifecycle, cancellation and verification details.
 WhisperKit's downloader maintains partial transfers. `DictationSnapshot` checks
 all required Core ML components and validates every existing snapshot file
 against metadata for the pinned revision: SHA-256 for LFS weights and Git blob
@@ -47,7 +47,7 @@ explicitly so it does not become a hidden first-use network dependency.
 
 Preparation also downloads one small, pinned Silero v6.2.1 Core ML speech detector
 from [FluidInference's conversion](https://huggingface.co/FluidInference/silero-vad-coreml/tree/b419383c55c110e2c9271fa6ee0ea83d03c70d96).
-It checks whether a clip contains speech before either recognizer sees it. The original
+It checks whether a clip contains speech before the recognizer sees it. The original
 clip stays intact, with no trimming at voice boundaries. The detector runs on
 CPU and its state resets for every recording. Failures propagate as errors,
 rather than silently becoming an empty result.
@@ -94,8 +94,7 @@ condition; it cannot reserve space against other processes filling the disk.
 Models live under `~/Library/Application Support/<bundle id>/Dictation`.
 Development builds use their own `.dev` id. Small, Turbo and Large v3 permit
 CPU/Neural Engine for both the audio encoder and text decoder.
-Whisper mel stays CPU/GPU. Parakeet uses CPU/Neural Engine for encoder, decoder
-and joint, with a CPU preprocessor. Silero stays CPU-only for both runtimes.
+Whisper mel stays CPU/GPU. Silero stays CPU-only.
 A loaded model stays ready; memory-pressure notifications or disabling dictation
 release it after active work completes. Press enqueues microphone initialization;
 after release, drained audio stays available while a model reload finishes.
@@ -107,7 +106,7 @@ because diagnostic runs showed a material reload cost. No memory-policy control 
 Compute-policy, decoder and loading experiments, their limits and the synthetic
 benchmark recipe are in [model efficiency](dictation-model-efficiency.md).
 The [Parakeet Ultra experiment](parakeet-ultra-experiment.md) records the initial
-comparison. [Parakeet integration](parakeet-ultra-integration.md) records its
+comparison. The historical [Parakeet integration](parakeet-ultra-integration.md) records its
 installation, lifecycle, native UI and build checks.
 
 `DictationRecorder` queues capture immediately and publishes metering through a
@@ -800,3 +799,54 @@ candidate is the previously inspected native switch/text top-edge difference of
 1.88 points. The maintenance gate passed again: 142 tests passed, two opt-in tests
 were skipped, and the signed development bundle built successfully. The capture
 run restored and compared both the system appearance and all six dev preferences.
+
+
+## Parakeet removal
+
+Parakeet Ultra was removed from the app on October 20, 2026 at the user's
+request after trying it. The removal kept Small, Turbo and Large v3; Qwen was added separately afterward.
+A saved `parakeetUltra` value follows the existing unknown-preference fallback
+to Turbo; other selections and the enabled state remain intact. Turbo prepares
+normally if enabled and not cached. Downloaded Parakeet files are left alone;
+this update does not delete user data. The Parakeet loader, runtime, integration
+checks, bundled attribution and FluidAudio dependency were removed. Silero
+uses Core ML directly and continues to gate speech unchanged.
+
+The standalone comparison scripts remain research tools with an explicit
+FluidAudio pin, separate from the app dependency graph. Their historical
+measurements remain in [the experiment report](parakeet-ultra-experiment.md).
+
+
+Removal verification on October 20, 2026:
+
+- `bash maintain.sh` exited 0: strict SwiftLint, 188 tests (nine explicit opt-in
+  skips) and the assembled Developer ID signed release-configuration bundle.
+- The new preference regression failed on the original `parakeetUltra` selection
+  and passed after removal, through the real `Settings.dictationModel` getter.
+  Small, Turbo, Large v3 and unknown preferences are covered in the same test.
+- `scripts/check-dictation-audio.py --skip-build` passed all 12 offline Turbo
+  recognitions, including silence. No microphone or speakers were used.
+- The finished bundle has no FluidAudio symbols, resource bundle, licenses or
+  Parakeet attribution. Its code signature verifies. Silero assets and the
+  Whisper caches are preserved.
+- Native AX selection and screenshots verified English and German at the
+  minimum 500-point window width, light before dark. Both menus contain exactly
+  the three Whisper choices. Launching with the old Parakeet preference shows
+  Turbo; selecting Small and returning to Turbo persists the new value. All
+  four captures were inspected; model-summary contrast is 4.83:1 in light and
+  5.47:1 in dark, with measured picker and footer bounds.
+
+The UI check used a signed temporary copy with the unique bundle identifier
+`com.wiltodelta.translatelikeme.parakeet-removal`, because another probe already
+owned the development identifier. The owned app was stopped and deleted; its
+preferences and system appearance were restored. The global-defaults comparison
+around the dark-mode switch differed only in `NSLinguisticDataAssetsRequestTime`;
+that unrelated changed value was preserved. The initial AX helper failure was
+resolved by initializing `NSApplication.shared`, as the project's existing
+standalone-probe rule requires. This was a harness failure, not an app crash.
+
+`.build/diagnostics/parakeet-removal/` retains logs, JSON verdicts, four captures
+and the UI recipes as local verification evidence. The temporary app, compiled
+helpers, synthetic audio and full global-defaults backup were removed. The
+runnable development bundle remains at `Translate Like Me.app`. No release was
+published by this removal task.

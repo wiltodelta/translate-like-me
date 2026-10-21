@@ -12,16 +12,19 @@ let package = Package(
         // Local multilingual dictation needs an on-device ASR runtime; WhisperKit
         // runs Whisper through Core ML without a server or bundled Python.
         .package(url: "https://github.com/argmaxinc/argmax-oss-swift", exact: "1.1.1"),
-        // Optional fast multilingual ASR. Tools 6.2 lets us omit the unused
-        // NeMo text-processing binary while keeping Swift 6 and macOS 15.
-        .package(url: "https://github.com/FluidInference/FluidAudio", exact: "0.17.7", traits: [])
+        // Native Qwen ASR and its Apple-silicon array runtime, without Python.
+        .package(url: "https://github.com/Blaizzy/mlx-audio-swift", exact: "0.1.6"),
+        .package(url: "https://github.com/ml-explore/mlx-swift", exact: "0.32.3"),
+        // Tokenizer dependency 1.7 requires Swift 6.4; CI runs Swift 6.3.3.
+        .package(url: "https://github.com/apple/swift-collections.git", exact: "1.6.0")
     ],
     targets: [
         .executableTarget(
             name: "TranslateLikeMe",
             dependencies: [.product(name: "Sparkle", package: "Sparkle"),
                            .product(name: "WhisperKit", package: "argmax-oss-swift"),
-                           .product(name: "FluidAudio", package: "FluidAudio")],
+                           .product(name: "MLXAudioSTT", package: "mlx-audio-swift"),
+                           .product(name: "MLX", package: "mlx-swift")],
             path: "Sources/TranslateLikeMe",
             // The compiler lists every localizable string it type-checked, one
             // .stringsdata per source file, for scripts/sync-strings.py (build.sh).

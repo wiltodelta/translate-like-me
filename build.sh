@@ -19,6 +19,7 @@ BUILD=(swift build -c release --arch arm64 --build-system native)
 echo "Building (release, arm64)..."
 "${BUILD[@]}" 2> >(grep -v "build-system native' has been deprecated" >&2)
 BIN_DIR="$("${BUILD[@]}" --show-bin-path 2>/dev/null)"
+bash scripts/build-mlx-metallib.sh "$BIN_DIR"
 # Merges the strings the compiler listed (Package.swift) into the String
 # Catalog, as Xcode does on each build, and fails, before anything is
 # assembled, on a string missing a translation.
@@ -43,10 +44,55 @@ cp .build/checkouts/argmax-oss-swift/LICENSE "$APP/Contents/Resources/WhisperKit
 cp .build/checkouts/argmax-oss-swift/NOTICES "$APP/Contents/Resources/WhisperKit NOTICES.txt"
 cp Resources/Whisper-LICENSE.txt "$APP/Contents/Resources/Whisper LICENSE.txt"
 cp Resources/Silero-LICENSE.txt "$APP/Contents/Resources/Silero LICENSE.txt"
-cp .build/checkouts/FluidAudio/LICENSE "$APP/Contents/Resources/FluidAudio LICENSE.txt"
-ditto .build/checkouts/FluidAudio/ThirdPartyLicenses "$APP/Contents/Resources/FluidAudio Third-party licenses"
-cp Resources/Parakeet-NOTICES.txt "$APP/Contents/Resources/Parakeet NOTICES.txt"
-ditto "$BIN_DIR/FluidAudio_FluidAudio.bundle" "$APP/Contents/Resources/FluidAudio_FluidAudio.bundle"
+# MLX uses native Metal kernels; SwiftPM does not compile them itself.
+cp "$BIN_DIR/mlx.metallib" "$APP/Contents/Resources/mlx.metallib"
+cp .build/checkouts/mlx-audio-swift/LICENSE "$APP/Contents/Resources/MLX Audio LICENSE.txt"
+cp .build/checkouts/mlx-swift/LICENSE "$APP/Contents/Resources/MLX Swift LICENSE.txt"
+cp Resources/Qwen-NOTICES.txt "$APP/Contents/Resources/Qwen NOTICES.txt"
+cp Resources/Qwen-LICENSE.txt "$APP/Contents/Resources/Qwen LICENSE.txt"
+# Read the current build graph: globbing *.bundle would revive stale resources
+# from removed dependencies such as FluidAudio.
+python3 - "$BIN_DIR" "$APP/Contents/Resources" <<'PYTHON'
+import json
+from pathlib import Path
+import subprocess
+import sys
+build = Path(sys.argv[1])
+destination = Path(sys.argv[2])
+graph = json.loads((build / "description.json").read_text())
+bundles = set()
+for command in graph["copyCommands"].values():
+    for item in command["outputs"]:
+        file = Path(item["name"])
+        for candidate in (file, *file.parents):
+            if candidate.suffix == ".bundle" and candidate.parent == build:
+                bundles.add(candidate)
+# The graph also describes resources of targets inactive on this platform.
+# A successful SwiftPM build materializes the active bundles.
+for bundle in sorted(bundle for bundle in bundles if bundle.is_dir()):
+    subprocess.run(["ditto", str(bundle), str(destination / bundle.name)], check=True)
+# Include notices from the resolved source checkouts, including vendored code.
+import shutil
+import os
+pins = {pin["identity"] for pin in json.loads(Path("Package.resolved").read_text())["pins"]}
+workspace = json.loads(Path(".build/workspace-state.json").read_text())["object"]
+for dependency in workspace["dependencies"]:
+    identity = dependency["packageRef"]["identity"]
+    if identity not in pins:
+        continue
+    checkout = Path(".build/checkouts") / dependency["subpath"]
+    for directory, folders, filenames in os.walk(checkout):
+        folders[:] = [name for name in folders if name != ".git"]
+        for name in filenames:
+            if not name.upper().startswith(("LICENSE", "LICENCE", "NOTICE", "ACKNOWLEDG")):
+                continue
+            file = Path(directory) / name
+            if file.suffix.lower() not in ("", ".txt", ".md", ".mit") or not file.is_file():
+                continue
+            target = destination / "Third-party notices" / identity / file.relative_to(checkout)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(file, target)
+PYTHON
 # Fail loudly, before anything is signed, if the linked-on SDK ever drops back
 # to the deployment target.
 SDK_STAMP="$(vtool -show-build "$APP/Contents/MacOS/$BIN" | awk '/ sdk /{print $2}')"

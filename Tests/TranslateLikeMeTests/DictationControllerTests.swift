@@ -215,7 +215,7 @@ final class DictationControllerTests: XCTestCase {
     }
 
     func testModelChangeDuringDownloadCancelsAndRestartsWithTheNewChoice() async {
-        for model in [DictationModel.largeV3, .parakeetUltra] {
+        for model in [DictationModel.small, .largeV3, .qwen3ASR] {
             let engine = ControlledDictationEngine()
             engine.blockNextPreparation = true
             let controller = makeController(engine: engine, recorder: ControlledDictationRecorder())

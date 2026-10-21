@@ -96,6 +96,33 @@ the signed bundle build. Version 3.7.5 packages this feedback and capture-queue
 change. A further hardware-latency improvement under the current no-background-
 microphone and idle-volume constraints remains unproven.
 
+## Post-release ducking verification
+
+A read-only check on October 20 at 13:52 PDT verified that the installed 3.7.5
+process started after the update. Its two completed holds each requested maximum
+attenuation (0.056234), then unity (1.0), with no voice-processing teardown error.
+The unity request specifies a two-second transition; it is not an instantaneous
+volume reset. A preceding 30-minute window contained 24 matched maximum-duck and
+unity requests from the previous 3.7.4 process, with no unmatched maximum request.
+These observations are process-specific and do not measure cancellation or
+hardware-error outcomes on 3.7.5.
+
+Re-reading the earlier native probe's complete combined-volume log also found
+an independent Core Audio readback: another present audio client moved from
+0.056234 to 1.0 after teardown. The silent reference itself was marked not
+present in these gain lines, despite its advancing render counter. This is
+system gain evidence for that client, not an acoustic or perceptual playback
+measurement. The fresh 3.7.5 window had no other present playback client, so
+its two unity requests alone cannot prove the resulting music amplitude.
+
+Code inspection confirms stop, cancellation, startup failure and termination
+reach full engine teardown; a drain failure reaches it through controller
+completion and discard. The application does not write the user's system or
+player volume setting. Read-only logs are retained in
+`.build/diagnostics/dictation-startup/recent-volume-check.log` and
+`current-version-volume.log`. No microphone was opened or volume changed by
+this verification, and no additional release was made.
+
 ## Raw prepared input, October 20, 2026
 
 The user still reported that the starting state was long enough to confuse,
@@ -174,4 +201,3 @@ so the fix is not proven against a repeat.
 Probe sources and metadata-only JSON results are in the gitignored
 `.build/diagnostics/dictation-raw-input/` of the worktree that measured them;
 the verdicts above are the record.
-

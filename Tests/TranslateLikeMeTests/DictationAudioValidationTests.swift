@@ -26,6 +26,7 @@ final class DictationAudioValidationTests: XCTestCase {
         let engine = DictationEngine(directory: cache)
         let modelName = ProcessInfo.processInfo.environment["TLM_AUDIO_CHECK_MODEL"] ?? DictationModel.turbo.rawValue
         let model = try XCTUnwrap(DictationModel(rawValue: modelName))
+        if model == .qwen3ASR { try DictationQwenTestSupport.configure() }
         try await engine.prepare(model: model, download: false) { _ in }
         let loadedModel = await engine.loadedModel
         XCTAssertEqual(loadedModel, model)

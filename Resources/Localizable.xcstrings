@@ -3438,64 +3438,6 @@
         }
       }
     },
-    "Fast dictation in 25 European languages. About 632 MB to download." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Schnelles Diktieren in 25 europäischen Sprachen. Etwa 632 MB Download."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dictado rápido en 25 idiomas europeos. Unos 632 MB de descarga."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dictée rapide dans 25 langues européennes. Environ 632 Mo à télécharger."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dettatura veloce in 25 lingue europee. Download di circa 632 MB."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ヨーロッパの25言語で高速に音声入力できます。ダウンロードは約632 MBです。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "유럽 25개 언어로 빠르게 받아쓰기. 다운로드 크기 약 632MB."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ditado rápido em 25 idiomas europeus. Cerca de 632 MB para baixar."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Быстрая диктовка на 25 европейских языках. Загрузка около 632 МБ."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "支持25种欧洲语言的快速听写。需下载约 632 MB。"
-          }
-        }
-      }
-    },
     "Finish Dictation Setup…" : {
       "localizations" : {
         "de" : {
@@ -7526,6 +7468,64 @@
         }
       }
     },
+    "Speech recognition reached its limit. Try a shorter recording." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Spracherkennung hat ihr Limit erreicht. Versuche eine kürzere Aufnahme."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El reconocimiento de voz alcanzó su límite. Prueba con una grabación más corta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La reconnaissance vocale a atteint sa limite. Essayez un enregistrement plus court."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il riconoscimento vocale ha raggiunto il limite. Prova una registrazione più breve."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音声認識の上限に達しました。録音を短くしてお試しください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "음성 인식 한도에 도달했습니다. 더 짧게 녹음해 보세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O reconhecimento de fala atingiu o limite. Tente uma gravação mais curta."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Достигнут предел распознавания речи. Попробуйте записать более короткий фрагмент."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "语音识别已达到限制。请尝试较短的录音。"
+          }
+        }
+      }
+    },
     "Start Translate Like Me automatically when you log in to your Mac." : {
       "localizations" : {
         "de" : {
@@ -7754,6 +7754,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在停止上一个操作…"
+          }
+        }
+      }
+    },
+    "Supports 30 languages. About 2.5 GB to download." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unterstützt 30 Sprachen. Etwa 2,5 GB Download."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compatible con 30 idiomas. Unos 2,5 GB de descarga."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prend en charge 30 langues. Environ 2,5 Go à télécharger."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supporta 30 lingue. Circa 2,5 GB da scaricare."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "30言語に対応。ダウンロードは約2.5 GB。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "30개 언어 지원. 다운로드 용량은 약 2.5GB입니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compatível com 30 idiomas. Cerca de 2,5 GB para baixar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поддерживает 30 языков. Для загрузки нужно около 2,5 ГБ."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支持30种语言。下载大小约为2.5 GB。"
           }
         }
       }

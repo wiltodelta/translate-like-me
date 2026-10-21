@@ -22,7 +22,8 @@ final class DictationIntegrationTests: XCTestCase {
         let cache = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support/com.wiltodelta.translatelikeme.dev/Dictation")
         let engine = DictationEngine(directory: cache)
-        for model in [DictationModel.turbo, .small, .largeV3, .parakeetUltra, .turbo] {
+        try DictationQwenTestSupport.configure()
+        for model in [DictationModel.turbo, .small, .largeV3, .qwen3ASR, .turbo] {
             try await engine.prepare(model: model, download: true) { _ in }
             let loaded = await engine.loadedModel
             XCTAssertEqual(loaded, model, "Check the loaded runtime, not just selected preferences")

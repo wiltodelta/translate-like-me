@@ -11,10 +11,10 @@ Keep software validation and physical echo cancellation as separate verdicts.
 
 ## Software path
 
-Parakeet installation and runtime switching are checked separately with
-`python3 scripts/check-parakeet.py`. That opt-in run downloads its pinned
-assets if needed, verifies offline reload and cancellation, and uses only
-synthetic fixtures. See [Parakeet integration](parakeet-ultra-integration.md).
+Qwen installation, runtime switching, offline reload and cancellation have an
+opt-in native check: `python3 scripts/check-qwen.py`, after `./build.sh`.
+It uses synthetic speech, downloads the pinned weights when needed and runs an
+additional reload with network access denied. See [Qwen integration](qwen-integration.md).
 
 Run from the checkout:
 
@@ -26,8 +26,9 @@ The runner generates English and Russian speech with installed macOS voices,
 mixes a weaker English background into Russian speech, and adds digital silence.
 It never plays these files or opens a microphone. Full Xcode, the installed
 Samantha and Milena voices, and an already prepared development Turbo cache are
-required by default. `--model parakeetUltra` selects an already installed
-Parakeet cache instead. It disables model downloading. Missing prerequisites fail the run.
+required by default. `--model small` or `--model largeV3` selects the corresponding
+prepared Whisper cache. `--model qwen3ASR` checks the prepared Qwen cache after
+its installation check. Model downloading is disabled. Missing prerequisites fail the run.
 `--skip-build` reuses a test bundle containing `DictationAudioValidationTests`.
 
 Each fixture passes through the production `DictationAudioFile` sink as 48 kHz,

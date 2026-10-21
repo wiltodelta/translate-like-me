@@ -6,10 +6,19 @@ detail an engineer needs.
 
 ## Local build
 
-SwiftPM tools 6.2 is required to opt out of FluidAudio's unused NeMo
-text-processing binary; Swift 6 language mode and macOS 15 support remain.
-`build.sh` includes FluidAudio's resource bundle, Apache 2.0 license and third-party notices, plus the
-Parakeet model attribution and CC BY 4.0 notice.
+The app manifest uses SwiftPM tools 6.2 and Swift 6 language mode, with macOS 15
+support. MLX Swift 0.32.3 requires a Swift 6.3 compiler (Xcode 26.6 or later).
+The explicit swift-collections 1.6.0 constraint keeps tokenizer dependencies
+compatible with CI's Swift 6.3.3; 1.7 requires Swift 6.4.
+`build.sh` includes the WhisperKit, Whisper and Silero license notices. Parakeet
+and its FluidAudio dependency are no longer included in the app.
+Qwen runs through MLX Audio Swift and MLX Swift. CMake builds the pinned MLX
+Metal kernels (`scripts/build-mlx-metallib.sh`), using the app's macOS minimum;
+`build.sh` embeds them before signing. Kernel build output is keyed by source
+revision, SDK and deployment target. The build also copies materialized resource
+bundles from the current SwiftPM graph and packages resolved upstream notices.
+Unused graph targets need not produce bundles; stale bundles outside the graph
+must stay out of the app. CMake is required locally and installed in CI.
 
 - **Build and assemble the app bundle:** `./build.sh`. It builds an arm64-only
   release binary, copies it and `Resources/` into `Translate Like Me.app`,

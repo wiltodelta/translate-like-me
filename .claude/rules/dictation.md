@@ -21,29 +21,33 @@ Compute-policy findings and the reproducible synthetic benchmark:
 `docs/dictation-model-efficiency.md`.
 
 - `DictationModel` lists multilingual Small, Turbo (the existing default) and
-  Large v3, with matching pinned tokenizer repositories and hashes, plus
-  Parakeet Ultra with its bundled vocabulary (25 European languages).
+  Large v3 with matching pinned tokenizers, plus Qwen3-ASR 1.7B 8-bit (30 languages).
+  Qwen uses native MLX on the GPU, with no Python requirement. Parakeet Ultra
+  was removed; its saved raw value falls back to Turbo.
   Preserve Turbo and its existing cache for absent or unknown preferences.
   The encoder and decoder use CPU/Neural Engine for Small, Turbo and Large v3.
-  Whisper mel stays CPU/GPU. Parakeet uses CPU/Neural Engine for encoder, decoder
-  and joint, with a CPU preprocessor. Silero stays CPU-only. Measurements and
+  Whisper mel stays CPU/GPU. Silero stays CPU-only. Measurements and
   first-specialization limits are in `docs/dictation-model-efficiency.md`.
   The selected model persists while disabled without preparing assets or requesting
   permissions. An enabled change prepares it automatically; a change during
   preparation cancels and unwinds before preparing the latest selection. Block
   changes during capture, recognition and cancellation. Keep old downloads, but
   unload the old runtime before loading another model.
-- `DictationEngine` owns WhisperKit or FluidAudio's Parakeet manager in one actor.
-  Parakeet installation and verification: `docs/parakeet-ultra-integration.md`.
+- `DictationEngine` owns WhisperKit and delegates Qwen to its own actor. Qwen
+  weights and tokenizer inputs share the pinned snapshot checks. The SDK's
+  derived tokenizer.json stays in disposable staging outside that snapshot.
+  Qwen's greedy loop runs in the calling task, checks cancellation per token,
+  and synchronizes GPU work before returning. Use the SDK's low-energy 30-second
+  chunks and fresh decoder caches; reaching the token/repetition backstop reports
+  an error, never a partial transcript. Installation and offline checks:
+  `docs/qwen-integration.md`.
   Model and tokenizer revisions
   are pinned. `DictationSnapshot` checks every required Core ML component and
   hashes existing files against the pinned revision's Hub metadata, using SHA-256
   for LFS and Git blob SHA-1 for ordinary files. Remove corrupt files before
   resuming a partial download, preserve good files, and validate the result again;
   the SDK admits partial caches and trusts matching metadata without rehashing.
-  Parakeet validates root-level components and vocabulary; exclude Hub
-  `.cache/` metadata from that asset walk. Load only verified local files.
-  Reset the TDT decoder state per recording and suppress SDK transcript logging.
+  Load only verified local files and suppress SDK transcript logging.
   Validate Whisper tokenizer hashes explicitly; the SDK's literal
   file-pattern cache check only understands directories. Ordinary reload disables
   downloading. Silero checks speech presence without cutting the original clip;

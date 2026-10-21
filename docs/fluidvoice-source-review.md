@@ -231,3 +231,29 @@ separately. These are acceptance requirements, not completed checks.
 [commands]: https://github.com/altic-dev/FluidVoice/blob/ad1d1ff0ea0b6c2733bda72150625d3e8928f608/Sources/Fluid/Services/CommandModeService.swift
 [history]: https://github.com/altic-dev/FluidVoice/blob/ad1d1ff0ea0b6c2733bda72150625d3e8928f608/Sources/Fluid/Persistence/TranscriptionHistoryStore.swift#L25
 [pronunciation]: https://github.com/altic-dev/FluidVoice/blob/ad1d1ff0ea0b6c2733bda72150625d3e8928f608/Sources/Fluid/Services/PronunciationDictionaryStore.swift
+
+## Speech catalog recheck, October 20, 2026
+
+Checked the published `v1.6.11` source and main commit
+`9e3cea539dcfa901f130db6fa14812ff4b7bf63b`. Their `SpeechModel` declarations
+contain 18 entries. On Apple silicon/macOS 27, `availableModels` excludes Qwen
+(`qwenPreviewEnabled = false`) and the duplicate `nemotronStreaming320`, leaving
+16 entries: five Parakeet variants (v3, v2, Flash, Fluid Mini, Fluid Pico), two
+Nemotron variants (offline/streaming), Cohere, two Apple engines and six Whisper
+sizes. This is code-derived availability, not a rendered-picker check.
+
+The [website catalog](https://fluidvoice.org/models/) describes eight families
+and a beta lineup, so it is not a complete enumeration of the release enum.
+The [release catalog](https://github.com/altic-dev/FluidVoice/blob/v1.6.11/Sources/Fluid/Persistence/SettingsStore.swift)
+provides both artifact-size estimates and filters; its accuracy/speed bars are
+product ratings, not measured WER.
+
+For Russian, Nemotron offline is a candidate worth evaluating: its
+[language configuration](https://github.com/altic-dev/FluidVoice/blob/v1.6.11/Sources/Fluid/Persistence/SettingsStore%2BNemotronLanguage.swift)
+explicitly includes `ru`. FluidVoice's native SpeechAnalyzer route has nine
+languages and excludes Russian; its legacy Apple route lists `ru-RU`, subject
+to system availability. Its Cohere map has 14 languages and excludes Russian.
+Parakeet v2, Flash, Mini and Pico are English-only. Qwen's implementation
+exists but is disabled in normal selection. No candidate was downloaded or
+benchmarked during this catalog review; catalog inclusion does not establish
+quality on Russian or code-switched dictation. No app code or settings changed.

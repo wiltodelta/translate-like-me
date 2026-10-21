@@ -1,6 +1,5 @@
 import CryptoKit
 import Foundation
-@preconcurrency import FluidAudio
 import os
 @preconcurrency import WhisperKit
 
@@ -30,9 +29,9 @@ actor DictationEngine: DictationRecognizing {
     }
 
     private var kit: WhisperKit?
-    private var parakeet: AsrManager?
+    private var qwen: DictationQwen?
     var loadedModel: DictationModel? {
-        if parakeet != nil { return .parakeetUltra }
+        if qwen != nil { return .qwen3ASR }
         guard let folder = kit?.modelFolder?.lastPathComponent else { return nil }
         return DictationModel.allCases.first { $0.variant == folder }
     }
@@ -58,12 +57,8 @@ actor DictationEngine: DictationRecognizing {
         }
         let root = try await prepareModels(model: model, in: base, download: download, progress: progress)
         try Task.checkCancellation()
-        let tokens: URL?
-        if model.tokenizer != nil {
-            tokens = try await prepareTokenizer(model: model, in: base, download: download, progress: progress)
-        } else {
-            tokens = nil
-        }
+        let tokens = model.tokenizer == nil ? nil :
+            try await prepareTokenizer(model: model, in: base, download: download, progress: progress)
         try Task.checkCancellation()
         let detectorRoot = try await prepareSpeechDetector(in: base, download: download) {
             progress(0.95 + $0 * 0.05)
@@ -76,32 +71,29 @@ actor DictationEngine: DictationRecognizing {
     }
 
     private func loadRuntime(model: DictationModel, root: URL, tokenizer: URL?) async throws {
-        if model == .parakeetUltra {
-            AppLogger.minimumLevel = .error
-            AppLogger.mirrorsToConsole = false
-            let models = try AsrModels.loadLocal(from: root, version: .ultra)
-            let loaded = AsrManager(models: models)
+        if model == .qwen3ASR {
+            let loaded = try await DictationQwen(root: root)
             do { try Task.checkCancellation() } catch {
-                await loaded.cleanup()
+                await loaded.unload()
                 throw error
             }
-            parakeet = loaded
-        } else {
-            guard let tokenizer else { throw DictationError.notReady }
-            let loaded = try await WhisperKit(WhisperKitConfig(
-                modelFolder: root.appendingPathComponent(model.variant).path, tokenizerFolder: tokenizer,
-                computeOptions: ModelComputeOptions(audioEncoderCompute: .cpuAndNeuralEngine,
-                                                   textDecoderCompute: .cpuAndNeuralEngine),
-                verbose: false, logLevel: .none, prewarm: false, load: true, download: false))
-            try Task.checkCancellation()
-            kit = loaded
+            qwen = loaded
+            return
         }
+        guard let tokenizer else { throw DictationError.notReady }
+        let loaded = try await WhisperKit(WhisperKitConfig(
+            modelFolder: root.appendingPathComponent(model.variant).path, tokenizerFolder: tokenizer,
+            computeOptions: ModelComputeOptions(audioEncoderCompute: .cpuAndNeuralEngine,
+                                               textDecoderCompute: .cpuAndNeuralEngine),
+            verbose: false, logLevel: .none, prewarm: false, load: true, download: false))
+        try Task.checkCancellation()
+        kit = loaded
     }
 
     func prepareModels(model: DictationModel = .turbo, in base: URL, download: Bool,
                        progress: @escaping @Sendable (Double) -> Void) async throws -> URL {
-        if model == .parakeetUltra {
-            return try await prepareParakeet(in: base, download: download, progress: progress)
+        if model == .qwen3ASR {
+            return try await prepareQwen(in: base, download: download, progress: progress)
         }
         let required = ["MelSpectrogram", "AudioEncoder", "TextDecoder"].flatMap { component in
             Self.coreMLParts.map { component + ".mlmodelc/" + $0 }
@@ -163,7 +155,7 @@ actor DictationEngine: DictationRecognizing {
     }
 
     func transcribe(_ audio: URL) async throws -> String {
-        guard kit != nil || parakeet != nil, let speechDetector else { throw DictationError.notReady }
+        guard kit != nil || qwen != nil, let speechDetector else { throw DictationError.notReady }
         working = true
         defer { working = false }
         var samples = try AudioProcessor.loadAudioAsFloatArray(fromPath: audio.path)
@@ -182,12 +174,11 @@ actor DictationEngine: DictationRecognizing {
         // Provide a trailing quiet tail after checking the complete clip for speech.
         samples += Array(repeating: 0, count: 8_000)
         try Task.checkCancellation()
-        if let parakeet {
-            recognitionLog.notice("Dictation Parakeet decoding started")
-            var state = try TdtDecoderState()
-            let result = try await parakeet.transcribe(samples, decoderState: &state)
+        if let qwen {
+            recognitionLog.notice("Dictation Qwen decoding started")
+            let text = try await qwen.transcribe(samples)
             try Task.checkCancellation()
-            return Self.cleanedTranscript(result.text)
+            return Self.cleanedTranscript(text)
         }
         guard let kit else { throw DictationError.notReady }
         // Timestamp tokens let Whisper resume at the last complete segment,
@@ -219,20 +210,22 @@ actor DictationEngine: DictationRecognizing {
     func unload() async {
         guard !working else { return }
         let previous = kit
-        let previousParakeet = parakeet
-        parakeet = nil
+        let previousQwen = qwen
+        qwen = nil
         kit = nil
         speechDetector = nil
         await previous?.unloadModels()
-        await previousParakeet?.cleanup()
+        await previousQwen?.unload()
     }
 }
 
 enum DictationError: LocalizedError {
-    case notReady, microphone, insufficientStorage
+    case notReady, microphone, insufficientStorage, recognitionLimit
 
     var errorDescription: String? {
         switch self {
+        case .recognitionLimit:
+            String(localized: "Speech recognition reached its limit. Try a shorter recording.")
         case .notReady: String(localized: "Dictation isn't ready. Open Settings and try preparing it again.")
         case .microphone:
             String(localized: "The microphone couldn't start. Check your system input device, then try again.")

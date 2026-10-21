@@ -7,7 +7,8 @@ user approved implementation, Turbo's encoder and decoder were switched to
 CPU/Neural Engine. The October 20 follow-up approval extends that policy to
 Small and Large v3. Verification is recorded
 under the implementation section below. The subsequent
-[Parakeet integration](parakeet-ultra-integration.md) adds a separate backend;
+[Parakeet integration](parakeet-ultra-integration.md) temporarily added a separate backend,
+removed at the user's request on October 20;
 the comparisons on this page concern the three Whisper models.
 
 ## Implementation findings

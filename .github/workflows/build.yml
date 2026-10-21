@@ -64,6 +64,9 @@ jobs:
         fi
         swiftlint lint --strict
 
+    - name: Install CMake
+      run: command -v cmake >/dev/null || brew install cmake
+
     - name: Run tests
       run: swift test
 

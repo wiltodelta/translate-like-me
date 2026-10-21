@@ -1,5 +1,9 @@
 # Parakeet Ultra experiment
 
+> Historical record. Parakeet Ultra has been removed from the app at the user's
+> request. The measurements below describe the earlier implementation. Current
+> behavior and preference fallback are in [local dictation](dictation.md#parakeet-removal).
+
 Historical experiment. After reviewing these results, the user approved the
 [app integration](parakeet-ultra-integration.md) on October 20. The measurements
 below describe the standalone build, before that integration.
@@ -166,3 +170,180 @@ cache above for subsequent trials. The app's existing Whisper cache is kept.
 - [FluidAudio's pinned Ultra guide](https://github.com/FluidInference/FluidAudio/blob/503b4bd1bbf7220882de39fe8ae6716aae4132da/Documentation/ASR/ParakeetUltra.md).
 - [Pinned local loader](https://github.com/FluidInference/FluidAudio/blob/503b4bd1bbf7220882de39fe8ae6716aae4132da/Sources/FluidAudio/ASR/Parakeet/SlidingWindow/TDT/AsrModels.swift).
 - [Pinned model files](https://huggingface.co/FluidInference/parakeet-ultra-coreml/tree/95eaa59a39d4394f047a4dc5cce480388a60d1b6).
+
+## Post-release quality review, October 20, 2026
+
+The user reported poor Parakeet quality after trying the optional model. The
+synthetic speed result above is not evidence against that report. Natural
+Russian and mixed-language quality had not been validated at that point. The
+natural-speech follow-up below now supplies a limited public-recording test.
+
+Primary-source comparisons reviewed:
+
+- [NVIDIA technical report, Table 11](https://arxiv.org/html/2509.14128v1):
+  Russian FLEURS WER is 4.17% for Whisper large-v3 and 5.51% for ordinary
+  Parakeet-TDT-0.6B-v3, within that evaluation. This is not an Ultra comparison.
+- [Russian STT benchmark](https://github.com/vakovalskii/stt-ru-benchmark):
+  775 read-speech, 296 audiobook and 20 spontaneous-speech utterances.
+  Reported WER for Whisper Turbo versus ordinary Parakeet v3 is respectively
+  4.44/5.56%, 9.89/10.84%, and 7.73/9.27%. The spontaneous-speech intervals
+  overlap. Published raw outputs and the scoring harness permit reproduction;
+  these results were read, not independently rerun. Most engines use hosted
+  endpoints, while Parakeet uses a local RTX 4090. These are not Mac timings.
+- [Moondream Ultra model card](https://huggingface.co/moondream/parakeet-ultra):
+  Russian FLEURS improves from 5.91% to 5.21% against its own ordinary-v3 arm.
+  Both use different runtimes (NeMo versus Photon on NVIDIA), and the card
+  cannot establish quality for our Core ML export. Do not compare these
+  absolute numbers with NVIDIA's table as though the scorers were identical.
+- [FluidAudio Ultra guide](https://github.com/FluidInference/FluidAudio/blob/503b4bd1bbf7220882de39fe8ae6716aae4132da/Documentation/ASR/ParakeetUltra.md):
+  reports a Russian improvement of 1.3 percentage points over its own v3 arm,
+  but no same-run Whisper or natural mixed-dictation comparison.
+- [Qwen3-ASR card](https://huggingface.co/Qwen/Qwen3-ASR-1.7B): 1.7B is a
+  candidate, not an established replacement. Its reported FLEURS aggregate
+  beats Whisper large-v3 on the 12-language subset (4.90/5.27%) but loses on
+  the 30-language subset (12.60/8.16%). Neither is a Russian-specific score.
+  [MLX Audio](https://github.com/Blaizzy/mlx-audio/blob/main/mlx_audio/stt/models/qwen3_asr/README.md)
+  provides a local Apple-silicon implementation; latency, export parity and
+  integration in this Swift application remain untested.
+
+Recommendation: use existing Large v3 as the immediate quality baseline and
+benchmark Qwen3-ASR-1.7B separately before adding another model. Compare real
+public speech across Russian, English and mixed speech where a suitable
+licensed set exists, with identical normalization, per-item paired errors,
+required-term retention, punctuation review and local latency. The small
+Latin-token subsets in the Russian benchmark (38 and five utterances) do not
+establish code-switching superiority. Do not use the user's recordings without
+specific permission or repeat a TTS-only test as a natural-speech quality claim.
+No model settings, catalog, code or release changed during this review.
+
+
+## Natural-speech follow-up, October 20, 2026
+
+A separate local benchmark compared the app's three existing model paths with
+Qwen3-ASR 1.7B on the M5 Mac (32 GiB). No app source, model selection, settings,
+microphone or user recording was used or changed. This tests the complete ASR
+configurations below, not the theoretical quality of each model family.
+
+### Corpus and protocol
+
+- 40 Russian and 40 English read-speech clips from
+  [FLEURS, pinned revision](https://huggingface.co/datasets/google/fleurs/tree/70bb2e84b976b7e960aa89f1c648e09c59f894dd)
+  (CC BY 4.0). Selection sorts the test filenames by SHA-256 and takes one
+  recording per reference sentence ID. One additional clip per language is
+  calibration only.
+- All 20 test clips from
+  [Podlodka Speech, pinned revision](https://huggingface.co/datasets/bond005/podlodka_speech/tree/4a9161485a70ea849ccaa54a72faa9bfc0a60627):
+  conversational Russian from four podcast episodes, with some English terms.
+  The dataset card does not declare a license; recordings are not redistributed.
+- 100 scored clips plus two calibration clips, two fresh-process rounds per
+  model, 816 total recognitions. The second round reverses model order. Model
+  inference is serial. Repeats assess stability, not additional independent data.
+- All arms receive shared mono 16 kHz audio after the production Silero speech
+  gate, minimum one-second padding and a half-second silence tail. No clip was
+  rejected. Language is automatic, without prompts, hotwords or forced language.
+- WER is aggregate substitutions + insertions + deletions divided by reference
+  words within each corpus: 758 Russian, 913 English and 1,165 podcast words.
+  Unicode normalization ignores case and punctuation and equates Russian ё/е;
+  it does not equate spelled-out numbers with digits. Punctuation accuracy was
+  not graded. There is no pooled score across these different domains.
+
+Whisper uses the app's pinned WhisperKit 1.1.1 and Core ML exports (Large v3
+947 MB variant; Turbo 626 MB variant), CPU/Neural Engine allowed for encoder
+and decoder, and production transcript cleanup. Ultra uses the pinned
+FluidAudio 0.17.7 path and model revision already documented above, with fresh
+decoder state for each clip. Qwen uses
+[the pinned MLX 8-bit export](https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-8bit/tree/a8379a2e2f9e313c9292cdf1af4055ab56d50d55),
+mlx-audio 0.6.1, greedy decoding, a 1,024-token limit, and synchronization around
+inference. Its weights file is 2,463,307,541 bytes. This is not a full-precision
+Qwen comparison. Source hashes, SDK object hashes and package pins identify
+the actual standalone build against app commit `8aa5410`.
+
+### Quality
+
+First-round WER, percent; lower is better:
+
+| Model | Russian reading, 40 | English reading, 40 | Russian conversation, 20 |
+|---|---:|---:|---:|
+| Qwen3-ASR 1.7B, MLX 8-bit | 2.64 | 3.83 | 7.98 |
+| Large v3, app Core ML export | 4.88 | 5.91 | 10.30 |
+| Turbo, app Core ML export | 5.41 | 7.01 | 7.98 |
+| Parakeet Ultra, app Core ML export | 2.90 | 6.24 | 7.38 |
+
+In round two, Qwen and Ultra retained every normalized scored transcript.
+Large v3 changed three of 100: WER became 4.49%, 5.81% and 10.30% respectively.
+Turbo changed six: 5.80%, 6.79% and 8.07%. No first-round output was empty.
+
+Qwen has the lowest observed reading WER. Its Russian difference from Ultra
+is only two errors (20 versus 22), with seven utterance wins and six losses,
+so this sample does not establish superiority over Ultra in Russian. English
+paired sign tests favor Qwen against each alternative (unadjusted p values
+0.012, 0.0015 and 0.0072 against Large, Turbo and Ultra); these remain exploratory
+comparisons on a small selected corpus, without a speaker-cluster analysis.
+
+Ultra has the lowest observed podcast WER, seven errors fewer than Qwen.
+The 20 clips cover only four episodes; the episode-cluster Qwen-versus-Ultra
+bootstrap interval crosses zero, as does the Qwen-versus-Turbo interval.
+Episode sign tests do not establish a conversational winner. Large v3 did not
+lead in any of these three groups under the app's current configuration.
+
+Technical spelling remains a problem for every arm. Five podcast clips contain
+24 Latin reference-word occurrences. Strict normalized spelling missed 14 for
+Qwen, 16 for Large, nine for Turbo and eight for Ultra. These are occurrences,
+not 24 distinct terms, and five clips cannot establish code-switching quality.
+For example, Qwen wrote Russian phonetic forms for both occurrences of
+`observability`, while Turbo retained the Latin spelling in that clip. A good
+reading WER therefore does not establish suitability for the user's mixed
+Russian/English dictation. Microphone startup, live personal speech, punctuation
+and caret delivery are outside this test.
+
+### Timing and verification
+
+The Mac was heavily loaded by unrelated work throughout the measurement.
+A saved instantaneous sample during the accepted run showed only 4% CPU idle
+and a load average of 129.31. Runs were serial at nice 6, but reversing model
+order cannot remove changing external contention. These figures describe this
+busy-machine run; they are not clean M5 performance or energy estimates.
+
+Median inference seconds, computed from each clip's two-run median, excluding
+model loading, calibration and shared audio preparation:
+
+| Model | Russian reading, median audio 11.58 s | English reading, 10.11 s | Conversation, 21.67 s |
+|---|---:|---:|---:|
+| Qwen3-ASR 1.7B | 7.99 | 5.47 | 16.10 |
+| Large v3 | 9.87 | 7.09 | 19.96 |
+| Turbo | 2.97 | 2.30 | 5.09 |
+| Parakeet Ultra | 1.16 | 1.03 | 2.38 |
+
+Qwen is a useful separate quality candidate, especially for English reading,
+but this run does not justify replacing the default or promising faster
+interactive dictation. Ultra's good aggregate result also does not invalidate
+the user's poor experience on different speech.
+
+The reproducible entry points are `scripts/benchmark-natural-asr.py` and
+`scripts/NaturalASRBenchmark.swift`. The diagnostic evidence is retained locally
+in `.build/diagnostics/natural-asr-comparison/`: corpus provenance, pinned model
+manifests, source/build hashes, both rounds' metrics, paired comparisons,
+scorer mutation checks, logs, dependency freeze and the exact executed recipe.
+Setup failures and a lower-priority partial pilot are excluded from the scores.
+No audio, weights or full recognition output is committed to the repository.
+
+Post-run verification matched the downloaded weights, tokenizers and Silero
+files against pinned registry hashes. Swift and Python consumed bit-identical
+float32 PCM for all 102 clips, with no duplicate PCM hashes. The native
+benchmark's hash and signature passed verification. Mutating a registry-checked
+file in a disposable copy rejected both same-size corruption and truncation;
+mutating a Russian hypothesis through the real aggregation seam increased WER
+from zero to 50% and left the other model unchanged. All eight raw reports
+contain exactly 102 outputs. The app's Ultra cleanup would leave their scored
+words unchanged. Temporary public audio, Qwen weights, environments and native
+build products are removed after these checks; existing app model caches are
+preserved. Full public recognition outputs remain only in the ignored local
+evidence folder, alongside the recipe needed to audit their scores.
+
+
+After app removal, standalone comparison packages retain their own explicit
+FluidAudio 0.17.7 pin. They no longer link the app's cached release objects;
+`benchmark-natural-asr.py` uses the shared isolated SwiftPM comparison build.
+The executed cached-object recipe and original source hashes remain in the
+ignored evidence folder. This harness adjustment does not replace the measured
+run or change its scores.

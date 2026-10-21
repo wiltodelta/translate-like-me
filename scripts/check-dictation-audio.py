@@ -96,7 +96,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--skip-build", action="store_true", help="Reuse a test bundle that includes this check")
     parser.add_argument("--report", type=Path, default=ROOT / ".build/dictation-audio-check/report.json")
-    parser.add_argument("--model", choices=["turbo", "parakeetUltra"], default="turbo")
+    parser.add_argument("--model", choices=["small", "turbo", "largeV3", "qwen3ASR"], default="turbo")
     args = parser.parse_args()
     args.report.parent.mkdir(parents=True, exist_ok=True)
     report = {"status": "failed", "microphoneUsed": False, "speakersUsed": False,

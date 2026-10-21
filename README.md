@@ -44,7 +44,7 @@ right Option key while speaking, then release to insert. Languages are detected 
   recipient kept as questions. Select a received message along with your notes
   to reply to it. Rewrite never translates; a pair's shortcut does that
   afterwards. Off until you add a preset.
-- **Local dictation**: your selected Whisper or Parakeet model runs on your Mac. Uses the
+- **Local dictation**: your selected Whisper or Qwen model runs on your Mac. Uses the
   system microphone, inserts at the cursor, and keeps the last result available
   to copy if automatic insertion fails. No account or API key is needed.
 - **Bring your own translation engine**: Claude, ChatGPT, Grok or Gemini through your
@@ -160,7 +160,7 @@ immediately.
 
 - **Dictation**: enable local speech recognition, choose the Option hold key and
   select Whisper Small, Whisper Large v3 Turbo (recommended), Whisper Large v3, or
-  Parakeet Ultra (25 European languages). Model
+  Qwen3-ASR 1.7B (8-bit, 30 languages). Model
   preparation starts automatically while enabled. Downloaded models stay cached;
   switching is unavailable during recording or recognition.
 

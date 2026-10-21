@@ -1,0 +1,13 @@
+Qwen3-ASR 1.7B (8-bit)
+
+Qwen3-ASR by the Qwen team at Alibaba Cloud is licensed under Apache License 2.0.
+The optional model downloads separately and runs locally through MLX Audio Swift.
+
+Original model: https://huggingface.co/Qwen/Qwen3-ASR-1.7B
+MLX export: https://huggingface.co/mlx-community/Qwen3-ASR-1.7B-8bit
+Pinned model revision: a8379a2e2f9e313c9292cdf1af4055ab56d50d55
+Runtime: https://github.com/Blaizzy/mlx-audio-swift
+Array runtime: https://github.com/ml-explore/mlx-swift
+
+The Apache License text is included in Qwen LICENSE.txt.
+MLX Audio Swift and MLX Swift retain their own MIT license notices.

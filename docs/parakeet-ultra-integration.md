@@ -1,5 +1,9 @@
 # Parakeet Ultra integration
 
+> Historical record. Parakeet Ultra has been removed from the app at the user's
+> request. The measurements below describe the earlier implementation. Current
+> behavior and preference fallback are in [local dictation](dictation.md#parakeet-removal).
+
 Implementation and verification: October 20, 2026. The user approved adding
 Parakeet Ultra as a separate model after the [standalone comparison](parakeet-ultra-experiment.md).
 Whisper Large v3 Turbo remains the default for absent or unknown preferences

@@ -19,7 +19,8 @@ ROOT = Path(__file__).resolve().parents[1]
 CACHE = Path.home() / "Library/Application Support/com.wiltodelta.translatelikeme.dev/Dictation"
 SOURCES = [ROOT / "scripts/DictationBenchmark.swift"] + [
     ROOT / "Sources/TranslateLikeMe" / (name + ".swift") for name in
-    ["DictationEngine", "DictationModel", "DictationSnapshot", "DictationSpeechDetector", "DictationParakeet", "Logging"]
+    ["DictationEngine", "DictationModel", "DictationSnapshot", "DictationSpeechDetector",
+     "DictationQwen", "DictationQwenDecoding", "Logging"]
 ]
 
 
@@ -95,12 +96,17 @@ def validate(report, cases, repetitions):
 
 def runtime_pins():
     pins = json.loads((ROOT / "Package.resolved").read_text())["pins"]
-    return {identity: next(item for item in pins if item["identity"] == identity)
-            for identity in ["argmax-oss-swift", "fluidaudio"]}
+    required = ["argmax-oss-swift", "mlx-audio-swift", "mlx-swift", "swift-collections"]
+    result = {identity: next(item for item in pins if item["identity"] == identity) for identity in required}
+    # FluidAudio is an independent research dependency, absent from the app.
+    result["fluidaudio"] = {"identity": "fluidaudio", "kind": "remoteSourceControl",
+        "location": "https://github.com/FluidInference/FluidAudio",
+        "state": {"revision": "503b4bd1bbf7220882de39fe8ae6716aae4132da", "version": "0.17.7"}}
+    return result
 
 
 def build(output, *, entrypoint=None):
-    """Let SwiftPM link both runtimes and their C dependencies with the app's pins."""
+    """Let SwiftPM link comparison runtimes and C dependencies with the app's pins."""
     package = output / "package"
     sources = package / "Sources/Comparison"
     sources.mkdir(parents=True)
@@ -114,7 +120,7 @@ def build(output, *, entrypoint=None):
         shutil.copyfile(entrypoint, sources / entrypoint.name)
     pins = runtime_pins()
     dependencies = []
-    for identity in ["argmax-oss-swift", "fluidaudio"]:
+    for identity in pins:
         pin = pins[identity]
         traits = ", traits: []" if identity == "fluidaudio" else ""
         dependencies.append('.package(url: "%s", revision: "%s"%s)' %
@@ -125,6 +131,8 @@ let package = Package(name: "DictationComparison", platforms: [.macOS(.v15)], de
     %s
 ], targets: [.executableTarget(name: "Comparison", dependencies: [
     .product(name: "FluidAudio", package: "FluidAudio"),
+    .product(name: "MLXAudioSTT", package: "mlx-audio-swift"),
+    .product(name: "MLX", package: "mlx-swift"),
     .product(name: "WhisperKit", package: "argmax-oss-swift")])])
 ''' % ",\n    ".join(dependencies))
     with (output / "build.log").open("w") as build_log:
