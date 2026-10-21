@@ -53,6 +53,11 @@ available. Copying is explicit and does not run the engine again.
   combination does not insert speech. There is no tap-to-toggle mode or menu
   command to start recording. Recording is bounded to five minutes. The menu
   offers **Copy Last Result > Dictation** to recover the latest transcript.
+  Languages in your configured translation pairs receive a preference during
+  automatic speech recognition. You can still dictate in another supported
+  language. With no translation pairs, or if a pair language is unsupported by
+  the selected speech model, detection uses the full language set without a
+  preference.
   The microphone is ready between holds without recording, so capture
   starts about 0.2 s after the press, measured on the built-in microphone and on
   AirPods. While you hold the key, system sound output is muted, then restored.

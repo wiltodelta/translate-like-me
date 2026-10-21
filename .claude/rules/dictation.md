@@ -24,6 +24,16 @@ Compute-policy findings and the reproducible synthetic benchmark:
 
 - `DictationModel` lists multilingual Small, Turbo (the existing default) and
   Large v3 with matching pinned tokenizers, plus Qwen3-ASR 1.7B 8-bit (30 languages).
+  `DictationLanguagePreference` snapshots languages from complete translation
+  pairs on every transcription. Canonicalize configured and native language codes
+  through Foundation before resolving the active model inventory; return its native
+  spelling. Both runtimes apply the same finite logit
+  preference during language selection only, never a language or script ban.
+  No pairs or any unsupported candidate preserves unrestricted detection.
+  WhisperKit's separate language pass needs its sampler adapter; text logits
+  filters do not reach it. Qwen matches prefixes with its active tokenizer and
+  stops applying the preference before text. Details and evidence:
+  `docs/dictation-language-detection.md`.
   Qwen uses native MLX on the GPU, with no Python requirement. Parakeet Ultra
   was removed; its saved raw value falls back to Turbo.
   Preserve Turbo and its existing cache for absent or unknown preferences.

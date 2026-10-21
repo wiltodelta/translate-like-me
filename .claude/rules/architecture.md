@@ -48,8 +48,8 @@ Read before editing this domain.
   = .visible`; the status rows and the updates item set it (`StatusMenu.showsImage`).
   A scheduled Sparkle check shows its own window only while the app is active, so a
   launch-time find is announced in the menu, not over the user's app.
-- `Languages.all` is every language with a macOS locale (307, from
-  `Locale.availableIdentifiers`), each with its English `name` for the
+- `Languages.all` derives languages from `Locale.availableIdentifiers`,
+  each with its English `name` for the
   engine's prompt and a `displayName` in the interface language
   (`Bundle.main.preferredLocalizations`, not `Locale.current`, capitalized as
   a menu item) that the pickers and pair titles show and sort by, split by script where a

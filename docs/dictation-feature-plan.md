@@ -25,14 +25,19 @@ acceptance matrix are in [startup latency](dictation-startup-latency.md).
 Automatically detect and transcribe every language supported by the selected
 multilingual model, without a Russian/English allowlist or a required language
 picker. Russian, English, and mixed speech remain priority quality checks, not
-the boundary of supported languages. Ordinary dictation is local and does not
-invoke a text-processing LLM.
+the boundary of supported languages. Languages from complete translation pairs
+receive a bounded preference during automatic detection across all offered
+models, while other supported languages can still win. With no pairs, or when
+any pair language is unsupported by the active model, keep unrestricted
+detection. See [language detection](dictation-language-detection.md).
+Ordinary dictation is local and does not invoke a text-processing LLM.
 
-Provide one default local model and one ASR integration. Choose the default from
-measured speech quality, correction effort, latency, and memory on the target Mac.
-The user must not choose a model or an inference configuration to obtain usable
-results. The optional model picker offers three curated multilingual variants. It does
-not require users to tune inference settings or choose a model during setup.
+Provide one recommended default within the curated local model catalog. Choose
+the default from measured speech quality, correction effort, latency, and memory
+on the target Mac. The user must not choose a model or an inference configuration
+to obtain usable results. The optional picker offers Whisper Small, Turbo,
+Large v3 and Qwen3-ASR. It does not require users to tune inference settings or
+choose a model during setup. Shared language behavior applies to both runtimes.
 
 ## First use and settings
 

@@ -57,7 +57,7 @@ extension LanguagePair {
 }
 
 enum Languages {
-    // Every language macOS has a locale for (307 on macOS 27), named in English
+    // Every language macOS has a locale for, named in English
     // and in the app's language, and sorted by the latter. A language written in several scripts is listed once
     // per script (zh-Hans, zh-Hant, sr-Cyrl, sr-Latn), except Aran, a Nastaliq
     // style of the Arabic script rather than a script of its own. Portuguese is

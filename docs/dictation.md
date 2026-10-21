@@ -866,3 +866,8 @@ and the UI recipes as local verification evidence. The temporary app, compiled
 helpers, synthetic audio and full global-defaults backup were removed. The
 runnable development bundle remains at `Translate Like Me.app`. No release was
 published by this removal task.
+
+Short-utterance language errors, the reported Russian-to-Chinese substitution,
+the automatic/context/explicit-language comparisons, and the cross-model
+candidate-language research are recorded in
+[the language-detection investigation](dictation-language-detection.md).

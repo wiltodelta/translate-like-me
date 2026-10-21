@@ -18,13 +18,19 @@ actor DictationEngine: DictationRecognizing {
                                                 revision: "0f63a7800b00dd0226abd051b906c246e1907482")
     private let directory: URL?
     private let availableStorage: @Sendable (URL) throws -> Int64
+    private let languageIdentifiers: @Sendable () -> [String]
 
-    init(directory: URL? = nil, availableStorage: @escaping @Sendable (URL) throws -> Int64 = { url in
+    init(directory: URL? = nil,
+         languageIdentifiers: @escaping @Sendable () -> [String] = {
+             DictationLanguagePreference.configuredIdentifiers
+         },
+         availableStorage: @escaping @Sendable (URL) throws -> Int64 = { url in
         let attributes = try FileManager.default.attributesOfFileSystem(forPath: url.path)
         guard let bytes = attributes[.systemFreeSize] as? NSNumber else { throw CocoaError(.fileReadUnknown) }
         return bytes.int64Value
     }) {
         self.directory = directory
+        self.languageIdentifiers = languageIdentifiers
         self.availableStorage = availableStorage
     }
 
@@ -174,13 +180,17 @@ actor DictationEngine: DictationRecognizing {
         // Provide a trailing quiet tail after checking the complete clip for speech.
         samples += Array(repeating: 0, count: 8_000)
         try Task.checkCancellation()
+        let preference = DictationLanguagePreference(identifiers: languageIdentifiers())
         if let qwen {
             recognitionLog.notice("Dictation Qwen decoding started")
-            let text = try await qwen.transcribe(samples)
+            let text = try await qwen.transcribe(samples, preference: preference)
             try Task.checkCancellation()
             return Self.cleanedTranscript(text)
         }
         guard let kit else { throw DictationError.notReady }
+        let decoder = (kit.textDecoder as? DictationWhisperLanguage)?.base ?? (kit.textDecoder as? TextDecoder)
+        guard let decoder else { throw DictationError.notReady }
+        kit.textDecoder = DictationWhisperLanguage(base: decoder, preference: preference)
         // Timestamp tokens let Whisper resume at the last complete segment,
         // rather than dropping words across fixed 30-second window boundaries.
         let options = DecodingOptions(task: .transcribe, language: nil, detectLanguage: true,

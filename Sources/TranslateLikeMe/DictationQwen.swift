@@ -33,7 +33,7 @@ actor DictationQwen {
         }
     }
 
-    func transcribe(_ samples: [Float]) throws -> String {
+    func transcribe(_ samples: [Float], preference: DictationLanguagePreference) throws -> String {
         guard let model, let tokenizer = model.tokenizer else { throw DictationError.notReady }
         let endTokens = Set(["<|im_end|>", "<|endoftext|>"].compactMap { tokenizer.convertTokenToId($0) })
         guard endTokens.count == 2 else { throw DictationError.notReady }
@@ -41,6 +41,9 @@ actor DictationQwen {
             Stream.gpu.synchronize()
             Memory.clearCache()
         }
+        let names = preference.resolvedNames(supported: model.config.supportLanguages)
+        let languagePrefix = DictationLanguagePrefix(start: tokenizer.encode(text: "language"),
+            preferred: names.sorted().map { tokenizer.encode(text: "language " + $0) })
         var transcripts: [String] = []
         // Use the SDK's low-energy boundaries to bound prefill memory on long
         // recordings. Each chunk has a fresh decoder cache and automatic language.
@@ -51,6 +54,7 @@ actor DictationQwen {
             let prompt = model.buildPrompt(numAudioTokens: count)
             let cache = model.makeCache()
             do {
+                var generated: [Int] = []
                 let tokens = try DictationQwenDecoding.decode(endTokens: endTokens) { previous in
                     let logits: MLXArray
                     if let previous {
@@ -60,7 +64,9 @@ actor DictationQwen {
                         logits = model(inputIds: prompt, inputFeatures: features,
                                        featureAttentionMask: mask, cache: cache)
                     }
-                    return logits[0..., -1, 0...].argMax(axis: -1).item(Int.self)
+                    let token = Self.selectToken(logits: logits, generated: generated, prefix: languagePrefix)
+                    generated.append(token)
+                    return token
                 }
                 transcripts.append(DictationQwenDecoding.transcript(tokenizer.decode(tokens: tokens)))
             } catch DictationQwenDecoding.Failure.limit {
@@ -69,6 +75,14 @@ actor DictationQwen {
         }
         try Task.checkCancellation()
         return transcripts.joined(separator: " ")
+    }
+
+    static func selectToken(logits: MLXArray, generated: [Int], prefix: DictationLanguagePrefix) -> Int {
+        let nextLogits = logits[0, -1, 0...]
+        for token in prefix.nextTokens(after: generated) {
+            nextLogits[token] += MLXArray(DictationLanguagePreference.logWeight)
+        }
+        return nextLogits.argMax(axis: -1).item(Int.self)
     }
 
     func unload() {
