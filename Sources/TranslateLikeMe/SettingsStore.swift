@@ -8,9 +8,15 @@ import Observation
 @MainActor
 @Observable
 final class SettingsStore {
+    @ObservationIgnored private var recommendingProvider = false
+
     var provider: Provider {
         didSet {
-            Settings.provider = provider
+            if recommendingProvider {
+                Settings.storeRecommendedProvider(provider)
+            } else {
+                Settings.provider = provider
+            }
             loadPick()
         }
     }
@@ -82,6 +88,19 @@ final class SettingsStore {
                 }
             }
         loadPick()
+    }
+
+    private(set) var didCheckInitialEngines = false
+
+    func recommendWorkingEngine(health: [Provider: EngineHealth]) {
+        guard FirstRunRecommendations.checksComplete(health) else { return }
+        didCheckInitialEngines = true
+        guard Settings.canRecommendProvider(),
+              let working = FirstRunRecommendations.workingEngine(current: provider, health: health),
+              working != provider else { return }
+        recommendingProvider = true
+        defer { recommendingProvider = false }
+        provider = working
     }
 
     // The model "Default" runs: the CLI config default, else the CLI's own.

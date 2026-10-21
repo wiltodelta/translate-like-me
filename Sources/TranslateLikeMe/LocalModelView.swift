@@ -4,6 +4,7 @@ import SwiftUI
 // and in onboarding when the local engine is chosen.
 struct LocalModelControls: View {
     @Bindable var store: SettingsStore
+    var summary: String?
     private let downloads = LocalModelDownloads.shared
 
     static var footer: String {
@@ -20,7 +21,7 @@ struct LocalModelControls: View {
             ForEach(LocalModel.allCases) { Text($0.title).tag($0) }
         }
         .disabled(downloads.isDownloading)
-        Text(model.summary)
+        Text(summary ?? model.summary)
             .foregroundStyle(Color.secondaryText)
             .fixedSize(horizontal: false, vertical: true)
         HStack(alignment: .firstTextBaseline, spacing: 8) {

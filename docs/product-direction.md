@@ -23,7 +23,8 @@ original words.
 These priorities describe the intended product experience. They do not imply
 that every setup step is already automatic. Today, permissions and model
 preparation are required; CLI engines need installation and sign-in, personal
-styles are supplied by the user, and Rewrite presets must be added explicitly.
+styles are supplied by the user, and fresh profiles receive a neutral Rewrite
+preset while existing custom presets remain unchanged.
 Dictation, Rewrite, and translation currently have separate shortcuts.
 
 The [README](../README.md) presents this experience to new users. The

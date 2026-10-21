@@ -1,8 +1,14 @@
 # Qwen integration
 
-Qwen3-ASR 1.7B (8-bit) is an optional local model alongside Whisper Small,
-Turbo and Large v3. Turbo remains the default and Recommended choice. The old
-Parakeet preference still falls back to Turbo. Changing a disabled model saves
+> Current catalog: Whisper Turbo and Qwen3-ASR only. Fresh profiles select
+> Turbo through 16 GiB of memory and Qwen above 16 GiB. Existing valid choices
+> are preserved; saved Small and Large v3 values resolve to Turbo. Earlier
+> four-model catalog and recommendation descriptions below are historical.
+
+
+Qwen3-ASR 1.7B (8-bit) is offered alongside Whisper Turbo. Fresh profiles
+recommend Qwen above 16 GiB and Turbo on smaller Macs. Existing valid choices
+remain authoritative. Removed model preferences fall back to Turbo. Changing a disabled model saves
 only its selection; enabling dictation prepares the selected model.
 
 ## Runtime and assets

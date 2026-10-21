@@ -29,6 +29,7 @@ used. Temporary hosts, homes, canaries, servers and preferences are cleaned up.
 
 | Scenario | Actual boundary exercised | Limit |
 |---|---|---|
+| Recommendation seed and explicit engine choice | Real launch seed, persisted settings, `SettingsStore` automatic selection and manual override in a disposable host | Engine health is injected; no vendor service is contacted |
 | Empty settings and missing tools | Launch migrations, settings defaults, all configured engine probes and translation errors through real binary discovery | No GUI onboarding or physical keys |
 | Signed-out tools | Real subprocess/status handling with synthetic CLI executables in the temporary home | No vendor authentication |
 | Working tools | All configured engine probes and translation subprocess paths, including Codex output-file handling | Synthetic `Hola` output, no real model/service |
@@ -101,6 +102,9 @@ transition, not proof of the reported cause.
 
 ## Onboarding navigation and layout verification
 
+Historical record: the wizard measured below was replaced by the automatic
+summary in the [first-run recommendation increment](first-run-recommendations.md).
+
 On October 21, 2026, the signed development bundle from `8283ed0` passed the
 translation and dictation-only routes in English and German, in system Light
 and Dark Mode. The real AX controls advanced through languages, engine and
@@ -140,12 +144,12 @@ approval. Do not reset the working user's TCC, defaults, accounts or model cache
 Record the exact app version, installation source, macOS version and hardware;
 compare the installed release with the candidate build separately.
 
-1. Start with no CLI sign-ins or downloaded speech model. Confirm that onboarding
-   offers language pairs, translation engines and dictation. With no pairs,
-   Continue stays disabled but Skip Translation reaches dictation; Back returns
-   to languages. Dictation can be left disabled with Done. Microphone permission
-   and the speech-model download start only after enabling it. On the translation
-   engine page and in Settings, show missing prerequisites rather than readiness.
+1. Start with no CLI sign-ins or downloaded speech model. Confirm that the
+   summary lists the automatic language/preset configuration and checks engines
+   without requiring a choice. With no working engine, show missing prerequisites
+   and eligible local setup, never readiness. Settings must open the real shared
+   Settings window. Dictation can stay disabled with Done. Microphone permission
+   and speech-model download start only after enabling it.
 2. Grant Accessibility, quit and reopen the test copy, and confirm its menu reads
    Allowed. Install and sign in to one translation CLI, then run its real engine
    check and translate a synthetic selection in TextEdit.
@@ -252,3 +256,10 @@ acoustic controls remain open checks. The user subsequently authorized the
 full release with these limits disclosed; the authorization and scope are
 recorded in the release document. Punto compatibility is not fixed; quitting
 Punto is the user-confirmed workaround.
+
+
+The first-run recommendation increment replaces the wizard with an automatic
+summary. `capture-screenshots.sh` checks the summary, the Settings route, missing
+engines and missing language evidence. `CAPTURE_LOCAL_SETUP=1` also verifies
+the recommended download action on an eligible Mac, without starting a download.
+Current policy and verification: [first-run recommendations](first-run-recommendations.md).

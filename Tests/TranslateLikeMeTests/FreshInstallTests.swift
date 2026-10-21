@@ -63,6 +63,34 @@ final class FreshInstallTests: XCTestCase {
         }
     }
 
+    func testRecommendedConfigurationAndExplicitEngineChoiceThroughStore() async throws {
+        FirstRunRecommendations.apply(suggestions: ["en", "de"])
+        Settings.persistLanguagePairs()
+        let store = SettingsStore(refreshCatalog: { _ in })
+        XCTAssertEqual(store.pairs.map(\.second), ["de"])
+        XCTAssertEqual(store.rewritePresets.count, 1)
+        XCTAssertFalse(Settings.dictationEnabled)
+        var health = Dictionary(uniqueKeysWithValues: Provider.allCases.map { ($0, EngineHealth.notInstalled) })
+        health[.openai] = .checking
+        store.recommendWorkingEngine(health: health)
+        XCTAssertFalse(store.didCheckInitialEngines)
+        health[.openai] = .working
+        store.recommendWorkingEngine(health: health)
+        XCTAssertTrue(store.didCheckInitialEngines)
+        XCTAssertEqual(Settings.provider, .openai)
+        XCTAssertTrue(Settings.canRecommendProvider())
+        // A real manual assignment, even to the same selected engine, wins.
+        store.provider = .openai
+        health[.openai] = .limitReached("Synthetic limit")
+        health[.grok] = .working
+        store.recommendWorkingEngine(health: health)
+        XCTAssertEqual(Settings.provider, .openai)
+        let original = store.rewritePresets
+        FirstRunRecommendations.apply(suggestions: ["ru", "en"])
+        XCTAssertEqual(Settings.rewritePresets, original)
+        XCTAssertEqual(Settings.languagePairs.map(\.second), ["de"])
+    }
+
     func testSignedOutTools() async throws {
         for provider in Provider.allCases where provider.usesCLI {
             try installTool(provider, signedIn: false)

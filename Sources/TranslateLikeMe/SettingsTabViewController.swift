@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 
+// Persisted identities, independent of toolbar order. Keep these values stable.
 enum SettingsPane: Int {
     case general
     case translation
@@ -21,16 +22,20 @@ final class SettingsTabViewController: NSTabViewController {
     // HIG (Settings, macOS): panes in a noncustomizable toolbar that always shows
     // the active pane; the window title follows the pane (the tab controller
     // propagates each pane's title).
-    static func makeWindow(store: SettingsStore) -> (window: NSWindow, tabs: SettingsTabViewController) {
+    static func makeWindow(store: SettingsStore,
+                           generalContent: AnyView? = nil) -> (window: NSWindow, tabs: SettingsTabViewController) {
         let tabs = SettingsTabViewController()
         tabs.tabStyle = .toolbar
-        tabs.addPane(String(localized: "General", comment: "Settings pane"), symbol: "gearshape",
-                     GeneralSettingsView(store: store))
-        tabs.addPane(String(localized: "Translation", comment: "Settings pane"), symbol: "translate",
+        tabs.addPane(.general, title: String(localized: "General", comment: "Settings pane"), symbol: "gearshape",
+                     // Tests exercise the native tab controller without starting Sparkle.
+                     generalContent ?? AnyView(GeneralSettingsView(store: store)))
+        tabs.addPane(.dictation, title: String(localized: "Dictation"), symbol: "mic",
+                     DictationSettingsView(store: store))
+        tabs.addPane(.translation, title: String(localized: "Translation", comment: "Settings pane"),
+                     symbol: "translate",
                      TranslationSettingsView(store: store))
-        tabs.addPane(String(localized: "Rewrite", comment: "Settings pane"), symbol: "text.bubble",
+        tabs.addPane(.rewrite, title: String(localized: "Rewrite", comment: "Settings pane"), symbol: "text.bubble",
                      RewriteSettingsView(store: store))
-        tabs.addPane(String(localized: "Dictation"), symbol: "mic", DictationSettingsView(store: store))
         let window = SettingsWindow(contentViewController: tabs)
         window.styleMask = [.titled, .closable]
         window.toolbarStyle = .preference
@@ -38,11 +43,13 @@ final class SettingsTabViewController: NSTabViewController {
         return (window, tabs)
     }
 
-    private func addPane(_ title: String, symbol: String, _ view: some View) {
+    private func addPane(_ pane: SettingsPane, title: String, symbol: String, _ view: some View) {
         let hosting = NSHostingController(rootView: view)
         hosting.sizingOptions = [.preferredContentSize]
         hosting.title = title
         let item = NSTabViewItem(viewController: hosting)
+        // The toolbar sends NSString selectors to this otherwise untyped ID.
+        item.identifier = String(pane.rawValue)
         item.label = title
         item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
         addTabViewItem(item)
@@ -52,18 +59,20 @@ final class SettingsTabViewController: NSTabViewController {
     // not a choice, so it is not written back: capture-screenshots.sh passes it
     // for one launch, and the write put that pane into the real settings.
     func select(_ pane: SettingsPane?) {
-        let index = pane?.rawValue ?? UserDefaults.standard.integer(forKey: Self.lastPaneKey)
+        let saved = pane?.rawValue ?? UserDefaults.standard.integer(forKey: Self.lastPaneKey)
+        let index = tabViewItems.firstIndex { $0.identifier as? String == String(saved) } ?? 0
         let records = recordsSelection
-        recordsSelection = pane != nil && records
-        selectedTabViewItemIndex = min(max(index, 0), tabViewItems.count - 1)
+        recordsSelection = false
+        selectedTabViewItemIndex = index
         recordsSelection = records
+        if let pane, records { UserDefaults.standard.set(pane.rawValue, forKey: Self.lastPaneKey) }
         clearFocus()
     }
 
     override func tabView(_ tabView: NSTabView, didSelect tabViewItem: NSTabViewItem?) {
         super.tabView(tabView, didSelect: tabViewItem)
-        if recordsSelection {
-            UserDefaults.standard.set(selectedTabViewItemIndex, forKey: Self.lastPaneKey)
+        if recordsSelection, let identifier = tabViewItem?.identifier as? String, let pane = Int(identifier) {
+            UserDefaults.standard.set(pane, forKey: Self.lastPaneKey)
         }
         clearFocus()
     }

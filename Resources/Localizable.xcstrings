@@ -242,6 +242,64 @@
         }
       }
     },
+    "A local model can run without an account. A download is required before it can be tested." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein lokales Modell funktioniert ohne Account. Vor dem Test muss es geladen werden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un modelo local funciona sin cuenta. Debes descargarlo antes de probarlo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un modèle local fonctionne sans compte. Il doit être téléchargé avant de pouvoir être testé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un modello locale funziona senza account. È necessario scaricarlo prima di provarlo."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ローカルモデルはアカウントなしで動作します。テストする前にダウンロードが必要です。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "로컬 모델은 계정 없이 실행됩니다. 테스트하려면 먼저 다운로드해야 합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um modelo local funciona sem conta. É necessário baixá-lo antes do teste."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Локальная модель работает без учётной записи. Перед проверкой её нужно скачать."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本地模型无需账户即可运行。测试前需要下载。"
+          }
+        }
+      }
+    },
     "About three times faster, and lighter. About 3.6 GB to download. Less accurate: it can translate a third language into the wrong one of your pair, and in Rewrite keep a detail you corrected while speaking." : {
       "localizations" : {
         "de" : {
@@ -882,64 +940,6 @@
         }
       }
     },
-    "Back" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zurück"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Atrás"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Retour"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Indietro"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "戻る"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "뒤로"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Voltar"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Назад"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "返回"
-          }
-        }
-      }
-    },
     "Cancel" : {
       "localizations" : {
         "de" : {
@@ -1463,64 +1463,6 @@
         }
       }
     },
-    "Choose a translation engine" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wähle eine Übersetzungs-Engine"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Elige un motor de traducción"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choisissez un moteur de traduction"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Scegli un motore di traduzione"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "翻訳エンジンを選択"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "번역 엔진 선택"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Escolha um mecanismo de tradução"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Выберите движок перевода"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选择翻译引擎"
-          }
-        }
-      }
-    },
     "Choose the second language in Settings" : {
       "localizations" : {
         "de" : {
@@ -1695,64 +1637,6 @@
         }
       }
     },
-    "Choose your language pairs" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wähle deine Sprachpaare"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Elige tus pares de idiomas"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choisissez vos paires de langues"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Scegli le tue coppie di lingue"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "言語ペアを選択"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "언어 쌍 선택"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Escolha seus pares de idiomas"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Выберите языковые пары"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选择你的语言对"
-          }
-        }
-      }
-    },
     "Clear, neutral message, no writing style" : {
       "localizations" : {
         "de" : {
@@ -1807,64 +1691,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "清晰、中性的消息，无写作风格"
-          }
-        }
-      }
-    },
-    "Continue" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fortfahren"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Continuar"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Continuer"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Continua"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "続ける"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "계속"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Continuar"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Продолжить"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "继续"
           }
         }
       }
@@ -3211,6 +3037,65 @@
         }
       }
     },
+    "Download: %@" : {
+      "comment" : "The placeholder is the model download size",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descarga: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Téléchargement : %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download: %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ダウンロード：%@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다운로드: %@"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download: %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Загрузка: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下载大小：%@"
+          }
+        }
+      }
+    },
     "Downloading speech model…" : {
       "localizations" : {
         "de" : {
@@ -4203,64 +4088,6 @@
         }
       }
     },
-    "Full-size model. About 948 MB to download." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Modell in voller Größe. Etwa 948 MB Download."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Modelo completo. Unos 948 MB de descarga."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Modèle complet. Environ 948 Mo à télécharger."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Modello completo. Download di circa 948 MB."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "フルサイズのモデルです。ダウンロードは約948 MBです。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "전체 크기 모델. 다운로드 크기 약 948MB."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Modelo completo. Cerca de 948 MB para baixar."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Полноразмерная модель. Загрузка около 948 МБ."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完整模型。需下载约 948 MB。"
-          }
-        }
-      }
-    },
     "General" : {
       "comment" : "Settings pane",
       "localizations" : {
@@ -4491,6 +4318,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "按住的键"
+          }
+        }
+      }
+    },
+    "Improve Text" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text verbessern"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mejorar texto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Améliorer le texte"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Migliora testo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "テキストを改善"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "텍스트 다듬기"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Melhorar texto"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Улучшить текст"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "优化文本"
           }
         }
       }
@@ -5539,6 +5424,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "需包含 ⌘、⌥ 或 ⌃。按 Delete 键清除，按 Esc 键取消。"
+          }
+        }
+      }
+    },
+    "No engine is ready yet. Open Settings to choose a service or download a local model." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch ist kein Dienst bereit. Öffne die Einstellungen, um einen Dienst zu wählen oder ein lokales Modell zu laden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay ningún motor listo. Abre Ajustes para elegir un servicio o descargar un modelo local."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun moteur n’est prêt. Ouvrez Réglages pour choisir un service ou télécharger un modèle local."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun motore è pronto. Apri Impostazioni per scegliere un servizio o scaricare un modello locale."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "利用可能なエンジンがありません。「設定」でサービスを選択するか、ローカルモデルをダウンロードしてください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "아직 준비된 엔진이 없습니다. 설정을 열어 서비스를 선택하거나 로컬 모델을 다운로드하세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nenhum mecanismo está pronto. Abra Ajustes para escolher um serviço ou baixar um modelo local."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пока нет готового движка. В настройках можно выбрать сервис или скачать локальную модель."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚无就绪的引擎。请打开“设置”选择服务或下载本地模型。"
           }
         }
       }
@@ -8000,64 +7943,6 @@
         }
       }
     },
-    "Skip Translation" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Übersetzung überspringen"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Omitir Traducción"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ignorer la traduction"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Salta traduzione"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "翻訳の設定をスキップ"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "번역 건너뛰기"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pular Tradução"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Пропустить перевод"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "跳过翻译"
-          }
-        }
-      }
-    },
     "Space" : {
       "comment" : "Key name",
       "localizations" : {
@@ -9344,64 +9229,6 @@
         }
       }
     },
-    "Translate Like Me uses an AI subscription you already have, through the service's command-line tool you are signed in to, or a model that runs on this Mac. Each one was tried with a short test translation." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Translate Like Me nutzt ein KI-Abo, das du bereits hast, über das Befehlszeilentool des Dienstes, bei dem du angemeldet bist, oder ein Modell, das auf diesem Mac läuft. Jeder Dienst wurde mit einer kurzen Testübersetzung geprüft."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Translate Like Me usa una suscripción de IA que ya tienes, a través de la herramienta de línea de comandos del servicio en la que has iniciado sesión, o un modelo que funciona en este Mac. Cada una se ha probado con una breve traducción de prueba."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Translate Like Me utilise un abonnement IA que vous avez déjà, via l’outil en ligne de commande du service auquel vous êtes connecté, ou un modèle qui fonctionne sur ce Mac. Chacun a été essayé avec une courte traduction test."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Translate Like Me usa un abbonamento IA che hai già, tramite lo strumento da riga di comando del servizio a cui hai effettuato l'accesso, oppure un modello che funziona su questo Mac. Ognuno è stato provato con una breve traduzione di prova."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Translate Like Meは、契約済みのAIサブスクリプションをサインイン済みのサービスのコマンドラインツール経由で使用するか、このMac上で動作するモデルを使用します。それぞれを短いテスト翻訳で確認しました。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Translate Like Me는 로그인되어 있는 서비스의 명령어 라인 도구를 통해 이미 사용 중인 AI 구독을 사용하거나, 이 Mac에서 실행되는 모델을 사용합니다. 각각 짧은 테스트 번역으로 확인했습니다."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Translate Like Me usa uma assinatura de IA que você já tem, por meio da ferramenta de linha de comando do serviço em que você iniciou sessão, ou um modelo que funciona neste Mac. Cada um foi testado com uma breve tradução de teste."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Translate Like Me использует вашу подписку на ИИ-сервис через его инструмент командной строки, в котором вы выполнили вход, или модель, работающую на этом Mac. Каждый вариант проверен коротким тестовым переводом."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Translate Like Me 通过你已登录的服务命令行工具使用你已有的 AI 订阅，或使用在这台 Mac 上运行的模型。每一项都已用一段简短的测试翻译试过。"
-          }
-        }
-      }
-    },
     "Translate selection" : {
       "localizations" : {
         "de" : {
@@ -9867,64 +9694,6 @@
         }
       }
     },
-    "Uses less memory. About 487 MB to download." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Braucht weniger Speicher. Etwa 487 MB Download."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Usa menos memoria. Unos 487 MB de descarga."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Utilise moins de mémoire. Environ 487 Mo à télécharger."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Usa meno memoria. Download di circa 487 MB."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "メモリ使用量が少なめです。ダウンロードは約487 MBです。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "메모리를 적게 사용합니다. 다운로드 크기 약 487MB."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Usa menos memória. Cerca de 487 MB para baixar."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Занимает меньше памяти. Загрузка около 487 МБ."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "占用内存较少。需下载约 487 MB。"
-          }
-        }
-      }
-    },
     "Version" : {
       "localizations" : {
         "de" : {
@@ -10157,6 +9926,64 @@
         }
       }
     },
+    "Whisper Turbo" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Whisper Turbo"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Whisper Turbo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Whisper Turbo"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Whisper Turbo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Whisper Turbo"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Whisper Turbo"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Whisper Turbo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Виспер турбо"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Whisper Turbo"
+          }
+        }
+      }
+    },
     "Writing style for %@" : {
       "localizations" : {
         "de" : {
@@ -10211,6 +10038,122 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@的写作风格"
+          }
+        }
+      }
+    },
+    "You can change languages and shortcuts in Settings." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sprachen und Kurzbefehle kannst du in den Einstellungen ändern."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puedes cambiar los idiomas y atajos en Ajustes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous pouvez modifier les langues et les raccourcis dans Réglages."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puoi modificare lingue e abbreviazioni in Impostazioni."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "言語とショートカットは「設定」で変更できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정에서 언어와 단축키를 변경할 수 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Você pode alterar os idiomas e atalhos em Ajustes."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Языки и сочетания клавиш можно изменить в настройках."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你可以在“设置”中更改语言和快捷键。"
+          }
+        }
+      }
+    },
+    "Your starting setup" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Starteinstellungen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu configuración inicial"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre configuration de départ"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tua configurazione iniziale"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "初期設定"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "초기 설정"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sua configuração inicial"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваши начальные настройки"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "初始设置"
           }
         }
       }

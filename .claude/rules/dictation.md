@@ -22,8 +22,9 @@ Dictation pane. The user explicitly added model selection after the 3.5.0 releas
 Compute-policy findings and the reproducible synthetic benchmark:
 `docs/dictation-model-efficiency.md`.
 
-- `DictationModel` lists multilingual Small, Turbo (the existing default) and
-  Large v3 with matching pinned tokenizers, plus Qwen3-ASR 1.7B 8-bit (30 languages).
+- `DictationModel` lists Whisper Turbo (localized without a version in its title)
+  and Qwen3-ASR 1.7B 8-bit (30 languages). Fresh profiles select Turbo through
+  16 GiB and Qwen above 16 GiB; existing valid choices remain authoritative.
   `DictationLanguagePreference` snapshots languages from complete translation
   pairs on every transcription. Canonicalize configured and native language codes
   through Foundation before resolving the active model inventory; return its native
@@ -37,9 +38,9 @@ Compute-policy findings and the reproducible synthetic benchmark:
   `TLM_QWEN_METALLIB`; a configured but missing library must fail. Details and evidence:
   `docs/dictation-language-detection.md`.
   Qwen uses native MLX on the GPU, with no Python requirement. Parakeet Ultra
-  was removed; its saved raw value falls back to Turbo.
+  was removed; its saved raw value falls back to Turbo, as do removed Small and Large v3 choices.
   Preserve Turbo and its existing cache for absent or unknown preferences.
-  The encoder and decoder use CPU/Neural Engine for Small, Turbo and Large v3.
+  Turbo uses CPU/Neural Engine for its encoder and decoder.
   Whisper mel stays CPU/GPU. Silero stays CPU-only. Measurements and
   first-specialization limits are in `docs/dictation-model-efficiency.md`.
   The selected model persists while disabled without preparing assets or requesting

@@ -69,12 +69,15 @@ private struct DictationControlsSection: View {
 
 private struct DictationModelSection: View {
     let dictation: DictationController
+    private var recommendedModel: DictationModel {
+        FirstRunRecommendations.dictationModel(physicalMemory: ProcessInfo.processInfo.physicalMemory)
+    }
 
     var body: some View {
         Section {
             Picker("Model", selection: Binding(get: { dictation.model }, set: { dictation.selectModel($0) })) {
                 ForEach(DictationModel.allCases) { model in
-                    (model == .turbo ? Text("\(model.title) (Recommended)") : Text(model.title)).tag(model)
+                    (model == recommendedModel ? Text("\(model.title) (Recommended)") : Text(model.title)).tag(model)
                 }
             }
             .disabled(dictation.isActive)
@@ -94,7 +97,7 @@ private struct DictationModelSection: View {
     }
 }
 
-private struct DictationPreparationStatus: View {
+struct DictationPreparationStatus: View {
     let dictation: DictationController
 
     var body: some View {

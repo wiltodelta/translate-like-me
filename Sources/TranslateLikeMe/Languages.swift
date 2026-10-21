@@ -142,28 +142,25 @@ enum Languages {
         return nil
     }
 
-    // The languages this Mac says its user reads or writes, most telling
-    // first, without repeats: the system languages (Language & Region), then
-    // each enabled keyboard layout's own language, then the region's language,
-    // then English, which most people translate to and from. Empty strings
-    // and unlisted languages are skipped.
-    static func suggestions(preferred: [String], keyboards: [String], region: String?) -> [String] {
-        let regionLanguage = region.map { Locale.Language(identifier: "und-\($0)").maximalIdentifier }
+    // Explicit evidence only: region and an assumed English fallback say
+    // nothing about which languages this person reads or writes.
+    static func suggestions(preferred: [String], keyboards: [String]) -> [String] {
         var seen: [String] = []
-        for identifier in preferred + keyboards + [regionLanguage, "en"].compactMap({ $0 }) {
+        for identifier in preferred + keyboards {
             guard let code = code(forPreferred: identifier), !seen.contains(code) else { continue }
             seen.append(code)
         }
         return seen
     }
 
+    @MainActor
     static var systemSuggestions: [String] {
-        suggestions(preferred: Locale.preferredLanguages, keyboards: keyboardLanguages,
-                    region: Locale.current.region?.identifier)
+        suggestions(preferred: Locale.preferredLanguages, keyboards: keyboardLanguages)
     }
 
     // The primary language of each enabled keyboard layout or input method
     // (U.S. is English, RussianWin Russian), in the order macOS lists them.
+    @MainActor
     private static var keyboardLanguages: [String] {
         let filter = [kTISPropertyInputSourceCategory as String: kTISCategoryKeyboardInputSource as Any]
         guard let sources = TISCreateInputSourceList(filter as CFDictionary, false)?
@@ -182,6 +179,7 @@ enum Languages {
     // paired with. When none is left (an English Mac with a U.S. layout in the
     // US knows one language) the second is left unchosen rather than guessed.
     // Later pairs get no shortcut until one is recorded.
+    @MainActor
     static func newPair(after pairs: [LanguagePair],
                         suggestions: [String] = systemSuggestions) -> LanguagePair {
         let first = pairs.first?.first ?? suggestions.first ?? "en"

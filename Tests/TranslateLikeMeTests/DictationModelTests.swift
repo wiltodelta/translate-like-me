@@ -4,12 +4,17 @@ import XCTest
 
 @MainActor
 final class DictationModelTests: XCTestCase {
+    func testCatalogContainsOnlyTurboAndQwen() {
+        XCTAssertEqual(Set(DictationModel.allCases), [.turbo, .qwen3ASR])
+        XCTAssertFalse(DictationModel.turbo.title.contains("v3"))
+    }
+
     func testRemovedModelPreferenceFallsBackToTurboWithoutChangingOtherChoices() {
         let defaults = UserDefaults.standard
         let saved = defaults.volatileDomain(forName: UserDefaults.argumentDomain)
         defer { defaults.setVolatileDomain(saved, forName: UserDefaults.argumentDomain) }
         for (stored, expected) in [("parakeetUltra", DictationModel.turbo), ("unknown", .turbo),
-                                   ("small", .small), ("turbo", .turbo), ("largeV3", .largeV3),
+                                   ("small", .turbo), ("turbo", .turbo), ("largeV3", .turbo),
                                    ("qwen3ASR", .qwen3ASR)] {
             var domain = saved
             domain["dictationModel"] = stored

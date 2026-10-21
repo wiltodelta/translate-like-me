@@ -2,6 +2,7 @@ import Carbon
 import XCTest
 @testable import TranslateLikeMe
 
+@MainActor
 final class LanguagesTests: XCTestCase {
     private func pair(_ first: String, _ second: String) -> LanguagePair {
         LanguagePair(first: first, second: second, shortcut: nil)
@@ -60,7 +61,7 @@ final class LanguagesTests: XCTestCase {
     // language.
     func testFirstPairOnAnEnglishOnlyMacLeavesTheSecondUnchosen() {
         let made = Languages.newPair(after: [], suggestions: Languages.suggestions(
-            preferred: ["en-US"], keyboards: ["en"], region: "US"))
+            preferred: ["en-US"], keyboards: ["en"]))
         XCTAssertEqual([made.first, made.second], ["en", ""])
     }
 
@@ -113,19 +114,19 @@ final class LanguagesTests: XCTestCase {
         XCTAssertNil(Languages.code(forPreferred: "xx-YY"))
     }
 
-    func testSuggestionsGoSystemThenKeyboardsThenRegionThenEnglish() {
-        XCTAssertEqual(Languages.suggestions(preferred: ["en-US", "ru-US"], keyboards: [], region: "US"),
+    func testSuggestionsUseOnlySystemLanguagesAndKeyboards() {
+        XCTAssertEqual(Languages.suggestions(preferred: ["en-US", "ru-US"], keyboards: []),
                        ["en", "ru"])
         // One system language: a Russian layout says the second.
-        XCTAssertEqual(Languages.suggestions(preferred: ["en-US"], keyboards: ["en", "ru"], region: "US"),
+        XCTAssertEqual(Languages.suggestions(preferred: ["en-US"], keyboards: ["en", "ru"]),
                        ["en", "ru"])
-        // Neither: the region's language.
-        XCTAssertEqual(Languages.suggestions(preferred: ["en-DE"], keyboards: ["en"], region: "DE"),
-                       ["en", "de"])
-        // A non-English Mac gets English last.
-        XCTAssertEqual(Languages.suggestions(preferred: ["ru-RU"], keyboards: ["ru"], region: "RU"),
-                       ["ru", "en"])
-        XCTAssertEqual(Languages.suggestions(preferred: ["en-US", "en-GB"], keyboards: ["xx"], region: nil),
+        // A region cannot manufacture a second language.
+        XCTAssertEqual(Languages.suggestions(preferred: ["en-DE"], keyboards: ["en"]),
+                       ["en"])
+        // A non-English Mac does not imply English.
+        XCTAssertEqual(Languages.suggestions(preferred: ["ru-RU"], keyboards: ["ru"]),
+                       ["ru"])
+        XCTAssertEqual(Languages.suggestions(preferred: ["en-US", "en-GB"], keyboards: ["xx"]),
                        ["en"]) // repeats and unlisted codes collapse
     }
 

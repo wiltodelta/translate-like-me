@@ -38,6 +38,11 @@ enum LocalModel: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    var downloadSummary: String {
+        let size = ByteCountFormatter.string(fromByteCount: downloadBytes, countStyle: .file)
+        return String(localized: "Download: \(size)", comment: "The placeholder is the model download size")
+    }
+
     var repository: String {
         switch self {
         case .translateGemma12B: "mlx-community/translategemma-12b-it-4bit"

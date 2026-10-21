@@ -36,9 +36,10 @@ Or [download the latest release](https://github.com/wiltodelta/translate-like-me
 unzip it, and move **Translate Like Me.app** to `/Applications`. Releases are
 signed and notarized. Updates arrive in the app and install when you choose.
 
-First launch walks you through languages, a translation engine, and optional
-local dictation. Grant **Accessibility** to replace selected text, and
-**Microphone** access for dictation. Local models need an initial download;
+First launch recommends languages from macOS and enabled keyboards, checks
+translation engines, and shows a starting configuration. A new profile also
+gets a neutral Improve Text preset. Grant **Accessibility** to replace selected
+text, and **Microphone** access for dictation. Local models need an initial download;
 cloud engines need their official CLI installed and signed in. You can use
 any of the three writing tools independently.
 
@@ -66,8 +67,8 @@ You can also select a received message together with your notes to draft a reply
 
 A style can be as simple as “Clear and polite, short paragraphs.” Create a
 preset for work, another for friends, or use an empty style for a neutral
-rewrite. Each preset has its own shortcut. Add your first one in
-**Settings > Rewrite**.
+rewrite. New profiles include **Improve Text** on **⌥⌘J**. Customize it or add
+more presets in **Settings > Rewrite**.
 
 Rewrite is instructed to remove filler and repetition, resolve self-corrections,
 and preserve your facts and questions for the recipient.
@@ -122,9 +123,11 @@ You can keep the CLI's default model and effort settings.
 | Antigravity | `agy` |
 | Local translation | MLX, inside the app |
 
-Local translation offers TranslateGemma 12B for Macs with at least **16 GB of
-memory**, or the lighter Gemma 4 E2B for **8 GB** Macs. The lighter model has
-more limitations in translation and Rewrite. See the
+Fresh profiles select **Gemma 4 E2B** on Macs with **8-16 GB** of memory and
+**TranslateGemma 12B** above **16 GB**. Dictation selects **Whisper Turbo**
+through **16 GB** and **Qwen3-ASR** above that. Existing model choices are
+preserved. TranslateGemma can also be selected manually on a 16 GB Mac.
+The lighter model has more limitations in translation and Rewrite. See the
 [setup instructions and model comparison](docs/user-guide.md#providers).
 
 </details>

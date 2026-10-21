@@ -17,28 +17,29 @@ Translate Like Me.
 
 ## First run
 
-1. A small icon appears in the menu bar (there is no Dock icon), and a welcome
-   window walks you through setup. First add your language pairs: there are
-   none until you add one, and the first pair you add is suggested from your
-   Mac on ⌥⌘F: its languages (Language & Region), then your keyboard layouts,
-   then your region, then English. When the Mac knows only one language, the
-   second is left for you to choose. Every language macOS has is offered. Then pick an
-   engine: each one (Claude Code, Codex, Grok Build, Antigravity, Local model) is checked right away with a short
-   test translation, so the list shows which work on your Mac and, for the
-   others, what to fix (install the tool, sign in, or download the local
-   model, which choosing it offers right there). Coming
-   back from Terminal after signing in checks again. Everything stays editable
-   in Settings.
-2. Grant **Accessibility** in **System Settings > Privacy & Security >
-   Accessibility**. It is required to read the selection (synthesized ⌘C) and to
-   paste the replacement (⌘V).
+A new profile receives a language-pair suggestion from macOS preferred languages
+and enabled keyboard sources. No region or assumed English fallback is used.
+With only one evidenced language, the second side stays unchosen. A neutral
+**Improve Text** preset is available on **⌥⌘J**. Existing settings, including
+deliberately empty collections, remain authoritative.
+
+The welcome window shows the initial configuration and checks every engine with
+a synthetic translation. An installed or signed-in CLI alone is not considered
+working. A working engine can be selected automatically when there is no explicit
+choice. An eligible local download is offered when none is ready. Use Settings
+to change languages, models, shortcuts or writing styles.
+
+Grant **Accessibility** in **System Settings > Privacy & Security >
+Accessibility** to read and replace selected text. Microphone consent and speech
+model preparation start when dictation is enabled. Local models require an
+initial download. The proposed preparation/permissions/usage onboarding is
+currently a design preview, not the active first-run flow.
 
 ## Usage
 
-First launch walks through translation languages, a translation engine and local
-dictation. You can skip translation to set up dictation alone, or leave dictation
-disabled and enable it later in Settings. Microphone access and the speech-model
-download start only when you enable dictation.
+The welcome summary shows the recommended starting configuration. You can leave
+dictation disabled and enable it later in Settings. Microphone access and the
+speech-model download start only when you enable dictation.
 
 The **Copy Last Result** submenu keeps the latest Translation, Rewrite and
 Dictation separately, even after successful insertion. Unavailable results are
@@ -86,12 +87,13 @@ available. Copying is explicit and does not run the engine again.
 
 ## Settings
 
-Four panes, **General**, **Translation**, **Rewrite** and **Dictation**. Changes apply
+Four panes, **General**, **Dictation**, **Translation** and **Rewrite**. Changes apply
 immediately.
 
 - **Dictation**: enable local speech recognition, choose the Option hold key and
-  select Whisper Small, Whisper Large v3 Turbo (recommended), Whisper Large v3, or
-  Qwen3-ASR 1.7B (8-bit, 30 languages). Model
+  select Whisper Turbo or Qwen3-ASR 1.7B (8-bit, 30 languages). Fresh profiles
+  select Turbo through 16 GB of memory and Qwen above 16 GB. Removed Small and
+  Large v3 preferences fall back to Turbo. Model
   preparation starts automatically while enabled. Downloaded models stay cached;
   switching is unavailable during recording or recognition.
 
@@ -104,8 +106,8 @@ immediately.
   version, or leave it empty for a plain translation. The direction is detected
   per translation; the order matters only for text in neither language, which
   is translated into the first one, so put the language you read first.
-- **Rewrite**: up to three presets, none by default. Each row has the preset's
-  name, its shortcut, and a remove button, with its writing style below; an
+- **Rewrite**: up to three presets; fresh profiles start with neutral Improve
+  Text on ⌥⌘J. Each row has the preset's name, its shortcut, and a remove button, with its writing style below; an
   empty style gives a clear, neutral message. Rewrite runs on the translation
   engine.
 - **Translation engine**: the CLI (Claude Code / Codex / Grok Build / Antigravity), and a **Model**
@@ -145,8 +147,11 @@ and checked against their published hashes:
 
 | Model | Download | Memory | Notes |
 |---|---|---|---|
-| TranslateGemma 12B (default) | 6.7 GB | 16 GB Mac | The most accurate, writing styles and Rewrite included |
+| TranslateGemma 12B | 6.7 GB | 16 GB Mac | The most accurate, writing styles and Rewrite included |
 | Gemma 4 E2B | 3.6 GB | 8 GB Mac | About three times faster; less accurate (below) |
+
+Fresh profiles select Gemma 4 E2B on 8-16 GB Macs and TranslateGemma 12B
+above 16 GB. Existing selections are preserved.
 
 In a 15-case test on an M5 ([local translation evaluation](local-translation.md)), TranslateGemma 12B
 translated every case and resolved spoken self-corrections in Rewrite; Gemma 4

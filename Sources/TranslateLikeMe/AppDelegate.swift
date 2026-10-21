@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSApp.setActivationPolicy(.accessory)
         // Before anything reads the pairs, and before the first-run flag below,
         // which the migration reads as "an earlier version ran here".
+        FirstRunRecommendations.apply()
         Settings.persistLanguagePairs()
         Settings.moveStyleIntoPairs()
         Settings.removeAPIKeys()
@@ -78,7 +79,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     // Until onboarding has been finished or closed once, it opens at launch: a
-    // new user has no language pairs and no engine checked yet.
+    // new profile has recommendations, but no engine checked yet.
     private func showOnboardingOnFirstRun() {
         guard !Settings.didCompleteFirstRun else { return }
         DispatchQueue.main.async { [weak self] in self?.showOnboarding() }
@@ -150,11 +151,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     // Back to a menu-bar-only app once neither window is open. Closing
-    // onboarding, with Done or the close button, finishes it for good.
+    // the summary after its checks finishes first run. An interrupted check is
+    // retried at next launch, without reseeding the configuration.
     func windowWillClose(_ notification: Notification) {
         let closing = notification.object as? NSWindow
         if closing === onboardingWindow {
-            Settings.didCompleteFirstRun = true
+            Settings.didCompleteFirstRun = store.didCheckInitialEngines
             onboardingWindow = nil
         }
         let stillOpen = [settingsWindow, onboardingWindow].contains { $0 !== closing && $0?.isVisible == true }

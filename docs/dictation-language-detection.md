@@ -1,8 +1,10 @@
 # Short-utterance language detection
 
-Implementation status: a shared translation-language preference now applies to
-all four offered dictation models. The earlier sections retain the research
-history; implementation behavior and validation are recorded below.
+Implementation status: a shared translation-language preference applies to
+both currently offered dictation models, Whisper Turbo and Qwen3-ASR. The earlier sections retain the research
+history; implementation behavior and validation are recorded below. Four-model
+measurements retain Small and Large v3 as historical evaluated configurations;
+those models have since been removed from the catalog.
 
 ## Report and current behavior
 
@@ -191,12 +193,12 @@ for that evaluation principle; its speaker-informed method explicitly does not
 target language switching by the same speaker. Its broadcast results cannot be
 transferred to short personal dictation. [Paper](https://arxiv.org/html/2406.09290v1).
 
-### Capability matrix for the shipped catalog
+### Capability matrix at the evaluated four-model baseline
 
 Verified against `DictationModel`, `DictationEngine`, `DictationQwen` and the
 clean dependency checkouts at the revisions in `Package.resolved`:
 
-| Offered model | Engine | Where to apply the common policy |
+| Evaluated model | Engine | Where to apply the common policy |
 |---|---|---|
 | Whisper Small | WhisperKit 1.1.1 | Audio language-token scores before text decoding |
 | Whisper Large v3 Turbo | WhisperKit 1.1.1 | Same mechanism, using this model's tokenizer and scores |

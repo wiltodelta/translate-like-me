@@ -193,7 +193,7 @@ enum Settings {
     }
 
     // The language pairs, each with its own optional shortcut, stored as JSON.
-    // Empty for a new user until onboarding (or General > Languages) adds one.
+    // Seeded once for a new profile, otherwise read or migrated as stored.
     static var languagePairs: [LanguagePair] {
         get { storedPairs(in: defaults) ?? initialPairs() }
         set { storePairs(newValue, in: defaults) }
@@ -215,8 +215,8 @@ enum Settings {
         store.set(try? JSONEncoder().encode(pairs), forKey: Key.languagePairs)
     }
 
-    // The Rewrite presets, stored as JSON; none (the feature off) until the
-    // user adds one in Settings > Rewrite.
+    // Rewrite presets stored as JSON. FirstRunRecommendations seeds a neutral
+    // preset only for a new profile; a stored empty array keeps Rewrite off.
     static var rewritePresets: [RewritePreset] {
         get {
             guard let data = defaults.data(forKey: Key.rewritePresets) else { return [] }
@@ -293,7 +293,20 @@ enum Settings {
 
     static var provider: Provider {
         get { Provider(rawValue: defaults.string(forKey: Key.provider) ?? "") ?? .anthropic }
-        set { defaults.set(newValue.rawValue, forKey: Key.provider) }
+        set {
+            defaults.set(newValue.rawValue, forKey: Key.provider)
+            defaults.set(false, forKey: "automaticallySelectedProvider")
+        }
+    }
+
+    static func canRecommendProvider(in store: UserDefaults = .standard) -> Bool {
+        !store.bool(forKey: Key.didCompleteFirstRun)
+            && (store.object(forKey: Key.provider) == nil || store.bool(forKey: "automaticallySelectedProvider"))
+    }
+
+    static func storeRecommendedProvider(_ provider: Provider, in store: UserDefaults = .standard) {
+        store.set(provider.rawValue, forKey: Key.provider)
+        store.set(true, forKey: "automaticallySelectedProvider")
     }
 
     // Removes what the API-key mode left behind once it was dropped: the auth

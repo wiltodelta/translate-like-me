@@ -17,11 +17,18 @@ Read before editing this domain.
   (`menuNeedsUpdate`), keeps the same items in every state (status rows change
   text, never disappear), and uses the standard `terminate(_:)` selector so
   macOS 26 supplies Quit's icon. Settings is an `NSTabViewController` in toolbar
-  style (`SettingsTabViewController.makeWindow`, panes General, Translation,
-  Rewrite and Dictation, window title follows the pane, last pane restored unless a
+  style (`SettingsTabViewController.makeWindow`, panes General, Dictation,
+  Translation and Rewrite, window title follows the pane, last pane restored unless a
   caller passes one in the `.openSettings` notification; a restored pane is
   not written back, a clicked or passed one is); `SettingsStore` applies every
-  change immediately. The standard app-menu Settings command and ⌘, call
+  change immediately. Persisted `SettingsPane` IDs stay stable; tab identifiers
+  map them to their visual position so reordering preserves the saved pane.
+  Native pane-identity tests inject synthetic General content: constructing
+  `GeneralSettingsView` starts Sparkle, whose missing XCTest bundle configuration
+  can show a modal alert during later async tests.
+  Tab identifiers must be strings: toolbar mode sends `isEqualToString:` to
+  this untyped property. Explicit pane selection persists even when already selected.
+  The standard app-menu Settings command and ⌘, call
   `AppDelegate.showSettings`, replacing the dummy SwiftUI Settings command.
   Reopening brings Settings forward, or the visible onboarding window.
   No control is focused when a pane opens
@@ -56,11 +63,11 @@ Read before editing this domain.
   language has several (not `Aran`, a Nastaliq style), Portuguese by region;
   stored codes are BCP 47. New pairs take languages from
   `Languages.suggestions`: system languages, then each enabled keyboard
-  layout's primary language (TIS), then the region's language, then English.
+  layout's primary language (TIS), without region or assumed English fallbacks.
   The first pair is the first two on ⌥⌘F; later pairs pair the first pair's
   first language with the next free suggestion. When suggestions run out the
   second language stays empty (`LanguagePair.isComplete` false): the picker
-  shows "Choose a Language", onboarding's Continue waits, the menu item opens
+  shows "Choose a Language", the summary shows the unchosen side, and the menu item opens
   General, and a run shows a popup instead of translating. Completion requires
   both languages to be nonempty and distinct; an unchosen side never swaps an
   empty value into the other side. Long names reflow onto two rows through
@@ -87,8 +94,7 @@ Read before editing this domain.
   `TranslationController.run(pair:)` copies the
   selection, translates, and pastes back.
 - Rewrite presets (`RewritePreset`, up to `Rewrite.maxPresets` = 3, stored as
-  JSON in `Settings.rewritePresets`, edited in the Rewrite pane, none by
-  default) each carry a name (the menu item's title; new ones are "Preset
+  JSON in `Settings.rewritePresets`, edited in the Rewrite pane) each carry a name (the menu item's title; new ones are "Preset
   <n>"), an optional shortcut and a writing style. A preset never translates:
   the message stays in the notes' language and a pair's shortcut translates it
   afterwards. Presets are told apart by purpose, not language, as Apple's
@@ -115,26 +121,30 @@ Read before editing this domain.
   'subsystem == "com.wiltodelta.translatelikeme"'` (plain `log` is a zsh
   builtin). `swift test` logs to the same subsystem from `xctest`; add
   `process == "TranslateLikeMe"` when tallying real runs.
-- Onboarding (`Onboarding`, a `SettingsWindow` hosting an `NSHostingView`: an
-  `NSHostingController` sized by `preferredContentSize` aborted in a layout
-  loop) opens at launch until `Settings.didCompleteFirstRun`, which closing it
-  sets. Step one is `LanguagePairList`, shared with General > Languages; Skip
-  Translation goes straight to Dictation, even with no pairs. Step two lists the
-  providers with `EngineChecks`, started only on entry to that step and cancelled
-  on exit; unfinished results are removed so Back can restart them:
-  `EngineProbe` runs `EngineStatus.check` and then one real test translation
-  (`Translator.translate(_:pair:provider:)`), mapped to `EngineHealth`.
-  Not-installed and signed-out engines are rechecked when the app becomes
-  active (back from a `login` in Terminal); a spent limit or failed run waits
-  for Check Again, each recheck being a real translation. Until the user picks, a definitively failing
-  stored engine yields to the first working one. Settings and onboarding share
-  one `SettingsStore` owned by `AppDelegate`. The last step shares
-  `DictationSetupSections` with Settings: enable, hold key, model and preparation
-  status. Enabling is explicit; Done can leave it disabled or let preparation
-  continue. Back returns along the visited steps. Native onboarding captures use
-  a development-only `onboardingPreview` with injected engine health, never real
-  CLI probes or microphone access. Parallel checks made
-  `Translator`'s binary cache a lock (`OSAllocatedUnfairLock`).
+- `FirstRunRecommendations.apply` runs before the launch migrations. Only a new
+  profile gets a language suggestion and a neutral Improve Text preset on
+  Option-Command-J; existing or deliberately empty settings are authoritative.
+  `didApplyFirstRunRecommendations` prevents reseeding after removal. Language
+  evidence, local-model eligibility and remaining work: `docs/first-run-recommendations.md`.
+- Onboarding (`Onboarding`, a `SettingsWindow` hosting an `NSHostingView`) is
+  an automatic configuration summary, not a language/engine selection wizard.
+  `EngineChecks` starts on appearance, cancels unfinished checks on exit, and
+  `EngineProbe` uses readiness plus a real synthetic translation. Missing and
+  signed-out engines are rechecked on activation; Check Again retries failures.
+  `SettingsStore.recommendWorkingEngine` waits for all results, keeps a working
+  current engine, otherwise chooses in stable provider order. Explicit saved
+  choices and completed onboarding prevent automatic replacement;
+  `automaticallySelectedProvider` distinguishes automatic choices. The summary
+  lists language pairs with shortcuts, engine status and the current speech model.
+  Rewrite presets are excluded from onboarding and stay in Settings and the menu.
+  Settings opens the real shared Settings window. Dictation enabling reuses its
+  consent and preparation flow, with shared `DictationPreparationStatus`.
+  Closing after completed checks marks first run complete; an interrupted check
+  reopens the summary next launch without reseeding. Development-only captures
+  inject working or unavailable engines through `onboardingPreview` and
+  `onboardingNoEnginesPreview`, never invoking CLIs or opening a microphone.
+  Settings and onboarding share `AppDelegate`'s `SettingsStore`. Parallel checks
+  made `Translator`'s binary cache a lock (`OSAllocatedUnfairLock`).
 - `SelectionWorkflow` owns the copy/await/validate/paste/restore flow, with
   `LiveSelectionAccess` as its native adapter and injected effects in tests.
   Text reaches a field one way in the whole app (user decision 2026-10-20):
@@ -183,8 +193,9 @@ Read before editing this domain.
   special cases.
 - The fifth engine, `Provider.local` ("Local model"), runs a model on this Mac
   with MLX in process (`LocalEngine`); `usesCLI` is false and the CLI facts are
-  never read for it. `LocalModel` pins TranslateGemma 12B (default, 16 GB Macs)
-  and Gemma 4 E2B with their turn formats; `Settings.localModel` holds the pick,
+  never read for it. `LocalModel` pins TranslateGemma 12B (16 GB minimum)
+  and Gemma 4 E2B with their turn formats. Fresh profiles recommend E2B through
+  16 GiB and TranslateGemma above 16 GiB; `Settings.localModel` holds the pick,
   `LocalModelControls` shows it with its download in the Translation pane and
   in onboarding, and `LocalModelDownloads` owns download, cancel and removal.
   `EngineStatus` checks the model's memory minimum before calling a verified download ready

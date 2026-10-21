@@ -206,47 +206,45 @@ final class DictationControllerTests: XCTestCase {
         await controller.operation?.value
         XCTAssertEqual(engine.loadedModel, .turbo)
         engine.blockNextPreparation = true
-        controller.selectModel(.small)
+        controller.selectModel(.qwen3ASR)
         await engine.waitForPreparation()
-        XCTAssertEqual(controller.model, .small)
+        XCTAssertEqual(controller.model, .qwen3ASR)
         XCTAssertEqual(controller.phase, .preparing)
         controller.shortcutPressed()
         XCTAssertEqual(recorder.starts, 0)
         engine.finishPreparation()
         await controller.operation?.value
-        XCTAssertEqual(engine.loadedModel, .small)
-        XCTAssertEqual(engine.models, [.turbo, .small])
+        XCTAssertEqual(engine.loadedModel, .qwen3ASR)
+        XCTAssertEqual(engine.models, [.turbo, .qwen3ASR])
         XCTAssertEqual(controller.phase, .ready)
     }
 
     func testModelChangeDuringDownloadCancelsAndRestartsWithTheNewChoice() async {
-        for model in [DictationModel.small, .largeV3, .qwen3ASR] {
-            let engine = ControlledDictationEngine()
-            engine.blockNextPreparation = true
-            let controller = makeController(engine: engine, recorder: ControlledDictationRecorder())
-            controller.restore()
-            await engine.waitForPreparation()
-            let previous = controller.operation
-            controller.selectModel(model)
-            XCTAssertEqual(controller.phase, .cancelling)
-            engine.finishPreparation()
-            await previous?.value
-            await controller.operation?.value
-            XCTAssertEqual(engine.models, [.turbo, model])
-            XCTAssertEqual(engine.loadedModel, model)
-            XCTAssertEqual(controller.phase, .ready)
-        }
+        let engine = ControlledDictationEngine()
+        engine.blockNextPreparation = true
+        let controller = makeController(engine: engine, recorder: ControlledDictationRecorder())
+        controller.restore()
+        await engine.waitForPreparation()
+        let previous = controller.operation
+        controller.selectModel(.qwen3ASR)
+        XCTAssertEqual(controller.phase, .cancelling)
+        engine.finishPreparation()
+        await previous?.value
+        await controller.operation?.value
+        XCTAssertEqual(engine.models, [.turbo, .qwen3ASR])
+        XCTAssertEqual(engine.loadedModel, .qwen3ASR)
+        XCTAssertEqual(controller.phase, .ready)
     }
 
     func testModelChoicePersistsWhileDisabledWithoutPreparingOrRequestingTheMicrophone() async {
         let engine = ControlledDictationEngine()
         let recorder = ControlledDictationRecorder()
         var saved: [DictationModel] = []
-        let controller = DictationController(enabled: false, engine: engine, recorder: recorder,
+        let controller = DictationController(enabled: false, model: .qwen3ASR, engine: engine, recorder: recorder,
             interaction: DictationInteraction(endCapture: {},
                                               showError: { _ in }, showResult: { _ in }),
             saveModel: { saved.append($0) })
-        XCTAssertEqual(controller.model, .turbo)
+        XCTAssertEqual(controller.model, .qwen3ASR)
         for model in DictationModel.allCases {
             controller.selectModel(model)
             controller.selectModel(model)

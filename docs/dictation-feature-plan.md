@@ -1,5 +1,11 @@
 # Minimal dictation plan
 
+> Current catalog: Whisper Turbo and Qwen3-ASR only. Fresh profiles select
+> Turbo through 16 GiB of memory and Qwen above 16 GiB. Existing valid choices
+> are preserved; saved Small and Large v3 values resolve to Turbo. Earlier
+> four-model catalog and recommendation descriptions below are historical.
+
+
 Scope decisions: October 18-19, 2026. Target: Translate Like Me, macOS 15+ on Apple
 silicon, initially an M5 with 16 GB or more of unified memory.
 
@@ -7,9 +13,10 @@ The user requires a minimal implementation that works well with sensible default
 This document supersedes the broader feature priorities in the
 [FluidVoice review](fluidvoice-source-review.md) and
 [Handy review](handy-source-review.md). Those are research references, not a backlog.
-The implementation uses WhisperKit with a small multilingual Whisper catalog.
-The October 19 user request adds a dedicated Dictation pane and model selection;
-Turbo remains the default, with Small and Large v3 as optional alternatives. Implementation details and verification status are in
+The implementation uses WhisperKit for Turbo and MLX Audio Swift for Qwen.
+The October 19 user request added a dedicated Dictation pane and model selection.
+The later first-run policy retains Turbo and Qwen only, selected by memory for
+new profiles. Implementation details and verification status are in
 [dictation.md](dictation.md); this scope document is not a claim that release
 acceptance or a comparative model quality benchmark is complete.
 
@@ -35,8 +42,7 @@ Ordinary dictation is local and does not invoke a text-processing LLM.
 Provide one recommended default within the curated local model catalog. Choose
 the default from measured speech quality, correction effort, latency, and memory
 on the target Mac. The user must not choose a model or an inference configuration
-to obtain usable results. The optional picker offers Whisper Small, Turbo,
-Large v3 and Qwen3-ASR. It does not require users to tune inference settings or
+to obtain usable results. The optional picker offers Whisper Turbo and Qwen3-ASR. It does not require users to tune inference settings or
 choose a model during setup. Shared language behavior applies to both runtimes.
 
 ## First use and settings

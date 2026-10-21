@@ -1,5 +1,11 @@
 # Local dictation
 
+> Current catalog: Whisper Turbo and Qwen3-ASR only. Fresh profiles select
+> Turbo through 16 GiB of memory and Qwen above 16 GiB. Existing valid choices
+> are preserved; saved Small and Large v3 values resolve to Turbo. Earlier
+> four-model catalog and recommendation descriptions below are historical.
+
+
 Unattended verification, its command and its physical limits:
 [unattended dictation testing](unattended-dictation-testing.md).
 
@@ -19,14 +25,14 @@ device is used each time recording starts.
 
 ## Runtime and data
 
-WhisperKit 1.1.1 runs the Whisper models; MLX Audio Swift 0.1.6 runs Qwen. `DictationModel`
-offers Whisper Small (`openai_whisper-small`), Whisper Large v3 Turbo
-(`openai_whisper-large-v3-v20240930_626MB`, the unchanged default) and Whisper
-Large v3 (`openai_whisper-large-v3_947MB`), plus Qwen3-ASR 1.7B 8-bit for 30 languages.
-The three Whisper snapshots
-contain about 487, 627 and 948 MB respectively, excluding tokenizer and shared
-speech-detector assets. Qwen downloads about 2.5 GB, including its tokenizer inputs.
-The default Turbo has four decoder layers and 32 encoder layers. Recognition uses automatic language
+WhisperKit 1.1.1 runs Whisper Turbo; MLX Audio Swift 0.1.6 runs Qwen.
+`DictationModel` offers Whisper Turbo
+(`openai_whisper-large-v3-v20240930_626MB`) and Qwen3-ASR 1.7B 8-bit for 30 languages.
+Turbo downloads about 627 MB, excluding tokenizer and shared speech-detector
+assets. Qwen downloads about 2.5 GB, including its tokenizer inputs.
+Fresh profiles choose Turbo through 16 GiB of memory and Qwen above 16 GiB;
+existing valid choices remain unchanged. Saved Small and Large v3 choices resolve
+to Turbo. Whisper Turbo has four decoder layers and 32 encoder layers. Recognition uses automatic language
 detection, without a Russian/English allowlist, and transcription rather than
 translation. This is an initial integrated configuration, not a claim of model
 superiority or production quality across every supported language.
@@ -95,8 +101,8 @@ inside LLVM/MPS. The check prevents preparation in that observed low-space
 condition; it cannot reserve space against other processes filling the disk.
 
 Models live under `~/Library/Application Support/<bundle id>/Dictation`.
-Development builds use their own `.dev` id. Small, Turbo and Large v3 permit
-CPU/Neural Engine for both the audio encoder and text decoder.
+Development builds use their own `.dev` id. Whisper Turbo permits CPU/Neural
+Engine for both the audio encoder and text decoder.
 Whisper mel stays CPU/GPU. Silero stays CPU-only.
 A loaded model stays ready; memory-pressure notifications or disabling dictation
 release it after active work completes. Press enqueues microphone initialization;

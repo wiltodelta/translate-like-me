@@ -44,9 +44,34 @@ WORK=$(mktemp -d)
 SAMPLE_PRESETS='[{"id":"8F9619FF-8B86-D011-B42D-00C04FC964FF","name":"Work","shortcut":{"keyCode":38,"modifiers":2304},"style":"Clear and polite, short paragraphs."},{"id":"9F9619FF-8B86-D011-B42D-00C04FC964FF","name":"Friends","shortcut":{"keyCode":40,"modifiers":2304},"style":"Casual, short sentences, no emoji."}]'
 SAMPLE_PAIRS='[{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","first":"ru","second":"en","shortcut":{"keyCode":3,"modifiers":2304},"style":"Casual and friendly, short sentences."},{"id":"7F9619FF-8B86-D011-B42D-00C04FC964FF","first":"ru","second":"en","shortcut":{"keyCode":5,"modifiers":2304},"style":""}]'
 
+# A synthetic new-profile example alongside the larger custom-profile fixture.
+# It uses the same stored shape as the existing screenshot samples.
+if [ "${CAPTURE_STARTER_ONLY:-0}" = 1 ]; then
+    SAMPLE_PAIRS=$(python3 - "$SAMPLE_PAIRS" <<'PYTHON'
+import json
+import sys
+pairs = json.loads(sys.argv[1])[:1]
+pairs[0]["style"] = ""
+print(json.dumps(pairs))
+PYTHON
+)
+    SAMPLE_PRESETS=$(python3 - "$SAMPLE_PRESETS" "$LANGUAGE" <<'PYTHON'
+import json
+from pathlib import Path
+import sys
+presets = json.loads(sys.argv[1])[:1]
+entry = json.loads(Path("Resources/Localizable.xcstrings").read_text())["strings"]["Improve Text"]
+presets[0]["name"] = entry["localizations"].get(sys.argv[2], {}).get("stringUnit", {}).get("value", "Improve Text")
+presets[0]["style"] = ""
+print(json.dumps(presets))
+PYTHON
+)
+fi
+
 # CAPTURE_APPEARANCE=current captures without changing the theme or pointer.
-# CAPTURE_ONBOARDING_ONLY=1 with CAPTURE_OUT=<dir> traverses translation and
-# dictation-only setup without real engine probes or microphone access.
+# CAPTURE_ONBOARDING_ONLY=1 with CAPTURE_OUT=<dir> renders the automatic summary
+# and Settings route without real engine probes or microphone access.
+# CAPTURE_LOCAL_SETUP=1 also verifies the recommended download action on an eligible Mac.
 # CAPTURE_MENU_ONLY=1 refreshes just menu.png and menu-dark.png (and the link preview).
 # CAPTURE_RESULTS_ONLY=1 with CAPTURE_OUT=<dir> checks empty, partial and full
 # recovery submenus. Its synthetic launch fixtures never call a model or record audio.
@@ -158,10 +183,10 @@ func axMatches(_ node: AXUIElement, key: String, value: String, visited: inout I
 }
 
 switch args[1] {
-case "press-id", "expect", "expect-disabled":
+case "press-id", "expect", "expect-absent", "expect-disabled", "expect-enabled":
     NSApplication.shared.setActivationPolicy(.prohibited)
     let app = AXUIElementCreateApplication(Int32(args[2])!)
-    let key = args[1] == "expect" ? "text" : kAXIdentifierAttribute
+    let key = ["expect", "expect-absent"].contains(args[1]) ? "text" : kAXIdentifierAttribute
     var visited = 0
     var rawWindows: CFTypeRef?
     let error = AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &rawWindows)
@@ -169,6 +194,11 @@ case "press-id", "expect", "expect-disabled":
         captureFailure("AXWindows failed: \(error.rawValue), trusted: \(AXIsProcessTrusted())")
     }
     let matches = windows.flatMap { axMatches($0, key: key, value: args[3], visited: &visited) }
+    if args[1] == "expect-absent" {
+        guard matches.isEmpty else { captureFailure("Unexpected AX text: \(args[3])") }
+        print("Verified absent: \(args[3])")
+        exit(0)
+    }
     guard !matches.isEmpty, args[1] == "expect" || matches.count == 1 else {
         captureFailure("Expected an AX target for \(args[3]), found \(matches.count) in \(visited) elements")
     }
@@ -179,6 +209,8 @@ case "press-id", "expect", "expect-disabled":
               AXUIElementPerformAction(node, kAXPressAction as CFString) == .success else {
             captureFailure("The AX target could not be pressed")
         }
+    } else if args[1] == "expect-enabled" {
+        guard axAttribute(node, kAXEnabledAttribute) as? Bool == true else { captureFailure("Expected enabled control") }
     } else if args[1] == "expect-disabled" {
         guard axAttribute(node, kAXEnabledAttribute) as? Bool == false else { captureFailure("Expected disabled control") }
     }
@@ -304,8 +336,8 @@ localized() {
 # --- Accessibility driving -------------------------------------------------------
 
 # launch <pane> [<dictation preview>] [<provider>] [<results preview>]: a fresh copy
-# with Settings set to open on <pane> (0 General, 1
-# Translation, 2 Rewrite, 3 Dictation), since switching panes in the window would write the choice back.
+# with Settings set to open on <pane> (stable IDs: 0 General, 1 Translation,
+# 2 Rewrite, 3 Dictation), independent of their visual order in the toolbar.
 # -n: a new instance even if an earlier one is still quitting.
 # The keys are Settings.Key.languagePairs, .rewritePresets, .provider, localModel and
 # SettingsTabViewController.lastPaneKey; they name this script, since a renamed
@@ -313,7 +345,20 @@ localized() {
 # the launch also writes none of its own and moves no old style into them.
 PID=""
 launch() {
-    [ -n "$PID" ] && { kill "$PID"; sleep 1; }
+    if [ -n "$PID" ]; then
+        local previous_pid="$PID"
+        kill "$previous_pid" 2>/dev/null || true
+        for _ in $(seq 1 50); do
+            kill -0 "$previous_pid" 2>/dev/null || break
+            sleep 0.1
+        done
+        if kill -0 "$previous_pid" 2>/dev/null; then
+            echo "The previous development process did not exit." >&2
+            exit 1
+        fi
+        echo "Previous development PID $previous_pid exited."
+        PID=""
+    fi
     local dictation_enabled=NO completed_first_run=YES pairs_json="$SAMPLE_PAIRS"
     if [ "${2:-}" = settings ]; then dictation_enabled=YES; fi
     if [ "${CAPTURE_ONBOARDING_ONLY:-0}" = 1 ]; then
@@ -326,7 +371,10 @@ launch() {
         -dictationShortcut '<7b226b6579436f6465223a36312c226d6f64696669657273223a323034387d>'
         -languagePairs "<$(printf '%s' "$pairs_json" | xxd -p | tr -d '\n')>"
         -rewritePresets "<$(printf '%s' "$SAMPLE_PRESETS" | xxd -p | tr -d '\n')>")
-    if [ "${CAPTURE_ONBOARDING_ONLY:-0}" = 1 ]; then arguments+=(-onboardingPreview YES); fi
+    if [ "${CAPTURE_ONBOARDING_ONLY:-0}" = 1 ]; then
+        arguments+=(-onboardingPreview YES -automaticallySelectedProvider YES)
+    fi
+    if [ "${CAPTURE_NO_ENGINES:-0}" = 1 ]; then arguments+=(-onboardingNoEnginesPreview YES); fi
     if [ -n "${4:-}" ]; then arguments+=(-lastResultsPreview "$4"); fi
     if [ -n "$LANGUAGE" ]; then arguments+=(-AppleLanguages "($LANGUAGE)"); fi
     if [ -n "${2:-}" ]; then arguments+=(-dictationPreview "$2"); fi
@@ -334,7 +382,7 @@ launch() {
     PID=""
     for _ in $(seq 1 20); do
         PID=$(pgrep -f "$EXECUTABLE" | head -1 || true)
-        [ -n "$PID" ] && return 0
+        [ -n "$PID" ] && { echo "Launched development PID $PID."; return 0; }
         sleep 0.5
     done
     echo "The app did not start."; exit 1
@@ -496,48 +544,38 @@ capture_window() {
     [ "$(ax 'get frontmost')" = true ] || { echo "The target lost focus during capture."; exit 1; }
 }
 
-# Traverse real first-run routes with synthetic engine health, never a mic request.
+# Render the applied configuration and the Settings escape hatch, without model calls.
 capture_onboarding() {
     appearance "set dark mode to $1" >/dev/null
     sleep 2
     launch 3 settings
     local title
     title=$(localized "Welcome to Translate Like Me")
-    capture_window "$title" "onboarding-languages$2"
-    helper expect "$PID" "$(localized 'Choose your language pairs')"
-    helper press-id "$PID" onboarding.continue
+    capture_window "$title" "onboarding-summary$2"
+    helper expect "$PID" "$(localized 'Your starting setup')"
+    local preset_title
+    preset_title=$(python3 -c 'import json, sys; print(json.loads(sys.argv[1])[0]["name"])' "$SAMPLE_PRESETS")
+    helper expect-absent "$PID" "$preset_title"
+    helper expect-enabled "$PID" onboarding.done
+    helper press-id "$PID" onboarding.settings
+    capture_window "$(localized Dictation)" "onboarding-settings$2"
     sleep 0.5
-    helper expect "$PID" "$(localized 'Choose a translation engine')"
-    capture_window "$title" "onboarding-engine$2"
-    helper press-id "$PID" onboarding.continue
-    sleep 0.5
-    helper expect "$PID" "$(localized 'Set up dictation')"
-    capture_window "$title" "onboarding-dictation$2"
-    helper press-id "$PID" onboarding.back
-    sleep 0.3
-    helper expect "$PID" "$(localized 'Choose a translation engine')"
-    helper press-id "$PID" onboarding.back
-    sleep 0.3
-    helper expect "$PID" "$(localized 'Choose your language pairs')"
+    [ -z "$(helper named "$PID" "$title")" ] || { echo "The summary did not close."; exit 1; }
+    [ "$(defaults read "$DOMAIN" didCompleteFirstRun)" = 1 ] || { echo "First run was not completed."; exit 1; }
+    if [ "${CAPTURE_SUMMARY_SETTINGS_ONLY:-0}" = 1 ]; then return; fi
+
+    CAPTURE_NO_ENGINES=1 launch 3 settings
+    capture_window "$title" "onboarding-no-engines$2"
+    helper expect "$PID" "$(localized 'No engine is ready yet. Open Settings to choose a service or download a local model.')"
+    if [ "${CAPTURE_LOCAL_SETUP:-0}" = 1 ]; then
+        helper expect-enabled "$PID" onboarding.localDownload
+    fi
+    helper press-id "$PID" onboarding.done
 
     CAPTURE_EMPTY_PAIRS=1 launch 3 settings
-    capture_window "$title" "onboarding-languages-empty$2"
-    helper expect-disabled "$PID" onboarding.continue
-    helper press-id "$PID" onboarding.skipTranslation
-    sleep 0.5
-    helper expect "$PID" "$(localized 'Set up dictation')"
-    capture_window "$title" "onboarding-dictation-only$2"
-    helper press-id "$PID" onboarding.back
-    sleep 0.3
-    helper expect "$PID" "$(localized 'Choose your language pairs')"
-    helper press-id "$PID" onboarding.skipTranslation
-    sleep 0.3
+    capture_window "$title" "onboarding-no-languages$2"
+    helper expect-enabled "$PID" onboarding.done
     helper press-id "$PID" onboarding.done
-    sleep 0.5
-    [ -z "$(helper named "$PID" "$title")" ] || { echo "Onboarding did not close."; exit 1; }
-    [ "$(defaults read "$DOMAIN" didCompleteFirstRun)" = 1 ] || { echo "First run was not completed."; exit 1; }
-    open_menu
-    capture_settings "$(localized Dictation)" "onboarding-settings$2"
 }
 
 # Capture the shipping submenu with all, some or no results, using only synthetic text.
