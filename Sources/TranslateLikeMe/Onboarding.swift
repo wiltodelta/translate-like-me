@@ -28,6 +28,12 @@ private enum OnboardingStep {
     case engine
 }
 
+// One change, so picking an already downloaded model checks it once.
+private struct LocalChoice: Equatable {
+    let model: LocalModel
+    let ready: Bool
+}
+
 private struct OnboardingView: View {
     @Bindable var store: SettingsStore
     let done: @MainActor () -> Void
@@ -51,6 +57,11 @@ private struct OnboardingView: View {
         .onAppear(perform: checkAll)
         .onDisappear { checks.cancelAll() }
         .onChange(of: checks.health) { pickWorkingEngine() }
+        // A finished download, or another model picked, is tried like the rest.
+        .onChange(of: LocalChoice(model: store.localModel,
+                                  ready: LocalModelDownloads.shared.state(of: store.localModel) == .ready)) {
+            checks.check(.local)
+        }
         // Back from Terminal after `claude auth login` or an install: check those
         // again so the list catches up without a click. A check still running is
         // left alone, and a spent limit or failed run waits for Check Again,
@@ -90,12 +101,16 @@ private struct OnboardingView: View {
             }
             .pickerStyle(.radioGroup)
             .labelsHidden()
+            if !store.provider.usesCLI {
+                LocalModelControls(store: store)
+            }
         } header: {
             Text("Choose a translation engine").font(.title2.bold())
         } footer: {
             Text("""
                 Translate Like Me uses an AI subscription you already have, through the service's command-line \
-                tool you are signed in to. Each one was tried with a short test translation.
+                tool you are signed in to, or a model that runs on this Mac. Each one was tried with a short \
+                test translation.
                 """)
                 .foregroundStyle(Color.secondaryText)
         }

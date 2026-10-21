@@ -5,7 +5,8 @@ translates the current selection via global hotkeys, one per language pair (up
 to three), auto-detecting the direction and applying the user's writing style,
 and rewrites selected rough notes into a finished message in the same language
 with named Rewrite presets (up to three), plus local multilingual dictation.
-SwiftUI + AppKit, SwiftPM; Sparkle for updates, WhisperKit and MLX Audio Swift for local ASR. Supports the
+SwiftUI + AppKit, SwiftPM; Sparkle for updates, WhisperKit and MLX Audio Swift for local ASR, MLX for the
+local translation model. Supports the
 three latest macOS releases (15+) on Apple silicon only.
 
 Shared rules for our macOS apps: `~/Documents/GitHub/claude-config/docs/macos-apps.md`; this file states only what differs.
@@ -32,6 +33,8 @@ detail, including the secrets and where the keys are kept (1Password):
 - `build.sh` builds MLX's Metal kernels with CMake, embeds the current graph's
   materialized SDK resource bundles and packages upstream license notices.
   Do not glob old build bundles: stale FluidAudio output can remain after removal.
+  MLX looks for `mlx.metallib` only beside the executable, not in
+  `Contents/Resources`: call `MLXKernels.use()` before any MLX model loads.
 - CI can lag local Swift. In subprocess tests, use explicit `@Sendable` task
   closures, a precomputed deadline and the concrete test type: the dynamic `Self`
   form failed Swift 6.3.3's region-based isolation checker.
@@ -79,6 +82,9 @@ detail, including the secrets and where the keys are kept (1Password):
   `Translator.translate` or `Translator.rewrite` behind an env-var guard
   (`swift test --filter`, three runs per case, delete it after), rather than
   by pressing hotkeys: keystrokes land in whatever window is in front.
+  Check the local engine live the same way: set `GPU.metallib` to the built
+  app's `Contents/Resources/mlx.metallib` and pass `LocalModelFiles(base:)` the
+  dev domain's `Application Support/.../Translation`; xctest's bundle has neither.
   Check paste delivery the same way: drive `SelectionWorkflow` with
   `LiveSelectionAccess` against a disposable AppKit window, snapshotting and
   restoring the user's clipboard around any marker it seeds. Chrome's key
@@ -145,4 +151,4 @@ matching files are touched.
 | File | Covers |
 |------|--------|
 | `dictation.md` | Minimal local dictation, model installation, recording, cancellation, and delivery at the current focus |
-| `architecture.md` | Status item and its menu, settings panes, onboarding and its engine checks, global hotkey, language pairs and Rewrite presets, selection validation, the paste shared with dictation and clipboard ownership, providers, and update checking |
+| `architecture.md` | Status item and its menu, settings panes, onboarding and its engine checks, global hotkey, language pairs and Rewrite presets, selection validation, the paste shared with dictation and clipboard ownership, CLI providers and the local MLX engine, and update checking |

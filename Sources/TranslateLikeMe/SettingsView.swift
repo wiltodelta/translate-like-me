@@ -99,7 +99,11 @@ struct TranslationSettingsView: View {
             Picker("Service", selection: $store.provider) {
                 ForEach(Provider.allCases, id: \.self) { Text($0.name).tag($0) }
             }
-            modelPickers
+            if store.provider.usesCLI {
+                modelPickers
+            } else {
+                LocalModelControls(store: store)
+            }
         } header: {
             Text("Translation engine")
         } footer: {
@@ -142,6 +146,7 @@ struct TranslationSettingsView: View {
 
     private var engineFooter: String {
         let provider = store.provider
+        guard provider.usesCLI else { return LocalModelControls.footer }
         return String(localized: """
             Runs the \(provider.name) command-line tool you are signed in to (not the desktop app). \
             No extra cost beyond your plan. \(provider.modelSummary)

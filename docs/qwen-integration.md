@@ -14,7 +14,7 @@ only its selection; enabling dictation prepares the selected model.
 
 The pinned config declares 30 languages. The five required download files are
 `config.json`, `model.safetensors`, `vocab.json`, `merges.txt` and
-`tokenizer_config.json`, about 2.47 GB together. `DictationSnapshot` verifies
+`tokenizer_config.json`, about 2.47 GB together. `ModelSnapshot` verifies
 completeness, the pinned revision and each file's Git blob or LFS hash, before
 both initial loading and offline reload. Good partial downloads are preserved.
 The shared eight-GB free-space preparation guard remains.

@@ -15,6 +15,16 @@ final class SettingsStore {
         }
     }
 
+    // The model the local engine runs. A switch frees the previous one at once
+    // rather than after the idle delay, since both together can exceed memory.
+    var localModel: LocalModel {
+        didSet {
+            guard localModel != oldValue else { return }
+            Settings.localModel = localModel
+            Task { await LocalEngine.shared.releaseIfIdle(reason: "model changed") }
+        }
+    }
+
     // The model and effort picked for the selected provider's CLI, a nil field
     // meaning "Default" (HarnessChoice); each provider keeps its own pick.
     var pick = HarnessChoice() {
@@ -60,6 +70,7 @@ final class SettingsStore {
     init(refreshCatalog: @escaping (Provider) async -> Void = { await EngineStatus.refreshModels(for: $0) }) {
         self.refreshCatalog = refreshCatalog
         provider = Settings.provider
+        localModel = Settings.localModel
         pairs = Settings.languagePairs
         rewritePresets = Settings.rewritePresets
         modelChanges = NotificationCenter.default.publisher(for: .harnessModelsChanged)

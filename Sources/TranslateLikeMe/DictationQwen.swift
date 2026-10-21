@@ -12,13 +12,7 @@ actor DictationQwen {
     private var model: Qwen3ASRModel?
 
     init(root: URL) async throws {
-        // The app bundles the native Metal kernels. A CLI/test host can use
-        // MLX's normal colocated mlx.metallib lookup instead.
-        let library = Bundle.main.url(forResource: "mlx", withExtension: "metallib") ?? GPU.metallib ??
-            URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent()
-                .appendingPathComponent("mlx.metallib")
-        guard FileManager.default.fileExists(atPath: library.path) else { throw DictationError.notReady }
-        GPU.metallib = library
+        guard MLXKernels.use() else { throw DictationError.notReady }
         let runtime = FileManager.default.temporaryDirectory.appendingPathComponent("tlm-qwen-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: runtime, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: runtime) }
@@ -89,9 +83,9 @@ extension DictationEngine {
                      progress: @escaping @Sendable (Double) -> Void) async throws -> URL {
         let source = DictationQwen.source
         let root = ModelDownloader(config: source).localRepoLocation(downloadBase: base)
-        let snapshot = DictationSnapshot(root: root, revision: source.revision,
-                                         variant: "", required: DictationQwen.files)
-        return try await snapshot.prepare(download: download) {
+        let snapshot = ModelSnapshot(root: root, revision: source.revision,
+                                     variant: "", required: DictationQwen.files)
+        return try await snapshot.prepareForDictation(download: download) {
             let hub = HubApiWrapper(downloadBase: base, endpoint: source.endpoint)
             _ = try await hub.snapshot(from: .init(id: source.modelRepo), revision: source.revision,
                                        matching: DictationQwen.files) { progress($0.fractionCompleted * 0.95) }

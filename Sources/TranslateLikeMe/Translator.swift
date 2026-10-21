@@ -1,6 +1,8 @@
 import Foundation
 import os
 
+private let log = Logger.app("translation")
+
 enum TranslatorError: LocalizedError {
     case binaryNotFound(String)
     case empty
@@ -25,13 +27,44 @@ enum TranslatorError: LocalizedError {
 }
 
 // Routes a translation, or a rewrite, through the configured provider's
-// signed-in CLI.
+// signed-in CLI, or the local model.
 enum Translator {
     // `provider` defaults to the engine chosen in Settings; onboarding passes
     // each one to test it before one is chosen (EngineProbe).
     static func translate(_ text: String, pair: LanguagePair,
                           provider: Provider = Settings.provider) async throws -> String {
-        try await run(system: systemPrompt(pair: pair), text: text, provider: provider)
+        guard provider.usesCLI else {
+            return try await translateLocally(text, pair: pair) {
+                try await run(system: $0, text: text, provider: .local)
+            }
+        }
+        return try await run(system: systemPrompt(pair: pair), text: text, provider: provider)
+    }
+
+    // The local models sometimes return the selection unchanged when its
+    // language is the pair's second: TranslateGemma 12B echoed an English
+    // sentence for a Russian-English pair in 2 of 3 runs, Gemma 4 E2B an
+    // English question in 3 of 6, while the same text under the pair written
+    // the other way round, where it takes the prompt's first rule, was
+    // translated in every run (2026-10-20). An echo is never a translation, so
+    // it is asked once more with the pair reversed: text in either language
+    // still lands in the other, and a third language lands in the second
+    // instead of the first, which beats returning it untranslated.
+    static func translateLocally(_ text: String, pair: LanguagePair,
+                                 complete: (String) async throws -> String) async throws -> String {
+        let result = try await complete(systemPrompt(pair: pair))
+        guard isEcho(result, of: text) else { return result }
+        log.notice("Local translation echoed its input; asking again with the pair reversed")
+        var reversed = pair
+        (reversed.first, reversed.second) = (pair.second, pair.first)
+        return try await complete(systemPrompt(pair: reversed))
+    }
+
+    static func isEcho(_ result: String, of text: String) -> Bool {
+        let normalize = { (value: String) in
+            value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }
+        return normalize(result) == normalize(text)
     }
 
     // Rewrites rough notes into a finished message (Rewrite.systemPrompt).
@@ -57,6 +90,9 @@ enum Translator {
         case .openai: return try await runCodex(system: system, text: text)
         case .grok: return try await runGrok(system: system, text: text)
         case .antigravity: return try await runAntigravity(system: system, text: text)
+        case .local:
+            return try cleaned(await LocalEngine.shared.complete(system: system, text: text,
+                                                                 model: Settings.localModel))
         }
     }
 

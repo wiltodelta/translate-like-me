@@ -34,7 +34,7 @@ superiority or production quality across every supported language.
 input tokenizer files. Qwen runs natively on the GPU; its derived tokenizer is
 kept outside the verified snapshot. See [Qwen integration](qwen-integration.md)
 for lifecycle, cancellation and verification details.
-WhisperKit's downloader maintains partial transfers. `DictationSnapshot` checks
+WhisperKit's downloader maintains partial transfers. `ModelSnapshot` checks
 all required Core ML components and validates every existing snapshot file
 against metadata for the pinned revision: SHA-256 for LFS weights and Git blob
 SHA-1 for ordinary files. The SDK itself accepts partial snapshots and skips
@@ -230,7 +230,7 @@ recording and presentation effects. It covers immediate capture after model
 eviction, audio retention through reload, cancellation during reload, interrupted
 first preparation and termination without restarting preparation. Continuations
 control progress; these tests never request the microphone or drive native windows.
-`DictationSnapshotTests` covers Git/LFS hashes, streaming across chunk boundaries,
+`ModelSnapshotTests` covers Git/LFS hashes, streaming across chunk boundaries,
 partial-cache repair, pinned revisions and verification after downloading.
 `DictationSetupTests` also feeds a corrupted complete fixture through the real SDK,
 proving that its accepted snapshot is rejected by the app.

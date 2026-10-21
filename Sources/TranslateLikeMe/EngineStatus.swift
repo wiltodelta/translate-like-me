@@ -21,8 +21,12 @@ enum EngineStatus {
         case failed(String)
     }
 
-    // The engine chosen in Settings by default; onboarding checks each one.
+    // The engine chosen in Settings by default; onboarding checks each one. The
+    // local model is ready once its download is verified (LocalModelFiles).
     static func check(provider: Provider = Settings.provider) async -> Readiness {
+        guard provider.usesCLI else {
+            return LocalModelFiles.live.isInstalled(Settings.localModel) ? .ready : .notInstalled
+        }
         guard let binary = await Translator.binaryPath(name: provider.cliBinaryName) else {
             return .notInstalled
         }
@@ -34,7 +38,7 @@ enum EngineStatus {
     // picker), agy its model list. Their sign-in probe prints it, so the probe
     // records it (Provider.probeReportsModels). Off the main thread.
     static func refreshModels(for provider: Provider) async {
-        guard let binary = await Translator.binaryPath(name: provider.cliBinaryName) else { return }
+        guard provider.usesCLI, let binary = await Translator.binaryPath(name: provider.cliBinaryName) else { return }
         _ = await readiness(binary: binary, provider: provider)
     }
 

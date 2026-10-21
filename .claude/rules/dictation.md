@@ -1,12 +1,14 @@
 ---
 paths:
   - "Sources/TranslateLikeMe/Dictation*.swift"
+  - "Sources/TranslateLikeMe/ModelSnapshot.swift"
   - "Sources/TranslateLikeMe/HotKeyManager.swift"
   - "Sources/TranslateLikeMe/OptionKeyGesture.swift"
   - "Sources/TranslateLikeMe/Shortcut*.swift"
   - "Sources/TranslateLikeMe/SelectionTarget.swift"
   - "Sources/TranslateLikeMe/PasteDelivery.swift"
   - "Tests/TranslateLikeMeTests/Dictation*.swift"
+  - "Tests/TranslateLikeMeTests/ModelSnapshotTests.swift"
   - "Tests/TranslateLikeMeTests/OptionKeyGestureTests.swift"
 description: "Minimal local dictation: model, recording lifecycle, cancellation, and caret delivery"
 ---
@@ -42,7 +44,7 @@ Compute-policy findings and the reproducible synthetic benchmark:
   an error, never a partial transcript. Installation and offline checks:
   `docs/qwen-integration.md`.
   Model and tokenizer revisions
-  are pinned. `DictationSnapshot` checks every required Core ML component and
+  are pinned. `ModelSnapshot` checks every required Core ML component and
   hashes existing files against the pinned revision's Hub metadata, using SHA-256
   for LFS and Git blob SHA-1 for ordinary files. Remove corrupt files before
   resuming a partial download, preserve good files, and validate the result again;

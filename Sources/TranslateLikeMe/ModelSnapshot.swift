@@ -3,7 +3,12 @@ import Foundation
 
 // Validate the app-owned Hub snapshot before both offline use and resuming a
 // download. The SDK trusts matching commit metadata without rehashing the file.
-struct DictationSnapshot: Sendable {
+// Dictation and local translation models share it.
+struct ModelSnapshot: Sendable {
+    // The files are missing and may not be fetched, or a fetch left them
+    // incomplete or failing their hashes.
+    struct Incomplete: Error {}
+
     let root: URL
     let revision: String
     let variant: String
@@ -14,13 +19,13 @@ struct DictationSnapshot: Sendable {
     func prepare(download: Bool, fetch: @Sendable () async throws -> Void) async throws -> URL {
         let invalid = try invalidFiles()
         if complete && invalid.isEmpty { return root }
-        guard download else { throw DictationError.notReady }
+        guard download else { throw Incomplete() }
         // Preserve good partial downloads, but remove damaged files before the
         // SDK's metadata-only fast path can accept them again.
         for file in invalid { try FileManager.default.removeItem(at: file) }
         try Task.checkCancellation()
         try await fetch()
-        guard complete, try invalidFiles().isEmpty else { throw DictationError.notReady }
+        guard complete, try invalidFiles().isEmpty else { throw Incomplete() }
         return root
     }
 

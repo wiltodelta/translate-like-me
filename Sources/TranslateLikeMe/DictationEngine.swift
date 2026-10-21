@@ -117,9 +117,9 @@ actor DictationEngine: DictationRecognizing {
                                  download: Bool, progress: @escaping @Sendable (Double) -> Void) async throws -> URL {
         let downloader = ModelDownloader(config: source)
         let root = downloader.localRepoLocation(downloadBase: base)
-        let snapshot = DictationSnapshot(root: root, revision: source.revision,
-                                         variant: variant.name, required: variant.files)
-        return try await snapshot.prepare(download: download) {
+        let snapshot = ModelSnapshot(root: root, revision: source.revision,
+                                     variant: variant.name, required: variant.files)
+        return try await snapshot.prepareForDictation(download: download) {
             let hub = HubApiWrapper(downloadBase: base, endpoint: source.endpoint)
             _ = try await hub.snapshot(from: .init(id: source.modelRepo), revision: source.revision,
                                        matching: [variant.name + "/*"]) { progress($0.fractionCompleted) }
@@ -216,6 +216,17 @@ actor DictationEngine: DictationRecognizing {
         speechDetector = nil
         await previous?.unloadModels()
         await previousQwen?.unload()
+    }
+}
+
+extension ModelSnapshot {
+    // Dictation reports missing or damaged model files as not ready.
+    func prepareForDictation(download: Bool, fetch: @Sendable () async throws -> Void) async throws -> URL {
+        do {
+            return try await prepare(download: download, fetch: fetch)
+        } catch is Incomplete {
+            throw DictationError.notReady
+        }
     }
 }
 
