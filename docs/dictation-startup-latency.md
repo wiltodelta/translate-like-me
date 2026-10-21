@@ -25,7 +25,9 @@ The controller now starts the recorder and registers its completion handler
 before inspecting the insertion target. `testMicrophoneStartsBeforeReadingTheInsertionTarget`
 exercises the real controller path with injected effects: it failed on the old
 order and passes on the new order. It also asserts that the target lookup
-actually ran. This establishes ordering, not a measured millisecond improvement.
+actually ran. This establishes ordering, not a measured millisecond improvement. Since the
+October 20, 2026 delivery change the press reads no insertion target at all, and
+this test was removed with it.
 
 ```mermaid
 flowchart LR

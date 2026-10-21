@@ -32,6 +32,10 @@ detail, including the secrets and where the keys are kept (1Password):
 - CI can lag local Swift. In subprocess tests, use explicit `@Sendable` task
   closures, a precomputed deadline and the concrete test type: the dynamic `Self`
   form failed Swift 6.3.3's region-based isolation checker.
+- A closure stored as a plain `async` function type runs off the main thread even
+  when written in a `@MainActor` type's `static let`; the compiler accepted a
+  main-only Text Input Sources call there and the app trapped (2026-10-20). Give
+  such properties a `@MainActor` function type.
 - Lint config in `.swiftlint.yml` scans `Sources/` and `Tests/` at 120-column lines (fixtures inside multiline strings exempt, `Tests/.swiftlint.yml`).
 - `Tests/TranslateLikeMeTests/` covers pure logic, selection orchestration with
   injected effects, and `ProcessRunner` with synthetic subprocesses. UI,
@@ -48,7 +52,12 @@ detail, including the secrets and where the keys are kept (1Password):
   picker is an `AXPopUpButton` (its value is the selection): press it, then
   press the `AXMenuItem` by title, and read the result back from the
   defaults (`plutil -extract languagePairs raw`, base64 JSON) rather than
-  sending keys, which land in whatever app is in front.
+  sending keys, which land in whatever app is in front. System Events
+  `keystroke` maps characters through the active layout: under Russian a
+  `keystroke "k" using command down` and a typed name went into a Slack draft
+  instead (2026-10-20). Send `key code` values, and never drive another
+  person's conversation; verify dictation delivery by the user's own dictation
+  and the `Dictation destination` and `read ... after N ms` log lines.
 - A build without `RELEASE=1` is `com.wiltodelta.translatelikeme.dev`: its own
   settings domain, login item and Accessibility grant (granted once), so it
   runs beside the installed app; if both have the same shortcuts set, quit one
@@ -127,5 +136,5 @@ matching files are touched.
 
 | File | Covers |
 |------|--------|
-| `dictation.md` | Minimal local dictation, model installation, recording, cancellation, and caret delivery |
+| `dictation.md` | Minimal local dictation, model installation, recording, cancellation, and delivery at the current focus |
 | `architecture.md` | Status item and its menu, settings panes, onboarding and its engine checks, global hotkey, language pairs and Rewrite presets, selection validation and clipboard ownership, providers, and update checking |

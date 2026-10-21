@@ -3,59 +3,45 @@ import os
 
 private let targetLog = Logger.app("selection")
 
-// Text targets retain AX identity, selection and value. Dictation may retain a
-// standard window when a custom renderer exposes no field. Translation still
-// needs text evidence for automatic insertion.
+// Text targets retain AX identity, selection and value; translation needs that
+// evidence for automatic insertion.
 struct SelectionTarget: @unchecked Sendable {
     let pid: pid_t
     let element: AXUIElement
     let range: CFRange
     let value: String?
     let selectedText: String
-    var allowsCaret = false
-    var isWindowOnly = false
 
-    static func capture(pid: pid_t, allowingCaret: Bool = false) -> SelectionTarget? {
-        guard focusedPID == pid, let element = focusedElement(pid: pid),
-              attribute(element, kAXSubroleAttribute) as? String != "AXSecureTextField" else { return nil }
-        guard let range = selectedRange(of: element) else {
-            // Custom renderers may expose only their focused native window.
-            // Dictation can keep that window and continuous activity as evidence;
-            // translation still requires an actual text selection.
-            guard let window = Self.element(attribute(AXUIElementCreateApplication(pid), kAXFocusedWindowAttribute)),
-                  permitsWindowCapture(allowingCaret: allowingCaret,
-                                       role: attribute(element, kAXRoleAttribute) as? String,
-                                       subrole: attribute(element, kAXSubroleAttribute) as? String,
-                                       isFocusedWindow: CFEqual(element, window),
-                                       childSubroles: windowChildSubroles(window)) else { return nil }
-            return Self(pid: pid, element: window, range: CFRange(location: 0, length: 0),
-                        value: nil, selectedText: "", allowsCaret: true, isWindowOnly: true)
-        }
-        guard range.length > 0 || allowingCaret else { return nil }
-        let selected = attribute(element, kAXSelectedTextAttribute) as? String
-        guard let text = selected ?? (range.length == 0 ? "" : nil) else { return nil }
+    static func capture(pid: pid_t) -> SelectionTarget? {
+        guard focusedPID == pid, let element = focusedElement(pid: pid), !isSecure(element),
+              let range = selectedRange(of: element), range.length > 0,
+              let text = attribute(element, kAXSelectedTextAttribute) as? String else { return nil }
         return Self(pid: pid, element: element, range: range,
-                    value: attribute(element, kAXValueAttribute) as? String,
-                    selectedText: text, allowsCaret: allowingCaret)
+                    value: attribute(element, kAXValueAttribute) as? String, selectedText: text)
     }
 
-    static func permitsWindowCapture(allowingCaret: Bool, role: String?, subrole: String?,
-                                     isFocusedWindow: Bool, childSubroles: [String?]?) -> Bool {
-        guard allowingCaret, role == kAXWindowRole, subrole == kAXStandardWindowSubrole,
-              isFocusedWindow, let childSubroles else { return false }
-        let chrome: Set<String> = [kAXCloseButtonSubrole, kAXMinimizeButtonSubrole,
-                                   kAXZoomButtonSubrole, "AXFullScreenButton"]
-        return childSubroles.allSatisfy { child in child.map { chrome.contains($0) } ?? false }
-    }
-
-    private static func windowChildSubroles(_ window: AXUIElement) -> [String?]? {
-        (attribute(window, kAXChildrenAttribute) as? [AXUIElement])?.map {
-            attribute($0, kAXSubroleAttribute) as? String
+    // Dictation goes to whichever process holds keyboard focus now, field or
+    // custom renderer alike, except a password field.
+    static var dictationDestination: pid_t? {
+        guard let pid = focusedPID else {
+            targetLog.notice("Dictation destination unavailable: no focused process")
+            return nil
         }
+        let app = NSRunningApplication(processIdentifier: pid)?.bundleIdentifier ?? "unknown"
+        if let element = focusedElement(pid: pid), isSecure(element) {
+            targetLog.notice("Dictation destination is a secure field in \(app, privacy: .public)")
+            return nil
+        }
+        targetLog.notice("Dictation destination \(app, privacy: .public), pid \(pid)")
+        return pid
+    }
+
+    private static func isSecure(_ element: AXUIElement) -> Bool {
+        attribute(element, kAXSubroleAttribute) as? String == "AXSecureTextField"
     }
 
     func isCurrent() -> Bool {
-        guard let current = Self.capture(pid: pid, allowingCaret: allowsCaret) else {
+        guard let current = Self.capture(pid: pid) else {
             targetLog.notice("Insertion target unavailable, original pid \(pid), focused pid \(Self.focusedPID ?? -1)")
             return false
         }
@@ -63,12 +49,11 @@ struct SelectionTarget: @unchecked Sendable {
         let sameRange = range.location == current.range.location && range.length == current.range.length
         let sameSelection = selectedText == current.selectedText
         let sameValue = value == current.value
-        let sameScope = isWindowOnly == current.isWindowOnly
-        let unchanged = sameScope && sameElement && sameRange && sameSelection && sameValue
+        let unchanged = sameElement && sameRange && sameSelection && sameValue
         if !unchanged {
             targetLog.notice("""
                 Insertion target changed: same element \(sameElement), same range \(sameRange), \
-                same selection \(sameSelection), same value \(sameValue), same scope \(sameScope)
+                same selection \(sameSelection), same value \(sameValue)
                 """)
         }
         return unchanged
@@ -97,7 +82,7 @@ struct SelectionTarget: @unchecked Sendable {
             }
             let expected = original.replacingCharacters(in: NSRange(location: range.location, length: range.length),
                                                        with: replacement)
-            let matched = replacementMatches(current, expected: expected, currentRange: currentRange)
+            let matched = current == expected
             if !matched {
                 let sameIgnoringNewlines = current.trimmingCharacters(in: .newlines)
                     == expected.trimmingCharacters(in: .newlines)
@@ -113,9 +98,7 @@ struct SelectionTarget: @unchecked Sendable {
         // Some web fields expose a range and selected text but no complete value.
         // A collapsed selection after paste is the same behavioral evidence the
         // previous Cmd+C probe used, without another clipboard write.
-        let matched = currentRange.map {
-            $0.length == 0 && (!allowsCaret || $0.location == range.location + replacement.utf16.count)
-        } ?? false
+        let matched = currentRange.map { $0.length == 0 } ?? false
         if !matched {
             targetLog.notice("""
                 Paste not confirmed: caret evidence missing, original range \(range.location):\(range.length), \
@@ -124,16 +107,6 @@ struct SelectionTarget: @unchecked Sendable {
                 """)
         }
         return matched
-    }
-
-    func replacementMatches(_ current: String, expected: String, currentRange: CFRange?) -> Bool {
-        if current == expected { return true }
-        // Empty rich editors can expose an LF placeholder that disappears on
-        // paste. Keep this exception separate from actual user whitespace.
-        guard allowsCaret, value == "\n", range.location == 0, range.length == 0,
-              let currentRange, currentRange.length == 0,
-              currentRange.location == current.utf16.count else { return false }
-        return expected == current + "\n"
     }
 
     private static func selectedRange(of element: AXUIElement) -> CFRange? {
@@ -241,9 +214,8 @@ struct LiveSelectionAccess: SelectionAccess {
             targetLog.notice("Insertion invalidated by \(activity.invalidationReason, privacy: .public) activity")
             return false
         }
-        return targetUnchanged(target)
+        return target.isCurrent()
     }
-    func targetUnchanged(_ target: SelectionTarget) -> Bool { target.isCurrent() }
     func paste(_ text: String, into target: SelectionTarget, ifUnchangedSince mark: Int) -> PasteAttempt? {
         SelectionService.paste(text, into: target, ifUnchangedSince: mark, activity: activity)
     }
@@ -252,5 +224,18 @@ struct LiveSelectionAccess: SelectionAccess {
         guard changeCount == mark else { return false }
         SelectionService.copyToClipboard(text)
         return true
+    }
+}
+
+struct LiveDictationAccess: DictationPasteAccess {
+    let pasteKey: CGKeyCode
+    var changeCount: Int { SelectionService.changeCount }
+    func snapshot() -> SelectionService.Snapshot { SelectionService.snapshot() }
+    func restore(_ snapshot: SelectionService.Snapshot, ifUnchangedSince mark: Int) {
+        SelectionService.restore(snapshot, ifUnchangedSince: mark)
+    }
+    func destination() -> pid_t? { SelectionTarget.dictationDestination }
+    func paste(_ text: String, to pid: pid_t, ifUnchangedSince mark: Int) -> DictationPaste? {
+        SelectionService.pasteAtCursor(text, to: pid, keyCode: pasteKey, ifUnchangedSince: mark)
     }
 }

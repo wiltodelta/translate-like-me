@@ -9,11 +9,7 @@ final class DictationControllerTests: XCTestCase {
         let recorder = ControlledDictationRecorder()
         var feedbackShown = false
         let controller = DictationController(enabled: true, engine: engine, recorder: recorder,
-            interaction: DictationInteraction(beginCapture: { _ in
-                XCTAssertTrue(feedbackShown)
-                XCTAssertEqual(recorder.starts, 1)
-                return (nil, {})
-            }, endCapture: {}, showError: { _ in }, showResult: { _ in }, showCapture: {
+            interaction: DictationInteraction(endCapture: {}, showError: { _ in }, showResult: { _ in }, showCapture: {
                 feedbackShown = true
                 XCTAssertEqual(recorder.starts, 0)
             }), saveModel: { _ in })
@@ -22,6 +18,7 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(controller.phase, .ready)
         controller.shortcutPressed()
         XCTAssertTrue(feedbackShown)
+        XCTAssertEqual(recorder.starts, 1)
         controller.cancel()
     }
 
@@ -61,26 +58,31 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(controller.phase, .ready)
     }
 
-    func testMicrophoneStartsBeforeReadingTheInsertionTarget() async {
-        let engine = ControlledDictationEngine()
-        let recorder = ControlledDictationRecorder()
-        var inspectedTarget = false
-        let controller = DictationController(enabled: true, engine: engine, recorder: recorder,
-            interaction: DictationInteraction(beginCapture: { _ in
-                inspectedTarget = true
-                XCTAssertEqual(recorder.starts, 1, "Accessibility must not delay microphone startup")
-                XCTAssertTrue(recorder.hasAudio)
-                return (nil, {})
-            }, endCapture: {}, showError: { _ in }, showResult: { _ in }), saveModel: { _ in })
-        controller.restore()
-        await controller.operation?.value
-        defer { controller.cancel() }
-
-        controller.shortcutPressed()
-
-        XCTAssertTrue(inspectedTarget, "The real capture path must inspect the insertion target")
-        XCTAssertEqual(recorder.starts, 1)
-        XCTAssertTrue(controller.isActive)
+    func testTranscriptGoesToDeliveryAndOnlyAnUndeliveredOneIsShown() async {
+        for delivered in [true, false] {
+            let engine = ControlledDictationEngine()
+            engine.transcript = "Привет, world!"
+            let recorder = ControlledDictationRecorder()
+            var deliveries: [String] = []
+            var shown: [String] = []
+            let controller = DictationController(enabled: true, engine: engine, recorder: recorder,
+                interaction: DictationInteraction(endCapture: {}, showError: { _ in },
+                                                  showResult: { shown.append($0) }, deliver: {
+                    deliveries.append($0)
+                    XCTAssertTrue(TranslationActivity.shared.isBusy, "Capture owns activity through delivery")
+                    return delivered
+                }), saveModel: { _ in })
+            controller.restore()
+            await controller.operation?.value
+            controller.shortcutPressed()
+            controller.shortcutReleased()
+            await controller.operation?.value
+            XCTAssertEqual(deliveries, ["Привет, world!"])
+            XCTAssertEqual(shown, delivered ? [] : ["Привет, world!"])
+            XCTAssertEqual(controller.lastResult, "Привет, world!")
+            XCTAssertEqual(controller.phase, .ready)
+            XCTAssertFalse(TranslationActivity.shared.isBusy)
+        }
     }
 
     func testEvictedModelLoadsAfterReleaseWithoutLosingCapturedAudio() async throws {
@@ -236,7 +238,7 @@ final class DictationControllerTests: XCTestCase {
         let recorder = ControlledDictationRecorder()
         var saved: [DictationModel] = []
         let controller = DictationController(enabled: false, engine: engine, recorder: recorder,
-            interaction: DictationInteraction(beginCapture: { _ in (nil, {}) }, endCapture: {},
+            interaction: DictationInteraction(endCapture: {},
                                               showError: { _ in }, showResult: { _ in }),
             saveModel: { saved.append($0) })
         XCTAssertEqual(controller.model, .turbo)
@@ -301,8 +303,7 @@ final class DictationControllerTests: XCTestCase {
     private func makeController(engine: ControlledDictationEngine,
                                 recorder: ControlledDictationRecorder) -> DictationController {
         DictationController(enabled: true, engine: engine, recorder: recorder,
-                            interaction: DictationInteraction(beginCapture: { _ in (nil, {}) },
-                                                              endCapture: {}, showError: { _ in },
+                            interaction: DictationInteraction(endCapture: {}, showError: { _ in },
                                                               showResult: { _ in }), saveModel: { _ in })
     }
 }
@@ -331,7 +332,7 @@ extension DictationControllerTests {
     func testWakeDoesNotPrepareInputWhileDisabled() {
         let recorder = ControlledDictationRecorder()
         let controller = DictationController(enabled: false, engine: ControlledDictationEngine(), recorder: recorder,
-            interaction: DictationInteraction(beginCapture: { _ in (nil, {}) }, endCapture: {},
+            interaction: DictationInteraction(endCapture: {},
                                               showError: { _ in }, showResult: { _ in }),
             saveModel: { _ in })
         controller.systemDidWake()
@@ -342,6 +343,7 @@ extension DictationControllerTests {
 @MainActor
 private final class ControlledDictationEngine: DictationRecognizing {
     var loaded = false
+    var transcript = ""
     var blockNextPreparation = false
     var failNextPreparation = false
     var preparations: [Bool] = []
@@ -376,7 +378,7 @@ private final class ControlledDictationEngine: DictationRecognizing {
     func transcribe(_ audio: URL) async throws -> String {
         XCTAssertTrue(loaded)
         transcribed.append(audio)
-        return ""
+        return transcript
     }
 
     func unload() async {

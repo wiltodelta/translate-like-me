@@ -59,12 +59,12 @@ remain subject to validation; do not present an untested configuration as proven
 - Insert the final transcript once. Support both an empty caret and a selection.
   Preserve names, English terms inside Russian speech, and the meaning of the
   dictation. Use the model's normal punctuation without a separate cleanup model.
-- Validate the original destination before inserting. If it changed or delivery
-  failed, show the result in the existing popup pattern with Copy. Keep only the
-  latest result in memory so it can be recovered; do not create a history screen.
-  Custom-rendered apps exposing only their standard window use process/window
-  identity and uninterrupted input activity. That path dispatches Paste without
-  claiming text confirmation; it does not apply to translation or Rewrite.
+- Insert wherever keyboard focus is when the text is ready, in any app (user
+  decision, October 20, 2026, replacing validation of the original destination).
+  The destination's read of the clipboard proves delivery; without it, or in a
+  secure field, show the result in the existing popup pattern with Copy. Keep
+  only the latest result in memory so it can be recovered; do not create a
+  history screen.
 - Internal cancellation invalidates pending output after input changes, disabling
   or sleep. Never start a delayed recording because a hold began while another
   operation was busy. Do not add a separate cancellation key or waiting period.
@@ -81,8 +81,8 @@ Keep these mechanisms internal, with automatic defaults rather than new controls
   sleep/wake and device-change recovery, and bounded recording memory.
 - Measured model residency: keep the model ready and release it on memory pressure
   or when dictation is disabled, after capture/inference finishes. No policy picker.
-- Reuse rich clipboard preservation and destination validation. Add a caret-capable
-  delivery target without weakening translation's selection requirements.
+- Reuse rich clipboard preservation. Deliver at the current focus with a clipboard
+  read receipt, without weakening translation's selection requirements.
 
 Start with batch recognition after stop. Add VAD filtering, chunking, a helper
 process, or native streaming only if a measured quality, latency, or reliability

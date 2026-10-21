@@ -58,8 +58,8 @@ Compute-policy findings and the reproducible synthetic benchmark:
   or transcripts. Keep the model resident until memory pressure or disabling;
   release after active work. Clear the actor's model reference before an await so
   a new request cannot take a model being unloaded. Await any queued release
-  before preparing the next session. Enqueue capture immediately on press and
-  show its starting indicator before inspecting the AX target;
+  before preparing the next session. Show the starting indicator, then enqueue
+  capture on press; the press reads no AX target;
   `DictationCaptureWorker` serializes all engine access and teardown off the UI.
   A locked request gates the final hardware start against release/cancellation.
   The stop task must finalize the WAV before model reload or recognition. Enqueue
@@ -100,31 +100,27 @@ Compute-policy findings and the reproducible synthetic benchmark:
   `AVAudioEngine` across a Sendable closure: the CI SDK does not mark it
   Sendable, even when the newer local SDK accepts that capture. Offline tests
   create and use their engine inside one task, returning only sample values.
-- `SelectionTarget.capture(allowingCaret: true)` is explicit to dictation; the
-  default still requires a selection for translation/Rewrite. Validate the
-  original element, range, text and activity. Decode AX ranges with nonnegative
-  location and length before the caret opt-in can admit a zero length. Option produces modifier events,
-  not text edits; keep ordinary keys, clicks and switches invalidating targets.
-  If no range exists and the focused element is the exact focused standard
-  window, dictation alone may capture a window target for custom renderers.
-  Require its exposed children to be standard window controls only; unknown
-  children or normal accessible content keep the result rather than guessing.
-  Keep process/window identity and activity guards. Do not extend that path to
-  secure fields, sheets, dialogs, unknown roles or translation. It cannot detect
-  programmatic field changes inside an inaccessible custom window.
-- `DictationDelivery` captures a stable clipboard snapshot near delivery, guards
-  its change count, and restores only its own write. No selection-copy probe.
-  Recheck unconfirmed AX evidence at the end of the clipboard retention wait;
-  a delayed acknowledgement must not cause another paste. Observe cancellation
-  after that wait. Verification diagnostics record metadata only.
-  An empty rich editor may drop its single LF placeholder after paste. Accept
-  that only for dictation at offset zero with exact inserted text and a collapsed
-  caret at its UTF-16 end. Do not trim arbitrary user whitespace.
-  Missing target evidence yields the result popup, not a global paste elsewhere.
-  Delivery distinguishes confirmed text, window dispatch without AX text proof,
-  and a retained result. After a window dispatch recheck only window identity:
-  input queues behind the paste, and Return right after it is not a failure.
-  Keep the last transcript available for explicit Copy.
+- Delivery goes wherever keyboard focus is when recognition finishes, in any
+  app (user decision 2026-10-20): typing, clicks and app switches during
+  recognition no longer retain the result. Field-level AX targets and the
+  custom-renderer window target were removed after a day of logs showed them
+  failing in Chrome, Claude, Slack and on any click; translation keeps its
+  selection target unchanged. `SelectionTarget.dictationDestination` is AX's
+  focused process, else the frontmost app; only a secure text field or no
+  process at all retains the result.
+- `DictationDelivery` snapshots the clipboard just before writing, guards its
+  change count, and restores only its own write. It promises the string through
+  `PasteReceipt` and posts Paste to the destination pid: a read of the promised
+  string is the delivery proof, because a paste must read the clipboard and AX
+  cannot see into custom renderers. Restore only after that read (300 ms later,
+  never before 700 ms), so a busy app never pastes the older clipboard; the
+  previous fixed 720 ms wait raced slow apps. No read within 3 s retains the
+  result without a second paste. TransientType keeps clipboard managers from
+  reading it. Cancellation still restores. Diagnostics log the destination
+  bundle id, pid and read latency, never text. The Paste key code comes from
+  the ASCII-capable layout (`KeyboardLayout`, main thread only), so Dvorak sends
+  Cmd+V rather than Cmd+.; Russian and other non-Latin layouts use their
+  ASCII-capable layout. Keep the last transcript available for explicit Copy.
 - Hold-to-talk is the only recording mode. Default to right Option; the binding
   field accepts left or right Option only. Press begins capture, release finishes,
   other input cancels. No toggle, menu-start path or dedicated cancellation key.

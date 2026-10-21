@@ -1,39 +1,11 @@
-import ApplicationServices
+import AppKit
+import Carbon.HIToolbox
 import Foundation
 import os
 import XCTest
 @testable import TranslateLikeMe
 
 final class DictationTests: XCTestCase {
-    func testWindowCaptureRequiresDictationAndTheFocusedStandardWindow() {
-        let chrome: [String?] = ["AXCloseButton", "AXFullScreenButton", "AXMinimizeButton"]
-        XCTAssertTrue(SelectionTarget.permitsWindowCapture(
-            allowingCaret: true, role: kAXWindowRole, subrole: kAXStandardWindowSubrole,
-            isFocusedWindow: true, childSubroles: chrome))
-        XCTAssertFalse(SelectionTarget.permitsWindowCapture(
-            allowingCaret: false, role: kAXWindowRole, subrole: kAXStandardWindowSubrole,
-            isFocusedWindow: true, childSubroles: chrome))
-        XCTAssertFalse(SelectionTarget.permitsWindowCapture(
-            allowingCaret: true, role: kAXWindowRole, subrole: kAXStandardWindowSubrole,
-            isFocusedWindow: false, childSubroles: chrome))
-        for role in [nil, kAXTextFieldRole, kAXTextAreaRole, kAXSheetRole] {
-            XCTAssertFalse(SelectionTarget.permitsWindowCapture(
-                allowingCaret: true, role: role, subrole: kAXStandardWindowSubrole,
-                isFocusedWindow: true, childSubroles: chrome))
-        }
-        for subrole in [nil, "AXSecureTextField", kAXDialogSubrole] {
-            XCTAssertFalse(SelectionTarget.permitsWindowCapture(
-                allowingCaret: true, role: kAXWindowRole, subrole: subrole,
-                isFocusedWindow: true, childSubroles: chrome))
-        }
-        let exposedContent: [[String?]?] = [nil, [nil], ["AXTextField"], ["AXCloseButton", nil]]
-        for children in exposedContent {
-            XCTAssertFalse(SelectionTarget.permitsWindowCapture(
-                allowingCaret: true, role: kAXWindowRole, subrole: kAXStandardWindowSubrole,
-                isFocusedWindow: true, childSubroles: children))
-        }
-    }
-
     func testFocusedPIDFallsBackToFrontmostOnlyWhenAccessibilityCannotAnswer() {
         // A nonactivating panel holds focus over the frontmost app: AX names it.
         XCTAssertEqual(SelectionTarget.focusedPID(accessibility: 41, frontmost: 52_802), 41)
@@ -41,62 +13,7 @@ final class DictationTests: XCTestCase {
         XCTAssertNil(SelectionTarget.focusedPID(accessibility: nil, frontmost: nil))
     }
 
-    func testEmptyRichEditorDropsPlaceholderNewlineAfterDictation() {
-        let target = caretTarget()
-        let text = "Привет, world!"
-        XCTAssertTrue(target.replacementMatches(text, expected: text + "\n",
-                                               currentRange: CFRange(location: text.utf16.count, length: 0)))
-    }
-
-    func testPlaceholderAcknowledgementRequiresExactCaretAndDictationOptIn() {
-        let text = "Привет, world!"
-        let target = caretTarget()
-        for range in [nil, CFRange(location: 0, length: 0), CFRange(location: text.utf16.count, length: 1)] {
-            XCTAssertFalse(target.replacementMatches(text, expected: text + "\n", currentRange: range))
-        }
-        let translation = caretTarget(allowingCaret: false)
-        XCTAssertFalse(translation.replacementMatches(text, expected: text + "\n",
-                                                     currentRange: CFRange(location: text.utf16.count, length: 0)))
-        let selected = caretTarget(range: CFRange(location: 0, length: 1))
-        XCTAssertFalse(selected.replacementMatches(text, expected: text + "\n",
-                                                  currentRange: CFRange(location: text.utf16.count, length: 0)))
-    }
-
-    func testPlaceholderAcknowledgementDoesNotDiscardUserWhitespaceOrExistingText() {
-        let target = caretTarget()
-        let text = "Привет"
-        let caret = CFRange(location: text.utf16.count, length: 0)
-        for expected in [text + "\n\n", "\n" + text + "\n", " " + text + "\n", text + " \n"] {
-            XCTAssertFalse(target.replacementMatches(text, expected: expected, currentRange: caret))
-        }
-        let nonempty = caretTarget(value: "Earlier\n")
-        let combined = text + "Earlier"
-        XCTAssertFalse(nonempty.replacementMatches(combined, expected: combined + "\n",
-                                                  currentRange: CFRange(location: combined.utf16.count, length: 0)))
-        let requestedNewline = text + "\n"
-        let finalCaret = CFRange(location: requestedNewline.utf16.count, length: 0)
-        XCTAssertTrue(target.replacementMatches(requestedNewline, expected: requestedNewline + "\n",
-                                               currentRange: finalCaret))
-    }
-
-    func testPlaceholderCaretUsesUTF16AndExactValueStillMatches() {
-        let target = caretTarget()
-        let text = "Hi \u{10400}"
-        XCTAssertFalse(target.replacementMatches(text, expected: text + "\n",
-                                                currentRange: CFRange(location: text.count, length: 0)))
-        XCTAssertTrue(target.replacementMatches(text, expected: text + "\n",
-                                               currentRange: CFRange(location: text.utf16.count, length: 0)))
-        XCTAssertTrue(target.replacementMatches(text + "\n", expected: text + "\n", currentRange: nil))
-    }
-
-    private func caretTarget(value: String = "\n", range: CFRange = CFRange(location: 0, length: 0),
-                             allowingCaret: Bool = true) -> SelectionTarget {
-        SelectionTarget(pid: ProcessInfo.processInfo.processIdentifier,
-                        element: AXUIElementCreateApplication(ProcessInfo.processInfo.processIdentifier),
-                        range: range, value: value, selectedText: "", allowsCaret: allowingCaret)
-    }
-
-    func testAXRangeDecoderRejectsMalformedRangesBeforeCaretOptIn() throws {
+    func testAXRangeDecoderRejectsMalformedRanges() throws {
         for (location, length) in [(-1, 0), (0, -1), (-1, -1), (0, 0), (0, 2)] {
             var range = CFRange(location: location, length: length)
             let value = try XCTUnwrap(AXValueCreate(.cfRange, &range))
@@ -154,165 +71,127 @@ final class DictationTests: XCTestCase {
         XCTAssertEqual(session.phase, .recognizing)
     }
 
-    func testCaretDeliveryDoesNotCopyASelectionAndRestoresClipboard() async throws {
+    func testDeliveryPastesOnceAtTheCurrentFocusAndRestoresAfterTheRead() async throws {
         let access = DictationAccess()
-        let delivery = DictationDelivery(access: access, pause: { _ in })
-        let pasted = try await delivery.insert("Привет, world!", into: "caret")
-        XCTAssertEqual(pasted, .confirmed)
-        XCTAssertEqual(access.state.withLock { $0.pastes }, ["Привет, world!"])
-        XCTAssertEqual(access.state.withLock { $0.clipboard }, "original rich clipboard")
+        access.state.withLock { $0.readDelay = .milliseconds(100) }
+        let outcome = try await DictationDelivery(access: access, pause: { access.advance($0) })
+            .insert("Привет, world!")
+        XCTAssertEqual(outcome, .delivered)
+        let state = access.state.withLock { $0 }
+        XCTAssertEqual(state.pastes.map(\.text), ["Привет, world!"])
+        XCTAssertEqual(state.pastes.map(\.pid), [41])
+        XCTAssertEqual(state.clipboardAtRead, "Привет, world!")
+        XCTAssertEqual(state.elapsed, .milliseconds(700))
+        XCTAssertEqual(state.clipboard, "original rich clipboard")
     }
 
-    func testWindowDeliveryDispatchesOnceWithoutClaimingTextConfirmation() async throws {
+    func testDestinationIsTheFocusWhenTextIsReadyNotWhenRecordingStarted() async throws {
         let access = DictationAccess()
-        let delivery = DictationDelivery(access: access, requiresTextConfirmation: false, pause: { _ in })
-        let outcome = try await delivery.insert("text", into: "caret")
-        XCTAssertEqual(outcome, .dispatched)
-        XCTAssertEqual(access.state.withLock { $0.verificationCount }, 0)
-        XCTAssertEqual(access.state.withLock { $0.pastes }, ["text"])
-        XCTAssertEqual(access.state.withLock { $0.clipboard }, "original rich clipboard")
+        access.state.withLock { $0.focused = 77 }
+        _ = try await DictationDelivery(access: access, pause: { access.advance($0) }).insert("text")
+        XCTAssertEqual(access.state.withLock { $0.pastes.map(\.pid) }, [77])
     }
 
-    func testWindowDeliveryRejectsChangedTargetBeforeClipboardWrite() async throws {
+    func testSlowDestinationReadsTheTranscriptNotTheRestoredClipboard() async throws {
         let access = DictationAccess()
-        access.state.withLock { $0.target = "different window" }
-        let delivery = DictationDelivery(access: access, requiresTextConfirmation: false, pause: { _ in })
-        let outcome = try await delivery.insert("text", into: "caret")
+        access.state.withLock { $0.readDelay = .seconds(2) }
+        let outcome = try await DictationDelivery(access: access, pause: { access.advance($0) }).insert("text")
+        XCTAssertEqual(outcome, .delivered)
+        let state = access.state.withLock { $0 }
+        XCTAssertEqual(state.clipboardAtRead, "text")
+        XCTAssertEqual(state.elapsed, .milliseconds(2300))
+        XCTAssertEqual(state.clipboard, "original rich clipboard")
+    }
+
+    func testUnreadPasteIsRetainedAtTheDeadlineWithoutRetrying() async throws {
+        let access = DictationAccess()
+        let outcome = try await DictationDelivery(access: access, pause: { access.advance($0) }).insert("text")
+        XCTAssertEqual(outcome, .retained)
+        let state = access.state.withLock { $0 }
+        XCTAssertEqual(state.elapsed, .seconds(3))
+        XCTAssertEqual(state.pastes.count, 1)
+        XCTAssertEqual(state.clipboard, "original rich clipboard")
+    }
+
+    func testNoDestinationLeavesTheClipboardUntouched() async throws {
+        let access = DictationAccess()
+        access.state.withLock { $0.focused = nil }
+        let outcome = try await DictationDelivery(access: access, pause: { access.advance($0) }).insert("text")
         XCTAssertEqual(outcome, .retained)
         XCTAssertEqual(access.changeCount, 0)
-        XCTAssertTrue(access.state.withLock { $0.pastes.isEmpty })
-    }
-
-    func testWindowChangeAfterDispatchRetainsResultWithoutRepeatingPaste() async throws {
-        let access = DictationAccess()
-        let delivery = DictationDelivery(access: access, requiresTextConfirmation: false, pause: { _ in
-            access.state.withLock { $0.target = "different window" }
-        })
-        let outcome = try await delivery.insert("text", into: "caret")
-        XCTAssertEqual(outcome, .retained)
-        XCTAssertEqual(access.state.withLock { $0.pastes }, ["text"])
-        XCTAssertEqual(access.state.withLock { $0.clipboard }, "original rich clipboard")
-    }
-
-    func testInputAfterWindowDispatchKeepsDelivery() async throws {
-        let access = DictationAccess()
-        let delivery = DictationDelivery(access: access, requiresTextConfirmation: false, pause: { _ in
-            access.state.withLock { $0.userInput = true }
-        })
-        let outcome = try await delivery.insert("text", into: "caret")
-        XCTAssertEqual(outcome, .dispatched)
-        XCTAssertEqual(access.state.withLock { $0.pastes }, ["text"])
-        XCTAssertEqual(access.state.withLock { $0.clipboard }, "original rich clipboard")
-    }
-
-    func testInputBeforeDispatchRetainsResult() async throws {
-        let access = DictationAccess()
-        access.state.withLock { $0.userInput = true }
-        let delivery = DictationDelivery(access: access, requiresTextConfirmation: false, pause: { _ in })
-        let outcome = try await delivery.insert("text", into: "caret")
-        XCTAssertEqual(outcome, .retained)
-        XCTAssertTrue(access.state.withLock { $0.pastes.isEmpty })
-    }
-
-    func testDeliveryWaitsForDelayedAccessibilityAcknowledgement() async throws {
-        let access = DictationAccess()
-        access.state.withLock { $0.acknowledgementDelay = .milliseconds(300) }
-        let delivery = DictationDelivery(access: access, pause: { access.advance($0) })
-        let pasted = try await delivery.insert("Привет, world!", into: "caret")
-        XCTAssertEqual(pasted, .confirmed)
-        XCTAssertEqual(access.state.withLock { $0.verificationCount }, 2)
-        XCTAssertEqual(access.state.withLock { $0.pastes }, ["Привет, world!"])
-        XCTAssertEqual(access.state.withLock { $0.clipboard }, "original rich clipboard")
-    }
-
-    func testUnacknowledgedPasteDoesNotRetryInsertion() async throws {
-        let access = DictationAccess()
-        access.state.withLock { $0.acknowledgementDelay = .seconds(2) }
-        let delivery = DictationDelivery(access: access, pause: { access.advance($0) })
-        let pasted = try await delivery.insert("text", into: "caret")
-        XCTAssertEqual(pasted, .retained)
-        XCTAssertEqual(access.state.withLock { $0.verificationCount }, 2)
-        XCTAssertEqual(access.state.withLock { $0.elapsed }, .milliseconds(720))
-        XCTAssertEqual(access.state.withLock { $0.pastes }, ["text"])
-        XCTAssertEqual(access.state.withLock { $0.clipboard }, "original rich clipboard")
-    }
-
-    func testChangedTargetNeverReceivesDictation() async throws {
-        let access = DictationAccess()
-        access.state.withLock { $0.target = "different field" }
-        let pasted = try await DictationDelivery(access: access, pause: { _ in }).insert("text", into: "caret")
-        XCTAssertEqual(pasted, .retained)
         XCTAssertTrue(access.state.withLock { $0.pastes.isEmpty })
     }
 
     func testCopyDuringSnapshotPreventsPasteAndPreservesNewCopy() async throws {
         let access = DictationAccess()
         access.state.withLock { $0.copyDuringSnapshot = true }
-        let pasted = try await DictationDelivery(access: access, pause: { _ in }).insert("text", into: "caret")
-        XCTAssertEqual(pasted, .retained)
+        let outcome = try await DictationDelivery(access: access, pause: { access.advance($0) }).insert("text")
+        XCTAssertEqual(outcome, .retained)
         XCTAssertEqual(access.state.withLock { $0.clipboard }, "new copy")
         XCTAssertTrue(access.state.withLock { $0.pastes.isEmpty })
     }
 
     func testNewCopyAfterPasteSurvivesRestore() async throws {
         let access = DictationAccess()
-        let run = DictationDelivery(access: access, pause: { _ in access.userCopy() })
-        _ = try await run.insert("text", into: "caret")
+        access.state.withLock { $0.readDelay = .milliseconds(100) }
+        let outcome = try await DictationDelivery(access: access, pause: {
+            access.advance($0)
+            if access.state.withLock({ $0.elapsed }) == .milliseconds(400) { access.userCopy() }
+        }).insert("text")
+        XCTAssertEqual(outcome, .delivered)
         XCTAssertEqual(access.state.withLock { $0.clipboard }, "new copy")
     }
 
     func testCancellationAfterDispatchStillRestoresOwnedClipboard() async throws {
         let access = DictationAccess()
-        let run = DictationDelivery(access: access, pause: { _ in
+        let run = DictationDelivery(access: access, pause: { duration in
+            access.advance(duration)
             withUnsafeCurrentTask { $0?.cancel() }
         })
-        let task = Task { try await run.insert("text", into: "caret") }
+        let task = Task { try await run.insert("text") }
         do {
             _ = try await task.value
             XCTFail("Cancellation must propagate")
         } catch is CancellationError {} catch { XCTFail("Unexpected failure: \(error)") }
-        XCTAssertEqual(access.state.withLock { $0.pastes }, ["text"])
+        XCTAssertEqual(access.state.withLock { $0.pastes.count }, 1)
         XCTAssertEqual(access.state.withLock { $0.clipboard }, "original rich clipboard")
     }
 
-    func testCancellationDuringFinalAcknowledgementWaitRestoresClipboard() async throws {
-        let access = DictationAccess()
-        access.state.withLock { $0.acknowledgementDelay = .milliseconds(300) }
-        let run = DictationDelivery(access: access, pause: { duration in
-            access.advance(duration)
-            if access.state.withLock({ $0.elapsed }) >= .milliseconds(300) {
-                withUnsafeCurrentTask { $0?.cancel() }
-            }
-        })
-        let task = Task { try await run.insert("text", into: "caret") }
-        do {
-            _ = try await task.value
-            XCTFail("Cancellation during the final wait must propagate")
-        } catch is CancellationError {} catch { XCTFail("Unexpected failure: \(error)") }
-        XCTAssertEqual(access.state.withLock { $0.verificationCount }, 1)
-        XCTAssertEqual(access.state.withLock { $0.pastes }, ["text"])
-        XCTAssertEqual(access.state.withLock { $0.clipboard }, "original rich clipboard")
+    func testPromisedStringRecordsTheReadThroughTheRealPasteboard() throws {
+        let board = NSPasteboard(name: NSPasteboard.Name("TranslateLikeMeTests.\(UUID().uuidString)"))
+        defer { board.releaseGlobally() }
+        let receipt = PasteReceipt(text: "Привет")
+        _ = SelectionService.writeTransient(receipt.promisedItem(), on: board)
+        XCTAssertTrue(board.types?.contains(NSPasteboard.PasteboardType("org.nspasteboard.TransientType")) == true)
+        XCTAssertFalse(receipt.wasRead)
+        XCTAssertEqual(board.string(forType: .string), "Привет")
+        XCTAssertTrue(receipt.wasRead)
     }
 
-    func testMissingTargetDoesNotTouchClipboard() async throws {
-        let access = DictationAccess()
-        let pasted = try await DictationDelivery(access: access, pause: { _ in }).insert("text", into: nil)
-        XCTAssertEqual(pasted, .retained)
-        XCTAssertEqual(access.changeCount, 0)
+    @MainActor
+    func testPasteKeyFollowsTheASCIICapableLayout() throws {
+        let expected: [String: CGKeyCode] = ["com.apple.keylayout.US": 9, "com.apple.keylayout.Dvorak": 47,
+                                             "com.apple.keylayout.DVORAK-QWERTYCMD": 9]
+        for (id, code) in expected {
+            let filter = [kTISPropertyInputSourceID as String: id] as CFDictionary
+            let sources = TISCreateInputSourceList(filter, true)?.takeRetainedValue() as? [TISInputSource]
+            let source = try XCTUnwrap(sources?.first, id)
+            XCTAssertEqual(KeyboardLayout.keyCode(typing: "v", in: source), code, id)
+        }
     }
 }
 
-private struct DictationAccess: SelectionAccess {
+private struct DictationAccess: DictationPasteAccess {
     struct State {
-        var target = "caret"
+        var focused: pid_t? = 41
         var clipboard = "original rich clipboard"
         var count = 0
-        var pastes: [String] = []
+        var pastes: [(text: String, pid: pid_t)] = []
+        var receipt: PasteReceipt?
+        var readDelay: Duration?
+        var clipboardAtRead: String?
         var copyDuringSnapshot = false
         var elapsed: Duration = .zero
-        var acknowledgementDelay: Duration = .zero
-        var verificationCount = 0
-        var userInput = false
     }
     let state = OSAllocatedUnfairLock(initialState: State())
     var changeCount: Int { state.withLock { $0.count } }
@@ -325,31 +204,26 @@ private struct DictationAccess: SelectionAccess {
         state.withLock { if $0.count == mark { $0.clipboard = snapshot; $0.count += 1 } }
     }
     func userCopy() { state.withLock { $0.clipboard = "new copy"; $0.count += 1 } }
-    func advance(_ duration: Duration) { state.withLock { $0.elapsed += duration } }
-    func captureTarget() -> String? { state.withLock { $0.target } }
-    func copySelection() -> CopiedSelection {
-        XCTFail("Dictation must not copy a selection")
-        return .init(text: nil, changeCount: nil)
-    }
-    func isCurrent(_ target: String) -> Bool { !state.withLock { $0.userInput } && targetUnchanged(target) }
-    func targetUnchanged(_ target: String) -> Bool { captureTarget() == target }
-    func paste(_ text: String, into target: String, ifUnchangedSince mark: Int) -> PasteAttempt? {
+    // The destination reads the clipboard once its delay has passed.
+    func advance(_ duration: Duration) {
         state.withLock {
-            guard $0.target == target, $0.count == mark else { return nil }
+            $0.elapsed += duration
+            guard let delay = $0.readDelay, let receipt = $0.receipt, !receipt.wasRead,
+                  $0.elapsed >= delay else { return }
+            receipt.recordRead()
+            $0.clipboardAtRead = $0.clipboard
+        }
+    }
+    func destination() -> pid_t? { state.withLock { $0.focused } }
+    func paste(_ text: String, to pid: pid_t, ifUnchangedSince mark: Int) -> DictationPaste? {
+        state.withLock {
+            guard $0.count == mark else { return nil }
+            let receipt = PasteReceipt(text: text)
             $0.clipboard = text
             $0.count += 1
-            $0.pastes.append(text)
-            return PasteAttempt(changeCount: $0.count, posted: true)
+            $0.pastes.append((text, pid))
+            $0.receipt = receipt
+            return DictationPaste(changeCount: $0.count, receipt: receipt)
         }
-    }
-    func replacementLanded(_ text: String, in target: String) -> Bool {
-        state.withLock {
-            $0.verificationCount += 1
-            return $0.pastes.last == text && $0.elapsed >= $0.acknowledgementDelay
-        }
-    }
-    func copyResult(_ text: String, ifUnchangedSince mark: Int) -> Bool {
-        XCTFail("No extra clipboard writes")
-        return false
     }
 }

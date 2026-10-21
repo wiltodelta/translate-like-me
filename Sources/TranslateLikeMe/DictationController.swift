@@ -6,29 +6,24 @@ private let dictationLog = Logger.app("dictation")
 
 @MainActor
 struct DictationInteraction {
-    var beginCapture: (SelectionActivity) -> (SelectionTarget?, () -> Void)
     var endCapture: () -> Void
     var showError: (String) -> Void
     var showResult: (String) -> Void
     var showCapture: () -> Void = {}
+    // Returns whether the text reached the focused app; nil never pastes (tests).
+    // Main actor: the Paste key lookup reads Text Input Sources, which trap elsewhere.
+    var deliver: (@MainActor (String) async throws -> Bool)?
 
-    static let live = DictationInteraction(beginCapture: { activity in
-        let application = NSWorkspace.shared.frontmostApplication
-        let target = application.flatMap {
-            SelectionTarget.capture(pid: $0.processIdentifier, allowingCaret: true)
-        }
-        let pid = application?.processIdentifier ?? -1
-        if target == nil {
-            dictationLog.notice("Dictation has no supported AX target, original pid \(pid)")
-        } else if target?.isWindowOnly == true {
-            dictationLog.notice("Dictation captured a window target, original pid \(pid)")
-        }
-        let stop = activity.monitor()
-        return (target, stop)
-    }, endCapture: { DictationIndicator.shared.hide() },
+    static let live = DictationInteraction(endCapture: { DictationIndicator.shared.hide() },
        showError: { PopupController.shared.showError($0) },
        showResult: { PopupController.shared.showResult($0, kind: .dictation, copied: false) },
-       showCapture: { DictationIndicator.shared.show() })
+       showCapture: { DictationIndicator.shared.show() },
+       deliver: { try await deliverAtFocus($0) })
+
+    private static func deliverAtFocus(_ text: String) async throws -> Bool {
+        let paste = KeyboardLayout.keyCode(typing: "v", fallback: SelectionService.KeyCode.vKey)
+        return try await DictationDelivery(access: LiveDictationAccess(pasteKey: paste)).insert(text) == .delivered
+    }
 }
 
 @MainActor
@@ -52,9 +47,6 @@ final class DictationController {
     @ObservationIgnored private var modelRelease: Task<Void, Never>?
     @ObservationIgnored private var releaseOnCompletion = false
     @ObservationIgnored private var meter: Timer?
-    @ObservationIgnored private var target: SelectionTarget?
-    @ObservationIgnored private var activity: SelectionActivity?
-    @ObservationIgnored private var stopMonitoring: (() -> Void)?
     @ObservationIgnored private var ownsActivity = false
     @ObservationIgnored private var prepareAfterOperation = false
 
@@ -181,12 +173,9 @@ final class DictationController {
         ownsActivity = true
         TranslationActivity.shared.isBusy = true
         let id = session.begin(.starting)
-        let activity = SelectionActivity()
-        self.activity = activity
         interaction.showCapture()
         do {
-            // AX reads can block on the other app. Start collecting audio before
-            // inspecting its insertion target. Hardware starts on the capture queue.
+            // Hardware starts on the capture queue.
             try recorder.start()
             recorder.onEnd = { [weak self] success in
                 guard let self, self.session.id == id else { return }
@@ -199,7 +188,6 @@ final class DictationController {
                     self.endCapture()
                 }
             }
-            (target, stopMonitoring) = interaction.beginCapture(activity)
             let started = ContinuousClock.now
             meter = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
                 MainActor.assumeIsolated {
@@ -246,13 +234,9 @@ final class DictationController {
                         return
                     }
                     lastResult = text
-                    let access = LiveSelectionAccess(pid: target?.pid ?? 0,
-                                                     activity: activity ?? SelectionActivity())
-                    let delivery = DictationDelivery(access: access,
-                                                     requiresTextConfirmation: target?.isWindowOnly != true)
-                    let outcome = try await delivery.insert(text, into: target)
+                    let delivered = try await interaction.deliver?(text) ?? false
                     guard session.accepts(id, in: .recognizing), !Task.isCancelled else { return }
-                    if outcome == .retained { interaction.showResult(text) }
+                    if !delivered { interaction.showResult(text) }
                     session.transition(.ready, for: id)
                 } catch { handle(error, id: id) }
             }
@@ -335,10 +319,6 @@ final class DictationController {
         meter?.invalidate()
         meter = nil
         recorder.discard()
-        stopMonitoring?()
-        stopMonitoring = nil
-        activity = nil
-        target = nil
         level = 0
         if ownsActivity { TranslationActivity.shared.isBusy = false }
         ownsActivity = false

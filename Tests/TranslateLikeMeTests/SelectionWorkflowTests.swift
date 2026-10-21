@@ -118,7 +118,6 @@ private struct FakeSelectionAccess: SelectionAccess {
     func snapshot() -> String { state.withLock { $0.clipboard } }
     func captureTarget() -> String? { state.withLock { $0.target } }
     func isCurrent(_ target: String) -> Bool { state.withLock { $0.target == target } }
-    func targetUnchanged(_ target: String) -> Bool { isCurrent(target) }
     func userCopy(_ text: String) { state.withLock { $0.clipboard = text; $0.count += 1 } }
     func copySelection() -> CopiedSelection {
         state.withLock {

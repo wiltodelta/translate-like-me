@@ -177,43 +177,44 @@ destination editor. Pointer cancellation and lifecycle invalidation still guard
 pending work. Release drains capture even before its first meter update, or
 cancels hardware startup if it has not begun. Model preparation happens after
 release and cannot delay capture or start a microphone after the key is up.
-The starting indicator is requested first, then recorder startup is queued before
-Accessibility target inspection, so a slow editor cannot postpone hardware setup.
-This ordering is covered by a controller regression test; it does not establish
-a hardware latency figure. The measured/unmeasured boundary and candidate
+The starting indicator is requested first, then recorder startup is queued; the
+press reads no Accessibility target, so a slow editor cannot postpone hardware
+setup. This ordering is covered by a controller regression test; it does not
+establish a hardware latency figure. The measured/unmeasured boundary and candidate
 preparation strategies are recorded in
 [startup latency](dictation-startup-latency.md).
-Dictation and text transformations share the activity guard.
+Dictation and text transformations share the busy guard.
 A session id rejects late asynchronous results; phase validation also rejects
 late recording-meter updates after recognition has begun.
 
-The starting app, AX element, caret/selection and available text must still match
-before insertion. Typing, clicking, or switching apps invalidates that destination;
-the Option hold produces modifier events, not text-edit events. Missing evidence or a
-failed insertion shows the text with Copy. Clipboard snapshots retain rich
-representations and never replace a newer user copy. AX-secure text fields are not
-automatic insertion targets.
-If a custom renderer exposes only a focused standard window, dictation can use
-that window's AX identity and the uninterrupted activity monitor as its target.
-Its exposed children must be standard window controls only; ordinary accessible
-content and unknown children do not qualify for this path.
-It posts Paste to the original process only while that window remains focused.
-This path records dispatch, without claiming AX text confirmation. After dispatch
-only the window's identity is rechecked: input queues behind the posted paste, so
-Return pressed as soon as the text appears does not retain the result. It cannot
-detect a programmatic focus change inside a window whose fields are not exposed.
-The most recent result remains available through Copy Last Dictation. Translation
-and Rewrite retain their requirement for a real text selection and AX field evidence.
-AX range decoding rejects negative locations and lengths before caret opt-in;
-that opt-in admits a zero-length range only. The real AXValue regression fixture
-first failed for three malformed ranges, then passed after validation moved to
-the decoder used by both capture and replacement verification.
+Text goes wherever keyboard focus is when recognition finishes, in any app,
+field or custom renderer (user decision, October 20, 2026). Typing, clicking or
+switching apps during recognition does not retain the result. The destination is
+AX's focused process, else the frontmost app. Only a focused AX-secure text field
+or the absence of any focused process retains the result without touching the
+clipboard.
+
+Delivery snapshots the clipboard just before writing and promises the transcript
+as the pasteboard's string, marked transient, then posts Paste to the destination
+process. A paste must read the clipboard, so the first request for the promised
+string is the delivery proof, even in renderers that expose no AX text. The
+original clipboard is restored 300 ms after that read and never before 700 ms; a
+newer user copy is never replaced. Without a read within 3 s the result shows with
+Copy, and no second paste is posted. The Paste key code follows the user's
+ASCII-capable keyboard layout, so Dvorak still sends Cmd+V. The most recent result
+remains available through Copy Last Dictation. Translation and Rewrite retain their
+requirement for a real text selection and AX field evidence. AX range decoding
+rejects negative locations and lengths; the real AXValue regression fixture first
+failed for three malformed ranges, then passed after validation moved to the decoder.
 
 ## Verification
 
-`DictationTests` exercises session cancellation, stale meter callbacks, direct
-caret delivery without copying a selection, changed targets, a new copy during
-snapshot, a new copy after paste, and cancellation after paste dispatch.
+`DictationTests` exercises session cancellation, stale meter callbacks, delivery
+to the focus at delivery time, a read receipt from a fast and a slow destination,
+an unread paste retained at the deadline, no destination, a new copy during
+snapshot, a new copy after paste, cancellation after paste dispatch, the promised
+string through a real private pasteboard, and the Paste key in US, Dvorak and
+Dvorak-QWERTY Command layouts.
 
 `DictationControllerTests` drives the real controller with controlled model,
 recording and presentation effects. It covers immediate capture after model
@@ -590,6 +591,9 @@ swapped-order mutation. The fix has not been exercised in the unanswered state.
 
 ### Custom-rendered destination, October 19, 2026
 
+Superseded on October 20, 2026 by [delivery to the current focus](#delivery-to-the-current-focus-october-20-2026):
+the window target described here was removed.
+
 The user reported that super.engineering retained the transcript in the result
 popup and left its compose field empty. Native inspection through Computer Use
 and direct AX metadata exposed only a standard window, with no accessible editor
@@ -661,6 +665,9 @@ replaced voice processing later that day, at the user's choice.
 
 ### Return right after insertion, October 20, 2026
 
+Superseded later that day by [delivery to the current focus](#delivery-to-the-current-focus-october-20-2026),
+which no longer rechecks activity or window identity after the paste.
+
 The user reported the result popup after pressing Return as soon as dictated text
 appeared. The window path rechecked the activity monitor at the end of the 720 ms
 clipboard wait, so that keystroke counted as an interruption. In seven days of
@@ -670,6 +677,55 @@ activity. The pre-dispatch guard already requires unchanged activity, so the
 post-dispatch check now compares only the window identity. A regression test
 failed with the previous check and passes with the change; a window change after
 dispatch and input before it still retain the result.
+
+### Delivery to the current focus, October 20, 2026
+
+The user reported that insertion after dictation still failed, including in simple
+cases. Metadata-only logs of 209 holds over about a day (installed and dev builds)
+showed these retained results with nonempty text: 9 with no AX target at press
+(Chrome, Claude, Slack), 6 pointer, 4 application and 1 keyboard invalidation
+during recognition, 6 window dispatches retained after posting (5 by keyboard
+input on the build before the Return fix, 1 by an AX lookup that failed after
+the paste), and 1 focus on another process. 148 window dispatches to
+super.engineering carried no proof of insertion either way. The user chose
+delivery wherever the cursor is when the text is ready, in any app.
+
+The earlier window path also restored the clipboard after a fixed 720 ms. A
+destination that handles Cmd+V later reads the restored clipboard and pastes the
+user's older content. A promised pasteboard string replaces that timer with a
+read receipt. A standalone check confirmed the mechanism on this Mac: no read in
+3 s with nothing pasting, and exactly one read from `pbpaste`.
+
+A disposable AppKit target whose paste ran 0.2 s or 1.5 s after Cmd+V compared
+the production delivery sources at HEAD with the new ones, three runs each, with
+a marker string seeded on the clipboard. HEAD inserted in 1 of 3 runs at 0.2 s
+(one dispatch to a window target left the field empty, one was retained) and
+3 of 3 at 1.5 s, where its AX confirmation call blocked until the paste finished.
+The new delivery inserted in 6 of 6 and restored the marker each time. The 0.2 s
+HEAD failures followed the target's launch closely, so they show the old target
+capture racing a fresh window, not a measured failure rate.
+
+In a Chrome window opened for the check, the new delivery inserted Russian and
+English text into an input, a textarea and a contenteditable element in 4 of 4
+runs where Chrome held focus, with reads after 50-150 ms. In 2 more runs macOS
+refused to activate Chrome and focus stayed in super.engineering: the posted
+paste was not read there, so both were retained, with the clipboard restored.
+
+Driving Slack, Messages and WhatsApp was stopped. System Events typed with the
+active Russian layout, so a Cmd+K that never registered left six characters in
+the draft of a direct message; the agent deleted exactly those characters, and
+a capture confirmed the empty composer. Nothing was sent. Real-app checks in
+Slack, WhatsApp, Messages and super.engineering need the user's own dictation
+with the dev build; its log names each destination and read latency.
+
+The first live dictation with that dev build crashed (`EXC_BREAKPOINT` in
+`dispatch_assert_queue`): the Paste key lookup reads Text Input Sources, which
+trap off the main thread, and the delivery closure in `DictationInteraction.live`
+ran on a cooperative thread although the compiler accepted its call. The lookup
+now sits in a main-actor static function behind a `@MainActor` closure type, so
+an off-main call no longer compiles. A thread assertion in the controller test's
+fake survived reverting the type, because a test-defined closure keeps the test's
+main actor, so it was not kept as a pin.
 
 ### Release candidate check, October 19, 2026
 

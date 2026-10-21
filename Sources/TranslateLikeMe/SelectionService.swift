@@ -20,7 +20,7 @@ enum SelectionService {
 
     private static var pasteboard: NSPasteboard { .general }
 
-    private enum KeyCode {
+    enum KeyCode {
         static let cKey: CGKeyCode = 8
         static let vKey: CGKeyCode = 9
     }
@@ -104,15 +104,33 @@ enum SelectionService {
         guard pasteboard.changeCount == expected, activity.isUnchanged, target.isCurrent() else { return nil }
         let item = NSPasteboardItem()
         item.setString(text, forType: .string)
-        item.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.TransientType"))
-        pasteboard.clearContents()
-        pasteboard.writeObjects([item])
-        let mark = pasteboard.changeCount
+        let mark = writeTransient(item)
         guard activity.isUnchanged, target.isCurrent(), pasteboard.changeCount == mark else {
             return PasteAttempt(changeCount: mark, posted: false)
         }
         postKey(KeyCode.vKey, to: target.pid)
         return PasteAttempt(changeCount: mark, posted: true)
+    }
+
+    // Dictation pastes wherever the cursor is now. The string is promised rather
+    // than written, so the receipt records whether any process read it: a paste
+    // that never reads the clipboard did not happen.
+    static func pasteAtCursor(_ text: String, to pid: pid_t, keyCode: CGKeyCode,
+                              ifUnchangedSince expected: Int) -> DictationPaste? {
+        guard pasteboard.changeCount == expected else { return nil }
+        let receipt = PasteReceipt(text: text)
+        let mark = writeTransient(receipt.promisedItem())
+        postKey(keyCode, to: pid)
+        return DictationPaste(changeCount: mark, receipt: receipt)
+    }
+
+    // TransientType keeps clipboard managers from reading or recording our
+    // writes. Returns the change count that marks this write as ours.
+    static func writeTransient(_ item: NSPasteboardItem, on board: NSPasteboard = pasteboard) -> Int {
+        item.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.TransientType"))
+        board.clearContents()
+        board.writeObjects([item])
+        return board.changeCount
     }
 
     private static func postKey(_ keyCode: CGKeyCode, to pid: pid_t) {
@@ -125,5 +143,33 @@ enum SelectionService {
         downEvent?.postToPid(pid)
         upEvent?.setIntegerValueField(.eventSourceUserData, value: SelectionActivity.eventMarker)
         upEvent?.postToPid(pid)
+    }
+}
+
+struct DictationPaste: Sendable {
+    let changeCount: Int
+    let receipt: PasteReceipt
+}
+
+final class PasteReceipt: NSObject, NSPasteboardItemDataProvider, Sendable {
+    private let text: String
+    private let read = OSAllocatedUnfairLock(initialState: false)
+    var wasRead: Bool { read.withLock { $0 } }
+
+    init(text: String) { self.text = text }
+
+    func promisedItem() -> NSPasteboardItem {
+        let item = NSPasteboardItem()
+        item.setDataProvider(self, forTypes: [.string])
+        return item
+    }
+
+    // Also called by test fakes that simulate the destination's read.
+    func recordRead() { read.withLock { $0 = true } }
+
+    func pasteboard(_ pasteboard: NSPasteboard?, item: NSPasteboardItem,
+                    provideDataForType type: NSPasteboard.PasteboardType) {
+        recordRead()
+        item.setString(text, forType: type)
     }
 }

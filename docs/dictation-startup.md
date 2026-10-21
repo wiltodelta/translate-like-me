@@ -84,8 +84,9 @@ appearances through `-dictationPreview starting`, without opening the microphone
 Both captures were inspected. The fixed 280 by 80 pt surface is also its minimum
 size; the title stays inside its bounds. Resolved sRGB contrast measured 14.94:1
 in light and 12.27:1 in dark. These captures prove appearance, not hotkey-to-pixel
-latency. AX target reads and compositor scheduling remain contributors to that
-latency. Appearance and the complete development preference domain were restored.
+latency. Compositor scheduling remains a contributor to that latency; AX target
+reads left the press on October 20, 2026. Appearance and the complete development
+preference domain were restored.
 
 `shutdown()` synchronously flushes capture cleanup during app termination so a
 queued discard cannot leave a recording behind when the process exits. Normal

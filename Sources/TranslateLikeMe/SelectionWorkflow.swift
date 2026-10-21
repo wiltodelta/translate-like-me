@@ -25,8 +25,6 @@ protocol SelectionAccess: Sendable {
     func captureTarget() -> Target?
     func copySelection() -> CopiedSelection
     func isCurrent(_ target: Target) -> Bool
-    // Identity alone, ignoring user input since capture.
-    func targetUnchanged(_ target: Target) -> Bool
     func paste(_ text: String, into target: Target, ifUnchangedSince mark: Int) -> PasteAttempt?
     func replacementLanded(_ text: String, in target: Target) -> Bool
     func copyResult(_ text: String, ifUnchangedSince mark: Int) -> Bool

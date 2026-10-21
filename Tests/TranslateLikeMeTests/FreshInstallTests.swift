@@ -88,8 +88,7 @@ final class FreshInstallTests: XCTestCase {
         let engine = FreshInstallEngine()
         let recorder = FreshInstallRecorder()
         let controller = DictationController(enabled: true, engine: engine, recorder: recorder,
-                                            interaction: .init(beginCapture: { _ in (nil, {}) },
-                                                               endCapture: {}, showError: { _ in },
+                                            interaction: .init(endCapture: {}, showError: { _ in },
                                                                showResult: { _ in }), saveModel: { _ in })
         defer { controller.cancel(restartPreparation: false) }
         controller.restore()
@@ -126,7 +125,7 @@ final class FreshInstallTests: XCTestCase {
             var hidden = 0
             var shown: [String] = []
             let controller = DictationController(enabled: true, engine: engine, recorder: recorder,
-                interaction: .init(beginCapture: { _ in (nil, {}) }, endCapture: { hidden += 1 },
+                interaction: .init(endCapture: { hidden += 1 },
                                    showError: { _ in XCTFail("Neither path should invent a capture error") },
                                    showResult: { shown.append($0) }), saveModel: { _ in })
             controller.restore()
