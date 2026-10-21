@@ -44,7 +44,9 @@ detail, including the secrets and where the keys are kept (1Password):
   such properties a `@MainActor` function type.
 - Lint config in `.swiftlint.yml` scans `Sources/` and `Tests/` at 120-column lines (fixtures inside multiline strings exempt, `Tests/.swiftlint.yml`).
 - `Tests/TranslateLikeMeTests/` covers pure logic, selection orchestration with
-  injected effects, and `ProcessRunner` with synthetic subprocesses. UI,
+  injected effects, and `ProcessRunner` with synthetic subprocesses. Hold an
+  injected `sleep` with `TestGate`, and assert the pre-sleep state before awaiting
+  it: a mutant that never sleeps otherwise hangs `swift test` until killed. UI,
   Accessibility, CGEvent and Sparkle require native verification; render UI changes with
   `./capture-screenshots.sh` (it also regenerates `screenshots/`, light and
   dark, flipping the system to Dark Mode and back; needs

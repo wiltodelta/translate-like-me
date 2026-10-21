@@ -132,13 +132,14 @@ struct DictationIndicatorContent: View {
     let level: Double
     let cancel: () -> Void
 
-    private var listening: Bool { phase == .recording }
+    // The microphone's first audio follows the press by about 0.2 s; a separate
+    // starting state read as "wait before speaking", so it shows as listening.
+    private var listening: Bool { phase == .starting || phase == .recording }
     private var title: LocalizedStringKey {
         switch phase {
-        case .recording: "Listening…"
-        case .recognizing: "Recognizing…"
+        case .starting, .recording: "Listening…"
         case .cancelling: "Cancelling…"
-        default: "Preparing…"
+        default: "Recognizing…"
         }
     }
 

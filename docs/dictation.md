@@ -6,7 +6,10 @@ Unattended verification, its command and its physical limits:
 The initial implementation follows the [minimal product scope](dictation-feature-plan.md).
 Enable it in Dictation settings, allow microphone access, and wait for the one-time
 model preparation. Hold right Option while speaking, then release to recognize
-and insert. This is the only recording mode. The menu opens
+and insert. Recording continues for one second after release
+(`DictationController.liveReleaseTail`), because speakers often finish their
+last word while letting go; cancelling the indicator during that tail discards
+the recording. This is the only recording mode. The menu opens
 settings or cancels an active session; it never starts a separate recording.
 To choose the other Option, click Hold key and press and release left Option.
 The two sides are separate bindings; the binding can also be cleared. Earlier
@@ -138,7 +141,7 @@ an uncatchable exception when AirPods changed format.
 
 During a hold the default output device is muted, if it was unmuted, so media
 does not reach the recording. `DictationOutputMute` records the device UID in
-preferences while it holds the mute. Release, cancellation and failure unmute
+preferences while it holds the mute. The end of the release tail, cancellation and failure unmute
 only a device that is still muted, leaving a device the user unmuted meanwhile.
 Restoration resolves that UID again, so a reassigned numeric device id cannot
 unmute another output. A disconnected device or failed restoration keeps its
@@ -179,7 +182,9 @@ destination editor. Pointer cancellation and lifecycle invalidation still guard
 pending work. Release drains capture even before its first meter update, or
 cancels hardware startup if it has not begun. Model preparation happens after
 release and cannot delay capture or start a microphone after the key is up.
-The starting indicator is requested first, then recorder startup is queued; the
+The indicator is requested first, then recorder startup is queued; it reads
+Listening from the press, since a separate Preparing state before first audio
+(about 0.2 s) was mistaken for a cue to wait. The
 press reads no Accessibility target, so a slow editor cannot postpone hardware
 setup. This ordering is covered by a controller regression test; it does not
 establish a hardware latency figure. The measured/unmeasured boundary and candidate

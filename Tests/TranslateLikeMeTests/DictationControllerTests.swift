@@ -355,7 +355,7 @@ extension DictationControllerTests {
 }
 
 @MainActor
-private final class ControlledDictationEngine: DictationRecognizing {
+final class ControlledDictationEngine: DictationRecognizing {
     var loaded = false
     var transcript = ""
     var recognitionError: DictationError?
@@ -420,7 +420,7 @@ private final class ControlledDictationEngine: DictationRecognizing {
 }
 
 @MainActor
-private final class ControlledDictationRecorder: DictationRecording {
+final class ControlledDictationRecorder: DictationRecording {
     var onEnd: ((Bool) -> Void)?
     let level = 0.5
     let isDeliveringAudio = true

@@ -48,7 +48,8 @@ available. Copying is explicit and does not run the engine again.
 - For dictation, turn on **Enable dictation** under **Settings > Dictation**.
   First setup downloads the model; later recognition works locally. The default
   hold key is **Right Option**. Hold it while speaking, then release to recognize
-  and insert the text. In **Hold key**, you can record the left
+  and insert the text. Recording continues for a second after you let go, so a
+  last word is not cut off. In **Hold key**, you can record the left
   Option instead. Other input during the hold cancels dictation, so an Option
   combination does not insert speech. There is no tap-to-toggle mode or menu
   command to start recording. Recording is bounded to five minutes. The menu

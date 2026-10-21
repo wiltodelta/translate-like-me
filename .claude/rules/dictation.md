@@ -143,8 +143,10 @@ Compute-policy findings and the reproducible synthetic benchmark:
   layouts use their ASCII-capable layout. Keep the last transcript in `LastResults` for
   explicit Copy Last Result > Dictation, shared with Translation and Rewrite.
 - Hold-to-talk is the only recording mode. Default to right Option; the binding
-  field accepts left or right Option only. Press begins capture, release finishes,
-  other input cancels. No toggle, menu-start path or dedicated cancellation key.
+  field accepts left or right Option only. Press begins capture, release finishes
+  after a one-second tail that catches a last word spoken while letting go
+  (`DictationController.liveReleaseTail`; the output stays muted through it),
+  other input during the hold cancels. No toggle, menu-start path or dedicated cancellation key.
   Escape is not registered for dictation. Keep the hold monitor alive on press
   or its release will be lost. `OptionKeyGesture` observes local/global NSEvent events.
   Keys, other modifiers, clicks and scroll cancel. Carbon actions cancel too.
@@ -158,7 +160,9 @@ Compute-policy findings and the reproducible synthetic benchmark:
 - Permission prompts belong to enabling dictation. A release build needs both
   the audio-input entitlement and microphone purpose string. Test with the signed
   dev bundle, never the installed app's settings or privacy state.
-- Keep a shared 20-point icon slot in the listening and recognizing indicator
+- The indicator shows the starting phase as Listening: a separate Preparing
+  state before first audio (about 0.2 s) read as "wait before speaking" to users.
+  Keep a shared 20-point icon slot in the listening and recognizing indicator
   states so the text does not shift when the symbol changes. Native previews
   render those states without opening the microphone; they do not verify recording.
 

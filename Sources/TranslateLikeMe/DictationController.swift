@@ -48,12 +48,17 @@ final class DictationController {
     @ObservationIgnored private var modelRelease: Task<Void, Never>?
     @ObservationIgnored private var releaseOnCompletion = false
     @ObservationIgnored private var meter: Timer?
+    @ObservationIgnored private(set) var tail: Task<Void, Never>?
+    @ObservationIgnored private let releaseTail: Duration
+    @ObservationIgnored private let sleep: @MainActor (Duration) async throws -> Void
     @ObservationIgnored private var ownsActivity = false
     @ObservationIgnored private var prepareAfterOperation = false
 
     init(enabled: Bool, model: DictationModel = .turbo,
          engine: any DictationRecognizing, recorder: any DictationRecording,
          interaction: DictationInteraction, results: LastResults = LastResults(),
+         releaseTail: Duration = .zero,
+         sleep: @escaping @MainActor (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
          saveModel: @escaping (DictationModel) -> Void = { Settings.dictationModel = $0 }) {
         self.enabled = enabled
         self.model = model
@@ -61,13 +66,15 @@ final class DictationController {
         self.recorder = recorder
         self.interaction = interaction
         self.results = results
+        self.releaseTail = releaseTail
+        self.sleep = sleep
         self.saveModel = saveModel
     }
 
     private convenience init() {
         self.init(enabled: Settings.dictationEnabled, model: Settings.dictationModel,
                   engine: DictationEngine(), recorder: DictationRecorder(),
-                  interaction: .live, results: .shared)
+                  interaction: .live, results: .shared, releaseTail: Self.liveReleaseTail)
         let source = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
         source.setEventHandler { [weak self] in
             MainActor.assumeIsolated {
@@ -78,6 +85,9 @@ final class DictationController {
         pressureSource = source
         source.resume()
     }
+
+    // Speakers often finish their last word just after letting go of the key.
+    static let liveReleaseTail = Duration.seconds(1)
 
     var phase: DictationSession.Phase { session.phase }
     var isActive: Bool { [.starting, .recording, .recognizing, .cancelling].contains(phase) }
@@ -161,8 +171,20 @@ final class DictationController {
     func shortcutReleased() {
         dictationLog.notice("Dictation hold released, phase \(String(describing: self.phase), privacy: .public)")
         switch session.releaseAction() {
-        case .stop: stop()
+        case .stop: finishAfterTail()
         case .ignore: break
+        }
+    }
+
+    // Keep recording briefly after release, then stop as an immediate release would.
+    private func finishAfterTail() {
+        guard releaseTail > .zero else { return stop() }
+        guard tail == nil else { return }
+        let id = session.id
+        tail = Task { [self] in
+            try? await sleep(releaseTail)
+            guard !Task.isCancelled, session.id == id else { return }
+            stop()
         }
     }
 
@@ -318,6 +340,8 @@ final class DictationController {
     }
 
     private func endCapture() {
+        tail?.cancel()
+        tail = nil
         meter?.invalidate()
         meter = nil
         recorder.discard()
