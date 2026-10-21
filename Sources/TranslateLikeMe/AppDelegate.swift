@@ -69,8 +69,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         showOnboardingOnFirstRun()
         Updater.shared.start()
         if let preview = dictationPreview, preview != "settings" {
-            DictationIndicator.shared.preview(preview == "starting" ? .starting :
-                                                 preview == "recording" ? .recording : .recognizing)
+            DictationIndicator.shared.preview(preview == "recording" ? .recording : .recognizing)
         }
     }
 

@@ -75,8 +75,8 @@ Compute-policy findings and the reproducible synthetic benchmark:
   or transcripts. Keep the model resident until memory pressure or disabling;
   release after active work. Clear the actor's model reference before an await so
   a new request cannot take a model being unloaded. Await any queued release
-  before preparing the next session. Show the starting indicator, then enqueue
-  capture on press; the press reads no AX target;
+  before preparing the next session. Enqueue capture on press; the press reads
+  no AX target;
   `DictationCaptureWorker` serializes all engine access and teardown off the UI.
   A locked request gates the final hardware start against release/cancellation.
   The stop task must finalize the WAV before model reload or recognition. Enqueue
@@ -160,9 +160,10 @@ Compute-policy findings and the reproducible synthetic benchmark:
 - Permission prompts belong to enabling dictation. A release build needs both
   the audio-input entitlement and microphone purpose string. Test with the signed
   dev bundle, never the installed app's settings or privacy state.
-- The indicator shows the starting phase as Listening: a separate Preparing
-  state before first audio (about 0.2 s) read as "wait before speaking" to users.
-  Keep a shared 20-point icon slot in the listening and recognizing indicator
+- The indicator appears only when the microphone delivers its first audio
+  (`.starting` to `.recording`, about 0.2 s after the press), already reading
+  Listening: a Preparing state was taken for "wait before speaking", and
+  Listening before audio invites words the recording misses. Keep a shared 20-point icon slot in the listening and recognizing indicator
   states so the text does not shift when the symbol changes. Native previews
   render those states without opening the microphone; they do not verify recording.
 

@@ -114,8 +114,8 @@ installation, lifecycle, native UI and build checks.
 
 `DictationRecorder` queues capture immediately and publishes metering through a
 locked request. `DictationCaptureWorker` owns every engine operation on a serial
-user-initiated queue, including configuration callbacks and teardown. The starting
-indicator is requested before microphone setup; the press reads no AX target. Release
+user-initiated queue, including configuration callbacks and teardown. No indicator
+is shown before the first audio; the press reads no AX target. Release
 closes the request's hardware-start gate immediately; the stop task then drains and
 finalizes the WAV before recognition. Cancellation queues discard before a later
 start. This keeps hardware initialization off the UI and prevents a queued startup
@@ -182,9 +182,10 @@ destination editor. Pointer cancellation and lifecycle invalidation still guard
 pending work. Release drains capture even before its first meter update, or
 cancels hardware startup if it has not begun. Model preparation happens after
 release and cannot delay capture or start a microphone after the key is up.
-The indicator is requested first, then recorder startup is queued; it reads
-Listening from the press, since a separate Preparing state before first audio
-(about 0.2 s) was mistaken for a cue to wait. The
+The press queues recorder startup and shows nothing; the indicator appears,
+reading Listening, only when the microphone delivers its first audio (about
+0.2 s later). A Preparing state in between was mistaken for a cue to wait, and
+Listening before audio would invite words the recording misses. The
 press reads no Accessibility target, so a slow editor cannot postpone hardware
 setup. This ordering is covered by a controller regression test; it does not
 establish a hardware latency figure. The measured/unmeasured boundary and candidate

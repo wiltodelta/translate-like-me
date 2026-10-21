@@ -197,7 +197,6 @@ final class DictationController {
         ownsActivity = true
         TranslationActivity.shared.isBusy = true
         let id = session.begin(.starting)
-        interaction.showCapture()
         do {
             // Hardware starts on the capture queue.
             try recorder.start()
@@ -219,8 +218,10 @@ final class DictationController {
                           [.starting, .recording].contains(self.phase) else { return }
                     self.level = self.recorder.level
                     guard self.phase == .starting else { return }
+                    // Listening appears only once the microphone delivers audio.
                     if self.recorder.isDeliveringAudio {
                         self.session.transition(.recording, for: id)
+                        self.interaction.showCapture()
                     } else if started.duration(to: .now) > .seconds(3) {
                         self.fail(DictationError.microphone.localizedDescription, id: id)
                         self.endCapture()
