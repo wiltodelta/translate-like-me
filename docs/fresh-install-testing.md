@@ -99,6 +99,39 @@ First-grant behavior after returning from System Settings still needs a native
 check; reinstalling monitors by restarting the app is a controlled check of that
 transition, not proof of the reported cause.
 
+## Onboarding navigation and layout verification
+
+On October 21, 2026, the signed development bundle from `8283ed0` passed the
+translation and dictation-only routes in English and German, in system Light
+and Dark Mode. The real AX controls advanced through languages, engine and
+Dictation, returned with Back along both paths, disabled Continue for no pairs,
+and completed with Done. The persisted first-run flag was read back, the window
+closed, and the shared Dictation settings pane opened. All 24 captures were
+inspected. English frames are `screenshots/onboarding-*.png`, regenerated with
+`CAPTURE_ONBOARDING_ONLY=1 CAPTURE_OUT=screenshots ./capture-screenshots.sh`.
+Engine readiness is synthetic in these captures; no translation service,
+microphone, model download or global typing is exercised. Fresh-user permission
+and recognition checks below remain necessary on a separate account or VM.
+
+The nonresizable wizard measured 520 pt wide at 2x raster scale. English step
+heights were 421 pt (two pairs), 500 pt (engine), 479 pt (dictation) and 307 pt
+(no pairs). Text stayed within the form and buttons remained visible in both
+languages. The dictation heading, row labels and footers share a 30 pt left
+inset; navigation buttons are 24 pt high with 16 pt outer insets. The shared
+Settings pane preserves that label inset. The new explanatory text measured
+4.95:1 in light and 5.65:1 in dark against its rendered backing. The same
+ScreenCaptureKit and pixel-reader path reproduced a known sRGB `#575757` swatch
+exactly before accepting the contrast measurement.
+
+Precision analysis of all 24 AX trees found no confirmed layout defect. Its
+uneven gaps are the deliberate spacer before Continue. The near-edge findings
+compare window chrome with Back, native toggle text with its switch, and the
+existing shortcut buttons with language pickers; visual review confirmed the
+native alignment. Radius checks are unavailable from AX geometry. Navigation
+was completed through AX actions, not VoiceOver or physical keyboard input.
+The capture recipe restored the development preferences, system appearance and
+pointer; the final system-settings comparison reported no changes.
+
 ## Native check still required
 
 Use a separate standard macOS user or a disposable macOS VM for real first-run
