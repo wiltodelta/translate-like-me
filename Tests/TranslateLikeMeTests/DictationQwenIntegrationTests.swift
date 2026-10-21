@@ -110,7 +110,7 @@ final class DictationQwenIntegrationTests: XCTestCase {
 enum DictationQwenTestSupport {
     static func configure() throws {
         let path = ProcessInfo.processInfo.environment["TLM_QWEN_METALLIB"] ??
-            FileManager.default.currentDirectoryPath + "/Translate Like Me.app/Contents/Resources/mlx.metallib"
+            FileManager.default.currentDirectoryPath + "/Translate Like Me Dev.app/Contents/Resources/mlx.metallib"
         guard FileManager.default.fileExists(atPath: path) else { throw CocoaError(.fileNoSuchFile) }
         GPU.metallib = URL(fileURLWithPath: path)
     }

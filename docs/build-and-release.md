@@ -21,7 +21,8 @@ Unused graph targets need not produce bundles; stale bundles outside the graph
 must stay out of the app. CMake is required locally and installed in CI.
 
 - **Build and assemble the app bundle:** `./build.sh`. It builds an arm64-only
-  release binary, copies it and `Resources/` into `Translate Like Me.app`,
+  release binary, copies it and `Resources/` into `Translate Like Me Dev.app`
+  (`Translate Like Me.app` with `RELEASE=1`),
   compiles the Icon Composer icon, and code-signs the bundle.
 - **Localization:** the app target compiles with `-emit-localized-strings`
   (`Package.swift`), so the compiler lists every localizable string;
@@ -71,11 +72,12 @@ must stay out of the app. CMake is required locally and installed in CI.
   (1200x630, `scripts/make-og-image.py`), which lays the menu screenshot
   beside the icon and tagline.
 - **CRITICAL:** `swift build` alone updates only the SwiftPM build directory; it
-  does NOT refresh the binary inside `Translate Like Me.app`. Always run `./build.sh`
+  does NOT refresh the binary inside the assembled `.app`. Always run `./build.sh`
   before installing or testing the bundle, otherwise you run a stale binary.
-- **Install for local use:** quit the running app, replace
-  `/Applications/Translate Like Me.app`, relaunch. It is a menu-bar accessory
-  (no Dock icon).
+- **Install for local use:** copy `Translate Like Me Dev.app` to `/Applications`
+  and launch it alongside the release. It has its own settings and permission
+  grants. Quit only a development copy you intend to replace; keep the installed
+  release available. Both are menu-bar accessories (no Dock icon).
 - **Signing:** `build.sh` signs with the "Developer ID Application: Victor
   Kuznetsov (K2GT9Q4S6U)" identity when the keychain has it, with the hardened
   runtime and a secure timestamp; its designated requirement keeps the

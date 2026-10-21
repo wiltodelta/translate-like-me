@@ -61,7 +61,7 @@ def main():
             command += ["--filter", "DictationQwenIntegrationTests/testQwenDownloadsRecognizesAndSwitchesBackToWhisper"]
             log.info("Checking pinned installation, both runtimes and offline reloads")
             output = audio.run(command, env=dict(os.environ, TMPDIR=str(worker_temp), TLM_QWEN_CHECK=str(folder),
-                TLM_QWEN_METALLIB=str(ROOT / "Translate Like Me.app/Contents/Resources/mlx.metallib")), timeout=1800)
+                TLM_QWEN_METALLIB=str(ROOT / "Translate Like Me Dev.app/Contents/Resources/mlx.metallib")), timeout=1800)
             args.report.with_suffix(".log").write_text(output)
             results = json.loads((folder / "qwen-check.json").read_text())
             expected = {(preparation, case["id"], repetition) for preparation in range(3)
@@ -90,7 +90,7 @@ def main():
                                "DictationQwenIntegrationTests/testOfflineReloadWithoutNetwork"]
                     offline_output = audio.run(offline, env=dict(os.environ, TMPDIR=str(worker_temp), TLM_QWEN_CHECK=str(folder),
                         TLM_QWEN_OFFLINE_ENDPOINT=endpoint,
-                        TLM_QWEN_METALLIB=str(ROOT / "Translate Like Me.app/Contents/Resources/mlx.metallib")), timeout=600)
+                        TLM_QWEN_METALLIB=str(ROOT / "Translate Like Me Dev.app/Contents/Resources/mlx.metallib")), timeout=600)
                     args.report.with_suffix(".offline.log").write_text(offline_output)
                     with urlopen(endpoint, timeout=3) as response:
                         assert response.read() == b"synthetic network sentinel"

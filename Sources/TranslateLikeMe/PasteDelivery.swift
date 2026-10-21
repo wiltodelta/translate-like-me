@@ -43,7 +43,9 @@ struct PasteDelivery<Access: PasteAccess>: Sendable {
     // destination or the clipboard changed after `mark`.
     func deliver(_ text: String, restoring original: Access.Snapshot,
                  ifUnchangedSince mark: Int) async throws -> Bool {
+        try Task.checkCancellation()
         guard let pid = access.destination() else { return false }
+        try Task.checkCancellation()
         guard let paste = access.paste(text, to: pid, ifUnchangedSince: mark) else {
             deliveryLog.notice("Paste skipped: the clipboard changed before writing")
             return false
@@ -52,7 +54,7 @@ struct PasteDelivery<Access: PasteAccess>: Sendable {
         defer { access.restore(original, ifUnchangedSince: paste.changeCount) }
         var waited = Duration.zero
         var readAt: Duration?
-        while waited < Self.readDeadline {
+        while readAt != nil || waited < Self.readDeadline {
             await pause(Self.step)
             waited += Self.step
             try Task.checkCancellation()

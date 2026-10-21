@@ -329,6 +329,18 @@ extension DictationControllerTests {
         XCTAssertEqual(recorder.warmUps, [false, true])
     }
 
+    func testRecognitionLimitShowsTheShorterRecordingGuidance() async {
+        let engine = ControlledDictationEngine()
+        engine.recognitionError = .recognitionLimit
+        let controller = makeController(engine: engine, recorder: ControlledDictationRecorder())
+        controller.restore()
+        await controller.operation?.value
+        controller.shortcutPressed()
+        controller.shortcutReleased()
+        await controller.operation?.value
+        XCTAssertEqual(controller.error, DictationError.recognitionLimit.localizedDescription)
+    }
+
     func testWakeDoesNotPrepareInputWhileDisabled() {
         let recorder = ControlledDictationRecorder()
         let controller = DictationController(enabled: false, engine: ControlledDictationEngine(), recorder: recorder,
@@ -344,6 +356,7 @@ extension DictationControllerTests {
 private final class ControlledDictationEngine: DictationRecognizing {
     var loaded = false
     var transcript = ""
+    var recognitionError: DictationError?
     var blockNextPreparation = false
     var failNextPreparation = false
     var preparations: [Bool] = []
@@ -378,6 +391,7 @@ private final class ControlledDictationEngine: DictationRecognizing {
     func transcribe(_ audio: URL) async throws -> String {
         XCTAssertTrue(loaded)
         transcribed.append(audio)
+        if let recognitionError { throw recognitionError }
         return transcript
     }
 

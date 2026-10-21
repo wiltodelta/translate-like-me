@@ -166,6 +166,7 @@ final class DictationCaptureWorker: @unchecked Sendable {
     // Failures leave the graph unbuilt; the next press builds it again.
     private func prepareIdle() {
         guard keepsPrepared, capture == nil else { return }
+        mute.recoverInterrupted()
         do {
             let (engine, _) = try prepared()
             engine.prepare()

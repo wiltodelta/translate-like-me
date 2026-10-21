@@ -68,6 +68,46 @@ final class DictationOutputMuteTests: XCTestCase {
         XCTAssertNil(store.string(forKey: DictationOutputMute.key))
     }
 
+    func testFailedRestoreKeepsRecoveryUntilItSucceeds() throws {
+        let (control, store) = try fixture()
+        let mute = DictationOutputMute(control: control, store: store)
+        mute.engage()
+        control.settable = false
+        mute.release()
+        XCTAssertEqual(control.muted[speakers], true)
+        XCTAssertEqual(store.string(forKey: DictationOutputMute.key), "speakers-uid")
+        control.settable = true
+        mute.recoverInterrupted()
+        XCTAssertEqual(control.muted[speakers], false)
+        XCTAssertNil(store.string(forKey: DictationOutputMute.key))
+    }
+
+    func testDisconnectedOutputCanRecoverAfterItReturns() throws {
+        let (control, store) = try fixture()
+        let mute = DictationOutputMute(control: control, store: store)
+        mute.engage()
+        control.available = false
+        mute.release()
+        XCTAssertEqual(store.string(forKey: DictationOutputMute.key), "speakers-uid")
+        control.available = true
+        mute.recoverInterrupted()
+        XCTAssertEqual(control.muted[speakers], false)
+        XCTAssertNil(store.string(forKey: DictationOutputMute.key))
+    }
+
+    func testRestorationFollowsTheUIDWhenTheDeviceIDChanges() throws {
+        let (control, store) = try fixture()
+        let mute = DictationOutputMute(control: control, store: store)
+        mute.engage()
+        control.device = 99
+        control.muted[99] = true
+        control.muted[speakers] = true // Another device reused the old id.
+        mute.release()
+        XCTAssertEqual(control.muted[99], false)
+        XCTAssertEqual(control.muted[speakers], true)
+        XCTAssertNil(store.string(forKey: DictationOutputMute.key))
+    }
+
     private func fixture(muted: Bool = false) throws -> (FakeOutputControl, UserDefaults) {
         let name = "DictationOutputMuteTests-\(UUID().uuidString)"
         let store = try XCTUnwrap(UserDefaults(suiteName: name))
@@ -79,9 +119,10 @@ final class DictationOutputMuteTests: XCTestCase {
 }
 
 private final class FakeOutputControl: DictationOutputControl {
-    let device: AudioObjectID
+    var device: AudioObjectID
     let deviceUID: String
     var muted: [AudioObjectID: Bool] = [:]
+    var available = true
     var settable = true
     var writes = 0
 
@@ -91,13 +132,13 @@ private final class FakeOutputControl: DictationOutputControl {
     }
 
     func defaultOutput() -> AudioObjectID? { device }
-    func isMuted(_ device: AudioObjectID) -> Bool? { muted[device] }
+    func isMuted(_ device: AudioObjectID) -> Bool? { available ? muted[device] : nil }
     func setMuted(_ device: AudioObjectID, _ value: Bool) -> Bool {
-        guard settable else { return false }
+        guard available, settable else { return false }
         writes += 1
         muted[device] = value
         return true
     }
     func uid(of device: AudioObjectID) -> String? { device == self.device ? deviceUID : nil }
-    func device(uid: String) -> AudioObjectID? { uid == deviceUID ? device : nil }
+    func device(uid: String) -> AudioObjectID? { available && uid == deviceUID ? device : nil }
 }

@@ -98,10 +98,16 @@ Jinja). On the shipping translation prompt it produced the same ids as Python
 - `LocalEngine` (an actor) keeps one model resident, loads it on the first run,
   frees it ten minutes after the last run (`idleDelay`), on a memory-pressure
   warning when idle, when the model is switched in Settings or removed.
+  A pressure notification during generation is remembered until the operation
+  drains. Loading, generation and deletion share an exclusive queue across awaits,
+  so onboarding checks cannot load a second model or race removal with translation.
   `LocalLoading` hides MLX, so the lifecycle is unit tested with a fake loader
   and an injected sleep.
 - Sampling is the benchmark's: temperature 0.3, top-p 0.95. The token limit is
-  twice the selection's characters, at least 256 and at most 8192.
+  twice the selection's characters, at least 256 and at most 8192. The SDK's
+  `generateTask` producer is awaited even after consumer cancellation, before model
+  access is released. Only a normal EOS completion can return text; reaching the
+  token limit reports an error instead of inserting a partial translation.
 - `LocalModelFiles` downloads one file at a time, so progress follows bytes
   (the Hub client weighs each file equally), resumes partial files, refuses a
   download that would leave less than 2 GB free, verifies every file against
@@ -126,3 +132,15 @@ Load times checked 2026-10-20 on a release build with the earlier per-kernel
 metallib, before the shared one: Gemma 4 E2B answered a short question in
 0.36 s and TranslateGemma 12B in about 2 s after a 2.3-2.5 s load (load average
 still above 70).
+
+The [3.7.6 code review](review-3.7.6.md) records the lifecycle regressions and fixes.
+
+The opt-in `LocalModelIntegrationTests` runs both models through the native
+`Translator.translateLocally` path, three times in each English/Russian direction,
+and checks required synthetic terms and unloading. After `./build.sh`, set
+`TLM_LOCAL_CHECK_REPORT` to a JSON output file and `TLM_LOCAL_METALLIB` to
+`Translate Like Me Dev.app/Contents/Resources/mlx.metallib`, then run
+`swift test --filter LocalModelIntegrationTests`. It uses verified Dev downloads
+by default. `TLM_LOCAL_MODELS_BASE` selects an isolated model directory; only
+`TLM_LOCAL_CHECK_DOWNLOAD=YES` permits this test to download missing models through
+`LocalModelFiles.download`. No microphone, clipboard or user text is involved.

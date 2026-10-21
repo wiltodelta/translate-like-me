@@ -93,7 +93,9 @@ Compute-policy findings and the reproducible synthetic benchmark:
   dictation releases the engine, after a hold in progress ends.
   The press mutes the default output (`DictationOutputMute`) only if it was
   unmuted, persisting the device UID until release; release unmutes only if it is
-  still muted, and launch undoes a mute left by a crash. Never lower volume or
+  still muted, resolving its stable UID rather than a potentially reused device id.
+  Keep the recovery record if the device is disconnected or unmuting fails;
+  retry on launch, idle preparation and before another hold. Never lower volume or
   change it otherwise. Install the tap with a nil format and read the format
   after it: AirPods changed format between a read and the tap, and a stale tap
   format raises an uncatchable Objective-C exception. Write native PCM and let

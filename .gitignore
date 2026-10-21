@@ -1,5 +1,6 @@
 .build/
 Translate Like Me.app/
+Translate Like Me Dev.app/
 *.app/
 .DS_Store
 *.xcodeproj

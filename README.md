@@ -99,7 +99,7 @@ After that the app keeps itself up to date (Sparkle), not `brew upgrade`.
 git clone https://github.com/wiltodelta/translate-like-me.git
 cd translate-like-me
 ./build.sh
-open "Translate Like Me.app"
+open "Translate Like Me Dev.app"
 ```
 
 Without the maintainer's Developer ID identity in your keychain, `build.sh`

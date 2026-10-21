@@ -8937,6 +8937,64 @@
         }
       }
     },
+    "The local model did not finish its answer. Select less text and try again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das lokale Modell hat seine Antwort nicht abgeschlossen. Wähle weniger Text aus und versuche es erneut."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El modelo local no terminó su respuesta. Selecciona menos texto e inténtalo de nuevo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le modèle local n’a pas terminé sa réponse. Sélectionnez moins de texte et réessayez."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il modello locale non ha completato la risposta. Seleziona meno testo e riprova."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ローカルモデルが回答を完了できませんでした。選択するテキストを短くして、もう一度お試しください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "로컬 모델이 답변을 완료하지 못했습니다. 더 적은 텍스트를 선택하고 다시 시도하세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O modelo local não concluiu a resposta. Selecione menos texto e tente novamente."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Локальная модель не завершила ответ. Выберите меньше текста и попробуйте ещё раз."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本地模型未能完成回答。请选择较短的文本，然后重试。"
+          }
+        }
+      }
+    },
     "The microphone couldn't start. Check your system input device, then try again." : {
       "localizations" : {
         "de" : {

@@ -22,7 +22,7 @@ final class DictationOutputMute {
     static let key = "dictationMutedOutputDevice"
     private let control: DictationOutputControl
     private let store: UserDefaults
-    private var muted: AudioObjectID?
+    private var holding = false
 
     init(control: DictationOutputControl = CoreAudioOutputControl(), store: UserDefaults = .standard) {
         self.control = control
@@ -30,7 +30,9 @@ final class DictationOutputMute {
     }
 
     func engage() {
-        guard muted == nil, let device = control.defaultOutput(),
+        guard !holding else { return }
+        recoverInterrupted()
+        guard store.string(forKey: Self.key) == nil, let device = control.defaultOutput(),
               control.isMuted(device) == false, let uid = control.uid(of: device) else { return }
         store.set(uid, forKey: Self.key)
         guard control.setMuted(device, true) else {
@@ -38,25 +40,30 @@ final class DictationOutputMute {
             muteLog.notice("Dictation could not mute the output device")
             return
         }
-        muted = device
+        holding = true
     }
 
     func release() {
-        guard let device = muted else { return }
-        muted = nil
-        if control.isMuted(device) == true { _ = control.setMuted(device, false) }
-        store.removeObject(forKey: Self.key)
+        guard holding else { return }
+        holding = false
+        recoverInterrupted()
     }
 
-    // A recorded UID means the process ended while it held the mute.
+    // Keep a failed or disconnected restoration pending. Resolve by UID, since
+    // Core Audio can reuse a numeric device id after a device disappears.
     func recoverInterrupted() {
-        guard let uid = store.string(forKey: Self.key) else { return }
-        if let device = control.device(uid: uid), control.isMuted(device) == true {
-            _ = control.setMuted(device, false)
-            muteLog.notice("Dictation restored output muted by an interrupted hold")
+        guard !holding, let uid = store.string(forKey: Self.key),
+              let device = control.device(uid: uid), let muted = control.isMuted(device) else { return }
+        if muted {
+            guard control.setMuted(device, false), control.isMuted(device) == false else {
+                muteLog.error("Dictation output restoration remains pending")
+                return
+            }
+            muteLog.notice("Dictation restored output muted by a hold")
         }
         store.removeObject(forKey: Self.key)
     }
+
 }
 
 struct CoreAudioOutputControl: DictationOutputControl {

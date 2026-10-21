@@ -106,6 +106,7 @@ enum LocalModelError: LocalizedError {
     case insufficientMemory(LocalModel)
     case insufficientStorage(Int64)
     case incomplete
+    case outputLimit
 
     var errorDescription: String? {
         switch self {
@@ -120,6 +121,8 @@ enum LocalModelError: LocalizedError {
         case .insufficientStorage(let bytes):
             String(localized: "Free at least \(Self.gigabytes(bytes)) of disk space, then download again.",
                    comment: "The placeholder is an amount of disk space, such as 8.7 GB")
+        case .outputLimit:
+            String(localized: "The local model did not finish its answer. Select less text and try again.")
         case .incomplete:
             String(localized: "The download was incomplete or damaged. Download it again.")
         }

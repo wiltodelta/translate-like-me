@@ -5,6 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 APP="Translate Like Me.app"
+[[ "${RELEASE:-}" == 1 ]] || APP="Translate Like Me Dev.app"
 BIN="TranslateLikeMe"
 
 # Apple silicon only: macOS 27 dropped Intel, and the app supports the three
@@ -107,6 +108,7 @@ cp "Resources/Info.plist" "$APP/Contents/Info.plist"
 # someone relies on. It does not check for updates.
 if [[ "${RELEASE:-}" != 1 ]]; then
     /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.wiltodelta.translatelikeme.dev" \
+        -c "Set :CFBundleName Translate Like Me Dev" -c "Set :CFBundleDisplayName Translate Like Me Dev" \
         -c "Set :SUEnableAutomaticChecks false" "$APP/Contents/Info.plist"
 fi
 # Stamp the latest release tag, as CI stamps the tag it builds, so a local build
@@ -130,9 +132,11 @@ grep -q ".macOS(\"$MIN_MACOS\")" Package.swift ||
 # (actool). Regenerate its layers and icon.json with scripts/make-icon-layers.py.
 # Absolute paths: actool resolves relative ones against the working directory of
 # its long-lived agent, which is wherever it first started, not this script's.
+ICON_INFO="$(mktemp -t tlm-icon)"
+trap 'rm -f "$ICON_INFO"' EXIT
 xcrun actool "$PWD/Resources/AppIcon.icon" --compile "$PWD/$APP/Contents/Resources" \
     --platform macosx --minimum-deployment-target "$MIN_MACOS" --app-icon AppIcon \
-    --output-partial-info-plist "$(mktemp -t tlm-icon)" >/dev/null
+    --output-partial-info-plist "$ICON_INFO" >/dev/null
 # One <language>.lproj per localization, English included: without en.lproj an
 # English-first Mac would resolve to its second preferred language.
 for CATALOG in Localizable InfoPlist; do

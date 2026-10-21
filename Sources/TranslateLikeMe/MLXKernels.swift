@@ -6,12 +6,16 @@ import Foundation
 // MLX at them before touching the GPU. A CLI or test host keeps that colocated
 // lookup.
 enum MLXKernels {
+    private static let lock = NSLock()
+
     static func use() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
         let library = Bundle.main.url(forResource: "mlx", withExtension: "metallib") ?? GPU.metallib ??
             URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent()
                 .appendingPathComponent("mlx.metallib")
         guard FileManager.default.fileExists(atPath: library.path) else { return false }
-        GPU.metallib = library
+        if GPU.metallib != library { GPU.metallib = library }
         return true
     }
 }

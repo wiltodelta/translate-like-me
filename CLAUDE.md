@@ -15,7 +15,7 @@ Shared rules for our macOS apps: `~/Documents/GitHub/claude-config/docs/macos-ap
 
 Assemble the bundle with `./build.sh` (needs Xcode 26+: `actool` compiles the
 Icon Composer icon); `swift build` alone leaves a stale binary inside
-`Translate Like Me.app`. Releases are driven by `vX.Y.Z` git tags through GitHub
+`Translate Like Me Dev.app`. Releases are driven by `vX.Y.Z` git tags through GitHub
 Actions, which signs with the Developer ID from repository secrets and
 notarizes (`notarize.sh`), then bumps the cask in `wiltodelta/homebrew-tap`;
 locally `build.sh` signs with the same identity from the keychain. The
@@ -68,7 +68,7 @@ detail, including the secrets and where the keys are kept (1Password):
   settings domain, login item and Accessibility grant (granted once), so it
   runs beside the installed app; if both have the same shortcuts set, quit one
   before testing them. Override a setting for one launch with the argument
-  domain (`open -n "Translate Like Me.app" --args -provider grok`). Onboarding
+  domain (`open -n "Translate Like Me Dev.app" --args -provider grok`). Onboarding
   opens with `-didCompleteFirstRun NO -languagePairs '<5b5d>'` (no pairs). The
   bundle is hardened, so lldb cannot attach: read a crash's stack from
   `~/Library/Logs/DiagnosticReports/TranslateLikeMe-*.ips` (JSON after the

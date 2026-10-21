@@ -86,6 +86,28 @@ final class DictationTests: XCTestCase {
         XCTAssertEqual(state.clipboard, "original clipboard")
     }
 
+    func testReadNearTheDeadlineStillGetsTheFullHoldBeforeRestore() async throws {
+        let access = FakePasteAccess()
+        access.state.withLock { $0.readDelay = .milliseconds(2950) }
+        let delivered = try await PasteDelivery(access: access, pause: { access.advance($0) }).insert("text")
+        XCTAssertTrue(delivered)
+        XCTAssertEqual(access.state.withLock { $0.elapsed }, .milliseconds(3250))
+        XCTAssertEqual(access.state.withLock { $0.clipboardAtRead }, "text")
+        XCTAssertEqual(access.state.withLock { $0.clipboard }, "original clipboard")
+    }
+
+    func testCancellationWhileResolvingTheDestinationCannotPostPaste() async {
+        let access = FakePasteAccess()
+        access.state.withLock { $0.cancelOnDestination = true }
+        let run = Task { try await PasteDelivery(access: access, pause: { access.advance($0) }).insert("text") }
+        do {
+            _ = try await run.value
+            XCTFail("Cancellation must propagate")
+        } catch is CancellationError { } catch { XCTFail("Unexpected error: \(error)") }
+        XCTAssertTrue(access.state.withLock { $0.pastes.isEmpty })
+        XCTAssertEqual(access.state.withLock { $0.clipboard }, "original clipboard")
+    }
+
     func testUnreadPasteIsRetainedAtTheDeadlineWithoutRetrying() async throws {
         let access = FakePasteAccess()
         let delivered = try await PasteDelivery(access: access, pause: { access.advance($0) }).insert("text")

@@ -20,9 +20,9 @@ final class TranslationActivity {
 // Drives the translate and rewrite flows: copy the selection, run it through the
 // engine, paste the result back in place. Errors surface in a small cursor-anchored popup.
 //
-// A run validates the original AX element, range and text after the engine
-// returns. Changed focus, input or clipboard contents leave the result in the
-// popup instead of inserting into a stale target (SelectionWorkflow).
+// A run checks the original process, user activity and clipboard ownership
+// before insertion. Changed context leaves the result in the popup; the shared
+// paste receipt controls when the clipboard can be restored (SelectionWorkflow).
 @MainActor
 final class TranslationController {
     static let shared = TranslationController()

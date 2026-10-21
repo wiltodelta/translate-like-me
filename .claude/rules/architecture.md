@@ -176,10 +176,14 @@ Read before editing this domain.
   and Gemma 4 E2B with their turn formats; `Settings.localModel` holds the pick,
   `LocalModelControls` shows it with its download in the Translation pane and
   in onboarding, and `LocalModelDownloads` owns download, cancel and removal.
-  `EngineStatus` reads a verified download as ready (`LocalModelFiles`: a marker
+  `EngineStatus` checks the model's memory minimum before calling a verified download ready
+  (`LocalModelFiles`: a marker
   and exact sizes; hashes are checked once, after downloading). The engine
   keeps one model resident and frees it after 10 idle minutes, on memory
-  pressure, or when the model is switched. A translation that comes back
+  pressure, or when the model is switched. Loading, generation and removal share
+  an exclusive operation queue across awaits. Await the SDK producer before releasing
+  model access; pressure during generation is remembered and applied after drain.
+  A length-limited answer never replaces the selection. A translation that comes back
   unchanged is asked once more with the pair reversed
   (`Translator.translateLocally`; both models echoed English when it was the
   pair's second language). It shares Qwen dictation's `mlx.metallib`, which

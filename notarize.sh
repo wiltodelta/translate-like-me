@@ -12,6 +12,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 APP="Translate Like Me.app"
+[[ "${1:-}" != "--zip-only" ]] || APP="Translate Like Me Dev.app"
 PROFILE="${NOTARY_PROFILE:-notary-K2GT9Q4S6U}"
 # CI stores the profile in a temporary keychain and names it here.
 KEYCHAIN_ARGS=(${NOTARY_KEYCHAIN:+--keychain "$NOTARY_KEYCHAIN"})
@@ -27,7 +28,9 @@ if [[ "${1:-}" != "--zip-only" ]]; then
 
     # notarytool takes a zip; the ticket is stapled to the app itself, so the
     # release zip is built afterwards.
-    UPLOAD="$(mktemp -d)/upload.zip"
+    UPLOAD_DIR="$(mktemp -d)"
+    trap 'rm -rf "$UPLOAD_DIR"' EXIT
+    UPLOAD="$UPLOAD_DIR/upload.zip"
     ditto -c -k --keepParent "$APP" "$UPLOAD"
     xcrun notarytool submit "$UPLOAD" --keychain-profile "$PROFILE" ${KEYCHAIN_ARGS[@]+"${KEYCHAIN_ARGS[@]}"} --wait
     xcrun stapler staple "$APP"

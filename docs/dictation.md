@@ -140,8 +140,11 @@ During a hold the default output device is muted, if it was unmuted, so media
 does not reach the recording. `DictationOutputMute` records the device UID in
 preferences while it holds the mute. Release, cancellation and failure unmute
 only a device that is still muted, leaving a device the user unmuted meanwhile.
-The next launch undoes a mute that a crash left behind. The system volume level
-is never changed.
+Restoration resolves that UID again, so a reassigned numeric device id cannot
+unmute another output. A disconnected device or failed restoration keeps its
+recovery record; launch, idle preparation and the next hold retry it. A pending
+record blocks a new mute until the original output is restored. The system
+volume level is never changed.
 
 The recorder writes only its current temporary PCM WAV at the processed input's
 native rate and channel count. WhisperKit's audio loader converts it to 16 kHz

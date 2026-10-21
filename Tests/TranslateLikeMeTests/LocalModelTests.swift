@@ -198,7 +198,7 @@ final class LocalEngineTests: XCTestCase {
 
     func testIdleDelayReleasesTheModel() async throws {
         let loader = FakeLoader()
-        let gate = Gate()
+        let gate = TestGate()
         let engine = engine(loader: loader) { delay in
             XCTAssertEqual(delay, LocalEngine.idleDelay)
             await gate.wait()
@@ -213,6 +213,56 @@ final class LocalEngineTests: XCTestCase {
         let loaded = await engine.loadedModel
         XCTAssertNil(loaded)
         XCTAssertEqual(loader.events, ["load gemma-4-e2b", "release"])
+    }
+
+    func testMemoryPressureDuringGenerationReleasesWhenItFinishes() async throws {
+        let gate = TestGate()
+        let loader = FakeLoader(generationGate: gate)
+        let engine = engine(loader: loader)
+        let run = Task { try await engine.complete(system: "S", text: "a", model: .gemma4E2B) }
+        await loader.started.wait()
+        await engine.releaseIfIdle(reason: "memory pressure")
+        XCTAssertEqual(loader.events, ["load gemma-4-e2b"], "An active model must stay alive")
+        await gate.open()
+        _ = try await run.value
+        let loaded = await engine.loadedModel
+        XCTAssertNil(loaded, "Pressure during generation must not wait ten minutes")
+        XCTAssertEqual(loader.events, ["load gemma-4-e2b", "release"])
+    }
+
+    func testAnotherModelAndRemovalWaitForTheActiveGeneration() async throws {
+        for removing in [false, true] {
+            let gate = TestGate()
+            let loader = FakeLoader(generationGate: gate)
+            let engine = engine(loader: loader)
+            let run = Task { try await engine.complete(system: "S", text: "a", model: .gemma4E2B) }
+            await loader.started.wait()
+            let next = Task {
+                if removing { try await engine.remove(.gemma4E2B) } else {
+                    _ = try await engine.complete(system: "S", text: "b", model: .translateGemma12B)
+                }
+            }
+            for _ in 0..<1_000 {
+                if await engine.queuedOperations == 1 { break }
+                await Task.yield()
+            }
+            let queued = await engine.queuedOperations
+            XCTAssertEqual(queued, 1, "The second operation must reach the real exclusive queue")
+            XCTAssertEqual(loader.events, ["load gemma-4-e2b"], "No second model may load yet")
+            XCTAssertTrue(LocalModelFiles(base: base, availableStorage: { _ in .max }).isInstalled(.gemma4E2B))
+            await gate.open()
+            _ = try await run.value
+            try await next.value
+            if removing {
+                XCTAssertFalse(LocalModelFiles(base: base, availableStorage: { _ in .max }).isInstalled(.gemma4E2B))
+                XCTAssertEqual(loader.events, ["load gemma-4-e2b", "release"])
+                // Restore the fixture for the next scenario if its ordering changes.
+                try placeFiles(of: .gemma4E2B, in: base)
+                try markModelVerified(.gemma4E2B, in: base)
+            } else {
+                XCTAssertEqual(loader.events, ["load gemma-4-e2b", "release", "load translategemma-12b"])
+            }
+        }
     }
 
     func testMissingDownloadOrMemoryFailsBeforeLoading() async throws {
@@ -254,6 +304,9 @@ private func markModelVerified(_ model: LocalModel, in base: URL, revision: Stri
 }
 
 private final class FakeLoader: LocalLoading, @unchecked Sendable {
+    let started = TestGate()
+    let generationGate: TestGate?
+    init(generationGate: TestGate? = nil) { self.generationGate = generationGate }
     private let state = OSAllocatedUnfairLock(initialState: (events: [String](), maxTokens: [Int]()))
     var events: [String] { state.withLock { $0.events } }
     var maxTokens: [Int] { state.withLock { $0.maxTokens } }
@@ -272,24 +325,9 @@ private final class FakeLoader: LocalLoading, @unchecked Sendable {
 
         func complete(_ prompt: String, maxTokens: Int) async throws -> String {
             loader.record(maxTokens: maxTokens)
+            await loader.started.open()
+            await loader.generationGate?.wait()
             return "out:" + prompt
         }
-    }
-}
-
-// Holds the idle sleep until the test opens it, so no test waits on the clock.
-private actor Gate {
-    private var isOpen = false
-    private var waiters: [CheckedContinuation<Void, Never>] = []
-
-    func wait() async {
-        if isOpen { return }
-        await withCheckedContinuation { waiters.append($0) }
-    }
-
-    func open() {
-        isOpen = true
-        waiters.forEach { $0.resume() }
-        waiters.removeAll()
     }
 }

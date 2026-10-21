@@ -20,6 +20,7 @@ final class LocalModelDownloads {
 
     private(set) var states: [LocalModel: State] = [:]
     @ObservationIgnored private var task: (model: LocalModel, run: Task<Void, Never>)?
+    @ObservationIgnored private var removing: Set<LocalModel> = []
     @ObservationIgnored private let files = LocalModelFiles.live
 
     init() { refresh() }
@@ -39,7 +40,7 @@ final class LocalModelDownloads {
     }
 
     func download(_ model: LocalModel) {
-        guard task == nil, fits(model), state(of: model) != .ready else { return }
+        guard task == nil, !removing.contains(model), fits(model), state(of: model) != .ready else { return }
         states[model] = .downloading(0)
         log.notice("Local model \(model.rawValue, privacy: .public) download started")
         let run = Task {
@@ -69,15 +70,14 @@ final class LocalModelDownloads {
     }
 
     func remove(_ model: LocalModel) {
-        guard task?.model != model else { return }
+        guard task?.model != model, removing.insert(model).inserted else { return }
         Task {
-            await LocalEngine.shared.releaseIfIdle(reason: "model removed")
+            defer { removing.remove(model); refresh() }
             do {
-                try files.remove(model)
+                try await LocalEngine.shared.remove(model)
             } catch {
                 log.error("Local model \(model.rawValue, privacy: .public) removal failed: \(error, privacy: .public)")
             }
-            refresh()
         }
     }
 }

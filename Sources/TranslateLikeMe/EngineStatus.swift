@@ -25,12 +25,21 @@ enum EngineStatus {
     // local model is ready once its download is verified (LocalModelFiles).
     static func check(provider: Provider = Settings.provider) async -> Readiness {
         guard provider.usesCLI else {
-            return LocalModelFiles.live.isInstalled(Settings.localModel) ? .ready : .notInstalled
+            let model = Settings.localModel
+            return localReadiness(model: model, installed: LocalModelFiles.live.isInstalled(model),
+                                  physicalMemory: ProcessInfo.processInfo.physicalMemory)
         }
         guard let binary = await Translator.binaryPath(name: provider.cliBinaryName) else {
             return .notInstalled
         }
         return await readiness(binary: binary, provider: provider)
+    }
+
+    static func localReadiness(model: LocalModel, installed: Bool, physicalMemory: UInt64) -> Readiness {
+        guard model.fits(physicalMemory: physicalMemory) else {
+            return .failed(LocalModelError.insufficientMemory(model).localizedDescription)
+        }
+        return installed ? .ready : .notInstalled
     }
 
     // Some CLIs keep what Settings' model picker needs where the app cannot

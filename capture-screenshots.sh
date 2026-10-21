@@ -28,7 +28,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-APP_DIR="Translate Like Me.app"
+APP_DIR="Translate Like Me Dev.app"
 EXECUTABLE="$PWD/$APP_DIR/Contents/MacOS/TranslateLikeMe"
 LANGUAGE="${CAPTURE_LANGUAGE:-}"
 OUT="${CAPTURE_OUT:-screenshots}"

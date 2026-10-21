@@ -32,6 +32,7 @@ struct FakePasteAccess: SelectionAccess {
         var copies = 0
         var pastes: [(text: String, pid: pid_t)] = []
         var receipt: PasteReceipt?
+        var cancelOnDestination = false
         var readDelay: Duration?
         var clipboardAtRead: String?
         var copyDuringSnapshot = false
@@ -57,7 +58,10 @@ struct FakePasteAccess: SelectionAccess {
             $0.clipboardAtRead = $0.clipboard
         }
     }
-    func destination() -> pid_t? { state.withLock { $0.destination } }
+    func destination() -> pid_t? {
+        if state.withLock({ $0.cancelOnDestination }) { withUnsafeCurrentTask { $0?.cancel() } }
+        return state.withLock { $0.destination }
+    }
     func copySelection() -> CopiedSelection {
         state.withLock {
             $0.copies += 1

@@ -282,7 +282,7 @@ final class DictationController {
             let kind = String(describing: type(of: failure))
             dictationLog.error("Dictation failed (\(kind, privacy: .public))")
             let message = switch failure {
-            case DictationError.microphone, DictationError.insufficientStorage:
+            case DictationError.microphone, DictationError.insufficientStorage, DictationError.recognitionLimit:
                 failure.localizedDescription
             case _ where phase == .preparing:
                 String(localized: "Dictation couldn't be prepared. Check your connection, then choose Try Again.")

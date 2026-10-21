@@ -20,8 +20,8 @@ protocol LocalLoading: Sendable {
 
 // Runs translations on this Mac. One model is resident at a time: loading
 // takes 2-6 s from a warm disk cache (docs/local-translation.md), so it stays
-// loaded between runs, and is released after
-// `idleDelay` without a run, or at once under memory pressure, since
+// loaded between runs, and is released after `idleDelay` without a run.
+// Memory pressure releases it once the active operation drains, since
 // TranslateGemma holds 7.5 GB.
 actor LocalEngine {
     static let shared = LocalEngine()
@@ -33,8 +33,9 @@ actor LocalEngine {
     private let physicalMemory: UInt64
     private let sleep: @Sendable (Duration) async throws -> Void
     private var loaded: (model: LocalModel, generator: any LocalGenerating)?
-    private var loading: (model: LocalModel, task: Task<any LocalGenerating, Error>)?
-    private var running = 0
+    private var occupied = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private var releaseRequested = false
     private var idleRelease: Task<Void, Never>?
     private var pressure: DispatchSourceMemoryPressure?
 
@@ -48,35 +49,55 @@ actor LocalEngine {
     }
 
     var loadedModel: LocalModel? { loaded?.model }
+    var queuedOperations: Int { waiters.count }
+
+    // Actors reenter across awaits. Keep model loading, generation and deletion
+    // exclusive for the whole operation, including the SDK producer's drain.
+    private func acquire() async {
+        idleRelease?.cancel()
+        idleRelease = nil
+        if occupied { await withCheckedContinuation { waiters.append($0) } } else { occupied = true }
+    }
+
+    private func finishOperation() {
+        if releaseRequested {
+            releaseRequested = false
+            unloadNow()
+        }
+        if waiters.isEmpty { occupied = false } else { waiters.removeFirst().resume() }
+        scheduleRelease()
+    }
+
+    func remove(_ model: LocalModel) async throws {
+        try Task.checkCancellation()
+        await acquire()
+        defer { finishOperation() }
+        try Task.checkCancellation()
+        if loaded?.model == model { unloadNow() }
+        try files.remove(model)
+    }
 
     func complete(system: String, text: String, model: LocalModel) async throws -> String {
+        try Task.checkCancellation()
+        await acquire()
+        defer { finishOperation() }
+        try Task.checkCancellation()
         guard model.fits(physicalMemory: physicalMemory) else { throw LocalModelError.insufficientMemory(model) }
         guard files.isInstalled(model) else { throw LocalModelError.notDownloaded(model) }
-        running += 1
-        defer {
-            running -= 1
-            scheduleRelease()
-        }
         let generator = try await generator(for: model)
         try Task.checkCancellation()
         return try await generator.complete(model.prompt(system: system, text: text),
                                             maxTokens: LocalModel.maxTokens(inputCharacters: text.count))
     }
 
-    // A run for another model replaces the resident one; concurrent runs for
-    // the same model share one load.
+    // A different model replaces the resident one after the preceding run drains.
     private func generator(for model: LocalModel) async throws -> any LocalGenerating {
         if let loaded, loaded.model == model { return loaded.generator }
-        if let loading, loading.model == model { return try await loading.task.value }
         unloadNow()
-        let directory = files.root(for: model)
-        let loader = loader
-        let task = Task { try await loader.load(model, from: directory) }
-        loading = (model, task)
-        defer { if loading?.model == model { loading = nil } }
         startPressureMonitor()
         let started = ContinuousClock.now
-        let generator = try await task.value
+        let generator = try await loader.load(model, from: files.root(for: model))
+        try Task.checkCancellation()
         let elapsed = started.duration(to: .now)
         log.notice("Local model \(model.rawValue, privacy: .public) loaded in \(elapsed, privacy: .public)")
         loaded = (model, generator)
@@ -85,7 +106,7 @@ actor LocalEngine {
 
     private func scheduleRelease() {
         idleRelease?.cancel()
-        guard running == 0, loaded != nil else { return }
+        guard !occupied, loaded != nil else { return }
         let sleep = sleep
         idleRelease = Task { [weak self] in
             guard (try? await sleep(Self.idleDelay)) != nil, !Task.isCancelled else { return }
@@ -94,7 +115,8 @@ actor LocalEngine {
     }
 
     func releaseIfIdle(reason: String) {
-        guard running == 0, loading == nil, let model = loaded?.model else { return }
+        guard !occupied else { releaseRequested = true; return }
+        guard let model = loaded?.model else { return }
         log.notice("Local model \(model.rawValue, privacy: .public) released: \(reason, privacy: .public)")
         unloadNow()
     }
@@ -107,8 +129,7 @@ actor LocalEngine {
         loader.release()
     }
 
-    // A run in progress keeps its model; the release waits for the next idle
-    // check instead of pulling memory from under the generation.
+    // A release requested during generation runs as soon as that operation drains.
     private func startPressureMonitor() {
         guard pressure == nil else { return }
         let source = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .global())
@@ -139,22 +160,19 @@ struct MLXLoader: LocalLoading {
         let container: ModelContainer
 
         // The sampling of the benchmark (temperature 0.3, top-p 0.95). A
-        // cancelled run ends the stream, which stops generating.
+        // cancelled run drains the SDK producer before releasing the model.
         func complete(_ prompt: String, maxTokens: Int) async throws -> String {
             try await container.perform { (context: ModelContext) in
                 var context = context
                 context.configuration.extraEOSTokens = LocalModel.stopTokens
                 let tokens = context.tokenizer.encode(text: prompt, addSpecialTokens: false)
-                let stream = try MLXLMCommon.generate(
-                    input: LMInput(tokens: MLXArray(tokens)),
-                    parameters: GenerateParameters(maxTokens: maxTokens, temperature: 0.3, topP: 0.95),
-                    context: context)
-                var output = ""
-                for await generation in stream {
-                    if case .chunk(let text) = generation { output += text }
-                }
                 try Task.checkCancellation()
-                return output
+                let input = LMInput(tokens: MLXArray(tokens))
+                let iterator = try TokenIterator(input: input, model: context.model,
+                    parameters: GenerateParameters(maxTokens: maxTokens, temperature: 0.3, topP: 0.95))
+                let (stream, producer) = generateTask(promptTokenCount: tokens.count,
+                    modelConfiguration: context.configuration, tokenizer: context.tokenizer, iterator: iterator)
+                return try await LocalGeneration.collect(stream, producer: producer)
             }
         }
     }
@@ -187,5 +205,27 @@ struct MLXLoader: LocalLoading {
                                additionalContext: [String: any Sendable]?) throws -> [Int] {
             throw TokenizerError.missingChatTemplate
         }
+    }
+}
+
+// Collect one SDK generation. The producer owns the model until it completes.
+enum LocalGeneration {
+    static func collect(_ stream: AsyncStream<Generation>, producer: Task<Void, Never>) async throws -> String {
+        var output = ""
+        var stop: GenerateStopReason?
+        for await generation in stream {
+            switch generation {
+            case .chunk(let text): output += text
+            case .info(let info): stop = info.stopReason
+            default: break
+            }
+        }
+        // AsyncStream cancellation stops its consumer before the worker has
+        // synchronized the GPU. Keep the model locked until that worker exits.
+        if Task.isCancelled { producer.cancel() }
+        await producer.value
+        try Task.checkCancellation()
+        guard stop == .stop else { throw LocalModelError.outputLimit }
+        return output
     }
 }
