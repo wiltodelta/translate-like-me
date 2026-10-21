@@ -1,10 +1,15 @@
 import Carbon.HIToolbox
 import CoreGraphics
 
-// Command shortcuts follow the user's ASCII-capable layout, so a fixed ANSI key
-// code sends Cmd+. instead of Cmd+V under Dvorak. Non-Latin layouts such as
-// Russian match shortcuts through that same ASCII-capable layout.
+// Command shortcuts follow the user's ASCII-capable layout, so the fixed ANSI
+// key codes for C and V send Cmd+J and Cmd+K under Dvorak, where C and V sit on
+// the I and . keys. Non-Latin layouts such as Russian match shortcuts through
+// that same ASCII-capable layout.
 enum KeyboardLayout {
+    // The ANSI codes stand in when the layout cannot be read.
+    @MainActor static var copyKey: CGKeyCode { keyCode(typing: "c", fallback: CGKeyCode(kVK_ANSI_C)) }
+    @MainActor static var pasteKey: CGKeyCode { keyCode(typing: "v", fallback: CGKeyCode(kVK_ANSI_V)) }
+
     // Text Input Sources must be read on the main thread.
     @MainActor
     static func keyCode(typing character: Character, fallback: CGKeyCode) -> CGKeyCode {

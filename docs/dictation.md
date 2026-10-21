@@ -113,7 +113,7 @@ installation, lifecycle, native UI and build checks.
 `DictationRecorder` queues capture immediately and publishes metering through a
 locked request. `DictationCaptureWorker` owns every engine operation on a serial
 user-initiated queue, including configuration callbacks and teardown. The starting
-indicator is requested before microphone setup and AX target inspection. Release
+indicator is requested before microphone setup; the press reads no AX target. Release
 closes the request's hardware-start gate immediately; the stop task then drains and
 finalizes the WAV before recognition. Cancellation queues discard before a later
 start. This keeps hardware initialization off the UI and prevents a queued startup
@@ -201,19 +201,29 @@ string is the delivery proof, even in renderers that expose no AX text. The
 original clipboard is restored 300 ms after that read and never before 700 ms; a
 newer user copy is never replaced. Without a read within 3 s the result shows with
 Copy, and no second paste is posted. The Paste key code follows the user's
-ASCII-capable keyboard layout, so Dvorak still sends Cmd+V. The most recent result
-remains available through Copy Last Dictation. Translation and Rewrite retain their
-requirement for a real text selection and AX field evidence. AX range decoding
-rejects negative locations and lengths; the real AXValue regression fixture first
-failed for three malformed ranges, then passed after validation moved to the decoder.
+ASCII-capable keyboard layout (`KeyboardLayout`, shared with translation's Copy
+and Paste), so Dvorak still sends Cmd+V. The most recent result
+remains available through Copy Last Dictation. Since October 20, 2026,
+translation and Rewrite deliver through the same `PasteDelivery`, without AX
+field evidence; they still require a real text selection to copy and the
+original process to keep focus with no typing, clicks or app switches. A
+temporary native check drove the production `SelectionWorkflow`,
+`LiveSelectionAccess` and `KeyboardLayout` against a disposable AppKit text view,
+three runs per case: an editable selection was copied, replaced and the marker
+clipboard restored in 3 of 3 (0.8-1.0 s); a read-only selection never read the
+paste, returned the result after the 3 s deadline with one Paste posted, and
+restored the clipboard in 3 of 3. The activity monitor ignored the app's own
+events in all six. Chrome was not verified: its key window was not the test
+tab, so Copy reached another window and the runs read as no selection.
 
 ## Verification
 
 `DictationTests` exercises session cancellation, stale meter callbacks, delivery
 to the focus at delivery time, a read receipt from a fast and a slow destination,
 an unread paste retained at the deadline, no destination, a new copy during
-snapshot, a new copy after paste, cancellation after paste dispatch, the promised
-string through a real private pasteboard, and the Paste key in US, Dvorak and
+snapshot, a new copy after paste, cancellation after paste dispatch, and the
+promised string through a real private pasteboard.
+`KeyboardLayoutTests` pins the Copy and Paste keys in US, Dvorak and
 Dvorak-QWERTY Command layouts.
 
 `DictationControllerTests` drives the real controller with controlled model,

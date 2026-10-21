@@ -5,6 +5,7 @@ paths:
   - "Sources/TranslateLikeMe/OptionKeyGesture.swift"
   - "Sources/TranslateLikeMe/Shortcut*.swift"
   - "Sources/TranslateLikeMe/SelectionTarget.swift"
+  - "Sources/TranslateLikeMe/PasteDelivery.swift"
   - "Tests/TranslateLikeMeTests/Dictation*.swift"
   - "Tests/TranslateLikeMeTests/OptionKeyGestureTests.swift"
 description: "Minimal local dictation: model, recording lifecycle, cancellation, and caret delivery"
@@ -104,23 +105,25 @@ Compute-policy findings and the reproducible synthetic benchmark:
   app (user decision 2026-10-20): typing, clicks and app switches during
   recognition no longer retain the result. Field-level AX targets and the
   custom-renderer window target were removed after a day of logs showed them
-  failing in Chrome, Claude, Slack and on any click; translation keeps its
-  selection target unchanged. `SelectionTarget.dictationDestination` is AX's
-  focused process, else the frontmost app; only a secure text field or no
-  process at all retains the result.
-- `DictationDelivery` snapshots the clipboard just before writing, guards its
-  change count, and restores only its own write. It promises the string through
-  `PasteReceipt` and posts Paste to the destination pid: a read of the promised
-  string is the delivery proof, because a paste must read the clipboard and AX
-  cannot see into custom renderers. Restore only after that read (300 ms later,
-  never before 700 ms), so a busy app never pastes the older clipboard; the
-  previous fixed 720 ms wait raced slow apps. No read within 3 s retains the
-  result without a second paste. TransientType keeps clipboard managers from
-  reading it. Cancellation still restores. Diagnostics log the destination
-  bundle id, pid and read latency, never text. The Paste key code comes from
+  failing in Chrome, Claude, Slack and on any click; translation and Rewrite
+  now deliver the same way (`architecture.md`). `SelectionTarget.destination`
+  is AX's focused process, else the frontmost app; only a secure text field or
+  no process at all retains the result.
+- `PasteDelivery.insert` snapshots the clipboard just before writing; the
+  shared `PasteDelivery` resolves the destination, guards the change count and
+  restores only its own write. It promises the string through `PasteReceipt`
+  and posts Paste to the destination pid: a read of the promised string is the
+  delivery proof, because a paste must read the clipboard and AX cannot see
+  into custom renderers. Restore only after that read (300 ms later, never
+  before 700 ms), so a busy app never pastes the older clipboard; the previous
+  fixed 720 ms wait raced slow apps. No read within 3 s retains the result
+  without a second paste. TransientType keeps clipboard managers from reading
+  it. Cancellation still restores. Diagnostics log the destination bundle id,
+  pid and read latency, never text. The Paste key code comes from
   the ASCII-capable layout (`KeyboardLayout`, main thread only), so Dvorak sends
-  Cmd+V rather than Cmd+.; Russian and other non-Latin layouts use their
-  ASCII-capable layout. Keep the last transcript available for explicit Copy.
+  Cmd+V rather than the fixed ANSI code's Cmd+K; Russian and other non-Latin
+  layouts use their ASCII-capable layout. Keep the last transcript available for
+  explicit Copy.
 - Hold-to-talk is the only recording mode. Default to right Option; the binding
   field accepts left or right Option only. Press begins capture, release finishes,
   other input cancels. No toggle, menu-start path or dedicated cancellation key.

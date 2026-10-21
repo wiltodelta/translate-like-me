@@ -16,13 +16,12 @@ struct DictationInteraction {
 
     static let live = DictationInteraction(endCapture: { DictationIndicator.shared.hide() },
        showError: { PopupController.shared.showError($0) },
-       showResult: { PopupController.shared.showResult($0, kind: .dictation, copied: false) },
+       showResult: { PopupController.shared.showResult($0, kind: .dictation) },
        showCapture: { DictationIndicator.shared.show() },
        deliver: { try await deliverAtFocus($0) })
 
     private static func deliverAtFocus(_ text: String) async throws -> Bool {
-        let paste = KeyboardLayout.keyCode(typing: "v", fallback: SelectionService.KeyCode.vKey)
-        return try await DictationDelivery(access: LiveDictationAccess(pasteKey: paste)).insert(text) == .delivered
+        try await PasteDelivery(access: LiveDictationAccess(pasteKey: KeyboardLayout.pasteKey)).insert(text)
     }
 }
 

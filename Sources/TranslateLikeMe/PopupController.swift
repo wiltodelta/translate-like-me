@@ -105,28 +105,22 @@ final class PopupController {
         case message
         case dictation
 
-        func header(copied: Bool) -> String {
-            switch (self, copied) {
-            case (.translation, true):
-                String(localized: "Couldn't replace the selection. Translation copied to clipboard.")
-            case (.translation, false):
+        var header: String {
+            switch self {
+            case .translation:
                 String(localized: "Couldn't safely replace the selection. Translation ready to copy.")
-            case (.message, true):
-                String(localized: "Couldn't replace the selection. Message copied to clipboard.")
-            case (.message, false):
+            case .message:
                 String(localized: "Couldn't safely replace the selection. Message ready to copy.")
-            case (.dictation, true):
-                String(localized: "Couldn't replace the selection. Dictation copied to clipboard.")
-            case (.dictation, false):
+            case .dictation:
                 String(localized: "Couldn't safely replace the selection. Dictation ready to copy.")
             }
         }
     }
 
-    // Skipped insertion never overwrites a newer clipboard. The header states
-    // whether the result is already copied; Copy is an explicit user action.
-    func showResult(_ text: String, kind: ResultKind, copied: Bool = true) {
-        model.header = kind.header(copied: copied)
+    // Skipped insertion leaves the clipboard as the user had it; Copy is an
+    // explicit user action.
+    func showResult(_ text: String, kind: ResultKind) {
+        model.header = kind.header
         model.body = text
         model.action = (String(localized: "Copy", comment: "Button that copies the result"), { [weak self] in
             SelectionService.copyToClipboard(text)

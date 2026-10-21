@@ -76,6 +76,11 @@ detail, including the secrets and where the keys are kept (1Password):
   `Translator.translate` or `Translator.rewrite` behind an env-var guard
   (`swift test --filter`, three runs per case, delete it after), rather than
   by pressing hotkeys: keystrokes land in whatever window is in front.
+  Check paste delivery the same way: drive `SelectionWorkflow` with
+  `LiveSelectionAccess` against a disposable AppKit window, snapshotting and
+  restoring the user's clipboard around any marker it seeds. Chrome's key
+  window can be the user's own window rather than a tab opened for the check,
+  so Copy posted to Chrome's pid lands there (2026-10-20).
   Every `agy` probe or live test lands in Antigravity's history
   (`~/.gemini/antigravity-cli`); deleting its summary rows does not stick (agy
   restores them at startup), so keep live agy runs few.
@@ -137,4 +142,4 @@ matching files are touched.
 | File | Covers |
 |------|--------|
 | `dictation.md` | Minimal local dictation, model installation, recording, cancellation, and delivery at the current focus |
-| `architecture.md` | Status item and its menu, settings panes, onboarding and its engine checks, global hotkey, language pairs and Rewrite presets, selection validation and clipboard ownership, providers, and update checking |
+| `architecture.md` | Status item and its menu, settings panes, onboarding and its engine checks, global hotkey, language pairs and Rewrite presets, selection validation, the paste shared with dictation and clipboard ownership, providers, and update checking |

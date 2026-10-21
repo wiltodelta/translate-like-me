@@ -63,6 +63,9 @@ final class TranslationController {
         let application = NSWorkspace.shared.frontmostApplication
         let front = application?.bundleIdentifier ?? "unknown"
         let pid = application?.processIdentifier ?? 0
+        // Text Input Sources are read here, on the main thread, not in the workflow.
+        let copyKey = KeyboardLayout.copyKey
+        let pasteKey = KeyboardLayout.pasteKey
         log.notice("""
             \(action, privacy: .public) started, \(subject, privacy: .public), \
             frontmost app: \(front, privacy: .public)
@@ -74,7 +77,8 @@ final class TranslationController {
             let activity = SelectionActivity()
             let stopMonitoring = activity.monitor()
             defer { stopMonitoring() }
-            let workflow = SelectionWorkflow(access: LiveSelectionAccess(pid: pid, activity: activity))
+            let workflow = SelectionWorkflow(access: LiveSelectionAccess(pid: pid, activity: activity,
+                                                                        copyKey: copyKey, pasteKey: pasteKey))
             do {
                 switch try await workflow.run(transform: transform) {
                 case .noSelection:
@@ -82,9 +86,9 @@ final class TranslationController {
                         String(localized: "No text selected. Select some text first, then try again."))
                 case .pasted:
                     log.info("\(action, privacy: .public) done, selection replaced")
-                case .result(let result, let copied):
+                case .result(let result):
                     log.info("\(action, privacy: .public) done, result shown without automatic insertion")
-                    PopupController.shared.showResult(result, kind: kind, copied: copied)
+                    PopupController.shared.showResult(result, kind: kind)
                 }
             } catch {
                 // The message can quote the engine's output, so it stays private.

@@ -20,11 +20,6 @@ enum SelectionService {
 
     private static var pasteboard: NSPasteboard { .general }
 
-    enum KeyCode {
-        static let cKey: CGKeyCode = 8
-        static let vKey: CGKeyCode = 9
-    }
-
     // Every item and type on the pasteboard, so putting it back keeps rich text,
     // images and files, not just the plain string; an empty snapshot restores
     // an empty pasteboard.
@@ -63,7 +58,7 @@ enum SelectionService {
 
     // Copies the current selection and returns it. Returns nil if nothing landed
     // on the pasteboard within the timeout (e.g. no selection).
-    static func copySelection(from pid: pid_t, activity: SelectionActivity) -> CopiedSelection {
+    static func copySelection(from pid: pid_t, keyCode: CGKeyCode, activity: SelectionActivity) -> CopiedSelection {
         let before = pasteboard.changeCount
         let focused = SelectionTarget.focusedPID
         guard activity.isUnchanged, focused == pid else {
@@ -73,7 +68,7 @@ enum SelectionService {
                 """)
             return CopiedSelection(text: nil, changeCount: nil)
         }
-        postKey(KeyCode.cKey, to: pid)
+        postKey(keyCode, to: pid)
         let deadline = Date().addingTimeInterval(0.7)
         while Date() < deadline {
             if pasteboard.changeCount != before {
@@ -97,31 +92,15 @@ enum SelectionService {
         return CopiedSelection(text: nil, changeCount: nil)
     }
 
-    // Validate immediately before writing and again before posting to the exact
-    // original process. The returned mark belongs only to our clipboard write.
-    static func paste(_ text: String, into target: SelectionTarget, ifUnchangedSince expected: Int,
-                      activity: SelectionActivity) -> PasteAttempt? {
-        guard pasteboard.changeCount == expected, activity.isUnchanged, target.isCurrent() else { return nil }
-        let item = NSPasteboardItem()
-        item.setString(text, forType: .string)
-        let mark = writeTransient(item)
-        guard activity.isUnchanged, target.isCurrent(), pasteboard.changeCount == mark else {
-            return PasteAttempt(changeCount: mark, posted: false)
-        }
-        postKey(KeyCode.vKey, to: target.pid)
-        return PasteAttempt(changeCount: mark, posted: true)
-    }
-
-    // Dictation pastes wherever the cursor is now. The string is promised rather
-    // than written, so the receipt records whether any process read it: a paste
-    // that never reads the clipboard did not happen.
-    static func pasteAtCursor(_ text: String, to pid: pid_t, keyCode: CGKeyCode,
-                              ifUnchangedSince expected: Int) -> DictationPaste? {
+    // The string is promised rather than written, so the receipt records whether
+    // any process read it: a paste that never reads the clipboard did not happen.
+    static func paste(_ text: String, to pid: pid_t, keyCode: CGKeyCode,
+                      ifUnchangedSince expected: Int) -> PromisedPaste? {
         guard pasteboard.changeCount == expected else { return nil }
         let receipt = PasteReceipt(text: text)
         let mark = writeTransient(receipt.promisedItem())
         postKey(keyCode, to: pid)
-        return DictationPaste(changeCount: mark, receipt: receipt)
+        return PromisedPaste(changeCount: mark, receipt: receipt)
     }
 
     // TransientType keeps clipboard managers from reading or recording our
@@ -146,7 +125,7 @@ enum SelectionService {
     }
 }
 
-struct DictationPaste: Sendable {
+struct PromisedPaste: Sendable {
     let changeCount: Int
     let receipt: PasteReceipt
 }

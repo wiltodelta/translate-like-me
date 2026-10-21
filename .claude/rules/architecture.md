@@ -126,25 +126,33 @@ Read before editing this domain.
   `Translator`'s binary cache a lock (`OSAllocatedUnfairLock`).
 - `SelectionWorkflow` owns the copy/await/validate/paste/restore flow, with
   `LiveSelectionAccess` as its native adapter and injected effects in tests.
-  `SelectionTarget` records the original process, AX element, selected range,
-  selected text and available field value. Before insertion they must still
-  match, with no intervening typing, click or app activation (`SelectionActivity`).
-  Missing AX evidence allows translation but skips automatic insertion. This
-  checks context, never AX editability, which was unreliable in web/Electron fields.
+  Text reaches a field one way in the whole app (user decision 2026-10-20):
+  `PasteDelivery`, shared with dictation, promises the string through
+  `PasteReceipt`, posts Paste, and takes the destination's read as the delivery
+  proof; it restores the clipboard 300 ms after the read and never before
+  700 ms, and an unread paste (a read-only field) is shown with Copy after 3 s,
+  never retried. `PasteAccess.destination()`, asked just before writing, is
+  `SelectionTarget.destination`, the focused process unless a secure field
+  holds focus; translation also requires it to be the original process, with
+  no intervening typing, click or app activation (`SelectionActivity`). The
+  live adapters share the pasteboard through `LivePasteAccess`. No AX element,
+  range or value is compared: those checks failed in Chrome, Claude and Slack.
   The focused process is AX's system-wide focused application, else the
   frontmost app (`SelectionTarget.focusedPID`): frontmost Slack once left the
   former unanswered, and the copy guard read every run as no selection. A
   failed AX answer logs its error code.
   Copy and Paste events go to the original pid and carry an app marker so the
-  activity monitor ignores them. A newer clipboard change during the engine
-  skips insertion and remains untouched. After paste, AX context decides whether
-  replacement landed, without another Cmd+C. Successful insertion restores the
-  original rich clipboard only while the run still owns it; a read-only target
-  keeps the result unless a newer copy wins. Skipped insertion shows the result
-  with Copy, without claiming it was copied.
+  activity monitor ignores them. Their key codes come from the ASCII-capable
+  layout (`KeyboardLayout`), read on the main thread before the workflow starts,
+  so Dvorak sends Cmd+C and Cmd+V rather than the ANSI codes' Cmd+J and Cmd+K.
+  A newer clipboard change during the engine skips insertion and remains
+  untouched. Restores put back the original rich clipboard only while the run
+  still owns it. Skipped insertion shows the result with Copy and never claims
+  it was copied.
   Selection diagnostics use the `selection` log category at notice level: copy
   timeout, focus and clipboard guards, the first invalidating activity class,
-  and AX identity/range/value equality. They record metadata only, never text.
+  the paste destination, and whether and when it read the paste. They record
+  metadata only, never text.
   Filter by process id when both installed and dev copies run.
 - `ProcessRunner` concurrently drains stdout/stderr and writes stdin through
   DispatchIO. A run is cancellable, with a 120-second translation deadline,

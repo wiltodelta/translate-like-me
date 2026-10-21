@@ -143,12 +143,13 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
 - Open Settings with ⌘, when the app is active, or reopen the app to bring Settings back.
 - The icon shows a busy glyph while a translation is running. A run that stops responding
   times out after two minutes so another translation can start.
-- Automatic insertion requires the original app, field, selection and text to stay
-  unchanged. If you type, switch targets, copy something else, or the app cannot
-  verify the target through Accessibility, the result appears near the cursor with
-  a **Copy** button. Your newer clipboard contents are preserved.
-- If a paste reaches a read-only field, the result stays on the clipboard and in
-  the popup, unless you have copied something newer.
+- Automatic insertion requires the original app to keep focus, with no typing,
+  clicks or app switches while the engine works. If you do any of that, or copy
+  something else, the result appears near the cursor with a **Copy** button. Your
+  newer clipboard contents are preserved.
+- Insertion counts as done when the app reads the pasted text. If it does not
+  within 3 seconds (a read-only field, for example), the result appears in the
+  same popup and your clipboard is restored. Dictation uses the same paste.
 - If something goes wrong (no text selected, or the translation fails), that same
   popup shows the message instead.
 
