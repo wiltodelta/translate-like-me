@@ -442,6 +442,25 @@ the team Developer ID and hardened runtime. Its Metal library SHA-256 matched
 the runtime-check artifact. The installed application was not replaced or
 restarted. The audit reports remain local and no commit, push or release was made.
 
+### Clean CI Metal dependency
+
+The first pushed implementation compiled on CI but its Qwen sampling unit test
+terminated while initializing MLX: the runner had no default Metal library yet.
+Local Xcode builds had generated a SwiftPM Metal resource bundle, hiding that
+prerequisite. A missing-library override reproduced the failure locally.
+
+`Device.withDefaultDevice(.cpu)` first initializes MLX's global stream pair.
+An explicit CPU stream bypassed that initialization, but a second probe still
+failed during array allocation: MLX's native allocator also initializes Metal.
+The explicit-stream prototype was rejected and production sampling is unchanged.
+CI now builds the pinned native kernels with the existing script before tests
+and exports `TLM_QWEN_METALLIB`. The Qwen sampling test uses the existing
+`DictationQwenTestSupport.configure()` helper. It skips only when a local checkout
+has neither an assembled dev app nor an explicit library path; an explicit but
+missing library fails. CI always supplies the path and must execute this test.
+A fresh local checkout can run `./build.sh` first, or provide the kernels through
+that environment variable. No model download or microphone is needed.
+
 ### Re-running the runtime check
 
 The permanent opt-in test accepts `cases.json` with `id`, `file`, `expected` and

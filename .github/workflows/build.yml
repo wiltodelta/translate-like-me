@@ -67,6 +67,15 @@ jobs:
     - name: Install CMake
       run: command -v cmake >/dev/null || brew install cmake
 
+    # Native MLX sampling initializes Metal even inside a CPU device scope.
+    # Bare SwiftPM on CI does not compile its default Metal resource bundle.
+    - name: Prepare MLX kernels for tests
+      run: |
+        swift package resolve
+        mkdir -p "$RUNNER_TEMP/test-metal"
+        bash scripts/build-mlx-metallib.sh "$RUNNER_TEMP/test-metal"
+        echo "TLM_QWEN_METALLIB=$RUNNER_TEMP/test-metal/mlx.metallib" >> "$GITHUB_ENV"
+
     - name: Run tests
       run: swift test
 

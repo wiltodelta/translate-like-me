@@ -82,7 +82,13 @@ final class DictationLanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(switched.tokens.last, 2)
     }
 
-    func testQwenModifiesVocabularyAxisAndStopsBiasingAfterLanguagePrefix() {
+    func testQwenModifiesVocabularyAxisAndStopsBiasingAfterLanguagePrefix() throws {
+        do {
+            try DictationQwenTestSupport.configure()
+        } catch let error as CocoaError where error.code == .fileNoSuchFile &&
+            ProcessInfo.processInfo.environment["TLM_QWEN_METALLIB"] == nil {
+            throw XCTSkip("Build the dev app or set TLM_QWEN_METALLIB to run native MLX sampling")
+        }
         Device.withDefaultDevice(.cpu) {
             let prefix = DictationLanguagePrefix(start: [9], preferred: [[9, 1], [9, 2]])
             // The real decoder returns batch x sequence x vocabulary, not a vocabulary vector.

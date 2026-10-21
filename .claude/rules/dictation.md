@@ -32,7 +32,9 @@ Compute-policy findings and the reproducible synthetic benchmark:
   No pairs or any unsupported candidate preserves unrestricted detection.
   WhisperKit's separate language pass needs its sampler adapter; text logits
   filters do not reach it. Qwen matches prefixes with its active tokenizer and
-  stops applying the preference before text. Details and evidence:
+  stops applying the preference before text. Native MLX sampling tests need Metal
+  kernels even in a CPU device scope. CI builds them before tests and supplies
+  `TLM_QWEN_METALLIB`; a configured but missing library must fail. Details and evidence:
   `docs/dictation-language-detection.md`.
   Qwen uses native MLX on the GPU, with no Python requirement. Parakeet Ultra
   was removed; its saved raw value falls back to Turbo.
