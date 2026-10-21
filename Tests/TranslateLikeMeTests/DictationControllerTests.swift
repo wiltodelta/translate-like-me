@@ -63,15 +63,17 @@ final class DictationControllerTests: XCTestCase {
             let engine = ControlledDictationEngine()
             engine.transcript = "Привет, world!"
             let recorder = ControlledDictationRecorder()
+            let results = LastResults()
             var deliveries: [String] = []
             var shown: [String] = []
             let controller = DictationController(enabled: true, engine: engine, recorder: recorder,
                 interaction: DictationInteraction(endCapture: {}, showError: { _ in },
                                                   showResult: { shown.append($0) }, deliver: {
+                    XCTAssertEqual(results[.dictation], $0, "Retain before attempting delivery")
                     deliveries.append($0)
                     XCTAssertTrue(TranslationActivity.shared.isBusy, "Capture owns activity through delivery")
                     return delivered
-                }), saveModel: { _ in })
+                }), results: results, saveModel: { _ in })
             controller.restore()
             await controller.operation?.value
             controller.shortcutPressed()
@@ -79,7 +81,7 @@ final class DictationControllerTests: XCTestCase {
             await controller.operation?.value
             XCTAssertEqual(deliveries, ["Привет, world!"])
             XCTAssertEqual(shown, delivered ? [] : ["Привет, world!"])
-            XCTAssertEqual(controller.lastResult, "Привет, world!")
+            XCTAssertEqual(results[.dictation], "Привет, world!")
             XCTAssertEqual(controller.phase, .ready)
             XCTAssertFalse(TranslationActivity.shared.isBusy)
         }

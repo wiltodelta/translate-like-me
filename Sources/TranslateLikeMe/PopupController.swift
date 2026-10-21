@@ -100,10 +100,18 @@ final class PopupController {
 
     // What a result is, for the popup's header: whole sentences, since many
     // languages agree the verb ("copied") with the noun.
-    enum ResultKind {
+    enum ResultKind: CaseIterable, Hashable, Sendable {
         case translation
         case message
         case dictation
+
+        var copyTitle: String {
+            switch self {
+            case .translation: String(localized: "Translation")
+            case .message: String(localized: "Rewrite")
+            case .dictation: String(localized: "Dictation")
+            }
+        }
 
         var header: String {
             switch self {

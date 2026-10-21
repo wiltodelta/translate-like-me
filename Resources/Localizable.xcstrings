@@ -1987,60 +1987,60 @@
         }
       }
     },
-    "Copy Last Dictation" : {
+    "Copy Last Result" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Letztes Diktat kopieren"
+            "value" : "Letztes Ergebnis kopieren"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Copiar último dictado"
+            "value" : "Copiar último resultado"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Copier la dernière dictée"
+            "value" : "Copier le dernier résultat"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Copia ultima dettatura"
+            "value" : "Copia ultimo risultato"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "最後の音声入力をコピー"
+            "value" : "最後の結果をコピー"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "마지막 받아쓰기 복사"
+            "value" : "마지막 결과 복사"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Copiar Último Ditado"
+            "value" : "Copiar Último Resultado"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Скопировать последнюю диктовку"
+            "value" : "Скопировать последний результат"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "拷贝上次听写"
+            "value" : "拷贝上次结果"
           }
         }
       }

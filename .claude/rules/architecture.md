@@ -36,7 +36,11 @@ Read before editing this domain.
   becomes key, so its Copy / Open Settings buttons are not keyboard-reachable; that
   is deliberate (decided 2026-09-28): taking focus would steal the field the user
   is typing in. A skipped insertion leaves the result available through Copy,
-  without overwriting a newer user copy, and Settings opens
+  without overwriting a newer user copy. `LastResults` retains one nonempty
+  completed result per `PopupController.ResultKind` in memory, before paste;
+  failures and cancellations keep the earlier result. StatusMenu's Copy Last
+  Result submenu always lists Translation, Rewrite and Dictation, dimming missing
+  results; it copies explicitly without rerunning an engine. Settings opens
   from the status menu. Its one action keeps the active accent
   (`controlActiveState = .key`), and a capped body fades at the bottom when more
   text is below. Its opaque `windowBackgroundColor` backing keeps text readable

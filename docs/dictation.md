@@ -205,7 +205,20 @@ newer user copy is never replaced. Without a read within 3 s the result shows wi
 Copy, and no second paste is posted. The Paste key code follows the user's
 ASCII-capable keyboard layout (`KeyboardLayout`, shared with translation's Copy
 and Paste), so Dvorak still sends Cmd+V. The most recent result
-remains available through Copy Last Dictation. Since October 20, 2026,
+remains available through Copy Last Result > Dictation, alongside the separate
+latest Translation and Rewrite results. These session-only results are recorded
+before delivery, so a paste failure cannot lose the generated text.
+
+Recovery-menu verification (October 21, 2026) rendered empty, partial and full
+states in the signed development bundle in both appearances, using synthetic
+launch-only results. English menu bounds were 259 x 472 pt, 353 x 472 pt with
+the submenu open, at 2x capture scale; all three result rows remained visible
+without clipping. German also fit at 315 x 472 pt, 423 x 472 pt with the
+submenu. All three native Copy commands returned their own synthetic result in
+both appearances (6 of 6), with the complete clipboard restored after each check.
+These captures verify recovery controls, not speech recognition.
+Reproduce them with `CAPTURE_RESULTS_ONLY=1 CAPTURE_OUT=<dir> ./capture-screenshots.sh`.
+Since October 20, 2026,
 translation and Rewrite deliver through the same `PasteDelivery`, without AX
 field evidence; they still require a real text selection to copy and the
 original process to keep focus with no typing, clicks or app switches. A

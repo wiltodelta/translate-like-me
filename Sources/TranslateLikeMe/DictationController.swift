@@ -35,7 +35,9 @@ final class DictationController {
     private(set) var progress: Double = 0
     private(set) var level: Double = 0
     private(set) var error: String?
-    private(set) var lastResult: String?
+    var lastResult: String? { results[.dictation] }
+
+    @ObservationIgnored private let results: LastResults
 
     @ObservationIgnored private let engine: any DictationRecognizing
     @ObservationIgnored private let recorder: any DictationRecording
@@ -51,20 +53,21 @@ final class DictationController {
 
     init(enabled: Bool, model: DictationModel = .turbo,
          engine: any DictationRecognizing, recorder: any DictationRecording,
-         interaction: DictationInteraction,
+         interaction: DictationInteraction, results: LastResults = LastResults(),
          saveModel: @escaping (DictationModel) -> Void = { Settings.dictationModel = $0 }) {
         self.enabled = enabled
         self.model = model
         self.engine = engine
         self.recorder = recorder
         self.interaction = interaction
+        self.results = results
         self.saveModel = saveModel
     }
 
     private convenience init() {
         self.init(enabled: Settings.dictationEnabled, model: Settings.dictationModel,
                   engine: DictationEngine(), recorder: DictationRecorder(),
-                  interaction: .live)
+                  interaction: .live, results: .shared)
         let source = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
         source.setEventHandler { [weak self] in
             MainActor.assumeIsolated {
@@ -232,7 +235,7 @@ final class DictationController {
                         session.transition(.ready, for: id)
                         return
                     }
-                    lastResult = text
+                    results.record(text, kind: .dictation)
                     let delivered = try await interaction.deliver?(text) ?? false
                     guard session.accepts(id, in: .recognizing), !Task.isCancelled else { return }
                     if !delivered { interaction.showResult(text) }

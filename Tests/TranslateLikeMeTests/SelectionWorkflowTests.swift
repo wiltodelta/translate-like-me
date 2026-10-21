@@ -78,6 +78,27 @@ final class SelectionWorkflowTests: XCTestCase {
         XCTAssertEqual(access.state.withLock { $0.clipboard }, "original clipboard")
     }
 
+    @MainActor
+    func testCompletedResultIsRetainedBeforeBothReadAndUnreadDelivery() async throws {
+        for read in [false, true] {
+            let access = FakePasteAccess()
+            if read { access.state.withLock { $0.readDelay = .milliseconds(100) } }
+            let results = LastResults()
+            let subject = SelectionWorkflow(access: access, didProduceResult: { text in
+                XCTAssertEqual(access.state.withLock { $0.pastes.count }, 0)
+                await results.record(text, kind: .translation)
+            }, pause: { access.advance($0) })
+            let outcome = try await subject.run { _ in "Готовый перевод" }
+            XCTAssertEqual(outcome, read ? .pasted : .result("Готовый перевод"))
+            XCTAssertEqual(results[.translation], "Готовый перевод")
+            do {
+                _ = try await subject.run { _ in throw CancellationError() }
+                XCTFail("Failure must propagate")
+            } catch is CancellationError { }
+            XCTAssertEqual(results[.translation], "Готовый перевод")
+        }
+    }
+
     private func workflow(_ access: FakePasteAccess) -> SelectionWorkflow<FakePasteAccess> {
         SelectionWorkflow(access: access, pause: { access.advance($0) })
     }

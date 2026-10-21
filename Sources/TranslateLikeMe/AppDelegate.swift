@@ -24,6 +24,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         Settings.moveStyleIntoPairs()
         Settings.removeAPIKeys()
 
+        // Launch-only synthetic results for native captures; never read user text.
+        if Bundle.main.bundleIdentifier == "com.wiltodelta.translatelikeme.dev",
+           let preview = UserDefaults.standard.string(forKey: "lastResultsPreview") {
+            LastResults.shared.record("The translation is ready.", kind: .translation)
+            if preview == "all" {
+                LastResults.shared.record("The rewritten message is ready.", kind: .message)
+                LastResults.shared.record("These are spoken notes.", kind: .dictation)
+            }
+        }
         setUpStatusItem()
 
         // Swap the icon when a translation starts or finishes.

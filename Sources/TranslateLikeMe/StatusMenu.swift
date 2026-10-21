@@ -18,7 +18,13 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private var engineCheck: Task<Void, Never>?
     private weak var engineItem: NSMenuItem?
 
-    override init() {
+    private let results: LastResults
+    private let copyResult: (String) -> Void
+
+    init(results: LastResults = .shared,
+         copyResult: @escaping (String) -> Void = { SelectionService.copyToClipboard($0) }) {
+        self.results = results
+        self.copyResult = copyResult
         super.init()
         menu.delegate = self
         menu.autoenablesItems = false
@@ -56,9 +62,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
                                       comment: "Menu subtitle; the placeholder is a key, such as Right Option")
         }
         menu.addItem(dictate)
-        if dictation.lastResult != nil {
-            menu.addItem(item(String(localized: "Copy Last Dictation"), action: #selector(copyLastDictation)))
-        }
 
         // The app's key action: one item per language pair, showing its shortcut.
         menu.addItem(.separator())
@@ -79,6 +82,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             menu.addItem(.sectionHeader(title: String(localized: "Rewrite selection")))
             for preset in presets { menu.addItem(rewriteItem(preset)) }
         }
+
+        menu.addItem(.separator())
+        menu.addItem(lastResultsItem())
 
         // macOS 26 gives Settings… its standard gear icon, so its group gets an
         // icon on every item (HIG: uniform treatment within a group).
@@ -226,8 +232,27 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         }
     }
 
-    @objc private func copyLastDictation() {
-        if let text = DictationController.shared.lastResult { SelectionService.copyToClipboard(text) }
+    // Always show all three actions so availability never changes their order.
+    func lastResultsItem() -> NSMenuItem {
+        let parent = NSMenuItem(title: String(localized: "Copy Last Result"), action: nil, keyEquivalent: "")
+        parent.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)
+        showsImage(parent)
+        let submenu = NSMenu()
+        submenu.autoenablesItems = false
+        for kind in PopupController.ResultKind.allCases {
+            let row = item(kind.copyTitle, action: #selector(copyLastResult(_:)))
+            row.representedObject = kind
+            row.isEnabled = results[kind] != nil
+            submenu.addItem(row)
+        }
+        parent.submenu = submenu
+        return parent
+    }
+
+    @objc private func copyLastResult(_ sender: NSMenuItem) {
+        guard let kind = sender.representedObject as? PopupController.ResultKind,
+              let text = results[kind] else { return }
+        copyResult(text)
     }
 
     @objc private func requestAccessibility() { SelectionService.promptForAccessibility() }

@@ -78,7 +78,10 @@ final class TranslationController {
             let stopMonitoring = activity.monitor()
             defer { stopMonitoring() }
             let workflow = SelectionWorkflow(access: LiveSelectionAccess(pid: pid, activity: activity,
-                                                                        copyKey: copyKey, pasteKey: pasteKey))
+                                                                        copyKey: copyKey, pasteKey: pasteKey),
+                                             didProduceResult: { result in
+                                                 await LastResults.shared.record(result, kind: kind)
+                                             })
             do {
                 switch try await workflow.run(transform: transform) {
                 case .noSelection:

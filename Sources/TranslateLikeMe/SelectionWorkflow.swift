@@ -19,6 +19,7 @@ enum SelectionOutcome: Equatable, Sendable {
 
 struct SelectionWorkflow<Access: SelectionAccess>: Sendable {
     let access: Access
+    var didProduceResult: @Sendable (String) async -> Void = { _ in }
     var pause: @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) }
 
     func run(transform: @Sendable (String) async throws -> String) async throws -> SelectionOutcome {
@@ -36,6 +37,7 @@ struct SelectionWorkflow<Access: SelectionAccess>: Sendable {
         defer { access.restore(original, ifUnchangedSince: mark) }
         let result = try await transform(selection)
         try Task.checkCancellation()
+        await didProduceResult(result)
         let read = try await PasteDelivery(access: access, pause: pause)
             .deliver(result, restoring: original, ifUnchangedSince: mark)
         return read ? .pasted : .result(result)

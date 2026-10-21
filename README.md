@@ -125,6 +125,11 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
 
 ## Usage
 
+The **Copy Last Result** submenu keeps the latest Translation, Rewrite and
+Dictation separately, even after successful insertion. Unavailable results are
+dimmed. Results stay in memory until you quit; errors leave earlier results
+available. Copying is explicit and does not run the engine again.
+
 - For dictation, turn on **Enable dictation** under **Settings > Dictation**.
   First setup downloads the model; later recognition works locally. The default
   hold key is **Right Option**. Hold it while speaking, then release to recognize
@@ -132,7 +137,7 @@ signs the app ad hoc, so macOS asks for Accessibility again after every rebuild.
   Option instead. Other input during the hold cancels dictation, so an Option
   combination does not insert speech. There is no tap-to-toggle mode or menu
   command to start recording. Recording is bounded to five minutes. The menu
-  offers **Copy Last Dictation** after a result, without a recording history.
+  offers **Copy Last Result > Dictation** to recover the latest transcript.
   The microphone is ready between holds without recording, so capture
   starts about 0.2 s after the press, measured on the built-in microphone and on
   AirPods. While you hold the key, system sound output is muted, then restored.

@@ -130,8 +130,8 @@ Compute-policy findings and the reproducible synthetic benchmark:
   pid and read latency, never text. The Paste key code comes from
   the ASCII-capable layout (`KeyboardLayout`, main thread only), so Dvorak sends
   Cmd+V rather than the fixed ANSI code's Cmd+K; Russian and other non-Latin
-  layouts use their ASCII-capable layout. Keep the last transcript available for
-  explicit Copy.
+  layouts use their ASCII-capable layout. Keep the last transcript in `LastResults` for
+  explicit Copy Last Result > Dictation, shared with Translation and Rewrite.
 - Hold-to-talk is the only recording mode. Default to right Option; the binding
   field accepts left or right Option only. Press begins capture, release finishes,
   other input cancels. No toggle, menu-start path or dedicated cancellation key.

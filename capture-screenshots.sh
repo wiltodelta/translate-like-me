@@ -44,6 +44,10 @@ WORK=$(mktemp -d)
 SAMPLE_PRESETS='[{"id":"8F9619FF-8B86-D011-B42D-00C04FC964FF","name":"Work","shortcut":{"keyCode":38,"modifiers":2304},"style":"Clear and polite, short paragraphs."},{"id":"9F9619FF-8B86-D011-B42D-00C04FC964FF","name":"Friends","shortcut":{"keyCode":40,"modifiers":2304},"style":"Casual, short sentences, no emoji."}]'
 SAMPLE_PAIRS='[{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","first":"ru","second":"en","shortcut":{"keyCode":3,"modifiers":2304},"style":"Casual and friendly, short sentences."},{"id":"7F9619FF-8B86-D011-B42D-00C04FC964FF","first":"ru","second":"en","shortcut":{"keyCode":5,"modifiers":2304},"style":""}]'
 
+# CAPTURE_MENU_ONLY=1 refreshes just menu.png and menu-dark.png (and the link preview).
+# CAPTURE_RESULTS_ONLY=1 with CAPTURE_OUT=<dir> checks empty, partial and full
+# recovery submenus. Its synthetic launch fixtures never call a model or record audio.
+
 # --- Build ----------------------------------------------------------------------
 
 # Quit only the exact development bundle, preserving every other running app.
@@ -105,6 +109,14 @@ func backdropColor() -> NSColor {
 }
 
 switch args[1] {
+case "screen":
+    let frame = NSScreen.screens[0].frame
+    print(Int(frame.width), Int(frame.height))
+case "menus":
+    let menus = windows(Int32(args[2])!).filter { ($0[kCGWindowLayer as String] as? Int ?? 0) > 25 }
+    guard !menus.isEmpty else { exit(1) }
+    let bounds = menus.reduce(CGRect.null) { $0.union(frame($1)) }
+    print(Int(bounds.minX), Int(bounds.minY), Int(bounds.width), Int(bounds.height))
 case "menu":
     // Menus draw at the pop-up menu level (101); the status item sits at 25.
     if let w = windows(Int32(args[2])!).first(where: { ($0[kCGWindowLayer as String] as? Int ?? 0) > 25 }) {
@@ -217,7 +229,8 @@ localized() {
 
 # --- Accessibility driving -------------------------------------------------------
 
-# launch <pane> [<dictation preview>] [<provider>]: a fresh copy with Settings set to open on <pane> (0 General, 1
+# launch <pane> [<dictation preview>] [<provider>] [<results preview>]: a fresh copy
+# with Settings set to open on <pane> (0 General, 1
 # Translation, 2 Rewrite, 3 Dictation), since switching panes in the window would write the choice back.
 # -n: a new instance even if an earlier one is still quitting.
 # The keys are Settings.Key.languagePairs, .rewritePresets, .provider, localModel and
@@ -234,6 +247,7 @@ launch() {
         -dictationShortcut '<7b226b6579436f6465223a36312c226d6f64696669657273223a323034387d>'
         -languagePairs "<$(printf '%s' "$SAMPLE_PAIRS" | xxd -p | tr -d '\n')>"
         -rewritePresets "<$(printf '%s' "$SAMPLE_PRESETS" | xxd -p | tr -d '\n')>")
+    if [ -n "${4:-}" ]; then arguments+=(-lastResultsPreview "$4"); fi
     if [ -n "$LANGUAGE" ]; then arguments+=(-AppleLanguages "($LANGUAGE)"); fi
     if [ -n "${2:-}" ]; then arguments+=(-dictationPreview "$2"); fi
     open -n "$APP_DIR" --args "${arguments[@]}"
@@ -387,8 +401,37 @@ capture_settings() {
     capture_frame "$2" "$SX" "$SY" "$SW" "$SH"
 }
 
+# Capture the shipping submenu with all, some or no results, using only synthetic text.
+capture_results() {
+    local dark="$1" suffix="$2" state
+    appearance "set dark mode to $dark" >/dev/null
+    sleep 2
+    for state in empty partial all; do
+        local fixture="$state"
+        [ "$state" != empty ] || fixture=""
+        launch 0 settings anthropic "$fixture"
+        local screen_w screen_h
+        read -r screen_w screen_h < <(helper screen)
+        show_backdrop 0 0 "$screen_w" "$screen_h"
+        open_menu
+        measure_menu
+        ax "perform action \"AXPress\" of menu item \"$(localized 'Copy Last Result')\" of menu 1 of $STATUS_ITEM" >/dev/null
+        sleep 0.7
+        local union_x union_y union_w union_h
+        read -r union_x union_y union_w union_h < <(helper menus "$PID")
+        [ "$union_w" -gt "$W" ] || { echo "The results submenu did not open."; exit 1; }
+        helper capture "$PID" "$BACKDROP_PID" "$X" "$Y" "$W" "$H" \
+            "$((union_x - MARGIN))" "$union_y" "$((union_w + 2 * MARGIN))" "$((union_h + MARGIN))" \
+            "$OUT/results-$state$suffix.png"
+        echo "Results $state: parent ${W}x${H} pt, combined ${union_w}x${union_h} pt"
+        close_menu
+        kill "$BACKDROP_PID"; wait "$BACKDROP_PID" 2>/dev/null || true; BACKDROP_PID=""
+    done
+}
+
 # capture_all <dark mode true|false> <file suffix>: every screen in one appearance.
 capture_all() {
+    if [ "${CAPTURE_RESULTS_ONLY:-0}" = 1 ]; then capture_results "$1" "$2"; return; fi
     appearance "set dark mode to $1" >/dev/null
     sleep 2 # the menu bar and windows redraw
     launch 0 settings
@@ -402,6 +445,7 @@ capture_all() {
     sleep 0.5
     measure_menu
     capture_frame "menu$2" "$X" "$Y" "$W" "$H"
+    if [ "${CAPTURE_MENU_ONLY:-0}" = 1 ]; then close_menu; return; fi
     capture_settings "$(localized General)" "general$2"
 
     launch 1
