@@ -67,14 +67,8 @@ final class DictationOutputMute {
 }
 
 struct CoreAudioOutputControl: DictationOutputControl {
-    private static func address(_ selector: AudioObjectPropertySelector,
-                                _ scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal)
-        -> AudioObjectPropertyAddress {
-        AudioObjectPropertyAddress(mSelector: selector, mScope: scope, mElement: kAudioObjectPropertyElementMain)
-    }
-
     private static var mute: AudioObjectPropertyAddress {
-        address(kAudioDevicePropertyMute, kAudioDevicePropertyScopeOutput)
+        audioAddress(kAudioDevicePropertyMute, kAudioDevicePropertyScopeOutput)
     }
 
     func defaultOutput() -> AudioObjectID? { defaultAudioDevice(kAudioHardwarePropertyDefaultOutputDevice) }
@@ -99,37 +93,7 @@ struct CoreAudioOutputControl: DictationOutputControl {
                                           UInt32(MemoryLayout<UInt32>.size), &value) == noErr
     }
 
-    func uid(of device: AudioObjectID) -> String? {
-        var address = Self.address(kAudioDevicePropertyDeviceUID)
-        var uid: Unmanaged<CFString>?
-        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
-        guard AudioObjectGetPropertyData(device, &address, 0, nil, &size, &uid) == noErr,
-              let uid else { return nil }
-        return uid.takeRetainedValue() as String
-    }
+    func uid(of device: AudioObjectID) -> String? { audioDeviceUID(device) }
 
-    func device(uid: String) -> AudioObjectID? {
-        var address = Self.address(kAudioHardwarePropertyTranslateUIDToDevice)
-        var uid = uid as CFString
-        var device = AudioObjectID(kAudioObjectUnknown)
-        var size = UInt32(MemoryLayout<AudioObjectID>.size)
-        let status = withUnsafeMutablePointer(to: &uid) { pointer in
-            AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address,
-                                       UInt32(MemoryLayout<CFString>.size), pointer, &size, &device)
-        }
-        guard status == noErr, device != kAudioObjectUnknown else { return nil }
-        return device
-    }
-}
-
-// The system's current default input or output device.
-func defaultAudioDevice(_ selector: AudioObjectPropertySelector) -> AudioObjectID? {
-    var address = AudioObjectPropertyAddress(mSelector: selector, mScope: kAudioObjectPropertyScopeGlobal,
-                                             mElement: kAudioObjectPropertyElementMain)
-    var device = AudioObjectID(kAudioObjectUnknown)
-    var size = UInt32(MemoryLayout<AudioObjectID>.size)
-    guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil,
-                                     &size, &device) == noErr,
-          device != kAudioObjectUnknown else { return nil }
-    return device
+    func device(uid: String) -> AudioObjectID? { audioDevice(uid: uid) }
 }

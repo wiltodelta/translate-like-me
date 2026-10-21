@@ -31,6 +31,7 @@ final class DictationController {
     static let shared = DictationController()
     private(set) var enabled: Bool
     private(set) var model: DictationModel
+    private(set) var microphone: DictationMicrophone?
     private(set) var session = DictationSession()
     private(set) var progress: Double = 0
     private(set) var level: Double = 0
@@ -43,6 +44,7 @@ final class DictationController {
     @ObservationIgnored private let recorder: any DictationRecording
     @ObservationIgnored private let interaction: DictationInteraction
     @ObservationIgnored private let saveModel: (DictationModel) -> Void
+    @ObservationIgnored private let saveMicrophone: (DictationMicrophone?) -> Void
     @ObservationIgnored private(set) var operation: Task<Void, Never>?
     @ObservationIgnored private var pressureSource: DispatchSourceMemoryPressure?
     @ObservationIgnored private var modelRelease: Task<Void, Never>?
@@ -59,11 +61,16 @@ final class DictationController {
          interaction: DictationInteraction, results: LastResults = LastResults(),
          releaseTail: Duration = .zero,
          sleep: @escaping @MainActor (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
-         saveModel: @escaping (DictationModel) -> Void = { Settings.dictationModel = $0 }) {
+         saveModel: @escaping (DictationModel) -> Void = { Settings.dictationModel = $0 },
+         microphone: DictationMicrophone? = nil,
+         saveMicrophone: @escaping (DictationMicrophone?) -> Void = { Settings.dictationMicrophone = $0 }) {
         self.enabled = enabled
         self.model = model
+        self.microphone = microphone
+        self.saveMicrophone = saveMicrophone
         self.engine = engine
         self.recorder = recorder
+        recorder.useInput(microphone?.uid)
         self.interaction = interaction
         self.results = results
         self.releaseTail = releaseTail
@@ -74,7 +81,8 @@ final class DictationController {
     private convenience init() {
         self.init(enabled: Settings.dictationEnabled, model: Settings.dictationModel,
                   engine: DictationEngine(), recorder: DictationRecorder(),
-                  interaction: .live, results: .shared, releaseTail: Self.liveReleaseTail)
+                  interaction: .live, results: .shared, releaseTail: Self.liveReleaseTail,
+                  microphone: Settings.dictationMicrophone)
         let source = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
         source.setEventHandler { [weak self] in
             MainActor.assumeIsolated {
@@ -101,20 +109,6 @@ final class DictationController {
 
     // Sleep can leave the prepared input bound to a stale device.
     func systemDidWake() { if enabled { recorder.warmUp(rebuild: true) } }
-
-    func selectModel(_ model: DictationModel) {
-        guard self.model != model, !isActive else { return }
-        self.model = model
-        saveModel(model)
-        error = nil
-        progress = 0
-        if operation != nil {
-            cancel(restartPreparation: false)
-            prepareAfterOperation = enabled
-        } else if enabled {
-            prepare()
-        }
-    }
 
     func setEnabled(_ value: Bool) {
         guard enabled != value else { return }
@@ -358,5 +352,31 @@ final class DictationController {
         guard modelRelease == nil else { return }
         let engine = engine
         modelRelease = Task { await engine.unload() }
+    }
+}
+
+// Settings choices; both are blocked while a recording or recognition is active.
+extension DictationController {
+    func selectModel(_ model: DictationModel) {
+        guard self.model != model, !isActive else { return }
+        self.model = model
+        saveModel(model)
+        error = nil
+        progress = 0
+        if operation != nil {
+            cancel(restartPreparation: false)
+            prepareAfterOperation = enabled
+        } else if enabled {
+            prepare()
+        }
+    }
+
+    // Rebuild the prepared input now rather than on the next press.
+    func selectMicrophone(_ microphone: DictationMicrophone?) {
+        guard self.microphone != microphone, !isActive else { return }
+        self.microphone = microphone
+        saveMicrophone(microphone)
+        recorder.useInput(microphone?.uid)
+        if enabled { recorder.warmUp(rebuild: true) }
     }
 }

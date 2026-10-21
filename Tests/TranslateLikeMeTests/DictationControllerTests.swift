@@ -429,6 +429,7 @@ final class ControlledDictationRecorder: DictationRecording {
     var permissions = 0
     var permitted = true
     var warmUps: [Bool] = []
+    var inputs: [String?] = []
     var starts = 0
     var stops = 0
     var hasAudio = false
@@ -438,6 +439,7 @@ final class ControlledDictationRecorder: DictationRecording {
     private var drainObserver: CheckedContinuation<Void, Never>?
 
     func requestPermission() async -> Bool { permissions += 1; return permitted }
+    func useInput(_ uid: String?) { inputs.append(uid) }
     func warmUp(rebuild: Bool) { warmUps.append(rebuild) }
     func coolDown() {}
     func start() throws {

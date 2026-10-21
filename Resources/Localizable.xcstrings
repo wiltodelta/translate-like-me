@@ -59,6 +59,64 @@
         }
       }
     },
+    "%@ (not connected)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (nicht verbunden)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (no conectado)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (non connecté)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (non connesso)"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@（未接続）"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@(연결 안 됨)"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (não conectado)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (не подключён)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@（未连接）"
+          }
+        }
+      }
+    },
     "%@ Needs Accessibility permission (macOS will ask)." : {
       "comment" : "The placeholder is the explanation of language pairs, a few sentences",
       "localizations" : {
@@ -4206,60 +4264,60 @@
         }
       }
     },
-    "Hold Option while speaking, then release to insert. Languages are detected automatically. Uses the microphone selected in macOS." : {
+    "Hold Option while speaking, then release to insert. Languages are detected automatically." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Halte beim Sprechen die Wahltaste gedrückt und lass sie zum Einfügen los. Sprachen werden automatisch erkannt. Verwendet das in macOS ausgewählte Mikrofon."
+            "value" : "Halte beim Sprechen die Wahltaste gedrückt und lass sie zum Einfügen los. Sprachen werden automatisch erkannt."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mantén pulsada la tecla Opción mientras hablas y suéltala para insertar el texto. Los idiomas se detectan automáticamente. Usa el micrófono seleccionado en macOS."
+            "value" : "Mantén pulsada la tecla Opción mientras hablas y suéltala para insertar el texto. Los idiomas se detectan automáticamente."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Maintenez Option pendant que vous parlez, puis relâchez pour insérer le texte. Les langues sont détectées automatiquement. Utilise le micro sélectionné dans macOS."
+            "value" : "Maintenez Option pendant que vous parlez, puis relâchez pour insérer le texte. Les langues sont détectées automatiquement."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tieni premuto Opzione mentre parli, poi rilascia per inserire il testo. Le lingue vengono rilevate automaticamente. Usa il microfono selezionato in macOS."
+            "value" : "Tieni premuto Opzione mentre parli, poi rilascia per inserire il testo. Le lingue vengono rilevate automaticamente."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "話している間Optionキーを押し続け、離すと入力されます。言語は自動的に検出されます。macOSで選択されているマイクを使用します。"
+            "value" : "話している間Optionキーを押し続け、離すと入力されます。言語は自動的に検出されます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "말하는 동안 Option 키를 누르고 있다가 놓으면 텍스트가 삽입됩니다. 언어는 자동으로 감지됩니다. macOS에서 선택한 마이크를 사용합니다."
+            "value" : "말하는 동안 Option 키를 누르고 있다가 놓으면 텍스트가 삽입됩니다. 언어는 자동으로 감지됩니다."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Segure Option enquanto fala e solte para inserir. Os idiomas são detectados automaticamente. Usa o microfone selecionado no macOS."
+            "value" : "Segure Option enquanto fala e solte para inserir. Os idiomas são detectados automaticamente."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Удерживайте Option, пока говорите, затем отпустите, чтобы вставить текст. Языки определяются автоматически. Используется микрофон, выбранный в macOS."
+            "value" : "Удерживайте Option, пока говорите, затем отпустите, чтобы вставить текст. Языки определяются автоматически."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "说话时按住 Option 键，松开即可插入。语言会自动检测。使用 macOS 中选择的麦克风。"
+            "value" : "说话时按住 Option 键，松开即可插入。语言会自动检测。"
           }
         }
       }
@@ -5076,6 +5134,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "让此预设的消息听起来像你本人。请描述语气和任何规则，例如：“随意友好，句子简短，不用表情符号。”留空则生成清晰、中性的消息。"
+          }
+        }
+      }
+    },
+    "Microphone" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mikrofon"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Micrófono"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Micro"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Microfono"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "マイク"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "마이크"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Microfone"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Микрофон"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "麦克风"
           }
         }
       }
@@ -8520,6 +8636,122 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在设置中切换引擎，或等待上限重置。"
+          }
+        }
+      }
+    },
+    "System default" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Systemstandard"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Predeterminado del sistema"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Par défaut du système"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Predefinito di sistema"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "システムのデフォルト"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "시스템 기본값"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Padrão do sistema"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Системный по умолчанию"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "系统默认"
+          }
+        }
+      }
+    },
+    "System default (%@)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Systemstandard (%@)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Predeterminado del sistema (%@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Par défaut du système (%@)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Predefinito di sistema (%@)"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "システムのデフォルト（%@）"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "시스템 기본값(%@)"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Padrão do sistema (%@)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Системный по умолчанию (%@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "系统默认（%@）"
           }
         }
       }

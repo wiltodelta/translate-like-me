@@ -20,8 +20,9 @@ settings or cancels an active session; it never starts a separate recording.
 To choose the other Option, click Hold key and press and release left Option.
 The two sides are separate bindings; the binding can also be cleared. Earlier
 ordinary-combination preferences are read as right Option. Other input during a
-hold cancels that recording, including Option combinations. The system input
-device is used each time recording starts.
+hold cancels that recording, including Option combinations. Recording uses the
+Microphone chosen in Settings > Dictation while it is connected, otherwise the
+system input, resolved each time recording starts.
 
 ## Runtime and data
 
@@ -142,9 +143,12 @@ Between holds the engine is prepared but stopped, with its tap installed. It
 opens no microphone: the process input-running property reads zero. A press
 only starts the hardware. The tap forwards audio through a relay only while a
 hold's sink is attached. Stop and discard re-prepare the engine; disabling
-dictation releases it. Wake, an idle configuration change, or a different
-default input or format rebuilds it. The engine's I/O unit reports its own
-aggregate device, so the worker compares the default input it recorded at build.
+dictation releases it. Wake, an idle configuration change, a microphone choice,
+or a different resolved input or format rebuilds it. The engine's I/O unit
+reports its own aggregate device, so the worker compares the input it resolved
+at build. A chosen microphone other than the system input is bound with
+`kAudioOutputUnitProperty_CurrentDevice` on the input node's unit before its
+format is read; the system input is left unbound.
 The tap is installed with a nil format, because a stale explicit format raised
 an uncatchable exception when AirPods changed format.
 

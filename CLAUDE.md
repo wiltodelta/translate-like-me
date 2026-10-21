@@ -102,7 +102,12 @@ detail, including the secrets and where the keys are kept (1Password):
   audio-input entitlement, launched with `open -W -n --stdout`; a bare binary
   reads not-determined. Make a Bluetooth probe refuse unless the default input
   is Bluetooth: AirPods dropped off the Mac mid-session and a run silently
-  measured the built-in microphone. A `.build` cloned into another worktree
+  measured the built-in microphone. Prove which input a probe recorded by its
+  frames, not `kAudioDevicePropertyDeviceIsRunningSomewhere`: another process
+  held the built-in microphone running before a probe started (2026-10-21).
+  A fresh worktree's first `swift build` or `./build.sh` compiles MLX past the
+  10-minute tool timeout; run it detached (`nohup caffeinate -dimu ... > log &`).
+  A `.build` cloned into another worktree
   fails release builds until `.build/arm64-apple-macosx/release/ModuleCache` is
   deleted, because its modules embed the old path.
 

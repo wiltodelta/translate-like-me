@@ -252,6 +252,7 @@ private final class FreshInstallRecorder: DictationRecording {
     var starts = 0
     var stops = 0
     func requestPermission() async -> Bool { permitted }
+    func useInput(_ uid: String?) {}
     func warmUp(rebuild: Bool) {}
     func coolDown() {}
     func start() throws { starts += 1 }

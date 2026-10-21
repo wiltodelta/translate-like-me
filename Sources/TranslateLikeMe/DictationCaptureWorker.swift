@@ -51,8 +51,12 @@ final class DictationCaptureWorker: @unchecked Sendable {
     private var capture: DictationAudioFile?
     private var current: DictationCaptureRequest?
     private var observer: NSObjectProtocol?
+    private var preferredInput: String?
 
     init() { queue.async { [self] in mute.recoverInterrupted() } }
+
+    // The chosen microphone's UID, nil for the system input; the next build or press applies it.
+    func useInput(_ uid: String?) { queue.async { [self] in preferredInput = uid } }
 
     // Rebuilding after wake replaces a graph whose device may have gone stale.
     func prepare(rebuild: Bool) {
@@ -181,9 +185,12 @@ final class DictationCaptureWorker: @unchecked Sendable {
 
     private func prepared() throws -> (AVAudioEngine, AVAudioFormat) {
         if let engine, let format { return (engine, format) }
-        let device = defaultAudioDevice(kAudioHardwarePropertyDefaultInputDevice)
+        let system = defaultAudioDevice(kAudioHardwarePropertyDefaultInputDevice)
+        let device = DictationMicrophone.resolve(preferredInput, system: { system })
         let engine = AVAudioEngine()
         let input = engine.inputNode
+        // The system input needs no binding, which keeps the measured default path unchanged.
+        if let device, device != system { try Self.bind(input, to: device) }
         guard Self.isUsable(input.outputFormat(forBus: 0)) else { throw DictationError.microphone }
         let relay = relay
         // A nil format taps whatever the bus has now. AirPods changed their input
@@ -209,6 +216,19 @@ final class DictationCaptureWorker: @unchecked Sendable {
         return (engine, format)
     }
 
+    // Binds the input before its format is read or a tap installed.
+    private static func bind(_ input: AVAudioInputNode, to device: AudioDeviceID) throws {
+        var device = device
+        guard let unit = input.audioUnit else { throw DictationError.microphone }
+        let status = AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
+                                          &device, UInt32(MemoryLayout<AudioDeviceID>.size))
+        guard status == noErr else {
+            captureLog.error("Dictation could not select the chosen microphone: \(status, privacy: .public)")
+            throw DictationError.microphone
+        }
+        captureLog.notice("Dictation input bound to the chosen microphone")
+    }
+
     private func configurationChanged(_ generation: Int) {
         guard generation == self.generation, let engine else { return }
         if let current, capture != nil {
@@ -223,11 +243,12 @@ final class DictationCaptureWorker: @unchecked Sendable {
         }
     }
 
-    // A prepared engine stays bound to the input that was default when it was
-    // built. Its I/O unit reports the engine's own aggregate device, not that input.
+    // A prepared engine stays bound to the input it was built on: the chosen
+    // microphone, or the system input when none is chosen or it is disconnected.
+    // Its I/O unit reports the engine's own aggregate device, not that input.
     private var isStale: Bool {
         guard let engine, let format else { return false }
-        return defaultAudioDevice(kAudioHardwarePropertyDefaultInputDevice) != inputDevice
+        return DictationMicrophone.resolve(preferredInput) != inputDevice
             || engine.inputNode.outputFormat(forBus: 0) != format
     }
 

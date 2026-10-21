@@ -91,8 +91,10 @@ Four panes, **General**, **Dictation**, **Translation** and **Rewrite**. Changes
 immediately.
 
 - **Dictation**: enable local speech recognition, choose the Option hold key and
-  select Whisper Turbo or Qwen3-ASR 1.7B (8-bit, 30 languages). Fresh profiles
-  select Turbo through 16 GB of memory and Qwen above 16 GB. Removed Small and
+  the microphone (**System default** follows macOS; a chosen microphone that is
+  disconnected falls back to the system input until it returns), and select
+  Whisper Turbo or Qwen3-ASR 1.7B (8-bit, 30 languages). Fresh profiles select
+  Turbo through 16 GB of memory and Qwen above 16 GB. Removed Small and
   Large v3 preferences fall back to Turbo. Model
   preparation starts automatically while enabled. Downloaded models stay cached;
   switching is unavailable during recording or recognition.

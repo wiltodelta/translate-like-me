@@ -7,6 +7,7 @@ protocol DictationRecording: AnyObject {
     var level: Double { get }
     var isDeliveringAudio: Bool { get }
     func requestPermission() async -> Bool
+    func useInput(_ uid: String?)
     func warmUp(rebuild: Bool)
     func coolDown()
     func start() throws
@@ -31,6 +32,8 @@ final class DictationRecorder: DictationRecording {
         default: return false
         }
     }
+
+    func useInput(_ uid: String?) { worker.useInput(uid) }
 
     // Only an existing grant is used: initializing input must never prompt.
     func warmUp(rebuild: Bool) {

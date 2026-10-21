@@ -17,7 +17,7 @@ description: "Minimal local dictation: model, recording lifecycle, cancellation,
 
 Product scope: `docs/dictation-feature-plan.md`. Implementation and verification:
 `docs/dictation.md`. A small curated local ASR catalog, automatic detection within each model's languages,
-one Option hold key, system microphone, no cleanup LLM. Settings has a dedicated
+one Option hold key, system microphone unless one is chosen in Settings, no cleanup LLM. Settings has a dedicated
 Dictation pane. The user explicitly added model selection after the 3.5.0 release.
 Compute-policy findings and the reproducible synthetic benchmark:
 `docs/dictation-model-efficiency.md`.
@@ -101,9 +101,13 @@ Compute-policy findings and the reproducible synthetic benchmark:
   prepared but stopped, with the relay tap installed; it opens no microphone
   (process input-running reads zero). Warm up only with an existing grant, after
   preparation's permission check; rebuild after wake, on an idle configuration
-  change, or when the default input or its format differs from the one the
-  engine was built on. The I/O unit's current device is the engine's aggregate,
-  not the input; compare the default input recorded at build. Re-prepare after
+  change, on a microphone choice, or when the resolved input or its format
+  differs from the one the engine was built on. `DictationMicrophone.resolve`
+  gives the chosen device (stored by UID, handed to the worker through
+  `DictationRecording.useInput`) while it is connected, else the default input;
+  only a device other than the default input is bound on the input unit, so the
+  default path stays as measured. The I/O unit's current device is the engine's
+  aggregate, not the input; compare the input resolved at build. Re-prepare after
   every stop or discard and drop a graph that failed to start; disabling
   dictation releases the engine, after a hold in progress ends.
   The press mutes the default output (`DictationOutputMute`) only if it was

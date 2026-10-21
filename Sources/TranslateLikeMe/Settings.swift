@@ -170,6 +170,15 @@ enum Settings {
         set { defaults.set(newValue.rawValue, forKey: "dictationModel") }
     }
 
+    // The input dictation records from; nil follows the system input.
+    static var dictationMicrophone: DictationMicrophone? {
+        get {
+            defaults.data(forKey: "dictationMicrophone")
+                .flatMap { try? JSONDecoder().decode(DictationMicrophone?.self, from: $0) }
+        }
+        set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "dictationMicrophone") }
+    }
+
     // The model the local engine runs, picked in Settings > Translation.
     static var localModel: LocalModel {
         get { LocalModel(rawValue: defaults.string(forKey: "localModel") ?? "") ?? .default }

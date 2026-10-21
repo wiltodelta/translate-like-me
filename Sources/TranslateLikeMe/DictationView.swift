@@ -43,6 +43,7 @@ private struct DictationControlsSection: View {
                               requiresOptionOnly: true)
                     .disabled(!dictation.enabled || dictation.isActive)
             }
+            DictationMicrophonePicker(dictation: dictation)
         } header: {
             if introductory {
                 Text("Set up dictation").font(.title2.bold())
@@ -57,13 +58,36 @@ private struct DictationControlsSection: View {
                         up later in Settings.
                         """)
                 }
-                Text("""
-                    Hold Option while speaking, then release to insert. Languages are detected automatically. Uses \
-                    the microphone selected in macOS.
-                    """)
+                Text("Hold Option while speaking, then release to insert. Languages are detected automatically.")
             }
             .foregroundStyle(Color.secondaryText)
         }
+    }
+}
+
+// System default first; a chosen device that is disconnected stays listed so
+// the choice is visible, and recording uses the system input until it returns.
+private struct DictationMicrophonePicker: View {
+    let dictation: DictationController
+    private let microphones = DictationMicrophones.shared
+
+    var body: some View {
+        Picker("Microphone", selection: Binding(get: { dictation.microphone?.uid }, set: { uid in
+            dictation.selectMicrophone(uid.flatMap { uid in
+                microphones.available.first { $0.uid == uid } ?? dictation.microphone
+            })
+        })) {
+            if let name = microphones.systemName {
+                Text("System default (\(name))").tag(String?.none)
+            } else {
+                Text("System default").tag(String?.none)
+            }
+            ForEach(microphones.available, id: \.uid) { Text($0.name).tag(Optional($0.uid)) }
+            if let chosen = dictation.microphone, !microphones.available.contains(where: { $0.uid == chosen.uid }) {
+                Text("\(chosen.name) (not connected)").tag(Optional(chosen.uid))
+            }
+        }
+        .disabled(!dictation.enabled || dictation.isActive)
     }
 }
 
