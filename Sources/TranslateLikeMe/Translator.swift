@@ -300,28 +300,8 @@ enum Translator {
         let output = try await ProcessRunner.run(binary: binary, arguments: args, input: stdin,
                                                   environment: toolEnvironment(adding: extraEnv),
                                                   directory: directory)
-        let stdout = output.stdout, stderr = output.stderr
-        if output.status != 0 {
-            // Limit failures print on stdout for claude and on stderr (after a
-            // session header) for codex, so both streams are scanned. Other
-            // failures prefer stderr and fall back to stdout, because claude
-            // prints some errors, including its limit line, on stdout only.
-            if let limit = LimitDetector.message(in: stderr + "\n" + stdout) {
-                throw LimitReachedError(message: limit)
-            } else if let jsonMessage = JSONErrorMessage.extract(from: stderr)
-                ?? JSONErrorMessage.extract(from: stdout) {
-                // codex prints API failures as `ERROR: {json}`; show the human
-                // text instead of raw JSON.
-                throw TranslatorError.failed(jsonMessage)
-            } else {
-                throw TranslatorError.failed(
-                    FailureDetail.summary(stderr: stderr, stdout: stdout)
-                        ?? String(localized: "Engine exited with status \(output.status).",
-                                  comment: "The placeholder is a process exit code"))
-            }
-        } else {
-            return stdout
-        }
+        if output.status != 0 { throw FailureDetail.error(output: output, input: stdin) }
+        return output.stdout
     }
 
     // MARK: - Binary resolution
@@ -392,6 +372,35 @@ enum Translator {
 // (the user's selection) on stderr before its `ERROR:` lines, so those lines win;
 // otherwise the last few lines of the stream that has any, capped.
 enum FailureDetail {
+    static func error(output: ProcessRunner.Output, input: String?) -> Error {
+        // Codex echoes stdin, including arbitrary JSON and ERROR lines from the
+        // selection. Remove its framed prompt before interpreting diagnostics.
+        let stderr = withoutEcho(output.stderr, input: input)
+        let stdout = withoutEcho(output.stdout, input: input)
+        if let limit = LimitDetector.message(in: stderr + "\n" + stdout) {
+            return LimitReachedError(message: limit)
+        }
+        if let message = JSONErrorMessage.extract(from: stderr) ?? JSONErrorMessage.extract(from: stdout) {
+            return TranslatorError.failed(message)
+        }
+        return TranslatorError.failed(
+            summary(stderr: stderr, stdout: stdout)
+                ?? String(localized: "Engine exited with status \(output.status).",
+                          comment: "The placeholder is a process exit code"))
+    }
+
+    private static func withoutEcho(_ stream: String, input: String?) -> String {
+        guard let input, !input.isEmpty else { return stream }
+        // Match the CLI's role boundary, not arbitrary occurrences: the selected
+        // text may also be part of the actual error (or be just "error").
+        let echo = "user\n" + input + "\n"
+        guard let range = stream.range(of: echo), range.lowerBound == stream.startIndex
+                || stream[stream.index(before: range.lowerBound)] == "\n" else { return stream }
+        var diagnostics = stream
+        diagnostics.removeSubrange(range)
+        return diagnostics
+    }
+
     static func summary(stderr: String, stdout: String, limit: Int = 300) -> String? {
         let errorLines = stderr.split(separator: "\n")
             .filter { $0.hasPrefix("ERROR:") }

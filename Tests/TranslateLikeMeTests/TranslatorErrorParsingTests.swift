@@ -41,6 +41,39 @@ final class TranslatorErrorParsingTests: XCTestCase {
         XCTAssertEqual(JSONErrorMessage.extract(from: "{\"message\":\"rate limited\"}"), "rate limited")
     }
 
+    func testEchoedSelectionCannotBecomeAnErrorOrQuotaMessage() {
+        for selection in [#"{"message":"selected text"}"#, "Please document the rate limit.",
+                          "ERROR: You've hit your usage limit."] {
+            let input = "Translate faithfully.\n\nInput: " + selection + "\nOutput:"
+            for echoOnStderr in [true, false] {
+                let echo = "user\n" + input + "\n"
+                let output = ProcessRunner.Output(stdout: echoOnStderr ? "" : echo,
+                                                  stderr: (echoOnStderr ? echo : "") + "ERROR: authentication required",
+                                                  status: 1)
+                let error = FailureDetail.error(output: output, input: input)
+                XCTAssertFalse(error is LimitReachedError)
+                XCTAssertEqual(error.localizedDescription, "authentication required")
+            }
+        }
+    }
+
+    func testSelectedTextMatchingAnActualErrorIsPreservedWithoutAnEcho() {
+        let output = ProcessRunner.Output(stdout: "", stderr: "ERROR: authentication required", status: 1)
+        for input in ["authentication required", "error", ""] {
+            XCTAssertEqual(FailureDetail.error(output: output, input: input).localizedDescription,
+                           "authentication required")
+        }
+    }
+
+    func testActualQuotaAndJSONErrorsSurviveRemovingTheEcho() {
+        let input = "Input: selected text\nOutput:"
+        let quota = "You've hit your weekly limit"
+        let output = ProcessRunner.Output(stdout: "user\n" + input + "\n" + quota, stderr: "", status: 1)
+        XCTAssertEqual((FailureDetail.error(output: output, input: input) as? LimitReachedError)?.message, quota)
+        let json = ProcessRunner.Output(stdout: "", stderr: codexStderr, status: 1)
+        XCTAssertTrue(FailureDetail.error(output: json, input: nil).localizedDescription.contains("not supported"))
+    }
+
     func testNonJSONTextYieldsNil() {
         XCTAssertNil(JSONErrorMessage.extract(from: "Engine exited with status 1."))
         XCTAssertNil(JSONErrorMessage.extract(from: ""))

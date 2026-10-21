@@ -60,23 +60,22 @@ final class TranslationController {
             return
         }
         TranslationActivity.shared.isBusy = true
-        let application = NSWorkspace.shared.frontmostApplication
-        let front = application?.bundleIdentifier ?? "unknown"
-        let pid = application?.processIdentifier ?? 0
         // Text Input Sources are read here, on the main thread, not in the workflow.
         let copyKey = KeyboardLayout.copyKey
         let pasteKey = KeyboardLayout.pasteKey
-        log.notice("""
-            \(action, privacy: .public) started, \(subject, privacy: .public), \
-            frontmost app: \(front, privacy: .public)
-            """)
-
+        let activity = SelectionActivity()
+        let stopMonitoring = activity.monitor()
         Task {
-            defer { TranslationActivity.shared.isBusy = false }
+            defer { TranslationActivity.shared.isBusy = false; stopMonitoring() }
 
-            let activity = SelectionActivity()
-            let stopMonitoring = activity.monitor()
-            defer { stopMonitoring() }
+            // AX can wait on another process. Monitor input before the lookup,
+            // so a focus change during it invalidates Copy without blocking UI.
+            let pid = await Task.detached(priority: .userInitiated) { SelectionTarget.focusedPID ?? 0 }.value
+            let focusedApp = NSRunningApplication(processIdentifier: pid)?.bundleIdentifier ?? "unknown"
+            log.notice("""
+                \(action, privacy: .public) started, \(subject, privacy: .public), \
+                focused app: \(focusedApp, privacy: .public)
+                """)
             let workflow = SelectionWorkflow(access: LiveSelectionAccess(pid: pid, activity: activity,
                                                                         copyKey: copyKey, pasteKey: pasteKey),
                                              didProduceResult: { result in

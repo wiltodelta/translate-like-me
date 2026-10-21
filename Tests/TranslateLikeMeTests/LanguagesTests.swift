@@ -114,6 +114,16 @@ final class LanguagesTests: XCTestCase {
         XCTAssertNil(Languages.code(forPreferred: "xx-YY"))
     }
 
+    func testRegionalChineseIdentifiersKeepTheirInferredScript() {
+        for identifier in ["zh-TW", "zh-HK", "zh_MO"] {
+            XCTAssertEqual(Languages.code(forPreferred: identifier), "zh-Hant", identifier)
+        }
+        for identifier in ["zh-CN", "zh-SG", "zh"] {
+            XCTAssertEqual(Languages.code(forPreferred: identifier), "zh-Hans", identifier)
+        }
+        XCTAssertEqual(Languages.code(forPreferred: "pt-AO"), "pt-BR")
+    }
+
     func testSuggestionsUseOnlySystemLanguagesAndKeyboards() {
         XCTAssertEqual(Languages.suggestions(preferred: ["en-US", "ru-US"], keyboards: []),
                        ["en", "ru"])

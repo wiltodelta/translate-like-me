@@ -101,7 +101,10 @@ final class DictationCaptureWorker: @unchecked Sendable {
         request.publish(capture)
         relay.attach(capture, ended: ended)
         mute.engage()
-        try request.startWhileHeld { try engine.start() }
+        try request.startIfActive { try engine.start() }
+        // Release/cancel stays nonblocking even during a slow hardware start.
+        // Drain any captured frames on stop, but stop the microphone immediately.
+        if !request.isActive { stopCapture() }
         let duration = started.duration(to: .now)
         let milliseconds = Double(duration.components.seconds) * 1_000 +
             Double(duration.components.attoseconds) / 1e15

@@ -130,13 +130,15 @@ enum Languages {
         let tag = identifier.replacingOccurrences(of: "_", with: "-")
         return longestListedPrefix(of: tag)
             ?? longestListedPrefix(of: Locale.Language(identifier: tag).maximalIdentifier)
+            ?? longestListedPrefix(of: tag, usingLegacyDefaults: true)
     }
 
-    private static func longestListedPrefix(of tag: String) -> String? {
+    private static func longestListedPrefix(of tag: String, usingLegacyDefaults: Bool = false) -> String? {
         let parts = tag.split(separator: "-")
         for count in stride(from: parts.count, through: 1, by: -1) {
-            // A bare "zh" or "pt" maps to the listed default variant.
-            let prefix = normalized(parts.prefix(count).joined(separator: "-"))
+            // Infer script from the region before falling back to legacy zh/pt defaults.
+            let code = parts.prefix(count).joined(separator: "-")
+            let prefix = usingLegacyDefaults ? normalized(code) : code
             if let match = byCode[prefix.lowercased()] { return match.code }
         }
         return nil

@@ -116,7 +116,7 @@ Read before editing this domain.
   without that rule, 3 of 3 with it), and allows the recipient's name but no
   greeting word (10 of 21 runs opened "Hi Pete," without that rule, 0 of 12
   with it).
-  Each run, translate or rewrite, logs its frontmost app, outcome, and
+  Each run, translate or rewrite, logs its focused app, outcome, and
   failures through `os.Logger`: `/usr/bin/log stream --level info --predicate
   'subsystem == "com.wiltodelta.translatelikeme"'` (plain `log` is a zsh
   builtin). `swift test` logs to the same subsystem from `xctest`; add

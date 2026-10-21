@@ -121,11 +121,14 @@ installation, lifecycle, native UI and build checks.
 `DictationRecorder` queues capture immediately and publishes metering through a
 locked request. `DictationCaptureWorker` owns every engine operation on a serial
 user-initiated queue, including configuration callbacks and teardown. No indicator
-is shown before the first audio; the press reads no AX target. Release
-closes the request's hardware-start gate immediately; the stop task then drains and
-finalizes the WAV before recognition. Cancellation queues discard before a later
-start. This keeps hardware initialization off the UI and prevents a queued startup
-from opening the microphone after an early release. See the
+is shown before the first audio; the press reads no AX target. After the
+post-release capture tail, stopping marks the request inactive without waiting
+for hardware initialization. A queued
+start checks that flag before opening the microphone. If release arrives during
+`AVAudioEngine.start()`, the worker stops the engine as soon as startup returns;
+the stop task then drains and finalizes the WAV before recognition. Cancellation
+queues discard before a later start. The request lock never spans a hardware
+operation. See the [code review fixes](code-review-fixes.md) for regression coverage and the
 [startup investigation](dictation-startup.md) for the remaining hardware latency.
 
 The worker captures raw `AVAudioEngine` input, without Apple's voice processing.

@@ -81,7 +81,9 @@ Compute-policy findings and the reproducible synthetic benchmark:
   before preparing the next session. Enqueue capture on press; the press reads
   no AX target;
   `DictationCaptureWorker` serializes all engine access and teardown off the UI.
-  A locked request gates the final hardware start against release/cancellation.
+  The request lock guards state only, never hardware startup. The worker checks
+  activity before startup and stops the engine after startup if release arrived
+  meanwhile, so release and cancellation never wait on the hardware-start lock.
   The stop task must finalize the WAV before model reload or recognition. Enqueue
   discard on the same queue before another start; never open an idle microphone.
   Flush capture cleanup synchronously at application termination, before exiting.

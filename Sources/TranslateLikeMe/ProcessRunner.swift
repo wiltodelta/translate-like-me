@@ -68,6 +68,7 @@ private final class Session: @unchecked Sendable {
     private var stdout = Data()
     private var stderr = Data()
     private var endedStreams = 0
+    private var processGroup: pid_t?
     private var exited = false
     private var cancelled = false
     private var stoppingError: Error?
@@ -110,6 +111,11 @@ private final class Session: @unchecked Sendable {
         }
         do {
             try process.run()
+            let pid = process.processIdentifier
+            let group = getpgid(pid)
+            // Foundation starts a private group. Remember it before the leader
+            // exits; ESRCH means it already exited, not that its children did.
+            if group == pid || (group == -1 && errno == ESRCH) { processGroup = pid }
             read(out.fileHandleForReading, isError: false)
             read(err.fileHandleForReading, isError: true)
             if let input { write(Data(input.utf8), to: stdin.fileHandleForWriting) }
@@ -167,11 +173,11 @@ private final class Session: @unchecked Sendable {
     private func stop(_ error: Error) {
         guard continuation != nil, stoppingError == nil else { return }
         stoppingError = error
-        if process.isRunning {
-            let pid = process.processIdentifier
-            // NSTask normally creates its own process group. Never signal a
-            // shared group (which could contain the app or its launcher).
-            kill(getpgid(pid) == pid ? -pid : pid, SIGKILL)
+        if let processGroup {
+            kill(-processGroup, SIGKILL)
+        } else if process.isRunning {
+            // Never signal a shared group containing the app or its launcher.
+            kill(process.processIdentifier, SIGKILL)
         }
         channels.forEach { $0.close(flags: .stop) }
         if exited { finish(.failure(error)) }

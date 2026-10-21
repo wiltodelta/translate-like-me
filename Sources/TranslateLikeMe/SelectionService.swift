@@ -3,7 +3,7 @@ import os
 
 private let selectionLog = Logger.app("selection")
 
-// Reads the current selection from the frontmost app and pastes replacements,
+// Reads the current selection from the focused app and pastes replacements,
 // by synthesizing Cmd+C / Cmd+V. Requires Accessibility permission.
 //
 // All methods here block briefly (polling the pasteboard), so call them off the

@@ -1,7 +1,7 @@
 import Foundation
 
-// The lock publishes the sink and serializes release with the hardware-start
-// decision. No engine or audio buffer crosses from the worker to MainActor.
+// The lock publishes the sink and release state, never a hardware operation.
+// No engine or audio buffer crosses from the worker to MainActor.
 final class DictationCaptureRequest: @unchecked Sendable {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("tlm-dictation-\(UUID().uuidString).wav")
     private let lock = NSLock()
@@ -16,10 +16,8 @@ final class DictationCaptureRequest: @unchecked Sendable {
     func fail(_ error: Error) { lock.withLock { self.error = error } }
     func end() { lock.withLock { accepting = false } }
 
-    func startWhileHeld(_ start: () throws -> Void) throws {
-        try lock.withLock {
-            guard accepting else { throw CancellationError() }
-            try start()
-        }
+    func startIfActive(_ start: () throws -> Void) throws {
+        guard isActive else { throw CancellationError() }
+        try start()
     }
 }

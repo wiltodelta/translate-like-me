@@ -93,6 +93,65 @@ final class ProcessRunnerTests: XCTestCase {
         } catch is CancellationError { } catch { XCTFail("Unexpected error: \(error)") }
     }
 
+    func testDeadlineTerminatesDescendantAfterItsParentExits() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("process-tree-\(UUID())")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let clock = ManualDeadline()
+        let installed = expectation(description: "Parent launched")
+        let deadline = clock.schedule(installed)
+        let task = Task { @Sendable in
+            try await ProcessRunner.run(binary: "/bin/sh", arguments: ["-c", """
+                sleep 600 &
+                printf '%s %s' "$$" "$!" > pids
+                while [ ! -f release ]; do sleep 0.01; done
+                exit 0
+                """], environment: ["PATH": "/usr/bin:/bin"], directory: directory, deadline: deadline)
+        }
+        defer { task.cancel() }
+        await fulfillment(of: [installed], timeout: 5)
+        let pids = try await ProcessRunnerTests.fixturePIDs(in: directory)
+        XCTAssertEqual(pids.count, 2)
+        guard pids.count == 2 else { return }
+        let parent = pids[0], child = pids[1]
+        defer {
+            if kill(parent, 0) == 0 { kill(parent, SIGKILL) }
+            if kill(child, 0) == 0 { kill(child, SIGKILL) }
+        }
+        XCTAssertEqual(getpgid(parent), parent, "The fixture must own its process group")
+        XCTAssertEqual(getpgid(child), parent)
+        let childExited = expectation(description: "Descendant terminated by deadline")
+        let exitMonitor = DispatchSource.makeProcessSource(identifier: child, eventMask: .exit, queue: .global())
+        exitMonitor.setEventHandler { childExited.fulfill() }
+        exitMonitor.resume()
+        defer { exitMonitor.cancel() }
+        try Data().write(to: directory.appendingPathComponent("release"))
+        let deadlineForExit = ContinuousClock.now.advanced(by: .seconds(5))
+        while kill(parent, 0) == 0, ContinuousClock.now < deadlineForExit {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        XCTAssertEqual(kill(parent, 0), -1, "The parent must exit before the deadline fires")
+        XCTAssertEqual(kill(child, 0), 0, "The descendant must still hold the output pipes")
+        clock.expire()
+        do {
+            _ = try await task.value
+            XCTFail("Deadline must stop the descendant holding the pipes")
+        } catch ProcessRunner.Failure.timedOut { } catch { XCTFail("Unexpected error: \(error)") }
+        await fulfillment(of: [childExited], timeout: 5)
+    }
+
+    private static func fixturePIDs(in directory: URL) async throws -> [pid_t] {
+        let pidsFile = directory.appendingPathComponent("pids")
+        let deadlineForReadiness = ContinuousClock.now.advanced(by: .seconds(5))
+        var pids: [pid_t] = []
+        while pids.count != 2, ContinuousClock.now < deadlineForReadiness {
+            pids = ((try? String(contentsOf: pidsFile, encoding: .utf8)) ?? "")
+                .split(separator: " ").compactMap { pid_t($0) }
+            if pids.count != 2 { try await Task.sleep(for: .milliseconds(10)) }
+        }
+        return pids
+    }
+
     func testOutputLimitStopsAnUnboundedProducer() async {
         do {
             _ = try await Self.run("exec yes", limit: 4096)

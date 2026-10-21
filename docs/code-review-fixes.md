@@ -1,0 +1,82 @@
+# Code review fixes
+
+The October 21, 2026 application review identified five edge cases. These changes
+address them without changing the supported engines, capture model or delivery
+policy.
+
+- `ProcessRunner` retains its private process-group identity at launch. Timeout
+  and cancellation terminate that group even if the original CLI process has
+  exited while descendants still hold its output pipes. A shared launcher group
+  is never selected for termination.
+- `DictationCaptureRequest` protects only shared state with its lock. Hardware
+  startup runs outside the lock, so release and cancellation do not wait for
+  `AVAudioEngine.start()`. The capture worker checks activity before startup and
+  stops the engine immediately after startup if the request ended meanwhile.
+  The existing serial stop/discard operations finalize or delete the recording.
+- Translation and Rewrite choose the Accessibility-focused process, with the
+  existing frontmost-app fallback when Accessibility cannot answer. This matches
+  the destination resolver and allows selection in a nonactivating panel owned
+  by a different process from the frontmost application. Lookup runs off the UI
+  thread while user activity is monitored; intervening input invalidates Copy.
+- CLI failure parsing removes the exact stdin prompt framed by Codex's `user`
+  role before looking for quota phrases, JSON messages or `ERROR:` lines. A
+  selection containing those strings cannot replace the diagnostic. Unframed
+  diagnostics are preserved even when their text matches the selection.
+- Language suggestions resolve explicit or inferred script before legacy bare
+  language defaults. Regional Chinese identifiers `zh-TW`, `zh-HK` and `zh-MO`
+  resolve to `zh-Hant`; the bare `zh` default remains `zh-Hans`.
+
+## Verification
+
+The new tests failed against the previous implementations before the fixes:
+release could not complete while an injected hardware start was held, a real
+orphaned child survived an injected process deadline, echoed selections changed
+failure classification, and regional Chinese identifiers chose Simplified Chinese.
+
+`ProcessRunnerTests` uses a synthetic shell and descendant, verifies their private
+process group, explicitly lets the parent exit, then fires the injected deadline
+and observes the descendant's exit. Cleanup also kills the owned fixture processes
+when an assertion fails. `DictationCaptureRequestTests` holds startup with a
+semaphore and requires release to complete before allowing startup to return;
+its expectation timeout guards a deadlock rather than measuring device latency.
+Error tests cover echoes on both streams, genuine quota/JSON errors, and selections
+that match the actual diagnostic. Language tests cover both Chinese scripts and
+existing Portuguese defaults. The existing focused-PID test covers a
+nonactivating panel and the fallback when Accessibility cannot answer.
+
+Native microphone timing, Bluetooth route behavior and selection in a real
+third-party nonactivating panel are not established by these tests. No user
+microphone, clipboard or third-party conversation was used for this verification.
+
+During the initial shared-checkout verification, strict SwiftLint passed. The native-build XCTest run completed with
+240 tests, 14 opt-in skips and zero failures. One additional test from the concurrent
+Qwen work was explicitly excluded:
+`DictationLanguagePreferenceTests.testQwenModifiesVocabularyAxisAndStopsBiasingAfterLanguagePrefix`.
+The unfiltered run aborted there when MLX tried to load the nonexistent metallib
+assigned by that test. Neither that test nor the concurrent Qwen changes were
+modified as part of these five fixes. This is partial suite coverage, not a clean
+unfiltered gate.
+
+The initial shared-checkout verification used `swift test --build-system native`
+with the exclusion above. A default swiftbuild attempt there also encountered a
+Swift Testing loader failure for `Sparkle.framework`; its XCTest regression subset
+passed with Swift Testing disabled.
+
+## Isolated commit candidate
+
+The commit candidate was applied to the current `main` in a separate worktree,
+without the uncommitted Qwen changes. Its unfiltered `swift test`, invoked by
+`./maintain.sh`, completed with 243 tests, 14 opt-in skips and zero failures.
+No tests were deselected. Swift Testing's empty suite also completed normally,
+so the earlier Sparkle loader failure did not recur in this clean build.
+
+The initial `./build.sh` verification assembled a release-configuration development
+bundle signed with the Developer ID Application identity and hardened runtime;
+`codesign --verify --deep --strict` passed. No development bundle was launched
+for this verification.
+
+The isolated candidate's `./maintain.sh` also completed its release build and
+Developer ID bundle assembly. Deep strict code-signature verification passed.
+After the upstream MLX test setup change, the final pre-commit gate supplies
+`TLM_QWEN_METALLIB` pointing to the pinned kernels generated by
+`scripts/build-mlx-metallib.sh`; it runs the complete suite without exclusions.
