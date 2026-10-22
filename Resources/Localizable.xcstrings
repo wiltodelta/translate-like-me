@@ -11664,60 +11664,118 @@
         }
       }
     },
-    "To remove the selected model, turn off dictation first." : {
+    "To remove the selected model, choose another model first." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deaktiviere zuerst das Diktieren, um das ausgewählte Modell zu entfernen."
+            "value" : "Um das ausgewählte Modell zu entfernen, wählen Sie zuerst ein anderes Modell."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Para eliminar el modelo seleccionado, desactiva primero el dictado."
+            "value" : "Para eliminar el modelo seleccionado, primero elige otro modelo."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pour supprimer le modèle sélectionné, désactivez d’abord la dictée."
+            "value" : "Pour supprimer le modèle sélectionné, choisissez d’abord un autre modèle."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Per rimuovere il modello selezionato, disattiva prima la dettatura."
+            "value" : "Per rimuovere il modello selezionato, scegli prima un altro modello."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "選択中のモデルを削除するには、先に音声入力をオフにしてください。"
+            "value" : "選択中のモデルを削除するには、先に別のモデルを選択してください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "선택한 모델을 삭제하려면 먼저 받아쓰기를 끄세요."
+            "value" : "선택한 모델을 삭제하려면 먼저 다른 모델을 선택하세요."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Para remover o modelo selecionado, desative o ditado primeiro."
+            "value" : "Para remover o modelo selecionado, primeiro escolha outro modelo."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Чтобы удалить выбранную модель, сначала выключите диктовку."
+            "value" : "Чтобы удалить выбранную модель, сначала выберите другую."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "要移除所选模型，请先关闭听写。"
+            "value" : "要移除所选模型，请先选择其他模型。"
+          }
+        }
+      }
+    },
+    "To remove the selected model, choose another model or turn off dictation first." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um das ausgewählte Modell zu entfernen, wählen Sie zuerst ein anderes Modell oder deaktivieren Sie das Diktieren."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para eliminar el modelo seleccionado, primero elige otro modelo o desactiva el dictado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pour supprimer le modèle sélectionné, choisissez d’abord un autre modèle ou désactivez la dictée."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per rimuovere il modello selezionato, scegli prima un altro modello o disattiva la dettatura."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選択中のモデルを削除するには、先に別のモデルを選択するか、音声入力をオフにしてください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "선택한 모델을 삭제하려면 먼저 다른 모델을 선택하거나 받아쓰기를 끄세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para remover o modelo selecionado, primeiro escolha outro modelo ou desative o ditado."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Чтобы удалить выбранную модель, сначала выберите другую или выключите диктовку."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要移除所选模型，请先选择其他模型或关闭听写。"
           }
         }
       }

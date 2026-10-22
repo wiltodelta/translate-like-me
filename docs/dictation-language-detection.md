@@ -1,7 +1,7 @@
 # Short-utterance language detection
 
 Implementation status: a shared translation-language preference applies to
-both currently offered dictation models, Whisper Turbo and Qwen3-ASR. The earlier sections retain the research
+both currently offered dictation models, Whisper large-v3-turbo and Qwen3-ASR. The earlier sections retain the research
 history; implementation behavior and validation are recorded below. Four-model
 measurements retain Small and Large v3 as historical evaluated configurations;
 those models have since been removed from the catalog.

@@ -9,7 +9,7 @@ Historical experiment. After reviewing these results, the user approved the
 below describe the standalone build, before that integration.
 
 Experiment date: October 20, 2026. This is a standalone local comparison,
-not an app model-catalog change. Whisper Turbo remains the app's default.
+not an app model-catalog change. Whisper large-v3-turbo remains the app's default.
 The experiment never opens a microphone, plays audio, changes preferences,
 or sends audio or transcripts to a service. Only model and SDK downloads
 use the network; recognition uses local paths.
@@ -34,7 +34,7 @@ Pinned inputs:
 - FluidAudio v0.17.7, commit `503b4bd1bbf7220882de39fe8ae6716aae4132da`.
 - `FluidInference/parakeet-ultra-coreml`, revision
   `95eaa59a39d4394f047a4dc5cce480388a60d1b6`.
-- WhisperKit 1.1.1 and the app's pinned Whisper Turbo, tokenizer and Silero assets.
+- WhisperKit 1.1.1 and the app's pinned Whisper large-v3-turbo, tokenizer and Silero assets.
 
 The runner validates every downloaded model file against the pinned Hub
 metadata, using SHA-256 for LFS and Git blob SHA-1 for ordinary files. It
@@ -185,7 +185,7 @@ Primary-source comparisons reviewed:
   Parakeet-TDT-0.6B-v3, within that evaluation. This is not an Ultra comparison.
 - [Russian STT benchmark](https://github.com/vakovalskii/stt-ru-benchmark):
   775 read-speech, 296 audiobook and 20 spontaneous-speech utterances.
-  Reported WER for Whisper Turbo versus ordinary Parakeet v3 is respectively
+  Reported WER for Whisper large-v3-turbo versus ordinary Parakeet v3 is respectively
   4.44/5.56%, 9.89/10.84%, and 7.73/9.27%. The spontaneous-speech intervals
   overlap. Published raw outputs and the scoring harness permit reproduction;
   these results were read, not independently rerun. Most engines use hosted

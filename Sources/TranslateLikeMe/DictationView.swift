@@ -132,7 +132,9 @@ private struct DictationModelSection: View {
         .onChange(of: dictation.phase) { downloads.refresh() }
         .sheet(isPresented: $managingModels) {
             ModelManagementView(title: String(localized: "Speech models"),
-                footer: String(localized: "To remove the selected model, turn off dictation first."),
+                footer: String(localized: """
+                    To remove the selected model, choose another model or turn off dictation first.
+                    """),
                 models: DictationModel.allCases,
                 name: { $0.title }, summary: { $0.summary }, selected: { $0 == dictation.model },
                 state: { model in

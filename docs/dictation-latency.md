@@ -87,7 +87,7 @@ Warm-up: `DictationQwen` now runs one second of silence through the encoder,
 prefill and one decode step after loading. Over eight fresh processes,
 alternating, the first recognition took 367-404 ms with warm-up and 406-434 ms
 without, except 724 ms in the first process after a rebuild, when the system
-shader cache was cold. Whisper Turbo showed no first-recognition penalty in two
+shader cache was cold. Whisper large-v3-turbo showed no first-recognition penalty in two
 fresh processes, so it gets no warm-up.
 
 Probe sources and metadata-only JSON lived in a task temporary directory and

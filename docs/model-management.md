@@ -11,6 +11,12 @@ Removal runs through `LocalEngine`'s existing exclusive operation queue. It has
 an observable state, and a failed removal remains visible instead of being
 logged alone.
 
+Both managers protect the selected model while its feature is enabled. For
+Translation, choose another local model before removing its download. For
+Dictation, choose another speech model or disable dictation first. Translation
+checks the current selection again when removal is confirmed, so a model
+selected while the confirmation was open stays protected.
+
 `DictationModelDownloads` owns speech file operations separately from microphone
 permission and runtime preparation. `DictationModelFiles` reuses the engine's
 pinned model, tokenizer and VAD download paths and integrity checks. Its list
@@ -33,6 +39,15 @@ the app's downloads or microphone.
 
 ## Native verification
 
+Select verification scope and reuse completed evidence through the shared
+UI verification rule in `~/Documents/GitHub/claude-config/docs/ui-verification.md`.
+The capture options below narrow this app's recipe to the selected checks.
+
+For a focused render, combine `CAPTURE_MODELS_ONLY=1`,
+`CAPTURE_MODEL_KIND=translation` (or `speech`), `CAPTURE_MODEL_INTERACTIONS=0`
+and `CAPTURE_APPEARANCE=current`. This skips unchanged dismissal and confirmation
+routes and leaves the system appearance alone.
+
 Run the existing capture recipe with the Mac unlocked:
 
 ```bash
@@ -45,10 +60,10 @@ real entry points, captures both themes at the fixed window widths, then
 closes and reopens each sheet through Accessibility. It verifies Done, Escape,
 Return and cancellation of removal when a downloaded model is present. Pass
 `CAPTURE_GEOMETRY_TOOL` the shared `macaudit.py` path to retain geometry dumps
-beside the captures. With the selected speech model already downloaded,
-`CAPTURE_VERIFY_PROTECTION=1` also asserts that its removal is disabled while
-dictation is enabled. The recipe preserves dev settings and appearance and
-never presses Download or confirms removal.
+beside the captures. With both selected models already downloaded,
+`CAPTURE_VERIFY_PROTECTION=1` also asserts that selected-model removal is disabled
+in both managers. The recipe preserves dev settings and appearance and never
+presses Download or confirms removal.
 
 Use `CAPTURE_LANGUAGE=de` with the same output override for long translations.
 
@@ -76,3 +91,19 @@ Saved views: [translation, light](../screenshots/models-translation.png),
 [translation, dark](../screenshots/models-translation-dark.png),
 [speech, light](../screenshots/models-speech.png),
 [speech, dark](../screenshots/models-speech-dark.png).
+
+Selected-model protection was checked in both English appearances for both
+managers. The revised explanatory text was also rendered in German. The wider
+German capture stopped on its unchanged Return-dismissal check; that run does
+not establish keyboard completion. It restored preferences and appearance.
+
+After restoring the upstream `Whisper large-v3-turbo` name, a focused native
+check switched each picker in both directions and read each saved choice back
+from the development preferences. Translation switched between the downloaded
+Gemma 4 E2B and the absent TranslateGemma 12B; selection and removal protection
+followed the choice. Speech switching ran with dictation disabled, without
+runtime loading or microphone access. The enabled preparation/cancellation and
+active-recording restrictions were covered by controller tests instead.
+All four manager states remained 520 × 440 pt with 24 pt actions; the complete
+Whisper name fit. The geometry analyzer found no discrepancies within those
+sheets. Development preferences were restored and compared with the snapshot.

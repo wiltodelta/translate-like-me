@@ -36,7 +36,7 @@ and macOS consent. Rewrite does not appear in onboarding.
 
 | Mac memory | Translation | Dictation |
 |---|---|---|
-| 8-16 GiB | Gemma 4 E2B | Whisper Turbo |
+| 8-16 GiB | Gemma 4 E2B | Whisper large-v3-turbo |
 | Above 16 GiB | TranslateGemma 12B | Qwen3-ASR |
 
 These are Victor's explicit choices, accepting E2B's measured quality limitations.

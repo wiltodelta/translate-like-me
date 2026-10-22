@@ -32,11 +32,14 @@ struct LocalModelControls: View {
         }
         .onAppear { downloads.refresh() }
         .sheet(isPresented: $managingModels) {
-            ModelManagementView(title: String(localized: "Translation models"), models: LocalModel.allCases,
+            ModelManagementView(title: String(localized: "Translation models"),
+                footer: String(localized: "To remove the selected model, choose another model first."),
+                models: LocalModel.allCases,
                 name: { $0.title }, summary: { $0.summary }, selected: { $0 == store.localModel },
                 state: { downloads.state(of: $0) },
                 canDownload: { downloads.fits($0) && !downloads.isDownloading },
-                canRemove: { _ in true }, download: { downloads.download($0) },
+                canRemove: { downloads.canRemove($0, selected: store.localModel) },
+                download: { downloads.download($0) },
                 cancel: { downloads.cancel() }, remove: { downloads.remove($0) })
                 .onAppear { downloads.refresh() }
         }

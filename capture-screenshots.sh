@@ -72,6 +72,8 @@ fi
 # CAPTURE_ONBOARDING_ONLY=1 with CAPTURE_OUT=<dir> renders the three-screen onboarding
 # with synthetic model and permission state, never real downloads or TCC prompts.
 # CAPTURE_MODELS_ONLY=1 with CAPTURE_OUT=<dir> checks both model managers.
+# CAPTURE_MODEL_KIND=translation|speech limits that pass to one manager.
+# CAPTURE_MODEL_INTERACTIONS=0 captures the manager without retesting its dismissal routes.
 # CAPTURE_MENU_ONLY=1 refreshes just menu.png and menu-dark.png (and the link preview).
 # CAPTURE_RESULTS_ONLY=1 with CAPTURE_OUT=<dir> checks empty, partial and full
 # recovery submenus. Its synthetic launch fixtures never call a model or record audio.
@@ -696,6 +698,7 @@ capture_models() {
     sleep 2
     local pane title kind parent
     for kind in translation speech; do
+        if [ -n "${CAPTURE_MODEL_KIND:-}" ] && [ "$CAPTURE_MODEL_KIND" != "$kind" ]; then continue; fi
         if [ "$kind" = translation ]; then pane=1; title=$(localized Translation); parent=settings-local
         else pane=3; title=$(localized Dictation); parent=dictation; fi
         launch "$pane" settings local
@@ -712,9 +715,14 @@ capture_models() {
             uv run "$CAPTURE_GEOMETRY_TOOL" geometry --pid "$PID" --state "models-$kind$2" \
                 >"$OUT/models-$kind$2.geometry.json"
         fi
-        if [ "$kind" = speech ] && [ "${CAPTURE_VERIFY_PROTECTION:-0}" = 1 ]; then
-            helper expect-disabled "$PID" "remove-${CAPTURE_DICTATION_MODEL:-turbo}"
+        if [ "${CAPTURE_VERIFY_PROTECTION:-0}" = 1 ]; then
+            if [ "$kind" = speech ]; then
+                helper expect-disabled "$PID" "remove-${CAPTURE_DICTATION_MODEL:-turbo}"
+            else
+                helper expect-disabled "$PID" "remove-${CAPTURE_LOCAL_MODEL:-translategemma-12b}"
+            fi
         fi
+        if [ "${CAPTURE_MODEL_INTERACTIONS:-1}" = 0 ]; then continue; fi
         local removal_status=0
         helper press-remove "$PID" remove-gemma-4-e2b remove-translategemma-12b remove-turbo remove-qwen3ASR \
             || removal_status=$?

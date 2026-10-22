@@ -6,7 +6,7 @@ import XCTest
 final class DictationModelTests: XCTestCase {
     func testCatalogContainsOnlyTurboAndQwen() {
         XCTAssertEqual(Set(DictationModel.allCases), [.turbo, .qwen3ASR])
-        XCTAssertFalse(DictationModel.turbo.title.contains("v3"))
+        XCTAssertEqual(DictationModel.turbo.title, "Whisper large-v3-turbo")
     }
 
     func testRemovedModelPreferenceFallsBackToTurboWithoutChangingOtherChoices() {

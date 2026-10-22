@@ -1,6 +1,6 @@
 # Minimal dictation plan
 
-> Current catalog: Whisper Turbo and Qwen3-ASR only. Fresh profiles select
+> Current catalog: Whisper large-v3-turbo and Qwen3-ASR only. Fresh profiles select
 > Turbo through 16 GiB of memory and Qwen above 16 GiB. Existing valid choices
 > are preserved; saved Small and Large v3 values resolve to Turbo. Earlier
 > four-model catalog and recommendation descriptions below are historical.
@@ -42,7 +42,7 @@ Ordinary dictation is local and does not invoke a text-processing LLM.
 Provide one recommended default within the curated local model catalog. Choose
 the default from measured speech quality, correction effort, latency, and memory
 on the target Mac. The user must not choose a model or an inference configuration
-to obtain usable results. The optional picker offers Whisper Turbo and Qwen3-ASR. It does not require users to tune inference settings or
+to obtain usable results. The optional picker offers Whisper large-v3-turbo and Qwen3-ASR. It does not require users to tune inference settings or
 choose a model during setup. Shared language behavior applies to both runtimes.
 
 ## First use and settings

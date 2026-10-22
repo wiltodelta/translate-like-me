@@ -13,13 +13,18 @@ final class LocalModelDownloads {
     static let shared = LocalModelDownloads()
 
     typealias State = ModelDownloadState
+    typealias Removal = @MainActor (LocalModel) async throws -> Void
 
     private(set) var states: [LocalModel: State] = [:]
     @ObservationIgnored private var task: (model: LocalModel, run: Task<Void, Never>)?
     @ObservationIgnored private var removing: Set<LocalModel> = []
     @ObservationIgnored private let files = LocalModelFiles.live
+    @ObservationIgnored private let removeModel: Removal
 
-    init() { refresh() }
+    init(removeModel: @escaping Removal = { try await LocalEngine.shared.remove($0) }) {
+        self.removeModel = removeModel
+        refresh()
+    }
 
     func state(of model: LocalModel) -> State { states[model] ?? .notDownloaded }
 
@@ -80,13 +85,19 @@ final class LocalModelDownloads {
         }
     }
 
+    func canRemove(_ model: LocalModel, selected: LocalModel) -> Bool {
+        model != selected && task?.model != model && !removing.contains(model)
+    }
+
     func remove(_ model: LocalModel) {
-        guard task?.model != model, removing.insert(model).inserted else { return }
+        // Recheck the current selection: it may have changed since confirmation opened.
+        guard canRemove(model, selected: Settings.localModel) else { return }
+        removing.insert(model)
         states[model] = .removing
         Task {
             defer { removing.remove(model) }
             do {
-                try await LocalEngine.shared.remove(model)
+                try await removeModel(model)
                 states[model] = .notDownloaded
             } catch {
                 states[model] = .failed(error.localizedDescription)
