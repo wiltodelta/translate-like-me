@@ -42,6 +42,7 @@ Qwen owns its MLX model and array operations in a separate actor. The existing
 speech gate and padded mono 16 kHz samples feed that actor. Language detection
 is automatic, without prompts or hotwords. The SDK's low-energy chunker splits
 long recordings around 30 seconds, with fresh decoder caches per chunk.
+Context biasing with named terms: [local model candidates](local-model-candidates.md).
 
 The wrapper uses the SDK's public forward pass and a greedy loop in the calling
 Swift task. After the language prefix it queues each next step on the GPU

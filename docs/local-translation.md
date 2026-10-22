@@ -4,6 +4,8 @@ The `Local model` engine (`Provider.local`) translates and rewrites on this Mac
 with MLX on Metal, in the app's own process: no CLI, no account, no network once
 the model is downloaded. This file records why these models, how the engine is
 built, and how it was measured.
+Candidates measured against it on October 22 (Hy-MT2, Gemma 4 12B, a draft
+model for TranslateGemma): [local model candidates](local-model-candidates.md).
 
 Settings keeps the model picker and shows **Manage Models…** beside
 its status. The sheet uses `ModelManagementView`, shared with Dictation, to list

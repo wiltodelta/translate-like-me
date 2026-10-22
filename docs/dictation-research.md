@@ -3,6 +3,8 @@
 > Historical research snapshot. The current model catalog and native Qwen runtime
 > are documented in [dictation](dictation.md) and [Qwen integration](qwen-integration.md).
 > Parakeet Ultra has been removed from the app.
+> October 22 upstream check and Qwen size, precision and context measurements:
+> [local model candidates](local-model-candidates.md).
 
 Research snapshot: October 18, 2026. Target: Apple silicon, initially an M5
 with 16 GB of unified memory or more. Translate Like Me supports macOS 15+.

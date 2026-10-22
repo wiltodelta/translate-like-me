@@ -41,7 +41,8 @@ and macOS consent. Rewrite does not appear in onboarding.
 
 These are Victor's explicit choices, accepting E2B's measured quality limitations.
 [Translation evidence](local-translation.md) covers 15 synthetic en/ru/de cases,
-three runs each: E2B mishandled direction and corrected details. Hardware alone
+three runs each: E2B mishandled direction and corrected details. Measured
+alternatives for both tiers: [local model candidates](local-model-candidates.md). Hardware alone
 establishes neither speech quality nor language coverage. Existing runtime
 memory/storage checks stay authoritative. An unsupported Mac, failed load or
 insufficient disk blocks preparation with an error rather than completing setup.

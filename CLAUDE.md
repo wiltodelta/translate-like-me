@@ -122,7 +122,11 @@ Victor's personal website (`wiltodelta/wiltodelta-app`, page `/projects/translat
   --build-system native -Xswiftc -enable-testing --filter <probe>` (debug MLX
   hides CPU-side costs; this rebuilds the release tree, about 6 minutes). Load
   models for such probes from an APFS clone (`cp -cR`) of the installed cache,
-  never from the installed domain itself. A microphone probe built from the
+  never from the installed domain itself. The app keeps only the files it
+  verifies, so a Python mlx-audio probe also needs the pinned revision's
+  remaining small files (`snapshot_download(..., ignore_patterns=["*.safetensors"])`
+  into the clone; Qwen failed without `preprocessor_config.json`). Candidate
+  benchmarks and their method: `docs/local-model-candidates.md`. A microphone probe built from the
   worker's sources stays off the speakers when launched with
   `-dictationMutedOutputDevice probe-none` (argument domain): the mute sees a
   pending record and never engages.
