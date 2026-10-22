@@ -17,10 +17,11 @@ actor DictationEngine: DictationRecognizing {
     static let modelSource = ModelDownloadConfig(modelRepo: "argmaxinc/whisperkit-coreml",
                                                 revision: "0f63a7800b00dd0226abd051b906c246e1907482")
     private let directory: URL?
+    private let waitForFiles: @Sendable () async -> Void
     private let availableStorage: @Sendable (URL) throws -> Int64
     private let languageIdentifiers: @Sendable () -> [String]
 
-    init(directory: URL? = nil,
+    init(directory: URL? = nil, waitForFiles: @escaping @Sendable () async -> Void = {},
          languageIdentifiers: @escaping @Sendable () -> [String] = {
              DictationLanguagePreference.configuredIdentifiers
          },
@@ -30,6 +31,7 @@ actor DictationEngine: DictationRecognizing {
         return bytes.int64Value
     }) {
         self.directory = directory
+        self.waitForFiles = waitForFiles
         self.languageIdentifiers = languageIdentifiers
         self.availableStorage = availableStorage
     }
@@ -47,6 +49,8 @@ actor DictationEngine: DictationRecognizing {
     func prepare(model: DictationModel = .turbo, download: Bool = true,
                  progress: @escaping @Sendable (Double) -> Void) async throws {
         guard loadedModel != model else { return }
+        await waitForFiles()
+        try Task.checkCancellation()
         await unload()
         try Task.checkCancellation()
         working = true
@@ -101,9 +105,7 @@ actor DictationEngine: DictationRecognizing {
         if model == .qwen3ASR {
             return try await prepareQwen(in: base, download: download, progress: progress)
         }
-        let required = ["MelSpectrogram", "AudioEncoder", "TextDecoder"].flatMap { component in
-            Self.coreMLParts.map { component + ".mlmodelc/" + $0 }
-        }
+        let required = Self.requiredFiles(for: model)
         return try await prepareSnapshot(source: Self.modelSource, variant: (model.variant, required),
                                          in: base, download: download) { progress($0 * 0.85) }
     }
@@ -111,6 +113,13 @@ actor DictationEngine: DictationRecognizing {
     static let detectorModel = "silero-vad-unified-256ms-v6.2.1.mlmodelc"
     static let detectorSource = ModelDownloadConfig(modelRepo: "FluidInference/silero-vad-coreml",
                                                     revision: "b419383c55c110e2c9271fa6ee0ea83d03c70d96")
+    static func requiredFiles(for model: DictationModel) -> [String] {
+        if model == .qwen3ASR { return DictationQwen.files }
+        return ["MelSpectrogram", "AudioEncoder", "TextDecoder"].flatMap { component in
+            coreMLParts.map { component + ".mlmodelc/" + $0 }
+        }
+    }
+
     private static let coreMLParts = ["coremldata.bin", "metadata.json", "model.mil", "weights/weight.bin"]
 
     func prepareSpeechDetector(in base: URL, download: Bool,
@@ -132,8 +141,8 @@ actor DictationEngine: DictationRecognizing {
         }
     }
 
-    private func prepareTokenizer(model: DictationModel, in base: URL, download: Bool,
-                                  progress: @escaping @Sendable (Double) -> Void) async throws -> URL {
+    func prepareTokenizer(model: DictationModel, in base: URL, download: Bool,
+                          progress: @escaping @Sendable (Double) -> Void) async throws -> URL {
         guard let tokenizer = model.tokenizer else { throw DictationError.notReady }
         let tokenizers = ModelDownloader(config: ModelDownloadConfig(
             modelRepo: tokenizer.repository, revision: tokenizer.revision))

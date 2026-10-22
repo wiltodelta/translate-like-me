@@ -1,10 +1,10 @@
 import SwiftUI
 
-// The local engine's model picker and its download, in Settings > Translation
-// and in onboarding when the local engine is chosen.
+// The local engine's model picker and download manager in Settings > Translation.
 struct LocalModelControls: View {
     @Bindable var store: SettingsStore
     var summary: String?
+    @State private var managingModels = false
     private let downloads = LocalModelDownloads.shared
 
     static var footer: String {
@@ -27,9 +27,19 @@ struct LocalModelControls: View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             status(of: model)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            action(for: model)
+            Button("Manage Models…") { managingModels = true }
+                .accessibilityIdentifier("manage-models")
         }
         .onAppear { downloads.refresh() }
+        .sheet(isPresented: $managingModels) {
+            ModelManagementView(title: String(localized: "Translation models"), models: LocalModel.allCases,
+                name: { $0.title }, summary: { $0.summary }, selected: { $0 == store.localModel },
+                state: { downloads.state(of: $0) },
+                canDownload: { downloads.fits($0) && !downloads.isDownloading },
+                canRemove: { _ in true }, download: { downloads.download($0) },
+                cancel: { downloads.cancel() }, remove: { downloads.remove($0) })
+                .onAppear { downloads.refresh() }
+        }
     }
 
     @ViewBuilder private func status(of model: LocalModel) -> some View {
@@ -38,34 +48,11 @@ struct LocalModelControls: View {
                 .foregroundStyle(Color.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
         } else {
-            switch downloads.state(of: model) {
-            case .notDownloaded:
-                Text("Not downloaded").foregroundStyle(Color.secondaryText)
-            case .downloading(let fraction):
-                ProgressView(value: fraction) {
-                    Text("Downloading… \(fraction.formatted(.percent.precision(.fractionLength(0))))",
-                         comment: "The placeholder is a percentage")
-                        .foregroundStyle(Color.secondaryText)
-                }
-            case .ready:
+            if downloads.state(of: model) == .ready {
                 Text(EngineStatus.readyText).foregroundStyle(Color.secondaryText)
-            case .failed(let message):
-                Text(message)
-                    .foregroundStyle(Color.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                ModelDownloadStatus(state: downloads.state(of: model))
             }
-        }
-    }
-
-    @ViewBuilder private func action(for model: LocalModel) -> some View {
-        switch downloads.state(of: model) {
-        case .notDownloaded, .failed:
-            Button("Download") { downloads.download(model) }
-                .disabled(!downloads.fits(model) || downloads.isDownloading)
-        case .downloading:
-            Button("Cancel") { downloads.cancel() }
-        case .ready:
-            Button("Remove Download") { downloads.remove(model) }
         }
     }
 }

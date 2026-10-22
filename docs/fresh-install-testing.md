@@ -262,3 +262,6 @@ The shipping first-run flow uses preparation, permissions and usage screens.
 and permission state, including the microphone, Accessibility and ready substates.
 It never downloads models or requests OS consent. Current policy and verification:
 [first-run recommendations](first-run-recommendations.md).
+
+In Settings, also verify Manage Models… can download speech files while dictation
+stays disabled, without requesting microphone permission.

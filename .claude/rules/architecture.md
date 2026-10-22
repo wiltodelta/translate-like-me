@@ -200,8 +200,9 @@ Read before editing this domain.
   never read for it. `LocalModel` pins TranslateGemma 12B (16 GB minimum)
   and Gemma 4 E2B with their turn formats. Fresh profiles recommend E2B through
   16 GiB and TranslateGemma above 16 GiB; `Settings.localModel` holds the pick,
-  `LocalModelControls` shows it with its download in the Translation pane and
-  in onboarding, and `LocalModelDownloads` owns download, cancel and removal.
+  `LocalModelControls` shows it in the Translation pane, and
+  `LocalModelDownloads` owns download, cancel and removal through the shared
+  `ModelManagementView`. File ownership and both model managers: `docs/model-management.md`.
   `EngineStatus` checks the model's memory minimum before calling a verified download ready
   (`LocalModelFiles`: a marker
   and exact sizes; hashes are checked once, after downloading). The engine

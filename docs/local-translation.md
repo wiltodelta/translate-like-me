@@ -5,6 +5,11 @@ with MLX on Metal, in the app's own process: no CLI, no account, no network once
 the model is downloaded. This file records why these models, how the engine is
 built, and how it was measured.
 
+Settings keeps the model picker and shows **Manage Models…** beside
+its status. The sheet uses `ModelManagementView`, shared with Dictation, to list
+all models and download, cancel or confirm removal without changing the selection.
+`LocalModelDownloads` reports removal progress and failures in that same list.
+
 ## Models
 
 Two 4-bit MLX conversions from `mlx-community`, pinned in `LocalModel`:

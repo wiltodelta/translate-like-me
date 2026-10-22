@@ -80,7 +80,8 @@ final class DictationController {
 
     private convenience init() {
         self.init(enabled: Settings.dictationEnabled, model: Settings.dictationModel,
-                  engine: DictationEngine(), recorder: DictationRecorder(),
+                  engine: DictationEngine(waitForFiles: { await DictationModelDownloads.shared.waitUntilIdle() }),
+                  recorder: DictationRecorder(),
                   interaction: .live, results: .shared, releaseTail: Self.liveReleaseTail,
                   microphone: Settings.dictationMicrophone)
         let source = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
@@ -103,6 +104,13 @@ final class DictationController {
     func releaseForMemoryPressure() {
         releaseOnCompletion = true
         if operation == nil && !ownsActivity { releaseModelIfNeeded() }
+    }
+
+    // Removal is offered only for an unused model. A disabled controller may
+    // still be finishing its asynchronous release, so drain it first.
+    func unloadForModelRemoval() async {
+        await modelRelease?.value
+        if !enabled { await engine.unload() }
     }
 
     func restore() { if enabled { prepare() } }

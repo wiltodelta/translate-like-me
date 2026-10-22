@@ -57,7 +57,7 @@ about wording. When it needs editing, select the transcript and use **Rewrite**.
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="screenshots/dictation-dark.png">
-    <img src="screenshots/dictation.png" alt="Local dictation enabled with the Right Option hold key and the recommended Whisper speech model" width="540" height="480">
+    <img src="screenshots/dictation.png" alt="Local dictation enabled with the Right Option hold key and the Whisper speech model" width="540" height="563">
   </picture>
 </p>
 

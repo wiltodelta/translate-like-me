@@ -166,6 +166,9 @@ Compute-policy findings and the reproducible synthetic benchmark:
   The shortcut binding recorder and runtime share the state machine. Shortcut recording pauses all registrations
   and monitors, including reloads triggered by completion; generations discard
   callbacks from removed monitors.
+- `DictationModelDownloads` manages speech files without microphone permission or runtime loading.
+  It shares the model-management sheet with Translation; file ownership and
+  removal protection are documented in `docs/model-management.md`.
 - During onboarding, `OnboardingFlow` prepares speech assets without permission
   or capture and unloads the runtime before the translation check. Microphone
   consent comes on the second screen; enabling dictation follows both grants.

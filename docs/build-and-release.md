@@ -151,7 +151,8 @@ input under the hardened runtime; `Info.plist` contains the microphone purpose.
 WhisperKit is statically linked through SwiftPM. Its MIT notice and Whisper's
 MIT notice and Silero's MIT notice are copied into Resources. Dictation model,
 speech detector and tokenizer assets download
-on first enable into the bundle-id-specific Application Support directory; they
+during setup, on first enable or from Manage Models into the bundle-id-specific
+Application Support directory; they
 are not bundled with the app or shared with the installed release's dev cache. The
 EdDSA private key is in the login keychain (Sparkle's `generate_keys`), in the
 1Password item as "Sparkle EdDSA private key" and in the `SPARKLE_PRIVATE_KEY`

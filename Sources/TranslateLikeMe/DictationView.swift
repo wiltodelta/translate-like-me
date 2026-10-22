@@ -93,22 +93,32 @@ private struct DictationMicrophonePicker: View {
 
 private struct DictationModelSection: View {
     let dictation: DictationController
-    private var recommendedModel: DictationModel {
-        FirstRunRecommendations.dictationModel(physicalMemory: ProcessInfo.processInfo.physicalMemory)
-    }
+    @State private var managingModels = false
+    private let downloads = DictationModelDownloads.shared
 
     var body: some View {
         Section {
             Picker("Model", selection: Binding(get: { dictation.model }, set: { dictation.selectModel($0) })) {
                 ForEach(DictationModel.allCases) { model in
-                    (model == recommendedModel ? Text("\(model.title) (Recommended)") : Text(model.title)).tag(model)
+                    Text(model.title).tag(model)
                 }
             }
             .disabled(dictation.isActive)
             Text(dictation.model.summary)
                 .foregroundStyle(Color.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
-            DictationPreparationStatus(dictation: dictation)
+            HStack {
+                VStack(alignment: .leading, spacing: 6) {
+                    if !dictation.enabled || dictation.phase == .disabled {
+                        ModelDownloadStatus(state: downloads.state(of: dictation.model))
+                    } else {
+                        DictationPreparationStatus(dictation: dictation)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Button("Manage Models…") { managingModels = true }
+                    .accessibilityIdentifier("manage-models")
+            }
         } header: {
             Text("Speech model")
         } footer: {
@@ -117,6 +127,28 @@ private struct DictationModelSection: View {
                 models are kept for later use.
                 """)
                 .foregroundStyle(Color.secondaryText)
+        }
+        .onAppear { downloads.refresh() }
+        .onChange(of: dictation.phase) { downloads.refresh() }
+        .sheet(isPresented: $managingModels) {
+            ModelManagementView(title: String(localized: "Speech models"),
+                footer: String(localized: "To remove the selected model, turn off dictation first."),
+                models: DictationModel.allCases,
+                name: { $0.title }, summary: { $0.summary }, selected: { $0 == dictation.model },
+                state: { model in
+                    if dictation.enabled && dictation.model == model && dictation.phase == .preparing {
+                        return .preparing(dictation.progress)
+                    }
+                    return downloads.state(of: model)
+                },
+                canDownload: { _ in !downloads.isBusy && dictation.operation == nil && !dictation.isActive &&
+                    dictation.phase != .preparing },
+                canRemove: { !downloads.isBusy && dictation.operation == nil && !dictation.isActive &&
+                    dictation.phase != .preparing &&
+                    (!dictation.enabled || dictation.model != $0) },
+                download: { downloads.download($0, controller: dictation) }, cancel: { downloads.cancel() },
+                remove: { downloads.remove($0, controller: dictation) })
+                .onAppear { downloads.refresh() }
         }
     }
 }
@@ -144,9 +176,7 @@ struct DictationPreparationStatus: View {
                 }
                 Button("Try Again") { dictation.prepare() }
             } else if dictation.phase == .ready {
-                LabeledContent("Status") {
-                    Text("Ready").foregroundStyle(Color.secondaryText)
-                }
+                Text("Ready").foregroundStyle(Color.secondaryText)
             } else if dictation.phase == .cancelling {
                 Text("Stopping the previous operation…").foregroundStyle(Color.secondaryText)
             }

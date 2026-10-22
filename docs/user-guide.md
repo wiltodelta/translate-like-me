@@ -124,7 +124,13 @@ immediately.
 - **Translation engine**: the CLI (Claude Code / Codex / Grok Build / Antigravity), and a **Model**
   and **Effort** picker listing what the CLI itself offers; **Default** keeps
   the CLI's configured default. For **Local model**, the model with its
-  download, which you can cancel, resume or remove.
+  download status and **Manage Models…**.
+- **Manage Models…** (Translation and Dictation): the same model list shows every
+  available model, its download size, the selected model, download progress and
+  Download / Cancel / Remove Download actions. Closing the list keeps downloads
+  running. Removal asks for confirmation. To remove the selected speech model,
+  turn off dictation first; other downloaded models remain available. Speech
+  files can be downloaded without enabling dictation or granting microphone access.
 - **Launch at login**: start the app automatically when you log in.
 - **Updates**: current version, automatic daily checks on or off, and a "Check
   for Updates…" button.

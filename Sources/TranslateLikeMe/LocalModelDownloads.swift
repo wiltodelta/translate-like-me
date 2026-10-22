@@ -12,12 +12,7 @@ private let log = Logger.app("local")
 final class LocalModelDownloads {
     static let shared = LocalModelDownloads()
 
-    enum State: Equatable {
-        case notDownloaded
-        case downloading(Double)
-        case ready
-        case failed(String)
-    }
+    typealias State = ModelDownloadState
 
     private(set) var states: [LocalModel: State] = [:]
     @ObservationIgnored private var task: (model: LocalModel, run: Task<Void, Never>)?
@@ -35,7 +30,7 @@ final class LocalModelDownloads {
 
     // Reads what is on disk; a running download keeps its progress.
     func refresh() {
-        for model in LocalModel.allCases where task?.model != model {
+        for model in LocalModel.allCases where task?.model != model && !removing.contains(model) {
             states[model] = files.isInstalled(model) ? .ready : .notDownloaded
         }
     }
@@ -87,11 +82,14 @@ final class LocalModelDownloads {
 
     func remove(_ model: LocalModel) {
         guard task?.model != model, removing.insert(model).inserted else { return }
+        states[model] = .removing
         Task {
-            defer { removing.remove(model); refresh() }
+            defer { removing.remove(model) }
             do {
                 try await LocalEngine.shared.remove(model)
+                states[model] = .notDownloaded
             } catch {
+                states[model] = .failed(error.localizedDescription)
                 log.error("Local model \(model.rawValue, privacy: .public) removal failed: \(error, privacy: .public)")
             }
         }

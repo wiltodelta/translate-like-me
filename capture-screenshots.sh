@@ -3,8 +3,8 @@
 # Regenerate the README screenshots in screenshots/ from a fresh build.
 #
 # Launches a second copy of the app next to any installed one and drives it only
-# through Accessibility (opening its status item, pressing menu items), never
-# with synthetic mouse clicks or keys, so nothing lands on other windows. The
+# through Accessibility (opening its status item, pressing menu items), with
+# guarded numeric keys only for sheet dismissal and no synthetic mouse clicks. The
 # terminal running it needs Accessibility and Screen Recording access. Each
 # screen is captured twice, in the light appearance (menu.png) and in Dark Mode
 # (menu-dark.png): the script switches the system appearance and puts the
@@ -71,6 +71,7 @@ fi
 # CAPTURE_APPEARANCE=current captures without changing the theme or pointer.
 # CAPTURE_ONBOARDING_ONLY=1 with CAPTURE_OUT=<dir> renders the three-screen onboarding
 # with synthetic model and permission state, never real downloads or TCC prompts.
+# CAPTURE_MODELS_ONLY=1 with CAPTURE_OUT=<dir> checks both model managers.
 # CAPTURE_MENU_ONLY=1 refreshes just menu.png and menu-dark.png (and the link preview).
 # CAPTURE_RESULTS_ONLY=1 with CAPTURE_OUT=<dir> checks empty, partial and full
 # recovery submenus. Its synthetic launch fixtures never call a model or record audio.
@@ -182,7 +183,7 @@ func axMatches(_ node: AXUIElement, key: String, value: String, visited: inout I
 }
 
 switch args[1] {
-case "press-id", "expect", "expect-absent", "expect-disabled", "expect-enabled":
+case "press-id", "dismiss-id", "expect", "expect-absent", "expect-id-absent", "expect-disabled", "expect-enabled":
     NSApplication.shared.setActivationPolicy(.prohibited)
     let app = AXUIElementCreateApplication(Int32(args[2])!)
     let key = ["expect", "expect-absent"].contains(args[1]) ? "text" : kAXIdentifierAttribute
@@ -193,7 +194,7 @@ case "press-id", "expect", "expect-absent", "expect-disabled", "expect-enabled":
         captureFailure("AXWindows failed: \(error.rawValue), trusted: \(AXIsProcessTrusted())")
     }
     let matches = windows.flatMap { axMatches($0, key: key, value: args[3], visited: &visited) }
-    if args[1] == "expect-absent" {
+    if args[1] == "expect-absent" || args[1] == "expect-id-absent" {
         guard matches.isEmpty else { captureFailure("Unexpected AX text: \(args[3])") }
         print("Verified absent: \(args[3])")
         exit(0)
@@ -202,11 +203,30 @@ case "press-id", "expect", "expect-absent", "expect-disabled", "expect-enabled":
         captureFailure("Expected an AX target for \(args[3]), found \(matches.count) in \(visited) elements")
     }
     let node = matches[0]
-    if args[1] == "press-id" {
+    if args[1] == "press-id" || args[1] == "dismiss-id" {
         requireUnlockedSession()
-        guard axAttribute(node, kAXEnabledAttribute) as? Bool == true,
-              AXUIElementPerformAction(node, kAXPressAction as CFString) == .success else {
-            captureFailure("The AX target could not be pressed")
+        guard axAttribute(node, kAXEnabledAttribute) as? Bool == true else {
+            captureFailure("The AX target is disabled: \(args[3])")
+        }
+        let result = AXUIElementPerformAction(node, kAXPressAction as CFString)
+        if args[1] == "dismiss-id" {
+            // A modal's destruction can invalidate its AXPress reply. Prove
+            // dismissal from the new tree rather than retrying the mutation.
+            var dismissed = false
+            for _ in 0..<20 {
+                Thread.sleep(forTimeInterval: 0.05)
+                var count = 0
+                guard let current = axAttribute(app, kAXWindowsAttribute) as? [AXUIElement] else {
+                    captureFailure("Could not read windows after dismissal")
+                }
+                if current.flatMap({ axMatches($0, key: key, value: args[3], visited: &count) }).isEmpty {
+                    dismissed = true
+                    break
+                }
+            }
+            guard dismissed else { captureFailure("The AX target did not dismiss: \(result.rawValue)") }
+        } else if result != .success {
+            captureFailure("AXPress failed for \(args[3]): \(result.rawValue)")
         }
     } else if args[1] == "expect-enabled" {
         guard axAttribute(node, kAXEnabledAttribute) as? Bool == true else { captureFailure("Expected enabled control") }
@@ -214,6 +234,46 @@ case "press-id", "expect", "expect-absent", "expect-disabled", "expect-enabled":
         guard axAttribute(node, kAXEnabledAttribute) as? Bool == false else { captureFailure("Expected disabled control") }
     }
     print("Verified \(args[1]): \(args[3])")
+case "key":
+    NSApplication.shared.setActivationPolicy(.prohibited)
+    let pid = Int32(args[2])!
+    requireUnlockedSession()
+    guard NSWorkspace.shared.frontmostApplication?.processIdentifier == pid else {
+        captureFailure("The target lost focus before the key")
+    }
+    guard let key = UInt16(args[3]) else { captureFailure("Invalid key code") }
+    let command = Process()
+    command.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+    command.arguments = ["-e", """
+        with timeout of 5 seconds
+            tell application "System Events"
+                if frontmost of (first process whose unix id is \(pid)) is not true then error "The target lost focus"
+                key code \(key)
+            end tell
+        end timeout
+        """]
+    try command.run()
+    command.waitUntilExit()
+    guard command.terminationStatus == 0 else { captureFailure("The guarded key failed") }
+case "press-remove":
+    NSApplication.shared.setActivationPolicy(.prohibited)
+    requireUnlockedSession()
+    let app = AXUIElementCreateApplication(Int32(args[2])!)
+    guard let windows = axAttribute(app, kAXWindowsAttribute) as? [AXUIElement] else {
+        captureFailure("No windows for removal confirmation")
+    }
+    for identifier in args.dropFirst(3) {
+        var visited = 0
+        let matches = windows.flatMap { axMatches($0, key: kAXIdentifierAttribute, value: identifier, visited: &visited) }
+        if let button = matches.first, axAttribute(button, kAXEnabledAttribute) as? Bool == true {
+            guard AXUIElementPerformAction(button, kAXPressAction as CFString) == .success else {
+                captureFailure("Could not open removal confirmation")
+            }
+            print("Opened removal confirmation: \(identifier)")
+            exit(0)
+        }
+    }
+    exit(4) // No downloaded model available for the confirmation-only check.
 case "screen":
     let frame = NSScreen.screens[0].frame
     print(Int(frame.width), Int(frame.height))
@@ -227,6 +287,8 @@ case "menu":
     if let w = windows(Int32(args[2])!).first(where: { ($0[kCGWindowLayer as String] as? Int ?? 0) > 25 }) {
         printFrame(w)
     }
+case "front-window":
+    if let w = windows(Int32(args[2])!).first(where: { frame($0).width > 100 }) { printFrame(w) }
 case "named":
     if let w = windows(Int32(args[2])!).first(where: { ($0[kCGWindowName as String] as? String) == args[3] }) {
         printFrame(w)
@@ -510,6 +572,21 @@ capture_frame() {
     echo "Captured $OUT/$1.png"
 }
 
+# Read-only captures may retry when another app briefly takes focus. Keys keep
+# their own exact-target guard and are never retried into another process.
+capture_active_frame() {
+    for _ in 1 2 3; do
+        [ -n "$BACKDROP_PID" ] || show_backdrop "$2" "$3" "$4" "$5"
+        ax 'set frontmost to true' >/dev/null
+        sleep 0.1
+        if [ "$(ax 'get frontmost')" != true ]; then continue; fi
+        capture_frame "$@"
+        if [ "$(ax 'get frontmost')" = true ]; then return; fi
+    done
+    echo "The target could not keep focus during capture." >&2
+    return 1
+}
+
 # --- Screens ---------------------------------------------------------------------
 
 # capture_settings <window title> <name>: open Settings from the menu and capture it.
@@ -539,9 +616,7 @@ capture_window() {
         [ -n "$frame" ] || { echo "The target window closed during capture."; exit 1; }
     done
     [ "$stable" = YES ] || { echo "The target window did not settle."; exit 1; }
-    [ "$(ax 'get frontmost')" = true ] || { echo "The target lost focus before capture."; exit 1; }
-    capture_frame "$2" "$SX" "$SY" "$SW" "$SH"
-    [ "$(ax 'get frontmost')" = true ] || { echo "The target lost focus during capture."; exit 1; }
+    capture_active_frame "$2" "$SX" "$SY" "$SW" "$SH"
 }
 
 wait_onboarding_control() {
@@ -614,8 +689,68 @@ capture_results() {
     done
 }
 
+# Exercise both real entry points and dismiss/reopen without mutating downloads.
+capture_models() {
+    CURRENT_DARK="$1"
+    appearance "set dark mode to $1" >/dev/null
+    sleep 2
+    local pane title kind parent
+    for kind in translation speech; do
+        if [ "$kind" = translation ]; then pane=1; title=$(localized Translation); parent=settings-local
+        else pane=3; title=$(localized Dictation); parent=dictation; fi
+        launch "$pane" settings local
+        open_menu
+        capture_settings "$title" "$parent$2"
+        helper press-id "$PID" manage-models
+        sleep 1
+        helper expect "$PID" "$(localized 'Manage Models…')"
+        local frame
+        frame=$(helper front-window "$PID")
+        read -r SX SY SW SH <<<"$frame"
+        capture_active_frame "models-$kind$2" "$SX" "$SY" "$SW" "$SH"
+        if [ -n "${CAPTURE_GEOMETRY_TOOL:-}" ]; then
+            uv run "$CAPTURE_GEOMETRY_TOOL" geometry --pid "$PID" --state "models-$kind$2" \
+                >"$OUT/models-$kind$2.geometry.json"
+        fi
+        if [ "$kind" = speech ] && [ "${CAPTURE_VERIFY_PROTECTION:-0}" = 1 ]; then
+            helper expect-disabled "$PID" "remove-${CAPTURE_DICTATION_MODEL:-turbo}"
+        fi
+        local removal_status=0
+        helper press-remove "$PID" remove-gemma-4-e2b remove-translategemma-12b remove-turbo remove-qwen3ASR \
+            || removal_status=$?
+        if [ "$removal_status" = 0 ]; then
+            sleep 0.5
+            frame=$(helper front-window "$PID")
+            read -r SX SY SW SH <<<"$frame"
+            capture_active_frame "models-$kind-removal$2" "$SX" "$SY" "$SW" "$SH"
+            if [ -n "${CAPTURE_GEOMETRY_TOOL:-}" ]; then
+                uv run "$CAPTURE_GEOMETRY_TOOL" geometry --pid "$PID" --state "models-$kind-removal$2" \
+                    >"$OUT/models-$kind-removal$2.geometry.json"
+            fi
+            helper dismiss-id "$PID" cancel-removal
+        elif [ "$removal_status" != 4 ]; then
+            return "$removal_status"
+        fi
+        helper press-id "$PID" models-done
+        helper expect-id-absent "$PID" models-done
+        helper press-id "$PID" manage-models
+        sleep 0.5 # Wait for the sheet's first responder after its animation.
+        ax 'set frontmost to true' >/dev/null
+        helper key "$PID" 53 # Escape closes the sheet.
+        sleep 0.5
+        helper expect-id-absent "$PID" models-done
+        helper press-id "$PID" manage-models
+        sleep 0.5 # Wait for the sheet's first responder after its animation.
+        ax 'set frontmost to true' >/dev/null
+        helper key "$PID" 36 # Return activates Done.
+        sleep 0.5
+        helper expect-id-absent "$PID" models-done
+    done
+}
+
 # capture_all <dark mode true|false> <file suffix>: every screen in one appearance.
 capture_all() {
+    if [ "${CAPTURE_MODELS_ONLY:-0}" = 1 ]; then capture_models "$1" "$2"; return; fi
     if [ "${CAPTURE_ONBOARDING_ONLY:-0}" = 1 ]; then capture_onboarding "$1" "$2"; return; fi
     if [ "${CAPTURE_RESULTS_ONLY:-0}" = 1 ]; then capture_results "$1" "$2"; return; fi
     appearance "set dark mode to $1" >/dev/null

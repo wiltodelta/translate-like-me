@@ -36,6 +36,8 @@ struct RemoveButton: View {
 // NSAlert uses its own button tint, ignoring the content's contrast treatment.
 struct RemovalConfirmation: View {
     let title: LocalizedStringKey
+    var message = Text("Its shortcut and writing style will be deleted.")
+    var actionTitle: LocalizedStringKey = "Remove"
     let confirm: () -> Void
     @Environment(\.dismiss) private var dismiss
 
@@ -43,13 +45,14 @@ struct RemovalConfirmation: View {
         VStack(alignment: .leading, spacing: 16) {
             Text(title).font(.headline)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("Its shortcut and writing style will be deleted.")
+            message
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
                 Spacer()
                 Button("Cancel", role: .cancel) { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                Button("Remove", action: confirm)
+                    .accessibilityIdentifier("cancel-removal")
+                Button(actionTitle, action: confirm)
             }
             .buttonStyle(.bordered)
         }
