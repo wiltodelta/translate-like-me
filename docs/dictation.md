@@ -12,9 +12,10 @@ Unattended verification, its command and its physical limits:
 The initial implementation follows the [minimal product scope](dictation-feature-plan.md).
 Enable it in Dictation settings, allow microphone access, and wait for the one-time
 model preparation. Hold right Option while speaking, then release to recognize
-and insert. Recording continues for one second after release
+and insert. Recording continues for up to one second after release
 (`DictationController.liveReleaseTail`), because speakers often finish their
-last word while letting go; cancelling the indicator during that tail discards
+last word while letting go; it ends after 300 ms of quiet once 200 ms have
+passed ([latency](dictation-latency.md)). Cancelling the indicator during that tail discards
 the recording. This is the only recording mode. The menu opens
 settings or cancels an active session; it never starts a separate recording.
 To choose the other Option, click Hold key and press and release left Option.
@@ -197,7 +198,7 @@ cancels hardware startup if it has not begun. Model preparation happens after
 release and cannot delay capture or start a microphone after the key is up.
 The press queues recorder startup and shows nothing; the indicator appears,
 reading Listening, only when the microphone delivers its first audio (about
-0.2 s later). A Preparing state in between was mistaken for a cue to wait, and
+60 ms later, [latency](dictation-latency.md)). A Preparing state in between was mistaken for a cue to wait, and
 Listening before audio would invite words the recording misses. The
 press reads no Accessibility target, so a slow editor cannot postpone hardware
 setup. This ordering is covered by a controller regression test; it does not

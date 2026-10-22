@@ -49,6 +49,8 @@ struct DictationLanguagePreference: Sendable {
 struct DictationLanguagePrefix: Sendable {
     let start: [Int]
     let preferred: [[Int]]
+    // From this many generated tokens on, no preference can apply.
+    var reach: Int { preferred.map(\.count).max() ?? 0 }
 
     func nextTokens(after generated: [Int]) -> Set<Int> {
         guard generated.starts(with: start),

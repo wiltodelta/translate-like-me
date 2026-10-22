@@ -44,7 +44,9 @@ is automatic, without prompts or hotwords. The SDK's low-energy chunker splits
 long recordings around 30 seconds, with fresh decoder caches per chunk.
 
 The wrapper uses the SDK's public forward pass and a greedy loop in the calling
-Swift task. Cancellation is checked before every prediction; GPU synchronization
+Swift task. After the language prefix it queues each next step on the GPU
+before reading the current token, and loading ends with a silent warm-up
+([latency](dictation-latency.md)). Cancellation is checked before every prediction; GPU synchronization
 finishes queued work before the operation returns or unloads. This preserves the
 controller's cancellation drain and model-switch ordering. The SDK streaming API
 creates a detached producer without an exposed completion handle, so it cannot

@@ -93,12 +93,23 @@ final class DictationLanguagePreferenceTests: XCTestCase {
             let prefix = DictationLanguagePrefix(start: [9], preferred: [[9, 1], [9, 2]])
             // The real decoder returns batch x sequence x vocabulary, not a vocabulary vector.
             let logits = MLXArray([Float(0), -0.5, -0.7, -20]).reshaped([1, 1, 4])
-            XCTAssertEqual(DictationQwen.selectToken(logits: logits, generated: [], prefix: prefix), 0)
-            XCTAssertEqual(DictationQwen.selectToken(logits: logits, generated: [9], prefix: prefix), 1)
-            XCTAssertEqual(DictationQwen.selectToken(logits: logits, generated: [9, 1], prefix: prefix), 0)
+            XCTAssertEqual(select(logits, [], prefix), 0)
+            XCTAssertEqual(select(logits, [9], prefix), 1)
+            XCTAssertEqual(select(logits, [9, 1], prefix), 0)
             let strong = MLXArray([Float(5), 0, -1, -20]).reshaped([1, 1, 4])
-            XCTAssertEqual(DictationQwen.selectToken(logits: strong, generated: [9], prefix: prefix), 0)
+            XCTAssertEqual(select(strong, [9], prefix), 0)
         }
+        // Decoding runs ahead from the reach on, so no preference may apply there.
+        let prefix = DictationLanguagePrefix(start: [9], preferred: [[9, 1], [9, 2, 5]])
+        XCTAssertEqual(prefix.reach, 3)
+        XCTAssertEqual(prefix.nextTokens(after: [9, 2]), [5])
+        for generated in [[9, 2, 5], [9, 1, 4], [9, 2, 5, 7]] {
+            XCTAssertTrue(prefix.nextTokens(after: generated).isEmpty)
+        }
+    }
+
+    private func select(_ logits: MLXArray, _ generated: [Int], _ prefix: DictationLanguagePrefix) -> Int {
+        DictationQwen.nextToken(logits: logits, generated: generated, prefix: prefix).item(Int.self)
     }
 
     private func sample(_ values: [Float], preferred: Set<Int>) async throws -> SamplingResult {

@@ -40,12 +40,50 @@ final class DictationReleaseTailTests: XCTestCase {
         XCTAssertEqual(controller.phase, .ready)
     }
 
+    func testQuietAfterReleaseEndsTheTailEarly() async {
+        let recorder = ControlledDictationRecorder()
+        recorder.trailingQuiet = 0.4
+        let (controller, sleeps) = await releaseWithCountedSleeps(recorder: recorder)
+        await controller.tail?.value
+        XCTAssertEqual(sleeps.count, 4, "Quiet audio stops 200 ms after release")
+        XCTAssertEqual(recorder.stops, 1)
+        await controller.operation?.value
+    }
+
+    func testSpeechOrAnUnreadableRoomKeepsTheFullTail() async {
+        for quiet in [0, 0.2] as [TimeInterval] {
+            let recorder = ControlledDictationRecorder()
+            recorder.trailingQuiet = quiet
+            let (controller, sleeps) = await releaseWithCountedSleeps(recorder: recorder)
+            await controller.tail?.value
+            XCTAssertEqual(sleeps.count, 14, "A last word still being spoken keeps the whole 700 ms")
+            XCTAssertEqual(recorder.stops, 1)
+            await controller.operation?.value
+        }
+    }
+
+    private final class Sleeps { var count = 0 }
+
+    private func releaseWithCountedSleeps(
+        recorder: ControlledDictationRecorder) async -> (DictationController, Sleeps) {
+        let sleeps = Sleeps()
+        let controller = DictationController(enabled: true, engine: ControlledDictationEngine(), recorder: recorder,
+            interaction: DictationInteraction(endCapture: {}, showError: { _ in }, showResult: { _ in }),
+            releaseTail: .milliseconds(700), sleep: { _ in sleeps.count += 1 }, saveModel: { _ in })
+        controller.restore()
+        await controller.operation?.value
+        controller.shortcutPressed()
+        controller.shortcutReleased()
+        XCTAssertEqual(recorder.stops, 0)
+        return (controller, sleeps)
+    }
+
     private func holdAndRelease(engine: ControlledDictationEngine,
                                 recorder: ControlledDictationRecorder) async -> DictationController {
         let controller = DictationController(enabled: true, engine: engine, recorder: recorder,
             interaction: DictationInteraction(endCapture: {}, showError: { _ in }, showResult: { _ in }),
             releaseTail: .milliseconds(700), sleep: { [entered, elapsed] delay in
-                XCTAssertEqual(delay, .milliseconds(700))
+                XCTAssertEqual(delay, .milliseconds(50))
                 await entered.open()
                 await elapsed.wait()
             }, saveModel: { _ in })

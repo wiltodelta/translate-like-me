@@ -94,10 +94,16 @@ enum LocalModel: String, CaseIterable, Identifiable, Sendable {
     func prompt(system: String, text: String) -> String {
         let input = Self.removingControlTokens(from: text)
         switch self {
-        case .translateGemma12B:
-            return "<bos><start_of_turn>user\n\(system)\n\n\(input)<end_of_turn>\n<start_of_turn>model\n"
-        case .gemma4E2B:
-            return "<bos><|turn>system\n\(system)<turn|>\n<|turn>user\n\(input)<turn|>\n<|turn>model\n"
+        case .translateGemma12B: return promptHead(system: system) + "\(input)<end_of_turn>\n<start_of_turn>model\n"
+        case .gemma4E2B: return promptHead(system: system) + "\(input)<turn|>\n<|turn>model\n"
+        }
+    }
+
+    // Everything before the selection: the same on every run of a pair or preset.
+    func promptHead(system: String) -> String {
+        switch self {
+        case .translateGemma12B: "<bos><start_of_turn>user\n\(system)\n\n"
+        case .gemma4E2B: "<bos><|turn>system\n\(system)<turn|>\n<|turn>user\n"
         }
     }
 

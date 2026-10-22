@@ -281,6 +281,7 @@ private final class FreshInstallRecorder: DictationRecording {
     var onEnd: ((Bool) -> Void)?
     let level = 0.0
     let isDeliveringAudio = true
+    let trailingQuiet: TimeInterval = 0
     var permitted = false
     var starts = 0
     var stops = 0

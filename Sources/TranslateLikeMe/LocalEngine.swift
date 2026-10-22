@@ -9,7 +9,8 @@ private let log = Logger.app("local")
 
 // A model loaded into memory, ready to complete a prompt.
 protocol LocalGenerating: Sendable {
-    func complete(_ prompt: String, maxTokens: Int) async throws -> String
+    // `head` begins `prompt` and repeats across runs, so its state can be reused.
+    func complete(_ prompt: String, head: String, maxTokens: Int) async throws -> String
 }
 
 protocol LocalLoading: Sendable {
@@ -87,6 +88,7 @@ actor LocalEngine {
         let generator = try await generator(for: model)
         try Task.checkCancellation()
         return try await generator.complete(model.prompt(system: system, text: text),
+                                            head: model.promptHead(system: system),
                                             maxTokens: LocalModel.maxTokens(inputCharacters: text.count))
     }
 
@@ -151,29 +153,64 @@ struct MLXLoader: LocalLoading {
         // MLX otherwise keeps freed buffers up to the memory limit.
         Memory.cacheLimit = 64 << 20
         let container = try await LLMModelFactory.shared.loadContainer(from: directory, using: TokenizerLoader())
-        return Generator(container: container)
+        return Generator(container: container, heads: PromptHeads())
     }
 
     func release() { Memory.clearCache() }
 
     private struct Generator: LocalGenerating {
         let container: ModelContainer
+        let heads: PromptHeads
 
         // The sampling of the benchmark (temperature 0.3, top-p 0.95). A
         // cancelled run drains the SDK producer before releasing the model.
-        func complete(_ prompt: String, maxTokens: Int) async throws -> String {
+        func complete(_ prompt: String, head: String, maxTokens: Int) async throws -> String {
             try await container.perform { (context: ModelContext) in
                 var context = context
                 context.configuration.extraEOSTokens = LocalModel.stopTokens
                 let tokens = context.tokenizer.encode(text: prompt, addSpecialTokens: false)
                 try Task.checkCancellation()
-                let input = LMInput(tokens: MLXArray(tokens))
-                let iterator = try TokenIterator(input: input, model: context.model,
-                    parameters: GenerateParameters(maxTokens: maxTokens, temperature: 0.3, topP: 0.95))
+                let parameters = GenerateParameters(maxTokens: maxTokens, temperature: 0.3, topP: 0.95)
+                let (cache, rest) = try heads.split(tokens, head: context.tokenizer.encode(text: head,
+                    addSpecialTokens: false), model: context.model, parameters: parameters)
+                let iterator = try TokenIterator(input: LMInput(tokens: MLXArray(rest)), model: context.model,
+                                                 cache: cache, parameters: parameters)
                 let (stream, producer) = generateTask(promptTokenCount: tokens.count,
                     modelConfiguration: context.configuration, tokenizer: context.tokenizer, iterator: iterator)
                 return try await LocalGeneration.collect(stream, producer: producer)
             }
+        }
+    }
+
+    // The instructions open every prompt, about 360 of TranslateGemma's 380
+    // tokens. Their cache is computed once per pair or preset and copied into
+    // each run, which took 1.7-3.7 s off the first token with identical output
+    // (docs/local-translation.md). Each costs 141 MB on TranslateGemma, so only
+    // the latest three are kept. Used only inside `ModelContainer.perform`,
+    // which runs one generation at a time.
+    final class PromptHeads: @unchecked Sendable {
+        private var entries: [(head: [Int], cache: [KVCache])] = []
+
+        // A copy of the cache after `head` and the tokens still to process, or
+        // no cache when the prompt's tokens do not begin with the head's.
+        func split(_ tokens: [Int], head: [Int], model: any LanguageModel,
+                   parameters: GenerateParameters) throws -> ([KVCache]?, [Int]) {
+            guard !head.isEmpty, tokens.count > head.count, tokens.starts(with: head) else { return (nil, tokens) }
+            let cache: [KVCache]
+            if let index = entries.firstIndex(where: { $0.head == head }) {
+                cache = entries.remove(at: index).cache
+            } else {
+                cache = try model.newCache(parameters: parameters)
+                // Chunked like the SDK's prefill; the logits are never evaluated.
+                for start in stride(from: 0, to: head.count, by: 512) {
+                    _ = model(MLXArray(Array(head[start..<min(start + 512, head.count)]))[.newAxis, .ellipsis],
+                              cache: cache)
+                    eval(cache)
+                }
+            }
+            entries.append((head, cache))
+            if entries.count > 3 { entries.removeFirst() }
+            return (cache.map { $0.copy() }, Array(tokens[head.count...]))
         }
     }
 

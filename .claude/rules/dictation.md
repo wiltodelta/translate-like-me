@@ -52,7 +52,9 @@ Compute-policy findings and the reproducible synthetic benchmark:
   weights and tokenizer inputs share the pinned snapshot checks. The SDK's
   derived tokenizer.json stays in disposable staging outside that snapshot.
   Qwen's greedy loop runs in the calling task, checks cancellation per token,
-  and synchronizes GPU work before returning. Use the SDK's low-energy 30-second
+  and synchronizes GPU work before returning. Past the language prefix
+  (`DictationLanguagePrefix.reach`) it queues the next step before reading the
+  current token; loading ends with a one-second silent warm-up. Use the SDK's low-energy 30-second
   chunks and fresh decoder caches; reaching the token/repetition backstop reports
   an error, never a partial transcript. Installation and offline checks:
   `docs/qwen-integration.md`.
@@ -98,7 +100,8 @@ Compute-policy findings and the reproducible synthetic benchmark:
   initialization cost about 1.2 s and lost first words, and a prepared
   voice-processing unit kept media ducked while idle (user decision 2026-10-20,
   `docs/dictation-startup.md`). Between holds the worker keeps the engine
-  prepared but stopped, with the relay tap installed; it opens no microphone
+  prepared but stopped, with the relay tap and a first-audio sink node
+  installed; it opens no microphone
   (process input-running reads zero). Warm up only with an existing grant, after
   preparation's permission check; rebuild after wake, on an idle configuration
   change, on a microphone choice, or when the resolved input or its format
@@ -153,8 +156,10 @@ Compute-policy findings and the reproducible synthetic benchmark:
   explicit Copy Last Result > Dictation, shared with Translation and Rewrite.
 - Hold-to-talk is the only recording mode. Default to right Option; the binding
   field accepts left or right Option only. Press begins capture, release finishes
-  after a one-second tail that catches a last word spoken while letting go
-  (`DictationController.liveReleaseTail`; the output stays muted through it),
+  after a tail of up to one second that catches a last word spoken while letting go
+  (`DictationController.liveReleaseTail`; the output stays muted through it); it
+  ends early after 300 ms of quiet, never before 200 ms, and runs in full when the
+  hold has no quiet buffer 15 dB under its loudest (`docs/dictation-latency.md`),
   other input during the hold cancels. No toggle, menu-start path or dedicated cancellation key.
   Escape is not registered for dictation. Keep the hold monitor alive on press
   or its release will be lost. `OptionKeyGesture` observes local/global NSEvent events.
@@ -176,7 +181,9 @@ Compute-policy findings and the reproducible synthetic benchmark:
   the audio-input entitlement and microphone purpose string. Test with the signed
   dev bundle, never the installed app's settings or privacy state.
 - The indicator appears only when the microphone delivers its first audio
-  (`.starting` to `.recording`, about 0.2 s after the press), already reading
+  (`.starting` to `.recording`, about 60 ms after the press: an
+  `AVAudioSinkNode` sees 512-frame I/O cycles while the tap delivers 100 ms
+  buffers, and the meter polls every 10 ms until then, every 50 ms after), already reading
   Listening: a Preparing state was taken for "wait before speaking", and
   Listening before audio invites words the recording misses. Keep a shared 20-point icon slot in the listening and recognizing indicator
   states so the text does not shift when the symbol changes. Native previews

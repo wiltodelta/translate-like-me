@@ -2,6 +2,8 @@
 
 > The voice-processing recorder described through "Verification of the queued
 > implementation" was replaced by raw prepared input; see the last section.
+> Listening now follows a first-audio sink node, about 60 ms after the press:
+> [dictation latency](dictation-latency.md).
 
 October 20, 2026. The user approved optimizing startup without background
 microphone capture. The reported installed version was 3.7.4.

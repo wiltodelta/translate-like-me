@@ -11,6 +11,10 @@ final class LocalModelTests: XCTestCase {
                        "<bos><start_of_turn>user\nSYS\n\nHi<end_of_turn>\n<start_of_turn>model\n")
         XCTAssertEqual(LocalModel.gemma4E2B.prompt(system: "SYS", text: "Hi"),
                        "<bos><|turn>system\nSYS<turn|>\n<|turn>user\nHi<turn|>\n<|turn>model\n")
+        for model in LocalModel.allCases {
+            XCTAssertTrue(model.prompt(system: "SYS", text: "Hi").hasPrefix(model.promptHead(system: "SYS")))
+            XCTAssertFalse(model.promptHead(system: "SYS").contains("Hi"))
+        }
     }
 
     func testSelectionCannotCloseItsTurn() {
@@ -323,7 +327,8 @@ private final class FakeLoader: LocalLoading, @unchecked Sendable {
     private struct Generator: LocalGenerating {
         let loader: FakeLoader
 
-        func complete(_ prompt: String, maxTokens: Int) async throws -> String {
+        func complete(_ prompt: String, head: String, maxTokens: Int) async throws -> String {
+            XCTAssertTrue(prompt.hasPrefix(head))
             loader.record(maxTokens: maxTokens)
             await loader.started.open()
             await loader.generationGate?.wait()

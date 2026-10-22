@@ -178,18 +178,6 @@ final class DictationController {
         }
     }
 
-    // Keep recording briefly after release, then stop as an immediate release would.
-    private func finishAfterTail() {
-        guard releaseTail > .zero else { return stop() }
-        guard tail == nil else { return }
-        let id = session.id
-        tail = Task { [self] in
-            try? await sleep(releaseTail)
-            guard !Task.isCancelled, session.id == id else { return }
-            stop()
-        }
-    }
-
     func shortcutCancelled() {
         dictationLog.notice("Dictation hold cancelled, phase \(String(describing: self.phase), privacy: .public)")
         if phase == .starting || phase == .recording { cancel() }
@@ -214,16 +202,17 @@ final class DictationController {
                 }
             }
             let started = ContinuousClock.now
-            meter = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+            // A short interval shows Listening within 10 ms of the first audio.
+            meter = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { [weak self] _ in
                 MainActor.assumeIsolated {
-                    guard let self, self.session.id == id,
-                          [.starting, .recording].contains(self.phase) else { return }
-                    self.level = self.recorder.level
-                    guard self.phase == .starting else { return }
+                    guard let self, self.session.id == id, self.phase == .starting else { return }
                     // Listening appears only once the microphone delivers audio.
                     if self.recorder.isDeliveringAudio {
                         self.session.transition(.recording, for: id)
                         self.interaction.showCapture()
+                        let elapsed = Int(started.duration(to: .now) / .milliseconds(1))
+                        dictationLog.notice("Dictation first audio \(elapsed, privacy: .public) ms after press")
+                        self.meterLevel(id)
                     } else if started.duration(to: .now) > .seconds(3) {
                         self.fail(DictationError.microphone.localizedDescription, id: id)
                         self.endCapture()
@@ -386,5 +375,42 @@ extension DictationController {
         saveMicrophone(microphone)
         recorder.useInput(microphone?.uid)
         if enabled { recorder.warmUp(rebuild: true) }
+    }
+}
+
+// The release tail; the class body holds its state.
+extension DictationController {
+    // Keep recording briefly after release, then stop as an immediate release would.
+    // Audio that has gone quiet ends the tail early; without a quiet reading it runs in full.
+    private func finishAfterTail() {
+        guard releaseTail > .zero else { return stop() }
+        guard tail == nil else { return }
+        let id = session.id
+        tail = Task { [self] in
+            var waited = Duration.zero
+            // The tap delivers 100 ms buffers about 100 ms late, so 200 ms after release
+            // the recording reaches past the release; 300 ms of quiet ends a last word.
+            while waited < releaseTail, waited < .milliseconds(200) || recorder.trailingQuiet < 0.3 {
+                let step = min(Self.tailStep, releaseTail - waited)
+                try? await sleep(step)
+                guard !Task.isCancelled, session.id == id else { return }
+                waited += step
+            }
+            dictationLog.notice("Dictation release tail \(Int(waited / .milliseconds(1)), privacy: .public) ms")
+            stop()
+        }
+    }
+
+    private static let tailStep = Duration.milliseconds(50)
+
+    // The level changes once per 100 ms tap buffer.
+    private func meterLevel(_ id: UUID) {
+        meter?.invalidate()
+        meter = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.session.id == id, self.phase == .recording else { return }
+                self.level = self.recorder.level
+            }
+        }
     }
 }

@@ -425,6 +425,7 @@ final class ControlledDictationRecorder: DictationRecording {
     var onEnd: ((Bool) -> Void)?
     let level = 0.5
     var isDeliveringAudio = true
+    var trailingQuiet: TimeInterval = 0
     let audio = URL(fileURLWithPath: "/synthetic-dictation.wav")
     var permissions = 0
     var permitted = true

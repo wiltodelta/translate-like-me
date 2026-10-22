@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import Synchronization
 
 // NSLock serializes the non-real-time tap's writes with meter reads and close.
 // The tap never enters the main actor. Closing rejects late audio callbacks.
@@ -10,8 +11,15 @@ final class DictationAudioFile: @unchecked Sendable {
     private let frameLimit: AVAudioFramePosition
     private var frames: AVAudioFramePosition = 0
     private var meter: Double = 0
+    // Release-tail inputs: the quietest and loudest buffers, and the quiet run at the end.
+    private var floor = Double.infinity
+    private var peak: Double = 0
+    private var quietFrames: AVAudioFramePosition = 0
     private var ended = false
     private var failure: Error?
+    // Set by the first write or, sooner, the real-time sink, without the write
+    // lock, which file I/O can hold.
+    private let heard = Atomic(false)
 
     init(url: URL, format: AVAudioFormat, maximumDuration: TimeInterval = 300) throws {
         guard format.sampleRate > 0, format.channelCount > 0,
@@ -26,7 +34,8 @@ final class DictationAudioFile: @unchecked Sendable {
     }
 
     var level: Double { lock.withLock { meter } }
-    var isDeliveringAudio: Bool { lock.withLock { frames > 0 } }
+    var isDeliveringAudio: Bool { heard.load(ordering: .relaxed) }
+    func markHeard() { heard.store(true, ordering: .relaxed) }
 
     // nil means continue; a terminal success/failure is reported exactly once.
     func append(_ buffer: AVAudioPCMBuffer) -> Bool? {
@@ -48,13 +57,44 @@ final class DictationAudioFile: @unchecked Sendable {
                 ended = true
                 return false
             }
-            frames += AVAudioFramePosition(buffer.frameLength)
+            let count = AVAudioFramePosition(buffer.frameLength)
+            frames += count
+            markHeard()
             meter = Self.level(of: buffer)
+            track(meter, frames: count)
             if frames >= frameLimit {
                 ended = true
                 return true
             }
             return nil
+        }
+    }
+
+    // How long the recording has been quiet at its end, zero while no buffer
+    // was quiet enough below the loudest to tell speech from the room.
+    var trailingQuiet: TimeInterval {
+        lock.withLock {
+            guard peak - floor >= Self.contrast else { return 0 }
+            return Double(quietFrames) / format.sampleRate
+        }
+    }
+
+    // Levels run 0...1 over 60 dB: quiet is within 9 dB of the floor, which
+    // must sit at least 15 dB under the peak. The first buffer can hold the
+    // microphone's start-up silence, so it never sets the floor.
+    private static let margin = 0.15
+    private static let contrast = 0.25
+
+    private func track(_ level: Double, frames count: AVAudioFramePosition) {
+        peak = max(peak, level)
+        if frames > count, level < floor {
+            // A lower floor starts the run again: earlier buffers were judged against a louder one.
+            floor = level
+            quietFrames = count
+        } else if level > floor + Self.margin {
+            quietFrames = 0
+        } else {
+            quietFrames += count
         }
     }
 

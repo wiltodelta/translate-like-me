@@ -105,6 +105,14 @@ detail, including the secrets and where the keys are kept (1Password):
   measured the built-in microphone. Prove which input a probe recorded by its
   frames, not `kAudioDevicePropertyDeviceIsRunningSomewhere`: another process
   held the built-in microphone running before a probe started (2026-10-21).
+  Measure latency in a release build: `swift test -c release --arch arm64
+  --build-system native -Xswiftc -enable-testing --filter <probe>` (debug MLX
+  hides CPU-side costs; this rebuilds the release tree, about 6 minutes). Load
+  models for such probes from an APFS clone (`cp -cR`) of the installed cache,
+  never from the installed domain itself. A microphone probe built from the
+  worker's sources stays off the speakers when launched with
+  `-dictationMutedOutputDevice probe-none` (argument domain): the mute sees a
+  pending record and never engages.
   A fresh worktree's first `swift build` or `./build.sh` compiles MLX past the
   10-minute tool timeout; run it detached (`nohup caffeinate -dimu ... > log &`).
   A `.build` cloned into another worktree

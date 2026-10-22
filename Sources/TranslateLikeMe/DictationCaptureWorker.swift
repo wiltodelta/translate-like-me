@@ -2,6 +2,7 @@ import AVFoundation
 import CoreAudio
 import Foundation
 import os
+import Synchronization
 
 private let captureLog = Logger.app("dictation")
 
@@ -9,21 +10,45 @@ private let captureLog = Logger.app("dictation")
 // only while a hold's sink is attached, so a prepared idle engine writes nothing.
 final class DictationTapRelay: @unchecked Sendable {
     private let lock = NSLock()
+    // Lets the real-time sink skip the lock once the hold has heard audio.
+    private let listening = Atomic(false)
     private var sink: DictationAudioFile?
     private var ended: (@Sendable (Bool) -> Void)?
 
     func attach(_ sink: DictationAudioFile, ended: @escaping @Sendable (Bool) -> Void) {
         lock.withLock { (self.sink, self.ended) = (sink, ended) }
+        listening.store(true, ordering: .relaxed)
     }
 
-    func detach() { lock.withLock { (sink, ended) = (nil, nil) } }
+    func detach() {
+        listening.store(false, ordering: .relaxed)
+        lock.withLock { (sink, ended) = (nil, nil) }
+    }
 
     func fail() {
+        listening.store(false, ordering: .relaxed)
         let ended = lock.withLock {
             defer { (sink, self.ended) = (nil, nil) }
             return self.ended
         }
         ended?(false)
+    }
+
+    // The tap delivers 100 ms buffers; the sink sees each 512-frame I/O cycle,
+    // so the first nonzero sample shows Listening about 100 ms sooner.
+    func hear(_ audio: UnsafePointer<AudioBufferList>) {
+        guard listening.load(ordering: .relaxed), let sink = lock.withLock({ self.sink }) else { return }
+        if !sink.isDeliveringAudio {
+            let buffers = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: audio))
+            let sound = buffers.contains { buffer in
+                guard let data = buffer.mData?.assumingMemoryBound(to: Float.self) else { return false }
+                let count = Int(buffer.mDataByteSize) / MemoryLayout<Float>.size
+                return UnsafeBufferPointer(start: data, count: count).contains { $0 != 0 }
+            }
+            guard sound else { return }
+            sink.markHeard()
+        }
+        listening.store(false, ordering: .relaxed)
     }
 
     func deliver(_ buffer: AVAudioPCMBuffer) {
@@ -205,6 +230,13 @@ final class DictationCaptureWorker: @unchecked Sendable {
             input.removeTap(onBus: 0)
             throw DictationError.microphone
         }
+        // Signals first audio only; the tap still writes the recording.
+        let sink = AVAudioSinkNode { @Sendable _, _, audio in
+            relay.hear(audio)
+            return noErr
+        }
+        engine.attach(sink)
+        engine.connect(input, to: sink, format: nil)
         generation += 1
         let generation = generation
         observer = NotificationCenter.default.addObserver(

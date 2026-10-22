@@ -25,6 +25,47 @@ final class DictationAudioFileTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(samples.dropFirst(100).first), 0.25, accuracy: 0.001)
     }
 
+    func testTrailingQuietNeedsContrastAndResetsOnSpeech() throws {
+        let url = temporaryFile()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1))
+        let capture = try DictationAudioFile(url: url, format: format)
+        let silence = try buffer(format: format, frames: 1_600, value: 0)
+        let room = try buffer(format: format, frames: 1_600, value: 0.002)
+        let speech = try buffer(format: format, frames: 1_600, value: 0.1)
+        XCTAssertNil(capture.append(silence), "Start-up silence never sets the floor")
+        XCTAssertNil(capture.append(speech))
+        XCTAssertNil(capture.append(speech))
+        XCTAssertEqual(capture.trailingQuiet, 0, "No quiet buffer yet to tell speech from the room")
+        XCTAssertNil(capture.append(room))
+        XCTAssertEqual(capture.trailingQuiet, 0.1, accuracy: 0.001)
+        XCTAssertNil(capture.append(room))
+        XCTAssertEqual(capture.trailingQuiet, 0.2, accuracy: 0.001)
+        XCTAssertNil(capture.append(speech))
+        XCTAssertEqual(capture.trailingQuiet, 0, "Speech restarts the quiet run")
+        try capture.finish()
+    }
+
+    func testRelayMarksFirstNonzeroIOCycleOnlyForTheAttachedHold() throws {
+        let url = temporaryFile()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
+        let capture = try DictationAudioFile(url: url, format: format)
+        let relay = DictationTapRelay()
+        let silence = try buffer(format: format, frames: 512, value: 0)
+        let sound = try buffer(format: format, frames: 512, value: 0.01)
+        relay.hear(sound.audioBufferList)
+        XCTAssertFalse(capture.isDeliveringAudio, "No hold attached")
+        relay.attach(capture) { _ in }
+        relay.hear(silence.audioBufferList)
+        XCTAssertFalse(capture.isDeliveringAudio, "Start-up zeros are not audio yet")
+        relay.hear(sound.audioBufferList)
+        XCTAssertTrue(capture.isDeliveringAudio)
+        relay.detach()
+        try capture.finish()
+        XCTAssertEqual(try AVAudioFile(forReading: url).length, 0, "The sink only signals; the tap writes")
+    }
+
     func testDurationLimitFinalizesOnlyOnceWithoutWaitingOnAClock() throws {
         let url = temporaryFile()
         defer { try? FileManager.default.removeItem(at: url) }

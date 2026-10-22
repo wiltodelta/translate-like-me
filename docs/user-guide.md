@@ -57,8 +57,8 @@ available. Copying is explicit and does not run the engine again.
 - For dictation, turn on **Enable dictation** under **Settings > Dictation**.
   First setup downloads the model; later recognition works locally. The default
   hold key is **Right Option**. Hold it while speaking, then release to recognize
-  and insert the text. Recording continues for a second after you let go, so a
-  last word is not cut off. In **Hold key**, you can record the left
+  and insert the text. Recording continues briefly after you let go, up to a
+  second and less once you have fallen quiet, so a last word is not cut off. In **Hold key**, you can record the left
   Option instead. Other input during the hold cancels dictation, so an Option
   combination does not insert speech. There is no tap-to-toggle mode or menu
   command to start recording. Recording is bounded to five minutes. The menu
@@ -69,8 +69,8 @@ available. Copying is explicit and does not run the engine again.
   the selected speech model, detection uses the full language set without a
   preference.
   The microphone is ready between holds without recording, so capture
-  starts about 0.2 s after the press, measured on the built-in microphone and on
-  AirPods. While you hold the key, system sound output is muted, then restored.
+  and the Listening indicator start about 60 ms after the press on the built-in
+  microphone; Bluetooth headsets can take longer. While you hold the key, system sound output is muted, then restored.
 
 - Select text in any app, then press a pair's shortcut (the first pair you add
   starts on **⌥⌘F**) to replace it with the translation.

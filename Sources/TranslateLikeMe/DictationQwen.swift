@@ -23,14 +23,29 @@ actor DictationQwen {
                                                        withDestinationURL: root.appendingPathComponent(file))
         }
         do {
-            model = try await Qwen3ASRModel.fromModelDirectory(runtime)
+            let loaded = try await Qwen3ASRModel.fromModelDirectory(runtime)
             try Task.checkCancellation()
+            Self.warmUp(loaded)
+            model = loaded
         } catch {
             model = nil
             Stream.gpu.synchronize()
             Memory.clearCache()
             throw error
         }
+    }
+
+    // The first pass after loading builds GPU pipelines: about 30 ms on the
+    // first dictation, 320 ms when the system shader cache is cold, as after an
+    // update. One second of silence pays for it here.
+    private static func warmUp(_ model: Qwen3ASRModel) {
+        let (features, mask, count) = model.preprocessAudio(MLXArray.zeros([16_000]))
+        let cache = model.makeCache()
+        let first = model(inputIds: model.buildPrompt(numAudioTokens: count), inputFeatures: features,
+                          featureAttentionMask: mask, cache: cache)[0, -1, 0...].argMax(axis: -1)
+        eval(model(inputIds: first.reshaped(1, 1).asType(.int32), cache: cache))
+        Stream.gpu.synchronize()
+        Memory.clearCache()
     }
 
     func transcribe(_ samples: [Float], preference: DictationLanguagePreference) throws -> String {
@@ -50,24 +65,8 @@ actor DictationQwen {
         let chunks = splitAudioIntoChunks(MLXArray(samples), sampleRate: 16_000, chunkDuration: 30)
         for (audio, _) in chunks {
             try Task.checkCancellation()
-            let (features, mask, count) = model.preprocessAudio(audio)
-            let prompt = model.buildPrompt(numAudioTokens: count)
-            let cache = model.makeCache()
             do {
-                var generated: [Int] = []
-                let tokens = try DictationQwenDecoding.decode(endTokens: endTokens) { previous in
-                    let logits: MLXArray
-                    if let previous {
-                        let input = MLXArray([Int32(previous)]).expandedDimensions(axis: 0)
-                        logits = model(inputIds: input, cache: cache)
-                    } else {
-                        logits = model(inputIds: prompt, inputFeatures: features,
-                                       featureAttentionMask: mask, cache: cache)
-                    }
-                    let token = Self.selectToken(logits: logits, generated: generated, prefix: languagePrefix)
-                    generated.append(token)
-                    return token
-                }
+                let tokens = try Self.decode(model, audio: audio, prefix: languagePrefix, endTokens: endTokens)
                 transcripts.append(DictationQwenDecoding.transcript(tokenizer.decode(tokens: tokens)))
             } catch DictationQwenDecoding.Failure.limit {
                 throw DictationError.recognitionLimit
@@ -77,12 +76,48 @@ actor DictationQwen {
         return transcripts.joined(separator: " ")
     }
 
-    static func selectToken(logits: MLXArray, generated: [Int], prefix: DictationLanguagePrefix) -> Int {
+    // Greedy decoding of one chunk with a fresh decoder cache.
+    private static func decode(_ model: Qwen3ASRModel, audio: MLXArray, prefix: DictationLanguagePrefix,
+                               endTokens: Set<Int>) throws -> [Int] {
+        let (features, mask, count) = model.preprocessAudio(audio)
+        let prompt = model.buildPrompt(numAudioTokens: count)
+        let cache = model.makeCache()
+        let reach = prefix.reach
+        var generated: [Int] = []
+        var ahead: MLXArray?
+        return try DictationQwenDecoding.decode(endTokens: endTokens) { previous in
+            let token: MLXArray
+            if let ahead {
+                token = ahead
+            } else {
+                let logits = previous.map {
+                    model(inputIds: MLXArray([Int32($0)]).expandedDimensions(axis: 0), cache: cache)
+                } ?? model(inputIds: prompt, inputFeatures: features, featureAttentionMask: mask, cache: cache)
+                token = Self.nextToken(logits: logits, generated: generated, prefix: prefix)
+            }
+            // Once no language preference can apply, queue the following
+            // step on the GPU before reading this token: about 10% faster
+            // on phrases of 30+ tokens, identical tokens (docs/dictation-latency.md).
+            ahead = nil
+            if generated.count + 1 >= reach {
+                let following = model(inputIds: token.reshaped(1, 1).asType(.int32), cache: cache)[0, -1, 0...]
+                    .argMax(axis: -1)
+                asyncEval(following)
+                ahead = following
+            }
+            let value = token.item(Int.self)
+            generated.append(value)
+            return value
+        }
+    }
+
+    // Lazy, so the caller decides when the GPU result is read.
+    static func nextToken(logits: MLXArray, generated: [Int], prefix: DictationLanguagePrefix) -> MLXArray {
         let nextLogits = logits[0, -1, 0...]
         for token in prefix.nextTokens(after: generated) {
             nextLogits[token] += MLXArray(DictationLanguagePreference.logWeight)
         }
-        return nextLogits.argMax(axis: -1).item(Int.self)
+        return nextLogits.argMax(axis: -1)
     }
 
     func unload() {

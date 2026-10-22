@@ -128,6 +128,37 @@ Jinja). On the shipping translation prompt it produced the same ids as Python
 - `Memory.cacheLimit` is 64 MB, so freed buffers are returned rather than kept
   up to the memory limit.
 
+## Reused instructions (2026-10-22)
+
+The instructions before the selection (`LocalModel.promptHead`) are about 360
+of TranslateGemma's 380 prompt tokens and identical on every run of a pair or
+preset. `MLXLoader.PromptHeads` computes their KV cache once, keeps the latest
+three (141 MB each on TranslateGemma: 48 layers, 8 KV heads of 256), and gives
+each run a copy, so only the selection and the turn markers are prefilled. It
+reuses a head only when the prompt's tokens literally begin with the head's
+tokens; otherwise the run prefills the whole prompt as before. Unloading the
+model drops the caches with it.
+
+A temporary release-mode XCTest ran TranslateGemma 12B from an APFS clone of the
+installed download, temperature 0, three cases (Russian and English sentences,
+a 68-token Russian paragraph), five interleaved rounds. The Mac had 6.4 GB in
+swap, so absolute times are slow and noisy (two full-prompt runs took 39 and
+59 s); only paired results count:
+
+| Case | Prompt tokens | First token, full / reused | Total, full / reused |
+|---|---|---|---|
+| Russian sentence | 384 | 3.1 / 1.5 s | 5.9 / 4.6 s |
+| English sentence | 376 | 5.1 / 1.4 s | 8.1 / 3.8 s |
+| Russian paragraph | 428 | 4.5 / 1.8 s | 12.4 / 10.9 s |
+
+Reuse was faster in 12 of 15 pairs, and all 15 outputs were identical to the
+full prompt's. A 1,111-token prompt, past the 1,024-token sliding window, gave
+the same 576-token translation (3,119 characters) both ways. Building a head
+costs one prefill of it, paid by the first run of each pair or preset. Through
+`LocalEngine` itself, steady runs of the two sentences took 3.5-5.0 s on the
+same swapping machine. Gemma 4 E2B's prompt has the same split; its 15 cached
+layers are under 6 MB.
+
 ## Build
 
 `build.sh` uses the native build system, which compiles no `.metal` sources.
