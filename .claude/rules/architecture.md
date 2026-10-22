@@ -184,7 +184,12 @@ Read before editing this domain.
   10-second status/lookup deadlines and an 8 MiB combined-output cap. Cancellation
   and timeout kill the owned process group when isolated, otherwise the child,
   close its streams and await termination. Status transport failures remain
-  failures rather than being reported as a signed-out account.
+  failures rather than being reported as a signed-out account. claude, codex
+  and grok answer 0.5-1.1 s before they exit, so translations read their JSON
+  event streams (`CLIStreams.swift`) and `run(answered:)` returns at the
+  answer, leaving the child to exit or be killed at the deadline. A failure
+  still waits for the exit status and reaches `FailureDetail` in the shape of
+  the CLI's plain output (claude's result text, codex's `ERROR:` lines).
 - Providers: Claude (`claude` CLI), ChatGPT (`codex` CLI), Grok (`grok`
   CLI) and Antigravity (`agy` CLI), selected in Settings and named everywhere by
   their CLI (`Provider.name`: Claude Code, Codex, Grok Build, Antigravity), since

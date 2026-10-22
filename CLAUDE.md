@@ -80,6 +80,9 @@ detail, including the secrets and where the keys are kept (1Password):
   `kAXErrorCannotComplete` for every frontmost app (2026-10-20).
   Probe engine CLIs with `env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN
   -u ANTHROPIC_BASE_URL`, or the harness's own variables redirect `claude`.
+  Time a CLI by its answer event, not its exit: read its JSON stream in raw
+  chunks (`docs/cli-translation-latency.md`). `claude --bare` refuses
+  subscription auth, so it cannot replace the translation flags.
   Check a prompt change live with a temporary XCTest that calls
   `Translator.translate` or `Translator.rewrite` behind an env-var guard
   (`swift test --filter`, three runs per case, delete it after), rather than

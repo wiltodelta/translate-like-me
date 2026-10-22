@@ -174,7 +174,8 @@ enum Translator {
         // is NOT extended thinking - the model does one short turn.
         // --no-session-persistence: claude would otherwise keep every selection
         // in ~/.claude/projects indefinitely.
-        var args = ["-p", "--output-format", "text", "--system-prompt", system,
+        // The result event ends the run (ClaudeStream).
+        var args = ["-p", "--output-format", "stream-json", "--verbose", "--system-prompt", system,
                     "--tools", "", "--strict-mcp-config", "--setting-sources", "",
                     "--no-session-persistence"]
         // The model and effort picked in Settings, else the user's defaults from
@@ -183,17 +184,11 @@ enum Translator {
         let choice = HarnessChoice.current(for: .anthropic)
         if let model = choice.model { args += ["--model", model] }
         if let effort = choice.effort { args += ["--effort", effort] }
-        let result = try await runProcess(binary: binary, args: args, stdin: text)
-        return try cleaned(result)
+        return try await runStream(ClaudeStream.self, binary: binary, args: args, stdin: text)
     }
 
     private static func runCodex(system: String, text: String) async throws -> String {
         let binary = try await resolveBinary(name: Provider.openai.cliBinaryName)
-
-        // Codex prints a header and a trace to stdout; -o writes only the final
-        // message to a file, which is the clean result we want.
-        let outFile = NSTemporaryDirectory() + "codex-\(UUID().uuidString).txt"
-        defer { try? FileManager.default.removeItem(atPath: outFile) }
 
         // Like `claude -p`, `codex exec` is an agent harness:
         //   --ignore-user-config   don't load ~/.codex/config.toml (disables all MCP
@@ -214,7 +209,8 @@ enum Translator {
         // `--disable`: codex rejects an unknown `--disable` name outright, so a
         // renamed feature would break every translation; an unknown `-c` key only
         // warns.
-        var args = ["exec", "--skip-git-repo-check", "--ignore-user-config", "--ignore-rules",
+        // --json: events on stdout, the final message in the last agent item (CodexStream).
+        var args = ["exec", "--json", "--skip-git-repo-check", "--ignore-user-config", "--ignore-rules",
                     "--ephemeral", "-s", "read-only"]
         for feature in ["shell_tool", "unified_exec", "browser_use", "browser_use_external",
                         "computer_use", "image_generation", "apps", "view_image", "multi_agent",
@@ -226,11 +222,9 @@ enum Translator {
         if let effort = choice.effort { args += ["-c", "model_reasoning_effort=\(effort)"] }
         // "-": the prompt comes on stdin, so the selection is not in the process
         // list the way a command-line argument is.
-        args += ["-o", outFile, "-"]
-
-        _ = try await runProcess(binary: binary, args: args, stdin: promptEnvelope(system: system, text: text))
-        let result = (try? String(contentsOfFile: outFile, encoding: .utf8)) ?? ""
-        return try cleaned(result)
+        args += ["-"]
+        return try await runStream(CodexStream.self, binary: binary, args: args,
+                                   stdin: promptEnvelope(system: system, text: text))
     }
 
     private static func runGrok(system: String, text: String) async throws -> String {
@@ -249,12 +243,12 @@ enum Translator {
         //   prompt envelope + --verbatim              the system prompt alone did not
         //                                             stop it answering the input
         // Together: ~5.7k tokens and correct output; 4-6s at the model's default
-        // effort (2026-09-23; ~3.4s when it was forced to low). Stdout carries
-        // only the answer in the default plain format; errors go to stderr, exit 1.
+        // effort (2026-09-23; ~3.4s when it was forced to low). Errors go to
+        // stderr, exit 1; streaming-json events carry the answer (GrokStream).
         // `--prompt-file /dev/stdin` is the single-turn mode of `-p` with the prompt
         // on stdin, so the selection stays out of the process list (as for codex);
         // same output and latency as `-p` (grok 1.0.50, 2026-10-11).
-        var args = ["--prompt-file", "/dev/stdin", "--verbatim",
+        var args = ["--prompt-file", "/dev/stdin", "--verbatim", "--output-format", "streaming-json",
                     "--system-prompt-override", system,
                     "--tools", "todo_write", "--disallowed-tools", "todo_write",
                     "--no-subagents", "--max-turns", "1"]
@@ -262,10 +256,9 @@ enum Translator {
         let choice = HarnessChoice.current(for: .grok)
         if let model = choice.model { args += ["-m", model] }
         if let effort = choice.effort { args += ["--reasoning-effort", effort] }
-        let result = try await runProcess(binary: binary, args: args,
-                                          stdin: promptEnvelope(system: system, text: text),
-                                          extraEnv: Provider.grok.cliEnvironment)
-        return try cleaned(result)
+        return try await runStream(GrokStream.self, binary: binary, args: args,
+                                   stdin: promptEnvelope(system: system, text: text),
+                                   extraEnv: Provider.grok.cliEnvironment)
     }
 
     // agy runs as the app's own isolated agent (Antigravity explains why).
@@ -295,11 +288,22 @@ enum Translator {
 
     // MARK: - Process
 
-    private static func runProcess(binary: String, args: [String], stdin: String?,
-                                   extraEnv: [String: String] = [:], directory: URL? = nil) async throws -> String {
+    // Returns at the answer the CLI's event stream reports (CLIStreams.swift). A
+    // failure is passed on in the shape the CLI's plain output had, for FailureDetail.
+    private static func runStream(_ stream: (some CLIAnswerStream).Type, binary: String, args: [String],
+                                  stdin: String, extraEnv: [String: String] = [:]) async throws -> String {
         let output = try await ProcessRunner.run(binary: binary, arguments: args, input: stdin,
                                                   environment: toolEnvironment(adding: extraEnv),
-                                                  directory: directory)
+                                                  answered: stream.isAnswered)
+        guard output.status == 0 else { throw FailureDetail.error(output: stream.plain(output), input: stdin) }
+        guard let text = stream.answer(in: output.stdout) else { throw TranslatorError.empty }
+        return try cleaned(text)
+    }
+
+    private static func runProcess(binary: String, args: [String], stdin: String?,
+                                   directory: URL? = nil) async throws -> String {
+        let output = try await ProcessRunner.run(binary: binary, arguments: args, input: stdin,
+                                                  environment: toolEnvironment(), directory: directory)
         if output.status != 0 { throw FailureDetail.error(output: output, input: stdin) }
         return output.stdout
     }

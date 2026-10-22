@@ -152,6 +152,42 @@ final class ProcessRunnerTests: XCTestCase {
         return pids
     }
 
+    // claude writes its answer about 0.6 s before it exits; the run returns at
+    // the answer and the deadline still reaps a child that never exits.
+    func testAnsweredRunReturnsBeforeExitAndTheDeadlineReapsTheChild() async throws {
+        let clock = ManualDeadline()
+        let installed = expectation(description: "Child launched and deadline installed")
+        let result = try await ProcessRunner.run(binary: "/bin/sh", arguments: ["-c", "echo $$; exec sleep 600"],
+            environment: ["PATH": "/usr/bin:/bin"], deadline: clock.schedule(installed),
+            answered: { $0.last == UInt8(ascii: "\n") })
+        await fulfillment(of: [installed], timeout: 5)
+        XCTAssertEqual(result.status, 0)
+        let pid = try XCTUnwrap(pid_t(result.stdout.trimmingCharacters(in: .newlines)))
+        defer { if kill(pid, 0) == 0 { kill(pid, SIGKILL) } }
+        XCTAssertEqual(kill(pid, 0), 0, "The answer must arrive while the child still runs")
+        XCTAssertTrue(clock.isScheduled)
+        let exited = expectation(description: "Child killed at the deadline")
+        let monitor = DispatchSource.makeProcessSource(identifier: pid, eventMask: .exit, queue: .global())
+        monitor.setEventHandler { exited.fulfill() }
+        monitor.resume()
+        defer { monitor.cancel() }
+        clock.expire()
+        await fulfillment(of: [exited], timeout: 5)
+    }
+
+    func testAnsweredChildThatExitsCancelsTheDeadline() async throws {
+        let clock = ManualDeadline()
+        let installed = expectation(description: "Deadline installed")
+        let result = try await ProcessRunner.run(binary: "/bin/sh", arguments: ["-c", "echo done; sleep 0.2"],
+            environment: ["PATH": "/usr/bin:/bin"], deadline: clock.schedule(installed),
+            answered: { $0.last == UInt8(ascii: "\n") })
+        await fulfillment(of: [installed], timeout: 5)
+        XCTAssertEqual(result.stdout, "done\n")
+        let until = ContinuousClock.now.advanced(by: .seconds(5))
+        while clock.isScheduled, ContinuousClock.now < until { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertFalse(clock.isScheduled, "An exit after the answer must drop the deadline")
+    }
+
     func testOutputLimitStopsAnUnboundedProducer() async {
         do {
             _ = try await Self.run("exec yes", limit: 4096)
@@ -170,6 +206,8 @@ private final class ManualDeadline: Sendable {
             return { [self] in callback.withLock { $0 = nil } }
         }
     }
+
+    var isScheduled: Bool { callback.withLock { $0 != nil } }
 
     func expire() {
         let action = callback.withLock { $0 }
