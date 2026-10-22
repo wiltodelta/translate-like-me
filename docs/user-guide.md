@@ -70,7 +70,11 @@ available. Copying is explicit and does not run the engine again.
   preference.
   The microphone is ready between holds without recording, so capture
   and the Listening indicator start about 60 ms after the press on the built-in
-  microphone; Bluetooth headsets can take longer. While you hold the key, system sound output is muted, then restored.
+  microphone; Bluetooth headsets can take longer. While you hold the key, the app
+  tries to pause the current system media player and mutes sound output. After
+  recording it restores sound and resumes the unchanged item it confirmed
+  pausing. Unsupported players keep playing silently. If playback state changed,
+  the app leaves it alone.
 
 - Select text in any app, then press a pair's shortcut (the first pair you add
   starts on **⌥⌘F**) to replace it with the translation.

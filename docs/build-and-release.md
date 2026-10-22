@@ -20,6 +20,11 @@ bundles from the current SwiftPM graph and packages resolved upstream notices.
 Unused graph targets need not produce bundles; stale bundles outside the graph
 must stay out of the app. CMake is required locally and installed in CI.
 
+Cloning `.build` into another worktree preserves absolute paths in Swift's
+release `ModuleCache` and the `.build/mlx-metal/` CMake cache. Recreate those
+generated caches in the destination before building; keep the source
+checkout's caches intact.
+
 - **Build and assemble the app bundle:** `./build.sh`. It builds an arm64-only
   release binary, copies it and `Resources/` into `Translate Like Me Dev.app`
   (`Translate Like Me.app` with `RELEASE=1`),

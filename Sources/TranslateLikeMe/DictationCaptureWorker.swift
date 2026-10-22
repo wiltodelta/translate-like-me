@@ -68,6 +68,7 @@ final class DictationCaptureWorker: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.wiltodelta.translatelikeme.capture", qos: .userInitiated)
     private let relay = DictationTapRelay()
     private let mute = DictationOutputMute()
+    private let playback = DictationMediaPlayback()
     private var engine: AVAudioEngine?
     private var format: AVAudioFormat?
     private var inputDevice: AudioDeviceID?
@@ -130,6 +131,7 @@ final class DictationCaptureWorker: @unchecked Sendable {
         request.publish(capture)
         relay.attach(capture, ended: ended)
         mute.engage()
+        playback.begin()
         try request.startIfActive { try engine.start() }
         // Release/cancel stays nonblocking even during a slow hardware start.
         // Drain any captured frames on stop, but stop the microphone immediately.
@@ -172,6 +174,7 @@ final class DictationCaptureWorker: @unchecked Sendable {
             keepsPrepared = false
             discardCurrent()
             tearDown()
+            playback.finishPending()
         }
     }
 
@@ -188,6 +191,7 @@ final class DictationCaptureWorker: @unchecked Sendable {
         // Stopping also releases what `prepare()` allocated; spare an idle graph.
         if engine?.isRunning == true { engine?.stop() }
         mute.release()
+        playback.end()
     }
 
     // After a hold, or a release that arrived during one, keep the graph only if wanted.

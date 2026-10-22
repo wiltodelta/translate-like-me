@@ -163,6 +163,43 @@ recovery record; launch, idle preparation and the next hold retry it. A pending
 record blocks a new mute until the original output is restored. The system
 volume level is never changed.
 
+`DictationMediaPlayback` also pauses the system's current Now Playing item during
+recording. This is one system-wide route, with no Spotify, Music or browser
+integration and no Automation permission. The mute above still covers startup,
+unsupported players and other simultaneous audio. Media commands run independently
+of the capture queue, so a slow player cannot delay the microphone. Release,
+cancellation and startup failure end the media hold after the engine stops.
+Recognition does not keep playback paused.
+
+The system helper runs the bundled `DictationMediaScript` source through
+`/usr/bin/osascript` and loads Apple's private MediaRemote framework. Direct
+third-party access to Now Playing changed in macOS 15.4; the system host works
+on the tested macOS 27 machine. This is best-effort behavior, with output mute
+retained when selectors, required fields, commands or replies are unavailable.
+There is no new package, per-player permission, or media-key toggle.
+
+Pause is sent only for an item reported as playing. A confirmed zero playback
+rate and a new state timestamp establish the pause receipt. Play requires the
+same player path (including process), item identifier, zero rate, timestamp and
+position at release. A detected update or missing state forfeits restoration;
+even a benign metadata refresh can conservatively leave the item paused. An
+unconfirmed pause never causes a blind Play. Both commands poll for confirmation
+for up to 40 checks, 25 ms apart, inside a 2.5-second process deadline. These
+are bounds, not added capture delays or audible timing guarantees. Rapid holds
+serialize their media commands. Normal termination drains pending restoration;
+after a crash, output mute recovers on launch but media is left paused rather
+than automatically starting a possibly changed session.
+
+The shipping JavaScript is tested through JavaScriptCore with injected native
+I/O and clock seams. Tests cover missing state, an already paused item, an
+unconfirmed command, process/item/position/timestamp changes and release during
+an in-flight pause. A signed synthetic Now Playing app with looping digital
+silence received three confirmed Pause/Play pairs on October 22, 2026. This
+checks the common system route, not compatibility with every media app or
+audible restoration. No real user's playback was commanded. Mutations removing
+the item guard, timestamp guard or already-paused guard are rejected by the
+script tests.
+
 The recorder writes only its current temporary PCM WAV at the processed input's
 native rate and channel count. WhisperKit's audio loader converts it to 16 kHz
 mono before speech detection and recognition. `DictationAudioFile` serializes
