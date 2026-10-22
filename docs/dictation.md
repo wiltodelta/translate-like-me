@@ -198,7 +198,9 @@ silence received three confirmed Pause/Play pairs on October 22, 2026. This
 checks the common system route, not compatibility with every media app or
 audible restoration. No real user's playback was commanded. Mutations removing
 the item guard, timestamp guard or already-paused guard are rejected by the
-script tests.
+script tests. The media task uses an explicit `@Sendable` closure and concrete
+static helper references: CI's Swift 6.3.3 rejects the dynamic `Self` form that
+local Swift 6.4 accepts.
 
 The recorder writes only its current temporary PCM WAV at the processed input's
 native rate and channel count. WhisperKit's audio loader converts it to 16 kHz

@@ -22,14 +22,14 @@ final class DictationMediaPlayback {
         let pending = pending
         let previous = previous
         pending.enter()
-        self.previous = Task {
+        self.previous = Task { @Sendable in
             defer { pending.leave() }
             await previous?.value
             do {
                 guard !hold.hasEnded else { return }
                 let response = try await command("pause", nil)
-                guard let receipt = Self.receipt(from: response) else {
-                    if Self.status(from: response) != "ignored" {
+                guard let receipt = DictationMediaPlayback.receipt(from: response) else {
+                    if DictationMediaPlayback.status(from: response) != "ignored" {
                         playbackLog.notice("Dictation media pause not confirmed; output mute remains the fallback")
                     }
                     return
@@ -38,7 +38,7 @@ final class DictationMediaPlayback {
                 // Release during the command still restores its confirmed pause.
                 await hold.waitForEnd()
                 let restoration = try await command("resume", receipt)
-                let restored = Self.status(from: restoration) == "resumed"
+                let restored = DictationMediaPlayback.status(from: restoration) == "resumed"
                 playbackLog.notice("Dictation media resume confirmed: \(restored)")
             } catch {
                 // An uncertain pause is never followed by an unconditional Play.
