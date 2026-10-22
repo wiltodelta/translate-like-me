@@ -41,13 +41,16 @@ struct PopupView: View {
                     startPoint: .top, endPoint: .bottom)
             }
             if let action = model.action {
-                Button(action.title, action: action.handler)
+                Button(action: action.handler) {
+                    Text(action.title).primaryActionText()
+                }
                     .buttonStyle(.borderedProminent)
+                    .primaryActionTint()
                     .controlSize(.small)
                     // The panel never becomes key (it must not take focus from the
                     // app being translated in), and an inactive window draws a
                     // prominent button gray: keep the one action looking like one.
-                    .environment(\.controlActiveState, .key)
+                    .environment(\.appearsActive, true)
             }
         }
         .padding(12)

@@ -103,7 +103,7 @@ struct OnboardingView: View {
                 if flow.running {
                     Button("Pause") { flow.pause() }.accessibilityIdentifier("onboarding.pause")
                 } else if !flow.modelsReady {
-                    Button { flow.prepare() } label: { Text(downloadAction).foregroundStyle(.white) }
+                    Button { flow.prepare() } label: { Text(downloadAction).primaryActionText() }
                         .onboardingPrimaryAction()
                         .keyboardShortcut(.defaultAction)
                         .accessibilityIdentifier("onboarding.download")
@@ -111,7 +111,7 @@ struct OnboardingView: View {
                 }
                 Spacer()
                 Button { flow.continueFromPreparation() } label: {
-                    Text("Continue").foregroundStyle(flow.modelsReady ? .white : Color.secondaryText)
+                    Text("Continue").primaryActionText(enabled: flow.modelsReady)
                 }
                     .onboardingPrimaryAction()
                     .keyboardShortcut(flow.modelsReady ? .defaultAction : nil)
@@ -141,7 +141,7 @@ struct OnboardingView: View {
             Text(permissionExplanation).font(.system(size: 13)).foregroundStyle(Color.secondaryText)
                 .fixedSize(horizontal: false, vertical: true).padding(.top, 20)
             Button { flow.permissionAction() } label: {
-                Text(permissionAction).foregroundStyle(flow.running ? Color.secondaryText : .white)
+                Text(permissionAction).primaryActionText(enabled: !flow.running)
                     .frame(maxWidth: .infinity)
             }
             .onboardingPrimaryAction()
@@ -155,19 +155,39 @@ struct OnboardingView: View {
         Group {
             heading("Dictate and translate", detail: "Dictate into text fields. Translate selected passages.")
             VStack(spacing: 28) {
-                instruction("mic", title: "Dictate", shortcut: store.dictationShortcut.map(Shortcut.display),
-                            detail: """
-                                Place the cursor in a text field. Hold your dictation key, speak, then release it.
-                                """)
-                if let pair = store.pairs.first(where: \.isComplete) {
-                    instruction("character.bubble", title: "Translate", shortcut: pair.shortcut.map(Shortcut.display),
+                if let shortcut = store.dictationShortcut {
+                    instruction("mic", title: "Dictate", shortcut: Shortcut.display(shortcut),
                                 detail: """
-                                    Select text and press your shortcut. If insertion isn't available, copy the \
-                                    translation from the result window.
+                                    Place the cursor in a text field. Hold your dictation key, speak, then release it.
                                     """)
                 } else {
-                    Text("Choose your translation languages in Settings. We couldn't determine both from macOS.")
-                        .foregroundStyle(Color.secondaryText)
+                    VStack(alignment: .leading, spacing: 9) {
+                        instruction("mic", title: "Dictate", shortcut: nil,
+                                    detail: "Set a dictation shortcut in Settings to dictate into text fields.")
+                        Button("Set Dictation Shortcut…") { openSettings(.dictation) }
+                    }
+                }
+                if let pair = store.pairs.first(where: { $0.isComplete && $0.shortcut != nil })
+                    ?? store.pairs.first(where: \.isComplete) {
+                    if let shortcut = pair.shortcut {
+                        instruction("character.bubble", title: "Translate", shortcut: Shortcut.display(shortcut),
+                                    detail: """
+                                        Select text and press your shortcut. If insertion isn't available, copy the \
+                                        translation from the result window.
+                                        """)
+                    } else {
+                        VStack(alignment: .leading, spacing: 9) {
+                            instruction("character.bubble", title: "Translate", shortcut: nil,
+                                        detail: "Set a translation shortcut in Settings to translate selected text.")
+                            Button("Set Translation Shortcut…") { openSettings(.general) }
+                        }
+                    }
+                } else {
+                    VStack(alignment: .leading, spacing: 9) {
+                        Text("Choose your translation languages in Settings. We couldn't determine both from macOS.")
+                            .foregroundStyle(Color.secondaryText)
+                        Button("Choose Languages…") { openSettings(.general) }
+                    }
                 }
             }.padding(.top, 34)
             Spacer(minLength: 28)
@@ -182,7 +202,8 @@ struct OnboardingView: View {
                 guard flow.finish() else { return }
                 DispatchQueue.main.async { done() }
             } label: {
-                Text("Start Using Translate Like Me").foregroundStyle(.white).frame(maxWidth: .infinity)
+                Text("Start Using Translate Like Me").primaryActionText()
+                    .frame(maxWidth: .infinity)
             }
             .onboardingPrimaryAction()
                 .keyboardShortcut(.defaultAction)
@@ -239,8 +260,13 @@ struct OnboardingView: View {
 
     @ViewBuilder private var errorMessage: some View {
         if let error = flow.error {
-            Text(error).font(.system(size: 13)).foregroundStyle(Color.secondaryText)
-                .fixedSize(horizontal: false, vertical: true).padding(.top, 12)
+            Label {
+                Text(error).foregroundStyle(Color.primary)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+            }
+            .font(.system(size: 13))
+            .fixedSize(horizontal: false, vertical: true).padding(.top, 12)
         }
     }
 
@@ -299,6 +325,13 @@ private struct OnboardingModelRow: View {
                 Text(detail).font(.system(size: 13)).foregroundStyle(Color.secondaryText)
                 if state == .ready {
                     Label("Ready", systemImage: "checkmark.circle.fill").font(.system(size: 13))
+                } else if state == .failed {
+                    Label {
+                        Text("Preparation failed").foregroundStyle(Color.primary)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    }
+                    .font(.system(size: 13))
                 } else if case .working = state {
                     if progress >= 1 {
                         HStack {
@@ -320,6 +353,6 @@ private extension View {
     // selection backing to primary buttons, preserving normal controls' colors.
     func onboardingPrimaryAction() -> some View {
         buttonStyle(.borderedProminent).controlSize(.large)
-            .tint(Color(nsColor: .selectedContentBackgroundColor))
+            .primaryActionTint()
     }
 }

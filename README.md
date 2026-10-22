@@ -39,7 +39,8 @@ signed and notarized. Updates arrive in the app and install when you choose.
 First launch recommends languages from macOS and enabled keyboards, then prepares
 two local models for your Mac. Download and verification must finish before
 continuing. Next, grant **Microphone** and **Accessibility** access; the final
-screen explains dictation and translation with your actual shortcuts. Downloads
+screen explains dictation and translation with your actual shortcuts, or offers
+shortcut setup when none is assigned. Downloads
 can be paused and resumed. Models and other options stay editable in Settings.
 A new profile also gets a neutral Improve Text preset. Cloud engines remain
 optional alternatives that need their official CLI installed and signed in.

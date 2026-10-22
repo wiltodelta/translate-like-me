@@ -49,7 +49,7 @@ Read before editing this domain.
   Result submenu always lists Translation, Rewrite and Dictation, dimming missing
   results; it copies explicitly without rerunning an engine. Settings opens
   from the status menu. Its one action keeps the active accent
-  (`controlActiveState = .key`), and a capped body fades at the bottom when more
+  (`appearsActive = true`), and a capped body fades at the bottom when more
   text is below. Its opaque `windowBackgroundColor` backing keeps text readable
   over arbitrary desktop colors and Liquid Glass settings. macOS 27 hides `NSMenuItem.image` unless `preferredImageVisibility
   = .visible`; the status rows and the updates item set it (`StatusMenu.showsImage`).
@@ -87,7 +87,7 @@ Read before editing this domain.
   `Settings.persistLanguagePairs()` runs first at launch and writes the pairs
   once: the pre-pairs `languageA`/`languageB`/`replaceKeyCode` (or ru/en ⌥⌘F for
   an earlier run that kept the defaults) for an existing user, none for a new
-  one (`Settings.initialPairs`), and every pair may be removed (the
+  one (`Settings.initialPairs`), and every pair may be removed after confirmation (the
   menu then shows "Add a Language Pair…"); `Settings.moveStyleIntoPairs()` then copies the
   earlier single global `style` into every pair when none has a style yet,
   and removes it.
@@ -95,7 +95,10 @@ Read before editing this domain.
   selection, translates, and pastes back.
 - Rewrite presets (`RewritePreset`, up to `Rewrite.maxPresets` = 3, stored as
   JSON in `Settings.rewritePresets`, edited in the Rewrite pane) each carry a name (the menu item's title; new ones are "Preset
-  <n>"), an optional shortcut and a writing style. A preset never translates:
+  <n>"), an optional shortcut and a writing style. The shared RemoveButton confirms
+  removal in RemovalConfirmation before deleting a pair or preset and its saved
+  shortcut/style. Deletion runs after the sheet dismisses to preserve row bindings. StyleEditor
+  names its text area with the localized pair/preset title. A preset never translates:
   the message stays in the notes' language and a pair's shortcut translates it
   afterwards. Presets are told apart by purpose, not language, as Apple's
   Writing Tools, Wispr Flow and DeepL Write tell theirs apart by tone, and
@@ -137,7 +140,11 @@ Read before editing this domain.
   seeded only for fresh profiles; explicit choices remain authoritative.
   Microphone consent follows Continue; Accessibility opens on its own action,
   never at fresh launch. Dictation activates only after both grants. No Rewrite
-  controls appear. The final screen uses actual shortcuts and explains Settings.
+  controls appear. The final screen uses actual shortcuts or offers setup in the
+  matching Settings pane when unassigned. Failed preparation marks the model and
+  shows primary error text with a warning symbol. Prominent actions share
+  primaryActionTint, the system selection backing, with PrimaryActionColors
+  choosing black or white text for contrast on bright and dark accents.
   Dev-only `onboardingPreview` plus `onboardingStage` renders the same views in
   synthetic states, with no network, TCC, microphone or completion writes.
   `EngineChecks` remains available for injected provider checks; `EngineProbe`

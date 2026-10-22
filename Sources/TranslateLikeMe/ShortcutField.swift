@@ -40,7 +40,9 @@ struct ShortcutField: View {
     @ViewBuilder private var recorderButton: some View {
         if #available(macOS 26.0, *) {
             if recording {
-                Button(action: toggle) { label }.buttonStyle(.borderedProminent)
+                Button(action: toggle) { label.primaryActionText() }
+                    .buttonStyle(.borderedProminent)
+                    .primaryActionTint()
             } else {
                 Button(action: toggle) { label }.buttonStyle(.bordered)
             }

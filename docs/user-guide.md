@@ -34,7 +34,8 @@ First run has three screens:
    grants are detected; denied microphone access leads to System Settings. After
    both grants, dictation is enabled and prepared before continuing.
 3. **Dictate and translate** explains the actual assigned shortcuts and the Copy
-   fallback. Start Using Translate Like Me finishes setup. Models, languages and
+   fallback. If a shortcut is unassigned, its setup button opens the matching
+   Settings pane. Start Using Translate Like Me finishes setup. Models, languages and
    other settings can be changed from the app's menu-bar icon.
 
 The initial engine is local. Explicit engine and model choices from an existing
@@ -110,15 +111,16 @@ immediately.
   then offers to add one). Each row has the two languages,
   the pair's shortcut (click it and press a combo with ⌘, ⌥, or ⌃; Delete
   clears it, and a combo another pair uses is refused), and a remove button,
-  with the pair's writing style below (Edit Style… opens it): free text applied
+  with confirmation before deleting its shortcut and writing style. The writing
+  style below (Edit Style… opens it) is free text applied
   to that pair's translations. Paste a full voice guide or a short distilled
   version, or leave it empty for a plain translation. The direction is detected
   per translation; the order matters only for text in neither language, which
   is translated into the first one, so put the language you read first.
 - **Rewrite**: up to three presets; fresh profiles start with neutral Improve
   Text on ⌥⌘J. Each row has the preset's name, its shortcut, and a remove button, with its writing style below; an
-  empty style gives a clear, neutral message. Rewrite runs on the translation
-  engine.
+  empty style gives a clear, neutral message. Removal asks for confirmation
+  before deleting the shortcut and style. Rewrite runs on the translation engine.
 - **Translation engine**: the CLI (Claude Code / Codex / Grok Build / Antigravity), and a **Model**
   and **Effort** picker listing what the CLI itself offers; **Default** keeps
   the CLI's configured default. For **Local model**, the model with its

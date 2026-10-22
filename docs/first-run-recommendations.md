@@ -19,7 +19,9 @@ historical design references, not the implementation or runtime verification.
    are needed before enabling/preparing dictation and advancing to usage. The configured
    microphone must resolve to an available input; the saved choice is preserved.
 3. Usage explains the assigned dictation/translation shortcuts, Copy fallback and
-   the menu-bar route to Settings. Only its final action marks setup complete.
+   the menu-bar route to Settings. An unassigned shortcut shows setup guidance
+   and opens the appropriate Settings pane; missing languages have their own
+   setup route. Only the final usage action marks setup complete.
 
 Closing or pausing cancels pending work, drains it before retry, and keeps partial
 files. It never writes completion. Reopening rechecks/reuses cached assets;

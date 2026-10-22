@@ -370,26 +370,6 @@ private struct LanguagePairRow: View {
     }
 }
 
-// A row's remove control. The glyph stays small; its hit area does not. At the
-// glyph's own 13 pt it sat under HIG Accessibility's 20 pt macOS minimum, for
-// the one destructive control in the row. 24 pt keeps the row's height.
-private struct RemoveButton: View {
-    let help: LocalizedStringKey
-    let label: LocalizedStringKey
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: "minus.circle")
-                .frame(width: 24, height: 24)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.borderless)
-        .help(help)
-        .accessibilityLabel(label)
-    }
-}
-
 // One side of a pair. Equatable on its code, so editing the pair's style does
 // not rebuild a menu of every macOS language (300+ items) per keystroke.
 private struct LanguagePicker: View, Equatable {
@@ -435,6 +415,7 @@ private struct StyleEditor: View {
             // A visible field in both appearances: in light the editor's white
             // matched the sheet's, so an empty style showed only a caret.
             TextEditor(text: $style)
+                .accessibilityLabel(title)
                 .font(.body)
                 .scrollContentBackground(.hidden)
                 .padding(4)
@@ -450,8 +431,11 @@ private struct StyleEditor: View {
                     Button("Insert Starter Template") { style = Self.template }
                 }
                 Spacer()
-                Button("Done") { dismiss() }
+                Button { dismiss() } label: {
+                    Text("Done").primaryActionText()
+                }
                     .keyboardShortcut(.defaultAction)
+                    .primaryActionTint()
             }
         }
         .padding(20)
