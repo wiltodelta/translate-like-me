@@ -166,7 +166,10 @@ Compute-policy findings and the reproducible synthetic benchmark:
   The shortcut binding recorder and runtime share the state machine. Shortcut recording pauses all registrations
   and monitors, including reloads triggered by completion; generations discard
   callbacks from removed monitors.
-- Permission prompts belong to enabling dictation. A release build needs both
+- During onboarding, `OnboardingFlow` prepares speech assets without permission
+  or capture and unloads the runtime before the translation check. Microphone
+  consent comes on the second screen; enabling dictation follows both grants.
+  Outside onboarding, permission prompts belong to enabling dictation. A release build needs both
   the audio-input entitlement and microphone purpose string. Test with the signed
   dev bundle, never the installed app's settings or privacy state.
 - The indicator appears only when the microphone delivers its first audio

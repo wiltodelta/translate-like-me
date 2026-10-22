@@ -26,7 +26,8 @@ final class FirstRunRecommendationsTests: XCTestCase {
             XCTAssertNotEqual(presets[0].shortcut, pairs[0].shortcut)
             XCTAssertFalse(Shortcut.isOptionOnly(try XCTUnwrap(presets[0].shortcut)))
             XCTAssertNil(defaults.object(forKey: "dictationEnabled"))
-            XCTAssertNil(defaults.object(forKey: "provider"))
+            XCTAssertEqual(defaults.string(forKey: "provider"), Provider.local.rawValue)
+            XCTAssertTrue(defaults.bool(forKey: "automaticallySelectedProvider"))
             XCTAssertEqual(defaults.string(forKey: "localModel"), LocalModel.gemma4E2B.rawValue)
             XCTAssertEqual(defaults.string(forKey: "dictationModel"), DictationModel.turbo.rawValue)
         }
@@ -57,7 +58,7 @@ final class FirstRunRecommendationsTests: XCTestCase {
 
     func testExistingProfilesIncludingUnfinishedOnboardingAreUntouched() {
         for key in ["languagePairs", "rewritePresets", "didCompleteFirstRun", "languageA", "provider",
-                    "dictationModel", "dictationShortcut", "style", "localModel"] {
+                    "dictationModel", "dictationShortcut", "dictationMicrophone", "style", "localModel"] {
             withSuite { defaults in
                 // Even a stored empty or false value is authoritative.
                 defaults.set(Data("[]".utf8), forKey: key)

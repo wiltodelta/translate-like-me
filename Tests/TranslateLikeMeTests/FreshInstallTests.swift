@@ -32,6 +32,9 @@ final class FreshInstallTests: XCTestCase {
     func testFreshSettingsAndMissingTools() async throws {
         Settings.persistLanguagePairs()
         Settings.moveStyleIntoPairs()
+        let store = SettingsStore(refreshCatalog: { _ in })
+        store.recommendLocalEngine()
+        XCTAssertEqual(Settings.provider, .local)
         let domain = try XCTUnwrap(Bundle.main.bundleIdentifier)
         let stored = UserDefaults.standard.persistentDomain(forName: domain)
         XCTAssertNotNil(stored?["languagePairs"], "Writes must belong to the disposable host")
@@ -81,6 +84,8 @@ final class FreshInstallTests: XCTestCase {
         XCTAssertTrue(Settings.canRecommendProvider())
         // A real manual assignment, even to the same selected engine, wins.
         store.provider = .openai
+        store.recommendLocalEngine()
+        XCTAssertEqual(Settings.provider, .openai)
         health[.openai] = .limitReached("Synthetic limit")
         health[.grok] = .working
         store.recommendWorkingEngine(health: health)
@@ -89,6 +94,34 @@ final class FreshInstallTests: XCTestCase {
         FirstRunRecommendations.apply(suggestions: ["ru", "en"])
         XCTAssertEqual(Settings.rewritePresets, original)
         XCTAssertEqual(Settings.languagePairs.map(\.second), ["de"])
+    }
+
+    func testOnboardingCompletionIsOnlyWrittenAfterPreparedModelsPermissionsAndUsage() async {
+        FirstRunRecommendations.apply(suggestions: ["en", "de"])
+        Settings.persistLanguagePairs()
+        let store = SettingsStore(refreshCatalog: { _ in })
+        XCTAssertEqual(store.provider, .local)
+        var effects = OnboardingFlow.Effects.live(store: store)
+        effects.speech = { progress in progress(1) }
+        effects.translation = {}
+        effects.cancelDownload = {}
+        effects.microphoneGranted = { true }
+        effects.accessibilityGranted = { true }
+        effects.activateDictation = { Settings.dictationEnabled = true }
+        let flow = OnboardingFlow(effects: effects)
+        XCTAssertFalse(flow.finish())
+        flow.prepare()
+        await flow.operation?.value
+        flow.pause()
+        XCTAssertFalse(Settings.didCompleteFirstRun, "Closing prepared setup is not completion")
+        flow.continueFromPreparation()
+        flow.permissionAction()
+        await flow.operation?.value
+        XCTAssertEqual(flow.step, .usage)
+        XCTAssertFalse(Settings.didCompleteFirstRun)
+        XCTAssertTrue(flow.finish())
+        XCTAssertTrue(Settings.didCompleteFirstRun)
+        XCTAssertTrue(Settings.dictationEnabled)
     }
 
     func testSignedOutTools() async throws {

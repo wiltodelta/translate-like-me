@@ -1,236 +1,325 @@
 import AppKit
 import SwiftUI
 
-// First launch applies recommendations, checks engines, and presents the result.
-// Optional changes belong to Settings; microphone consent and downloads remain explicit.
 @MainActor
 enum Onboarding {
     static func makeWindow(store: SettingsStore, done: @escaping @MainActor () -> Void) -> NSWindow {
         let window = SettingsWindow(contentRect: .zero, styleMask: [.titled, .closable],
                                     backing: .buffered, defer: false)
-        // A hosting view, not a hosting controller: a controller sizing the window
-        // by preferredContentSize looped through layout passes until AppKit
-        // aborted (measured 2026-10-05). Sized up front so center() sees the
-        // real frame.
-        // Synthetic engine health for native captures, without CLI or model calls.
         let preview = Bundle.main.bundleIdentifier == "com.wiltodelta.translatelikeme.dev"
             && UserDefaults.standard.bool(forKey: "onboardingPreview")
-        let unavailable = UserDefaults.standard.bool(forKey: "onboardingNoEnginesPreview")
-        let checks = preview ? EngineChecks(probe: { _ in unavailable ? .notInstalled : .working }) : EngineChecks()
-        let content = NSHostingView(rootView: OnboardingView(store: store, checks: checks, done: done))
+        if !preview { store.recommendLocalEngine() }
+        let stage = UserDefaults.standard.string(forKey: "onboardingStage") ?? "preparation"
+        let flow = preview ? OnboardingFlow.preview(stage: stage)
+            : OnboardingFlow(effects: .live(store: store))
+        let content = NSHostingView(rootView: OnboardingView(store: store, flow: flow, done: done))
         window.contentView = content
-        window.setContentSize(content.fittingSize)
+        window.setContentSize(NSSize(width: 560, height: min(650, SettingsLayout.maxPaneHeight)))
         window.title = String(localized: "Welcome to Translate Like Me")
         return window
     }
 }
 
-// A finished download or changed model triggers another real local check.
-private struct LocalChoice: Equatable {
-    let model: LocalModel
-    let ready: Bool
-}
-
-private struct OnboardingView: View {
+struct OnboardingView: View {
     @Bindable var store: SettingsStore
+    @State private var flow: OnboardingFlow
     let done: @MainActor () -> Void
-    @State private var checks: EngineChecks
-    @State private var dictation = DictationController.shared
-    @State private var localOffer: LocalModel?
 
-    init(store: SettingsStore, checks: EngineChecks, done: @escaping @MainActor () -> Void) {
+    init(store: SettingsStore, flow: OnboardingFlow, done: @escaping @MainActor () -> Void) {
         self.store = store
+        _flow = State(initialValue: flow)
         self.done = done
-        _checks = State(initialValue: checks)
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
-                configuration
-                engine
-                speech
-            }
-            .settingsPane(width: 520, reserved: 60)
-            Divider()
-            HStack {
-                Button("Settings…") {
-                    // Let the button's accessibility action finish before its
-                    // window and hosting view are released.
-                    DispatchQueue.main.async { [done] in
-                        done()
-                        NotificationCenter.default.post(name: .openSettings, object: nil)
-                    }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(verbatim: "Translate Like Me").font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Color.secondaryText).padding(.bottom, 24)
+                switch flow.step {
+                case .preparation: preparation
+                case .permissions: permissions
+                case .usage: usage
                 }
-                .accessibilityIdentifier("onboarding.settings")
-                Spacer()
-                Button("Done", action: done)
-                    .accessibilityIdentifier("onboarding.done")
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!store.didCheckInitialEngines)
             }
-            .padding(16)
+            .frame(maxWidth: .infinity, minHeight: 578, alignment: .topLeading)
+            .padding(36)
         }
-        .onAppear {
-            refreshLocalOffer()
-            checkAll()
-        }
-        .onDisappear { checks.cancelAll() }
-        .onChange(of: checks.health) { store.recommendWorkingEngine(health: checks.health) }
-        .onChange(of: selectedLanguages) { refreshLocalOffer() }
-        .onChange(of: store.pick) { checks.check(store.provider) }
-        .onChange(of: LocalChoice(model: store.localModel,
-                                  ready: LocalModelDownloads.shared.state(of: store.localModel) == .ready)) {
-            checks.check(.local)
-            refreshLocalOffer()
-        }
+        .frame(width: 560)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .onDisappear { flow.pause() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            refreshLocalOffer()
-            for provider in Provider.allCases
-            where [.notSignedIn, .notInstalled].contains(checks.health[provider]) {
-                checks.check(provider)
-            }
+            flow.refreshPermissions()
         }
+        .onChange(of: store.localModel) { flow.configurationChanged() }
+        .onChange(of: store.provider) { flow.configurationChanged() }
+        .onChange(of: DictationController.shared.model) { flow.configurationChanged() }
     }
 
-    private var configuration: some View {
-        Section {
-            if store.pairs.isEmpty {
-                Text("No language pairs yet. Add one to get a translation shortcut.")
-                    .foregroundStyle(Color.secondaryText)
-            }
-            ForEach(store.pairs) { pair in
-                LabeledContent(pair.title) {
-                    if let shortcut = pair.shortcut {
-                        Text(Shortcut.display(shortcut)).foregroundStyle(Color.secondaryText)
-                    }
-                }
-            }
-        } header: {
-            Text("Your starting setup").font(.title2.bold())
-        } footer: {
-            Text("""
-                You can change languages and shortcuts in Settings.
+    private var preparation: some View {
+        Group {
+            heading("Preparing your app", detail: """
+                We chose local models for your Mac. Download them once to get started.
                 """)
-                .foregroundStyle(Color.secondaryText)
-        }
-    }
-
-    private var engine: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 8) {
-                if !noWorkingEngine || !Settings.canRecommendProvider() {
-                    EngineRow(provider: store.provider,
-                              health: store.didCheckInitialEngines ? checks.health[store.provider] : .checking)
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(store.pairs) { pair in
+                    Label(pair.title, systemImage: "globe").font(.system(size: 14, weight: .medium))
                 }
-                if !store.provider.usesCLI {
-                    LocalModelControls(store: store, summary: store.localModel.downloadSummary)
-                } else if noWorkingEngine, let model = localOffer {
-                    LabeledContent("Local model") { Text(model.title).foregroundStyle(Color.secondaryText) }
-                    Text(model.downloadSummary).foregroundStyle(Color.secondaryText)
-                    Text("A local model can run without an account. A download is required before it can be tested.")
-                        .foregroundStyle(Color.secondaryText)
-                    Button("Download") {
-                        store.localModel = model
-                        store.provider = .local
-                        LocalModelDownloads.shared.download(model)
-                    }
-                    .accessibilityIdentifier("onboarding.localDownload")
-                }
-                if noWorkingEngine {
-                    Text("No engine is ready yet. Open Settings to choose a service or download a local model.")
-                        .foregroundStyle(Color.secondaryText)
-                    Button("Check Again") { Provider.allCases.forEach(checks.check) }
-                }
-            }
-        } header: {
-            Text("Translation")
-        }
-    }
-
-    private var speech: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 8) {
-                Toggle("Enable dictation", isOn: Binding(get: { dictation.enabled }, set: { dictation.setEnabled($0) }))
-                    .toggleStyle(.switch)
-                    .controlSize(.mini)
-                LabeledContent("Speech model") {
-                    Text(dictation.model.title).foregroundStyle(Color.secondaryText)
-                }
-                Text(dictation.model.summary)
-                    .foregroundStyle(Color.secondaryText)
-                if let shortcut = store.dictationShortcut {
-                    LabeledContent("Hold key") { Text(Shortcut.display(shortcut)).foregroundStyle(Color.secondaryText) }
-                }
-                DictationPreparationStatus(dictation: dictation)
-            }
-        } header: {
-            Text("Dictation")
-        } footer: {
-            Text("""
-                Enable dictation to allow microphone access and download a speech model. You can also set it \
-                up later in Settings.
-                """)
-                .foregroundStyle(Color.secondaryText)
-        }
-    }
-
-    private var selectedLanguages: [String] {
-        store.pairs.flatMap { [$0.first, $0.second] }.filter { !$0.isEmpty }
-    }
-
-    private var noWorkingEngine: Bool {
-        FirstRunRecommendations.checksComplete(checks.health) && !checks.health.values.contains(.working)
-    }
-
-    private func refreshLocalOffer() {
-        let selected = selectedLanguages
-        let languages = selected.isEmpty ? Languages.systemSuggestions : selected
-        localOffer = FirstRunRecommendations.availableLocalFallback(languages: languages)
-    }
-
-    private func checkAll() {
-        for provider in Provider.allCases where checks.health[provider] == nil { checks.check(provider) }
-    }
-}
-
-// A provider in the engine list with what its check found and, when it does not
-// work, the fix.
-private struct EngineRow: View {
-    let provider: Provider
-    let health: EngineHealth?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(provider.name)
-            HStack(spacing: 4) {
-                if health == .checking || health == nil {
-                    ProgressView().controlSize(.mini)
+                if store.pairs.isEmpty || !store.pairs.allSatisfy(\.isComplete) {
+                    Text("Choose your translation languages in Settings. We couldn't determine both from macOS.")
+                        .font(.system(size: 13)).foregroundStyle(Color.secondaryText)
+                    Button("Choose Languages…") { openSettings(.general) }
                 } else {
-                    Image(systemName: health == .working ? "checkmark.circle" : "exclamationmark.triangle")
-                        .foregroundStyle(health == .working ? .green : .orange)
-                        .accessibilityHidden(true)
+                    Text("From macOS languages and keyboard layouts")
+                        .font(.system(size: 12)).foregroundStyle(Color.secondaryText)
                 }
-                Text(detail)
-                    .foregroundStyle(Color.secondaryText)
+            }.padding(.top, 20)
+            VStack(alignment: .leading, spacing: 20) {
+                OnboardingModelRow(symbol: "mic", title: "Dictation", name: Settings.dictationModel.title,
+                         detail: Settings.dictationModel.summary, state: flow.speech,
+                                   progress: speechProgress)
+                OnboardingModelRow(symbol: "character.bubble", title: "Translation", name: store.localModel.title,
+                         detail: store.localModel.downloadSummary, state: flow.translation,
+                                   progress: translationProgress)
+            }
+            .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.primary.opacity(0.08)))
+            .padding(.top, 20)
+            if store.provider != .local {
+                LabeledContent("Translation engine") { Text(store.provider.name) }.font(.system(size: 13))
+                    .padding(.top, 12)
+            }
+            if flow.running {
+                ProgressView(value: preparationProgress).padding(.top, 20)
+                    .accessibilityLabel("Model preparation")
+            }
+            errorMessage
+            Spacer(minLength: 20)
+            Text("We'll verify both models before asking for macOS permissions. Downloads can be resumed.")
+                .font(.system(size: 13)).foregroundStyle(Color.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                if flow.running {
+                    Button("Pause") { flow.pause() }.accessibilityIdentifier("onboarding.pause")
+                } else if !flow.modelsReady {
+                    Button { flow.prepare() } label: { Text(downloadAction).foregroundStyle(.white) }
+                        .onboardingPrimaryAction()
+                        .keyboardShortcut(.defaultAction)
+                        .accessibilityIdentifier("onboarding.download")
+                    if flow.error != nil { Button("Settings…") { openSettings(.translation) } }
+                }
+                Spacer()
+                Button { flow.continueFromPreparation() } label: {
+                    Text("Continue").foregroundStyle(flow.modelsReady ? .white : Color.secondaryText)
+                }
+                    .onboardingPrimaryAction()
+                    .keyboardShortcut(flow.modelsReady ? .defaultAction : nil)
+                    .disabled(!flow.modelsReady || flow.running)
+                    .accessibilityIdentifier("onboarding.continue")
+            }.padding(.top, 20)
+        }
+    }
+
+    private var permissions: some View {
+        Group {
+            heading("Access for dictation and text", detail: "Your models are ready.")
+            VStack(alignment: .leading, spacing: 28) {
+                permissionRow("mic", title: "Microphone",
+                              detail: "For speech recognition while you hold the dictation key.",
+                              ready: flow.microphone)
+                permissionRow("hand.raised", title: "Accessibility",
+                              detail: "To read selected text and insert results in the app you're using.",
+                              ready: flow.accessibility, waiting: !flow.microphone)
+            }.padding(.top, 34)
+            errorMessage
+            if flow.running {
+                ProgressView().controlSize(.small).padding(.top, 12).accessibilityLabel("Model preparation")
+            }
+            Spacer(minLength: 20)
+            Divider()
+            Text(permissionExplanation).font(.system(size: 13)).foregroundStyle(Color.secondaryText)
+                .fixedSize(horizontal: false, vertical: true).padding(.top, 20)
+            Button { flow.permissionAction() } label: {
+                Text(permissionAction).foregroundStyle(flow.running ? Color.secondaryText : .white)
+                    .frame(maxWidth: .infinity)
+            }
+            .onboardingPrimaryAction()
+            .keyboardShortcut(.defaultAction)
+            .frame(maxWidth: .infinity).padding(.top, 20)
+            .disabled(flow.running).accessibilityIdentifier("onboarding.permission")
+        }
+    }
+
+    private var usage: some View {
+        Group {
+            heading("Dictate and translate", detail: "Dictate into text fields. Translate selected passages.")
+            VStack(spacing: 28) {
+                instruction("mic", title: "Dictate", shortcut: store.dictationShortcut.map(Shortcut.display),
+                            detail: """
+                                Place the cursor in a text field. Hold your dictation key, speak, then release it.
+                                """)
+                if let pair = store.pairs.first(where: \.isComplete) {
+                    instruction("character.bubble", title: "Translate", shortcut: pair.shortcut.map(Shortcut.display),
+                                detail: """
+                                    Select text and press your shortcut. If insertion isn't available, copy the \
+                                    translation from the result window.
+                                    """)
+                } else {
+                    Text("Choose your translation languages in Settings. We couldn't determine both from macOS.")
+                        .foregroundStyle(Color.secondaryText)
+                }
+            }.padding(.top, 34)
+            Spacer(minLength: 28)
+            Divider()
+            Text("""
+                You can change models, languages and everything else in Settings. Open it from the \
+                Translate Like Me icon in the menu bar.
+                """)
+                .font(.system(size: 13)).foregroundStyle(Color.secondaryText)
+                .fixedSize(horizontal: false, vertical: true).padding(.top, 20)
+            Button {
+                guard flow.finish() else { return }
+                DispatchQueue.main.async { done() }
+            } label: {
+                Text("Start Using Translate Like Me").foregroundStyle(.white).frame(maxWidth: .infinity)
+            }
+            .onboardingPrimaryAction()
+                .keyboardShortcut(.defaultAction)
+            .frame(maxWidth: .infinity).padding(.top, 20)
+            .accessibilityIdentifier("onboarding.done")
+        }
+    }
+
+    private func heading(_ title: LocalizedStringKey, detail: LocalizedStringKey) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(title).font(.system(size: 29, weight: .bold)).fixedSize(horizontal: false, vertical: true)
+            Text(detail).font(.system(size: 15)).lineSpacing(4).foregroundStyle(Color.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func permissionRow(_ symbol: String, title: LocalizedStringKey,
+                               detail: LocalizedStringKey, ready: Bool, waiting: Bool = false) -> some View {
+        HStack(alignment: .top, spacing: 16) {
+            Image(systemName: symbol).font(.system(size: 24)).frame(width: 32, height: 34).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 9) {
+                Text(title).font(.system(size: 18, weight: .semibold))
+                Text(detail).font(.system(size: 14)).lineSpacing(4).foregroundStyle(Color.secondaryText)
+                if ready {
+                    Label("Access granted", systemImage: "checkmark.circle.fill").font(.system(size: 13))
+                } else if waiting {
+                    Text("Next step").font(.system(size: 13)).foregroundStyle(Color.secondaryText)
+                } else {
+                    Text("Permission required").font(.system(size: 13)).foregroundStyle(Color.secondaryText)
+                }
+            }
+        }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func instruction(_ symbol: String, title: LocalizedStringKey, shortcut: String?,
+                             detail: LocalizedStringKey) -> some View {
+        HStack(alignment: .top, spacing: 16) {
+            Image(systemName: symbol).font(.system(size: 24)).frame(width: 32, height: 34).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 9) {
+                HStack {
+                    Text(title).font(.system(size: 18, weight: .semibold))
+                    Spacer(minLength: 12)
+                    if let shortcut {
+                        Text(shortcut).font(.system(size: 13, weight: .medium, design: .monospaced))
+                            .padding(.horizontal, 10).padding(.vertical, 5)
+                            .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
+                    }
+                }
+                Text(detail).font(.system(size: 14)).lineSpacing(4).foregroundStyle(Color.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .font(.callout)
         }
-        .padding(.vertical, 2)
-        .accessibilityElement(children: .combine)
     }
 
-    private var detail: String {
-        switch health {
-        case .checking, nil: return EngineStatus.checkingText
-        case .working: return EngineStatus.readyText
-        case .notInstalled: return provider.notInstalledHint
-        case .notSignedIn: return provider.notSignedInHint
-        case .limitReached(let message): return message
-        case .failed(let message):
-            return String(localized: "The test translation failed: \(message)",
-                          comment: "The placeholder is the engine's own error message, often in English")
+    @ViewBuilder private var errorMessage: some View {
+        if let error = flow.error {
+            Text(error).font(.system(size: 13)).foregroundStyle(Color.secondaryText)
+                .fixedSize(horizontal: false, vertical: true).padding(.top, 12)
         }
+    }
+
+    private var downloadAction: LocalizedStringKey {
+        flow.error == nil ? "Download Models" : "Try Again"
+    }
+
+    private var permissionAction: LocalizedStringKey {
+        !flow.microphone && !flow.microphoneDenied || flow.permissionsReady ? "Continue" : "Open System Settings…"
+    }
+
+    private var permissionExplanation: LocalizedStringKey {
+        if flow.permissionsReady { return "Both permissions are granted. Continue to see how to use the app." }
+        if !flow.microphone && !flow.microphoneDenied {
+            return "Continue opens the macOS microphone prompt. You decide whether to allow access."
+        }
+        return "Enable Translate Like Me in the system list, then return here."
+    }
+
+    private var preparationProgress: Double { (speechProgress + translationProgress) / 2 }
+
+    private var speechProgress: Double {
+        switch flow.speech {
+        case .ready: 1
+        case .working(let progress): progress
+        default: 0
+        }
+    }
+
+    private var translationProgress: Double {
+        if flow.translation == .ready { return 1 }
+        if flow.localDownloadState == .ready { return 1 }
+        if case .downloading(let progress) = flow.localDownloadState { return progress }
+        return 0
+    }
+
+    private func openSettings(_ pane: SettingsPane) {
+        NotificationCenter.default.post(name: .openSettings, object: pane)
+    }
+}
+
+private struct OnboardingModelRow: View {
+    let symbol: String
+    let title: LocalizedStringKey
+    let name: String
+    let detail: String
+    let state: OnboardingFlow.Preparation
+    let progress: Double
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 16) {
+            Image(systemName: symbol).font(.system(size: 23)).frame(width: 32, height: 34).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 7) {
+                Text(title).font(.system(size: 16, weight: .semibold))
+                Text(name).font(.system(size: 14))
+                Text(detail).font(.system(size: 13)).foregroundStyle(Color.secondaryText)
+                if state == .ready {
+                    Label("Ready", systemImage: "checkmark.circle.fill").font(.system(size: 13))
+                } else if case .working = state {
+                    if progress >= 1 {
+                        HStack {
+                            ProgressView().controlSize(.small)
+                            Text("Checking…").font(.system(size: 13)).foregroundStyle(Color.secondaryText)
+                        }
+                    } else {
+                        ProgressView(value: progress)
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+private extension View {
+    // White text on the standard button blue measured 4.02:1. Scope the
+    // selection backing to primary buttons, preserving normal controls' colors.
+    func onboardingPrimaryAction() -> some View {
+        buttonStyle(.borderedProminent).controlSize(.large)
+            .tint(Color(nsColor: .selectedContentBackgroundColor))
     }
 }

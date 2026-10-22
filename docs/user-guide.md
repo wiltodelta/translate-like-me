@@ -23,23 +23,30 @@ With only one evidenced language, the second side stays unchosen. A neutral
 **Improve Text** preset is available on **⌥⌘J**. Existing settings, including
 deliberately empty collections, remain authoritative.
 
-The welcome window shows the initial configuration and checks every engine with
-a synthetic translation. An installed or signed-in CLI alone is not considered
-working. A working engine can be selected automatically when there is no explicit
-choice. An eligible local download is offered when none is ready. Use Settings
-to change languages, models, shortcuts or writing styles.
+First run has three screens:
 
-Grant **Accessibility** in **System Settings > Privacy & Security >
-Accessibility** to read and replace selected text. Microphone consent and speech
-model preparation start when dictation is enabled. Local models require an
-initial download. The proposed preparation/permissions/usage onboarding is
-currently a design preview, not the active first-run flow.
+1. **Preparing your app** shows the recommended languages and both local models.
+   Download them once, then wait for verification and model preparation. Continue
+   stays disabled until both models pass. Pause preserves partial downloads;
+   retry keeps successful preparation. Closing the window never completes setup.
+2. **Access for dictation and text** requests microphone access through macOS,
+   then opens the Accessibility pane. Enable the app there and return. Existing
+   grants are detected; denied microphone access leads to System Settings. After
+   both grants, dictation is enabled and prepared before continuing.
+3. **Dictate and translate** explains the actual assigned shortcuts and the Copy
+   fallback. Start Using Translate Like Me finishes setup. Models, languages and
+   other settings can be changed from the app's menu-bar icon.
+
+The initial engine is local. Explicit engine and model choices from an existing
+profile remain authoritative. No CLI sign-in is needed for the local path.
+When macOS supplies only one language, the app leaves the second unchosen and
+provides a route to choose languages in General settings.
 
 ## Usage
 
-The welcome summary shows the recommended starting configuration. You can leave
-dictation disabled and enable it later in Settings. Microphone access and the
-speech-model download start only when you enable dictation.
+Hold the assigned dictation key in a text field, or select text and use your
+translation shortcut. Recognition and translation run locally after setup,
+unless you explicitly choose a CLI engine in Settings.
 
 The **Copy Last Result** submenu keeps the latest Translation, Rewrite and
 Dictation separately, even after successful insertion. Unavailable results are

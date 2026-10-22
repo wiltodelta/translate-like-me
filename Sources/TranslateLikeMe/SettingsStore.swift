@@ -98,9 +98,18 @@ final class SettingsStore {
         guard Settings.canRecommendProvider(),
               let working = FirstRunRecommendations.workingEngine(current: provider, health: health),
               working != provider else { return }
+        selectRecommendedProvider(working)
+    }
+
+    func recommendLocalEngine() {
+        guard Settings.canRecommendProvider(), provider != .local else { return }
+        selectRecommendedProvider(.local)
+    }
+
+    private func selectRecommendedProvider(_ recommended: Provider) {
         recommendingProvider = true
         defer { recommendingProvider = false }
-        provider = working
+        provider = recommended
     }
 
     // The model "Default" runs: the CLI config default, else the CLI's own.

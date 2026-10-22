@@ -1,141 +1,117 @@
 # First-run recommendations
 
-## Status and product decisions
+## Current implementation
 
-This increment adds one-time recommendations, a configuration summary and
-standalone onboarding design previews. It does **not** yet provide the complete
-installed-and-working experience: the approved three-screen flow is not wired
-into the app, and completion still follows engine checks rather than mandatory
-preparation of both local models.
+The app now hosts the three agreed onboarding screens, using `OnboardingFlow`
+and `OnboardingView`. The earlier standalone files in `docs/prototypes/` are
+historical design references, not the implementation or runtime verification.
 
-The product requirement is useful dictation, text improvement and translation
-without extensive configuration. Local models should be the initial engine;
-CLI services should remain alternatives. Personalization comes later.
+1. Preparation shows the evidenced language pair and selected local models,
+   including download sizes. Download Models starts real preparation. Speech
+   assets are verified and loaded without microphone permission, then unloaded.
+   The translation download reuses `LocalModelDownloads` and pinned snapshot
+   verification, including existing files, then the existing `EngineProbe`
+   performs a synthetic translation. An explicitly chosen CLI is checked too,
+   without replacing it. Continue requires both operations to succeed.
+2. Permissions explains microphone and Accessibility separately. Continue invokes
+   the macOS microphone request. Known denial opens System Settings instead.
+   Accessibility has its own action and is refreshed on return. Both grants
+   are needed before enabling/preparing dictation and advancing to usage. The configured
+   microphone must resolve to an available input; the saved choice is preserved.
+3. Usage explains the assigned dictation/translation shortcuts, Copy fallback and
+   the menu-bar route to Settings. Only its final action marks setup complete.
 
-| Mac memory | Translation recommendation | Dictation recommendation |
+Closing or pausing cancels pending work, drains it before retry, and keeps partial
+files. It never writes completion. Reopening rechecks/reuses cached assets;
+no claim is made that preparation never needs the network. Model changes in
+Settings invalidate readiness. Revoked permissions block completion.
+
+Downloads are explicit: large downloads are disclosed before starting. This is
+one-time setup, not a claim that the app works before the required downloads
+and macOS consent. Rewrite does not appear in onboarding.
+
+## Recommendation policy
+
+| Mac memory | Translation | Dictation |
 |---|---|---|
 | 8-16 GiB | Gemma 4 E2B | Whisper Turbo |
 | Above 16 GiB | TranslateGemma 12B | Qwen3-ASR |
 
-These are the user's explicit product choices, accepting E2B's documented quality
-limitations. Hardware does not establish transcription quality or language
-coverage. Existing valid choices remain authoritative. Storage and preparation
-checks remain necessary before the models can be used.
+These are Victor's explicit choices, accepting E2B's measured quality limitations.
+[Translation evidence](local-translation.md) covers 15 synthetic en/ru/de cases,
+three runs each: E2B mishandled direction and corrected details. Hardware alone
+establishes neither speech quality nor language coverage. Existing runtime
+memory/storage checks stay authoritative. An unsupported Mac, failed load or
+insufficient disk blocks preparation with an error rather than completing setup.
 
-## Implemented behavior
+`FirstRunRecommendations.apply` runs before migrations, once for a fresh profile.
+It seeds the local provider, memory-based model choices, one language pair from
+macOS preferred languages/enabled keyboard sources and a neutral Improve Text
+preset on Option-Command-J. Region or assumed English are never evidence. A
+single language leaves the second side empty; none creates no pair. This case
+shows an explicit General settings route rather than inventing a language.
 
-- `FirstRunRecommendations.apply` runs before legacy migrations. A fresh profile
-  gets language suggestions, the memory-based model picks and a neutral Improve
-  Text preset on Option-Command-J. It does not enable dictation or download models.
-- Languages come from macOS preferred languages and enabled keyboard sources,
-  normalized and deduplicated. Region and assumed English are not evidence.
-  One evidenced language leaves the second side unchosen; none creates no pair.
-- Existing settings, including empty collections and false first-run flags,
-  prevent seeding. A one-time marker prevents reapplying recommendations after
-  edits or removals. Argument-domain fixtures are excluded. Input sources are
-  read only when seeding actually needs suggestions.
-- Engine checks reuse `EngineChecks` and `EngineProbe`: readiness followed by a
-  real synthetic translation. Installation or sign-in alone never means working.
-  Selection waits for all checks, keeps a working current engine, otherwise uses
-  stable provider order. Manual choices are preserved; automatic choices can
-  change during unfinished onboarding.
-- The current welcome window is a grouped configuration summary. Rewrite is
-  excluded from it. Settings opens the shared Settings window. Closing after
-  completed checks marks first run complete; interrupted checks retry next time.
-- When no engine works, a local-model download can be offered for the en/ru/de
-  evidence covered by the existing evaluation. Eligibility checks the selected
-  model's memory minimum and download size plus the existing storage reserve.
-  Unknown storage does not qualify. File checks run outside SwiftUI body evaluation.
-  An offer is not a claim that the model already works.
-- Dictation offers Whisper Turbo and Qwen only. Saved Small, Large v3 and unknown
-  preferences resolve to Turbo without deleting cached downloads. The visible
-  Turbo title omits the version and retains its original name in every language,
-  as do the other model names. Descriptive strings have all nine translations. The recommendation badge follows memory.
-- Settings order is General, Dictation, Translation, Rewrite. Persisted pane IDs
-  remain 0, 3, 1, 2. String tab identifiers map stable IDs to positions; numeric
-  identifiers caused a native `isEqualToString:` exception. Explicit same-pane
-  selection persists; restoring a saved pane does not write it back.
+Existing settings, including empty collections, false flags, styles, shortcuts,
+model selections and explicit providers remain authoritative. The marker prevents
+reseeding after edits. Argument-domain fixtures are excluded. Model names remain
+original in every language. Removed Whisper Small/Large v3 preferences resolve
+to Turbo without deleting old downloads. Settings order is General, Dictation,
+Translation, Rewrite; stable saved pane IDs remain intact.
 
-## Approved onboarding design
+## Verification and isolation
 
-The final order is preparation, permissions, then usage instructions.
-Completion must eventually require both selected models to be downloaded,
-verified and prepared. Closing early must preserve unfinished setup.
+`OnboardingFlowTests` exercises the actual transition seam with injected model
+and permission effects: mandatory preparation, failed translation/retry, pause,
+sequential consent, denial, revoked access and model-change invalidation.
+`FreshInstallTests` also runs the real completion/defaults seam inside the signed,
+sandboxed fresh-install host, replacing model and OS effects with synthetic ones.
+Normal tests and visual fixtures never download models or request privacy grants.
+The isolated host passed all eight scenarios. The mandatory-model transition was
+mutation-tested: removing its readiness guard failed nine assertions. Pause tests
+also distinguish canceling translation from leaving unrelated Settings work alone.
+The final gate log is `/tmp/tlm-sc-trapped-boson-wired-final-maintain.log`, with
+its actual exit code in the adjacent `.rc` file; skipped opt-in tests are not
+claimed as live verification.
 
-The preparation screen shows selected languages/models, download sizes and
-progress. The permission screen guides microphone consent and Accessibility
-sequentially with one action per stage. Consent remains with macOS. The final
-screen explains dictation and translation with actual assigned shortcuts, then
-says how to reach Settings through the app's menu-bar icon. Rewrite and model
-pickers do not belong in this flow.
+Native rendering uses the shipping views and development-only `onboardingPreview`
+with stages preparation, downloading, failed, permissions, accessibility,
+permissions-ready and usage.
+These exercise layout and controls, not real downloads or OS consent. All new
+interface text requires nine translations. The standalone preview audit's earlier
+contrast findings do not establish the new runtime's rendering.
 
-Standalone Russian previews are `docs/prototypes/preparation-preview.swift`,
-`permissions-preview.swift` and `welcome-preview.swift`. Run each with
-`swift <script> <output-directory>`. They use synthetic progress and permission
-states, not real downloads, preferences, prompts or button handlers.
+Native verification on 2026-10-21 used synthetic Russian and German fixtures,
+seven states in both appearances (28 inspected frames) at 560 x 650 pt content.
+The full native button path passed in both languages/appearances. Geometry
+confirmed 36 pt brand insets and all labeled buttons inside the content bounds.
+Artifacts remain under `.build/diagnostics/first-run/wired-final-{ru,de}/`.
+After scoping the primary-button tint, 11 further Russian state captures and
+geometry records passed in `wired-verified-ru/`. Three follow-up runs stopped
+on lost focus; the inactive Accessibility frame has no passing geometry record
+and is not counted. These partial runs do not establish a full final native pass.
 
-The user approved design findings UX-01 through UX-05: consistent geometry,
-neutral sequential permission requests, Right Option, accurate insertion/Copy
-wording and a concrete Settings route. Ten final frames cover the three screens
-and three permission substates in both appearances at 560 by 650 points.
-Header positions match; ungrouped row text starts at x84 points. The preparation
-frame stayed pixel-identical. Sampled secondary text contrast was 4.83:1 light
-and 5.85:1 dark. These are static design results, not native interaction proof.
-Audit artifacts, including immutable baselines, before/after images and PDFs,
-remain in the session's Downloads audit folder for continued review.
+The final palette's measured secondary-text contrast is 4.95:1 light / 6.07:1
+dark; primary-button text is 5.37:1 / 6.27:1; Pause is 13.14:1 / 10.05:1.
+`wired-verified-ru/contrast.json` uses the shared profile-aware reader and the
+same calibrated sRGB capture pipeline as `pane-order/calibration.json`.
+The dark root tint had made secondary buttons unreadable, so the stronger tint
+is restricted to primary actions. System appearance and dev defaults were
+restored after each run; no microphone, global hotkey or provider CLI was used.
 
-## Evidence and verification
+The worktree and branch are retained for continuation:
+`sc-trapped-boson-99dd`, `feat/first-run-recommendations`. The originating checkout
+was read-only. Its unrelated probes/uncommitted files were never copied. Remote
+main changes were integrated from commits. No installed app, account or personal
+privacy grant is changed by the implementation or synthetic verification.
 
-[Local translation evaluation](local-translation.md) covers 15 synthetic cases,
-three runs per case and en/ru/de. TranslateGemma preserved a spoken correction;
-E2B repeatedly reversed it and also mishandled translation direction. Its use
-on smaller Macs is an accepted tradeoff, not a quality-parity claim.
-[Speech compute measurements](dictation-model-efficiency.md) and
-[Qwen integration](qwen-integration.md) do not establish a comparative
-per-language recognition-quality ranking.
+## Remaining verification and product limits
 
-Recommendation tests cover fresh profiles, model memory boundaries, storage,
-existing-user preservation, edits/removals and explicit engine choices.
-The isolated fresh-install harness exercises the real seed/migration/store seam
-without accounts, network access, microphone or personal preferences.
-Settings pane tests create the actual AppKit controller with synthetic General
-content, avoiding Sparkle's startup from GeneralSettingsView under XCTest. An
-unisolated full run opened a Sparkle modal during later async tests; a process
-sample established the cause and that run was stopped. Tests verify saved IDs
-and direct routes. Reverting to visual indices caused six assertion failures.
-Earlier mutations of preservation and storage guards were also rejected.
-
-The isolated fresh-install harness passed all seven scenarios on the final
-development build. The latest focused recommendation, language, model, pane
-and store run passed 59 tests without skips. Strict lint
-and localization synchronization passed. Full pre-push verification is recorded
-in the commit preparation logs and final session report, including skipped
-opt-in tests rather than treating them as exercised.
-
-## Remaining work
-
-- Connect the approved screens to real recommendation, download, preparation
-  and permission state, including mandatory model-ready completion.
-- Make local the fresh-install engine default; current engine selection still
-  retains a working current provider or uses stable provider order.
-- Handle unsupported/no language evidence, insufficient memory/storage,
-  interrupted/resumed downloads, verification failures and denied permissions.
-- Verify native keyboard/focus and assistive-technology behavior for the new flow,
-  all shipping localizations and actual assigned shortcuts. Previews do not prove them.
-- Native summary and Dictation Settings were verified in Russian in both themes
-  on the current signed development build, at widths 520 and 500 points.
-  Sampled secondary text measured 4.95:1 light and at least 5.64:1 dark through
-  the calibrated sRGB capture pipeline. The original failed transition was not
-  counted; the separate dark run passed. Two German runs lost focus before
-  capture, so German rendering remains unverified. The capture harness now
-  waits for a previous development PID to exit before launching the next one.
-  Preferences and system appearance were restored by the harness.
-
-## Isolation
-
-Work stays in branch `feat/first-run-recommendations`, in the originally created
-`sc-trapped-boson-99dd` worktree. The source checkout was read-only. Its ongoing
-probes and uncommitted files were never copied. Integration uses the committed
-remote main, preserving its README/user guide and dictation-language changes.
-The worktree is retained for continuation; no installed app or personal settings
-are modified by the implementation or the standalone previews.
+- Real multi-gigabyte downloads, model cold starts and real OS grant/revocation
+  need an explicitly authorized native first-run exercise on a clean profile.
+- Comparative recognition quality across languages is not established by the
+  existing compute measurements. Qwen advertises fewer languages than Whisper;
+  the selected model's actual supported languages still govern recognition.
+- A missing language pair prevents translation instructions from claiming a
+  working shortcut; choosing languages remains necessary when evidence is absent.
+- Large downloads remain a prerequisite under the user's explicit decision,
+  rather than an optional tutorial or CLI-based shortcut around setup.

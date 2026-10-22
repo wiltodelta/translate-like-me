@@ -69,9 +69,8 @@ PYTHON
 fi
 
 # CAPTURE_APPEARANCE=current captures without changing the theme or pointer.
-# CAPTURE_ONBOARDING_ONLY=1 with CAPTURE_OUT=<dir> renders the automatic summary
-# and Settings route without real engine probes or microphone access.
-# CAPTURE_LOCAL_SETUP=1 also verifies the recommended download action on an eligible Mac.
+# CAPTURE_ONBOARDING_ONLY=1 with CAPTURE_OUT=<dir> renders the three-screen onboarding
+# with synthetic model and permission state, never real downloads or TCC prompts.
 # CAPTURE_MENU_ONLY=1 refreshes just menu.png and menu-dark.png (and the link preview).
 # CAPTURE_RESULTS_ONLY=1 with CAPTURE_OUT=<dir> checks empty, partial and full
 # recovery submenus. Its synthetic launch fixtures never call a model or record audio.
@@ -360,21 +359,22 @@ launch() {
         PID=""
     fi
     local dictation_enabled=NO completed_first_run=YES pairs_json="$SAMPLE_PAIRS"
+    local speech_model="${CAPTURE_DICTATION_MODEL:-turbo}"
     if [ "${2:-}" = settings ]; then dictation_enabled=YES; fi
     if [ "${CAPTURE_ONBOARDING_ONLY:-0}" = 1 ]; then
         dictation_enabled=NO
         completed_first_run=NO
+        speech_model="${CAPTURE_DICTATION_MODEL:-qwen3ASR}"
     fi
     if [ "${CAPTURE_EMPTY_PAIRS:-0}" = 1 ]; then pairs_json='[]'; fi
-    local arguments=(-settingsSelectedPane "$1" -provider "${3:-anthropic}" -localModel translategemma-12b
-        -dictationEnabled "$dictation_enabled" -dictationModel turbo -didCompleteFirstRun "$completed_first_run"
+    local arguments=(-settingsSelectedPane "$1" -provider "${3:-anthropic}" -localModel "${CAPTURE_LOCAL_MODEL:-translategemma-12b}"
+        -dictationEnabled "$dictation_enabled" -dictationModel "$speech_model" -didCompleteFirstRun "$completed_first_run"
         -dictationShortcut '<7b226b6579436f6465223a36312c226d6f64696669657273223a323034387d>'
         -languagePairs "<$(printf '%s' "$pairs_json" | xxd -p | tr -d '\n')>"
         -rewritePresets "<$(printf '%s' "$SAMPLE_PRESETS" | xxd -p | tr -d '\n')>")
     if [ "${CAPTURE_ONBOARDING_ONLY:-0}" = 1 ]; then
-        arguments+=(-onboardingPreview YES -automaticallySelectedProvider YES)
+        arguments+=(-onboardingPreview YES -onboardingStage "${CAPTURE_ONBOARDING_STAGE:-preparation}")
     fi
-    if [ "${CAPTURE_NO_ENGINES:-0}" = 1 ]; then arguments+=(-onboardingNoEnginesPreview YES); fi
     if [ -n "${4:-}" ]; then arguments+=(-lastResultsPreview "$4"); fi
     if [ -n "$LANGUAGE" ]; then arguments+=(-AppleLanguages "($LANGUAGE)"); fi
     if [ -n "${2:-}" ]; then arguments+=(-dictationPreview "$2"); fi
@@ -544,38 +544,44 @@ capture_window() {
     [ "$(ax 'get frontmost')" = true ] || { echo "The target lost focus during capture."; exit 1; }
 }
 
-# Render the applied configuration and the Settings escape hatch, without model calls.
+wait_onboarding_control() {
+    for _ in $(seq 1 30); do
+        if helper expect-enabled "$PID" "$1" >/dev/null 2>&1; then return; fi
+        sleep 0.1
+    done
+    helper expect-enabled "$PID" "$1"
+}
+
+# Render the shipping onboarding with synthetic state, never real downloads or permission prompts.
 capture_onboarding() {
     appearance "set dark mode to $1" >/dev/null
     sleep 2
-    launch 3 settings
-    local title
+    local title stage
     title=$(localized "Welcome to Translate Like Me")
-    capture_window "$title" "onboarding-summary$2"
-    helper expect "$PID" "$(localized 'Your starting setup')"
-    local preset_title
-    preset_title=$(python3 -c 'import json, sys; print(json.loads(sys.argv[1])[0]["name"])' "$SAMPLE_PRESETS")
-    helper expect-absent "$PID" "$preset_title"
-    helper expect-enabled "$PID" onboarding.done
-    helper press-id "$PID" onboarding.settings
-    capture_window "$(localized Dictation)" "onboarding-settings$2"
-    sleep 0.5
-    [ -z "$(helper named "$PID" "$title")" ] || { echo "The summary did not close."; exit 1; }
-    [ "$(defaults read "$DOMAIN" didCompleteFirstRun)" = 1 ] || { echo "First run was not completed."; exit 1; }
-    if [ "${CAPTURE_SUMMARY_SETTINGS_ONLY:-0}" = 1 ]; then return; fi
-
-    CAPTURE_NO_ENGINES=1 launch 3 settings
-    capture_window "$title" "onboarding-no-engines$2"
-    helper expect "$PID" "$(localized 'No engine is ready yet. Open Settings to choose a service or download a local model.')"
-    if [ "${CAPTURE_LOCAL_SETUP:-0}" = 1 ]; then
-        helper expect-enabled "$PID" onboarding.localDownload
-    fi
-    helper press-id "$PID" onboarding.done
-
-    CAPTURE_EMPTY_PAIRS=1 launch 3 settings
-    capture_window "$title" "onboarding-no-languages$2"
-    helper expect-enabled "$PID" onboarding.done
-    helper press-id "$PID" onboarding.done
+    for stage in ${CAPTURE_ONBOARDING_STAGES:-preparation downloading failed permissions accessibility permissions-ready usage}; do
+        CAPTURE_ONBOARDING_STAGE="$stage" launch 3 settings local
+        capture_window "$title" "onboarding-$stage$2"
+        if [ -n "${CAPTURE_GEOMETRY_HELPER:-}" ]; then
+            uv run "$CAPTURE_GEOMETRY_HELPER" geometry --pid "$PID" --state "$stage" \
+                > "$OUT/onboarding-$stage$2-geometry.json"
+        fi
+        if [ "$stage" = preparation ]; then
+            helper expect-disabled "$PID" onboarding.continue
+            helper expect-enabled "$PID" onboarding.download
+            helper press-id "$PID" onboarding.download
+            wait_onboarding_control onboarding.continue
+            helper press-id "$PID" onboarding.continue
+            wait_onboarding_control onboarding.permission
+            helper press-id "$PID" onboarding.permission
+            wait_onboarding_control onboarding.permission
+            helper press-id "$PID" onboarding.permission
+            wait_onboarding_control onboarding.permission
+            helper press-id "$PID" onboarding.permission
+            wait_onboarding_control onboarding.done
+            helper press-id "$PID" onboarding.done
+        fi
+        if [ "$stage" = usage ]; then helper expect-enabled "$PID" onboarding.done; fi
+    done
 }
 
 # Capture the shipping submenu with all, some or no results, using only synthetic text.

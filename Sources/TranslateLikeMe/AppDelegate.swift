@@ -66,7 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let dictationPreview = UserDefaults.standard.string(forKey: "dictationPreview")
         if dictationPreview != "settings" { DictationController.shared.restore() }
         registerHotKeys()
-        ensureAccessibilityPermission()
+        if Settings.didCompleteFirstRun { ensureAccessibilityPermission() }
         showOnboardingOnFirstRun()
         Updater.shared.start()
         if let preview = dictationPreview, preview != "settings" {
@@ -78,8 +78,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         DictationController.shared.shutdown()
     }
 
-    // Until onboarding has been finished or closed once, it opens at launch: a
-    // new profile has recommendations, but no engine checked yet.
+    // Until onboarding has been finished, it opens at launch: a
+    // new profile has recommendations, but setup is not complete yet.
     private func showOnboardingOnFirstRun() {
         guard !Settings.didCompleteFirstRun else { return }
         DispatchQueue.main.async { [weak self] in self?.showOnboarding() }
@@ -150,13 +150,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.makeKeyAndOrderFront(nil)
     }
 
-    // Back to a menu-bar-only app once neither window is open. Closing
-    // the summary after its checks finishes first run. An interrupted check is
-    // retried at next launch, without reseeding the configuration.
+    // Only the final onboarding action marks completion. Closing keeps setup resumable.
     func windowWillClose(_ notification: Notification) {
         let closing = notification.object as? NSWindow
         if closing === onboardingWindow {
-            Settings.didCompleteFirstRun = store.didCheckInitialEngines
             onboardingWindow = nil
         }
         let stillOpen = [settingsWindow, onboardingWindow].contains { $0 !== closing && $0?.isVisible == true }

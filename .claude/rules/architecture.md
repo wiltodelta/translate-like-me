@@ -126,25 +126,22 @@ Read before editing this domain.
   Option-Command-J; existing or deliberately empty settings are authoritative.
   `didApplyFirstRunRecommendations` prevents reseeding after removal. Language
   evidence, local-model eligibility and remaining work: `docs/first-run-recommendations.md`.
-- Onboarding (`Onboarding`, a `SettingsWindow` hosting an `NSHostingView`) is
-  an automatic configuration summary, not a language/engine selection wizard.
-  `EngineChecks` starts on appearance, cancels unfinished checks on exit, and
-  `EngineProbe` uses readiness plus a real synthetic translation. Missing and
-  signed-out engines are rechecked on activation; Check Again retries failures.
-  `SettingsStore.recommendWorkingEngine` waits for all results, keeps a working
-  current engine, otherwise chooses in stable provider order. Explicit saved
-  choices and completed onboarding prevent automatic replacement;
-  `automaticallySelectedProvider` distinguishes automatic choices. The summary
-  lists language pairs with shortcuts, engine status and the current speech model.
-  Rewrite presets are excluded from onboarding and stay in Settings and the menu.
-  Settings opens the real shared Settings window. Dictation enabling reuses its
-  consent and preparation flow, with shared `DictationPreparationStatus`.
-  Closing after completed checks marks first run complete; an interrupted check
-  reopens the summary next launch without reseeding. Development-only captures
-  inject working or unavailable engines through `onboardingPreview` and
-  `onboardingNoEnginesPreview`, never invoking CLIs or opening a microphone.
-  Settings and onboarding share `AppDelegate`'s `SettingsStore`. Parallel checks
-  made `Translator`'s binary cache a lock (`OSAllocatedUnfairLock`).
+- Onboarding (`Onboarding`, a `SettingsWindow` hosting an `NSHostingView`) uses
+  three shipping screens: preparation, permissions, usage. `OnboardingFlow`
+  owns transitions with injected effects. Both models must be verified and
+  prepared before permissions; speech preparation runs without microphone
+  access, unloads, then the local translation download and `EngineProbe` run.
+  Only the final usage action writes `didCompleteFirstRun`; closing or pausing
+  never completes it. Failed preparation retries, changes in Settings invalidate
+  readiness, and revoked permissions block completion. The local engine is
+  seeded only for fresh profiles; explicit choices remain authoritative.
+  Microphone consent follows Continue; Accessibility opens on its own action,
+  never at fresh launch. Dictation activates only after both grants. No Rewrite
+  controls appear. The final screen uses actual shortcuts and explains Settings.
+  Dev-only `onboardingPreview` plus `onboardingStage` renders the same views in
+  synthetic states, with no network, TCC, microphone or completion writes.
+  `EngineChecks` remains available for injected provider checks; `EngineProbe`
+  verifies readiness plus a real synthetic translation, never CLI installation alone.
 - `SelectionWorkflow` owns the copy/await/validate/paste/restore flow, with
   `LiveSelectionAccess` as its native adapter and injected effects in tests.
   Text reaches a field one way in the whole app (user decision 2026-10-20):

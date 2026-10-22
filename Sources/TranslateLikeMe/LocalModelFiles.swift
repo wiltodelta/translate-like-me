@@ -107,9 +107,11 @@ enum LocalModelError: LocalizedError {
     case insufficientStorage(Int64)
     case incomplete
     case outputLimit
+    case downloadFailed(String)
 
     var errorDescription: String? {
         switch self {
+        case .downloadFailed(let message): message
         case .notDownloaded(let model):
             String(localized: "\(model.title) is not downloaded yet. Download it in Settings > Translation.",
                    comment: "The placeholder is a model name, such as TranslateGemma 12B")

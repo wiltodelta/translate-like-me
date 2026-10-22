@@ -12,7 +12,7 @@ enum FirstRunRecommendations {
         guard defaults.object(forKey: marker) == nil else { return }
         let keys = ["didCompleteFirstRun", "languagePairs", "rewritePresets", "languageA", "languageB",
                     "replaceKeyCode", "replaceModifiers", "style", "provider", "localModel", "dictationModel",
-                    "dictationEnabled", "dictationShortcut"]
+                    "dictationEnabled", "dictationShortcut", "dictationMicrophone"]
             + Provider.allCases.flatMap { ["harnessModel.\($0.rawValue)", "harnessEffort.\($0.rawValue)"] }
         // Launch fixtures must never persist their argument-domain configuration.
         let arguments = defaults.volatileDomain(forName: UserDefaults.argumentDomain)
@@ -25,6 +25,7 @@ enum FirstRunRecommendations {
         Settings.storePairs(pairs, in: defaults)
         defaults.set(localModel(physicalMemory: physicalMemory).rawValue, forKey: "localModel")
         defaults.set(dictationModel(physicalMemory: physicalMemory).rawValue, forKey: "dictationModel")
+        Settings.storeRecommendedProvider(.local, in: defaults)
         let preset = RewritePreset(name: String(localized: "Improve Text"),
                                    shortcut: KeyCombo(keyCode: 38, modifiers: Int(cmdKey | optionKey)))
         defaults.set(try? JSONEncoder().encode([preset]), forKey: "rewritePresets")

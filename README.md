@@ -36,12 +36,13 @@ Or [download the latest release](https://github.com/wiltodelta/translate-like-me
 unzip it, and move **Translate Like Me.app** to `/Applications`. Releases are
 signed and notarized. Updates arrive in the app and install when you choose.
 
-First launch recommends languages from macOS and enabled keyboards, checks
-translation engines, and shows a starting configuration. A new profile also
-gets a neutral Improve Text preset. Grant **Accessibility** to replace selected
-text, and **Microphone** access for dictation. Local models need an initial download;
-cloud engines need their official CLI installed and signed in. You can use
-any of the three writing tools independently.
+First launch recommends languages from macOS and enabled keyboards, then prepares
+two local models for your Mac. Download and verification must finish before
+continuing. Next, grant **Microphone** and **Accessibility** access; the final
+screen explains dictation and translation with your actual shortcuts. Downloads
+can be paused and resumed. Models and other options stay editable in Settings.
+A new profile also gets a neutral Improve Text preset. Cloud engines remain
+optional alternatives that need their official CLI installed and signed in.
 
 ## Speak first, polish afterwards
 

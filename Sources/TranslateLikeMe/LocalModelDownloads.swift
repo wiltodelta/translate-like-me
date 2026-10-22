@@ -5,7 +5,8 @@ import os
 private let log = Logger.app("local")
 
 // The local models' download state, which Settings and onboarding show. A
-// download continues while the window is closed; one model downloads at a time.
+// Settings download continues while its window is closed; onboarding can pause
+// its pending download explicitly. One model downloads at a time.
 @MainActor
 @Observable
 final class LocalModelDownloads {
@@ -39,8 +40,8 @@ final class LocalModelDownloads {
         }
     }
 
-    func download(_ model: LocalModel) {
-        guard task == nil, !removing.contains(model), fits(model), state(of: model) != .ready else { return }
+    func download(_ model: LocalModel, verify: Bool = false) {
+        guard task == nil, !removing.contains(model), fits(model), verify || state(of: model) != .ready else { return }
         states[model] = .downloading(0)
         log.notice("Local model \(model.rawValue, privacy: .public) download started")
         let run = Task {
@@ -67,6 +68,21 @@ final class LocalModelDownloads {
     // Keeps the files fetched so far; the next download resumes from them.
     func cancel() {
         task?.run.cancel()
+    }
+
+    // Onboarding waits for verified files before running the real engine check.
+    func downloadAndWait(_ model: LocalModel) async throws {
+        guard fits(model) else { throw LocalModelError.insufficientMemory(model) }
+        download(model, verify: true)
+        guard let task, task.model == model else {
+            throw LocalModelError.downloadFailed(String(localized: "The model download could not start."))
+        }
+        await task.run.value
+        try Task.checkCancellation()
+        guard state(of: model) == .ready else {
+            if case .failed(let message) = state(of: model) { throw LocalModelError.downloadFailed(message) }
+            throw CancellationError()
+        }
     }
 
     func remove(_ model: LocalModel) {

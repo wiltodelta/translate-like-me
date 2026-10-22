@@ -103,7 +103,7 @@ transition, not proof of the reported cause.
 ## Onboarding navigation and layout verification
 
 Historical record: the wizard measured below was replaced by the automatic
-summary in the [first-run recommendation increment](first-run-recommendations.md).
+summary and then by the three-screen [first-run flow](first-run-recommendations.md).
 
 On October 21, 2026, the signed development bundle from `8283ed0` passed the
 translation and dictation-only routes in English and German, in system Light
@@ -144,21 +144,20 @@ approval. Do not reset the working user's TCC, defaults, accounts or model cache
 Record the exact app version, installation source, macOS version and hardware;
 compare the installed release with the candidate build separately.
 
-1. Start with no CLI sign-ins or downloaded speech model. Confirm that the
-   summary lists the automatic language/preset configuration and checks engines
-   without requiring a choice. With no working engine, show missing prerequisites
-   and eligible local setup, never readiness. Settings must open the real shared
-   Settings window. Dictation can stay disabled with Done. Microphone permission
-   and speech-model download start only after enabling it.
-2. Grant Accessibility, quit and reopen the test copy, and confirm its menu reads
-   Allowed. Install and sign in to one translation CLI, then run its real engine
-   check and translate a synthetic selection in TextEdit.
-3. Enable dictation, grant microphone access and let the model finish downloading.
-   In TextEdit, hold and release the configured Option key, checking Listening,
-   Recognizing and inserted text. Repeat after relaunch.
-4. Try denied permissions, unavailable network, interrupted downloads and retry
-   without touching the working account. Distinguish absent key events from
-   cancellation, capture failure, model preparation and insertion failure.
+1. Start without CLI sign-ins or model caches. Confirm the preparation screen
+   recommends both local models and evidenced languages. Download and verification
+   must finish before Continue enables. Pause, close and reopen without marking
+   setup complete; partial downloads must be reused.
+2. On the second screen, request microphone access explicitly, then open
+   Accessibility. Enable the app in macOS and return. Check denied/revoked grants
+   and the route back to System Settings. No grant may be inferred from a click.
+3. Continue after both grants, wait for dictation readiness, then check the final
+   usage screen's actual shortcuts and Settings route. Its final button alone
+   marks completion. Relaunch and verify onboarding stays closed.
+4. Dictate and translate synthetic text in a disposable editor. Check the Copy
+   fallback. Repeat with unavailable network, failed model preparation and retry
+   without touching the working account. Compare the existing-user path and
+   preserve explicit model/provider/shortcut choices.
 
 The candidate records metadata at notice level for shortcut registration,
 Accessibility trust, global-monitor installation, dictation press/release/cancel,
@@ -258,8 +257,8 @@ recorded in the release document. Punto compatibility is not fixed; quitting
 Punto is the user-confirmed workaround.
 
 
-The first-run recommendation increment replaces the wizard with an automatic
-summary. `capture-screenshots.sh` checks the summary, the Settings route, missing
-engines and missing language evidence. `CAPTURE_LOCAL_SETUP=1` also verifies
-the recommended download action on an eligible Mac, without starting a download.
-Current policy and verification: [first-run recommendations](first-run-recommendations.md).
+The shipping first-run flow uses preparation, permissions and usage screens.
+`CAPTURE_ONBOARDING_ONLY=1` renders those same views with dev-only synthetic model
+and permission state, including the microphone, Accessibility and ready substates.
+It never downloads models or requests OS consent. Current policy and verification:
+[first-run recommendations](first-run-recommendations.md).
