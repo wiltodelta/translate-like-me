@@ -131,9 +131,12 @@ Per clip, sign test:
 | [Gemma 4 12B](https://huggingface.co/google/gemma-4-12B-it) (May 2026) | Apache-2.0 | 35+ languages, Russian not named | `gemma4_unified`, which mlx-swift-lm 3.32.3 loads only through MLXVLM; ships a 0.27 GB MTP draft model; measured below |
 | [Index-Translate 9B / 2B](https://huggingface.co/IndexTeam/Index-Translate-9B) (Sep 28) | Apache-2.0 | card says 150 languages; Russian not confirmed | Card claims FLORES COMET-22 0.8789 against TranslateGemma 12B's 0.8732; Qwen3.5 hybrid attention, no mlx-community conversion; not measured |
 | [Nemotron 3.5 Bolt E4B](https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Bolt-E4B-BF16) (Oct 5) | OpenMDW-1.1 | tagged `ru`; the card names en, es, fr, de, it, ja | Gemma 4 E4B post-trained by NVIDIA, `gemma4`, so `LLMModelFactory` loads it; thinking on by default, which looped Gemma 4 12B, and its E4B base returned styled duplicates in October; lmstudio-community MLX 4-bit 4.23 GB; not measured |
+| [LFM2.5 24B-A2B](https://huggingface.co/LiquidAI/LFM2.5-24B-A2B) (Oct 12) | LFM Open License 1.0, free below $10M revenue | named among 16 languages | MoE with about 2B active, `lfm2_moe` registered in `LLMModelFactory`; `LiquidAI/LFM2.5-24B-A2B-MLX-4bit` 13.6 GB, twice TranslateGemma 12B's 6.65 GB; not measured |
 | Apple Translation | system | installed en→ru, en→de here | No style or instructions, so translation only; a UI-less `TranslationSession` needs macOS 26 |
 | Apple Foundation Models | system | **no**: 24 languages on macOS 27, none Russian | Out |
 | Tower+, tiny-aya, North-Small-Translate | noncommercial | | Out |
+
+The table first came from a search by named model families, which missed Nemotron 3.5 Bolt E4B: it is a general reasoning model, not a translation one. On October 23 a sweep of 30 model publishers' Hugging Face listings since August 1 (text and image-text models) added it and LFM2.5. The rest were too large for a 32 GB Mac, noncommercial or task-specific (vision, parsing, long-document zh/en/ja translation). Two fit but went unmeasured: MiniCPM5 2B, not tagged for Russian, and the vision-first LiquidAI d1 3B. The query, the publisher list and the listings are kept with the receipts below.
 
 ### Benchmark
 

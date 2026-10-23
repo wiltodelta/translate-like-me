@@ -126,7 +126,8 @@ Victor's personal website (`wiltodelta/wiltodelta-app`, page `/projects/translat
   verifies, so a Python mlx-audio probe also needs the pinned revision's
   remaining small files (`snapshot_download(..., ignore_patterns=["*.safetensors"])`
   into the clone; Qwen failed without `preprocessor_config.json`). Candidate
-  benchmarks and their method: `docs/local-model-candidates.md`. Read GPU load before
+  benchmarks and their method: `docs/local-model-candidates.md`; survey candidates by sweeping
+  publishers' Hugging Face listings by date, since a list of model families missed one. Read GPU load before
   timing an MLX probe (`ioreg -r -d 1 -c IOAccelerator`, `Device Utilization %`):
   another session's training held it at 89-98% through a whole run (2026-10-22). A microphone probe built from the
   worker's sources stays off the speakers when launched with
