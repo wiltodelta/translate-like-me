@@ -130,6 +130,7 @@ Per clip, sign test:
 | [Hy-MT2 7B / 1.8B](https://huggingface.co/tencent/Hy-MT2-7B) (May 2026) | Apache-2.0, no territorial clause | listed | MT-specialized; measured below |
 | [Gemma 4 12B](https://huggingface.co/google/gemma-4-12B-it) (May 2026) | Apache-2.0 | 35+ languages, Russian not named | `gemma4_unified`, which mlx-swift-lm 3.32.3 loads only through MLXVLM; ships a 0.27 GB MTP draft model; measured below |
 | [Index-Translate 9B / 2B](https://huggingface.co/IndexTeam/Index-Translate-9B) (Sep 28) | Apache-2.0 | card says 150 languages; Russian not confirmed | Card claims FLORES COMET-22 0.8789 against TranslateGemma 12B's 0.8732; Qwen3.5 hybrid attention, no mlx-community conversion; not measured |
+| [Nemotron 3.5 Bolt E4B](https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Bolt-E4B-BF16) (Oct 5) | OpenMDW-1.1 | tagged `ru`; the card names en, es, fr, de, it, ja | Gemma 4 E4B post-trained by NVIDIA, `gemma4`, so `LLMModelFactory` loads it; thinking on by default, which looped Gemma 4 12B, and its E4B base returned styled duplicates in October; lmstudio-community MLX 4-bit 4.23 GB; not measured |
 | Apple Translation | system | installed en→ru, en→de here | No style or instructions, so translation only; a UI-less `TranslationSession` needs macOS 26 |
 | Apple Foundation Models | system | **no**: 24 languages on macOS 27, none Russian | Out |
 | Tower+, tiny-aya, North-Small-Translate | noncommercial | | Out |
