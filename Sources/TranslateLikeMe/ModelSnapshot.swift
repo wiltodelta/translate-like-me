@@ -1,5 +1,9 @@
 import CryptoKit
 import Foundation
+import Network
+import os
+
+private let log = Logger.app("models")
 
 // Validate the app-owned Hub snapshot before both offline use and resuming a
 // download. The SDK trusts matching commit metadata without rehashing the file.
@@ -13,6 +17,7 @@ struct ModelSnapshot: Sendable {
     let revision: String
     let variant: String
     let required: [String]
+    var pause: @Sendable (Int) async throws -> Void = ModelSnapshot.waitForNetwork
 
     private var folder: URL { root.appendingPathComponent(variant) }
 
@@ -23,10 +28,66 @@ struct ModelSnapshot: Sendable {
         // Preserve good partial downloads, but remove damaged files before the
         // SDK's metadata-only fast path can accept them again.
         for file in invalid { try FileManager.default.removeItem(at: file) }
-        try Task.checkCancellation()
-        try await fetch()
+        try await Self.resuming(root, pause: pause, fetch)
         guard complete, try invalidFiles().isEmpty else { throw Incomplete() }
         return root
+    }
+
+    // The SDK gives up on a dropped connection after five one-second retries,
+    // so a Wi-Fi change or sleep failed a multi-gigabyte download. It keeps each
+    // partial file as .incomplete and resumes it with a Range request, and a
+    // finished file costs one HEAD request, so fetching again continues where
+    // the transfer stopped. Give up after attempts that add no bytes under root.
+    static let attemptsWithoutProgress = 5
+
+    static func resuming(_ root: URL, pause: @Sendable (Int) async throws -> Void = waitForNetwork,
+                         _ fetch: @Sendable () async throws -> Void) async throws {
+        var stalled = 0
+        var before = bytesOnDisk(root)
+        while true {
+            try Task.checkCancellation()
+            do {
+                return try await fetch()
+            } catch let error as URLError where isTransient(error) {
+                let after = bytesOnDisk(root)
+                stalled = after > before ? 0 : stalled + 1
+                before = after
+                guard stalled < attemptsWithoutProgress else { throw error }
+                log.warning("""
+                    Model download from \(root.lastPathComponent, privacy: .public) interrupted \
+                    (\(error.code.rawValue)), resuming after attempt \(stalled) without progress
+                    """)
+                try await pause(stalled)
+            }
+        }
+    }
+
+    private static func isTransient(_ error: URLError) -> Bool {
+        ![.cancelled, .badURL, .unsupportedURL, .userCancelledAuthentication,
+          .userAuthenticationRequired, .cannotCreateFile, .cannotWriteToFile].contains(error.code)
+    }
+
+    // Counts the Hub's partial files too, which live under .cache.
+    private static func bytesOnDisk(_ root: URL) -> Int64 {
+        guard let files = FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.fileSizeKey])
+        else { return 0 }
+        return files.reduce(0) { total, file in
+            let size = (file as? URL).flatMap { try? $0.resourceValues(forKeys: [.fileSizeKey]).fileSize }
+            return total + Int64(size ?? 0)
+        }
+    }
+
+    // Waits for a network path, then backs off: 1 second after an attempt that
+    // added bytes, else 2, 4, 8, 16.
+    static let waitForNetwork: @Sendable (Int) async throws -> Void = { stalled in
+        let monitor = NWPathMonitor()
+        defer { monitor.cancel() }
+        let paths = AsyncStream { continuation in
+            monitor.pathUpdateHandler = { continuation.yield($0.status == .satisfied) }
+            monitor.start(queue: DispatchQueue(label: "ModelSnapshot.network"))
+        }
+        for await connected in paths where connected { break }
+        try await Task.sleep(for: .seconds(1 << stalled))
     }
 
     private var complete: Bool {

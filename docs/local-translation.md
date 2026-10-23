@@ -121,7 +121,9 @@ Jinja). On the shipping translation prompt it produced the same ids as Python
   A deterministic negative test for that drain remains a coverage gap; production
   still directly awaits the producer before checking cancellation.
 - `LocalModelFiles` downloads one file at a time, so progress follows bytes
-  (the Hub client weighs each file equally), resumes partial files, refuses a
+  (the Hub client weighs each file equally) and counts an interrupted file only
+  once it finishes, resumes partial files (refetching in place after a dropped
+  connection, `ModelSnapshot`), refuses a
   download that would leave less than 2 GB free, verifies every file against
   the revision's Hub hashes (`ModelSnapshot`) and then writes a marker. A launch
   checks only the marker and exact sizes.

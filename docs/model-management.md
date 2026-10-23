@@ -6,6 +6,12 @@ their descriptions, the selected model, download state and
 Download / Cancel / Remove Download actions. A download continues after Done;
 removal requires confirmation. Closing the sheet does not change the selection.
 
+Every download resumes. Cancel, quit or a failure keeps finished files and the
+partial one, and the next Download continues from there; a dropped connection or
+sleep is retried in place until the network returns (`ModelSnapshot`, verified
+live against Hugging Face on 2026-10-23: a cancelled run restarted at the
+partial file's fraction).
+
 `LocalModelDownloads` owns translation downloads, cancellation and removal state.
 Removal runs through `LocalEngine`'s existing exclusive operation queue. It has
 an observable state, and a failed removal remains visible instead of being

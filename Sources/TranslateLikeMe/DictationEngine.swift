@@ -162,8 +162,10 @@ actor DictationEngine: DictationRecognizing {
             let file = root.appendingPathComponent(name)
             if FileManager.default.fileExists(atPath: file.path) { try FileManager.default.removeItem(at: file) }
         }
-        _ = try await tokenizers.resolveRepo(patterns: Array(files.keys), downloadBase: base) {
-            progress(0.85 + $0.fractionCompleted * 0.1)
+        try await ModelSnapshot.resuming(root) {
+            _ = try await tokenizers.resolveRepo(patterns: Array(files.keys), downloadBase: base) {
+                progress(0.85 + $0.fractionCompleted * 0.1)
+            }
         }
         guard files.allSatisfy({ valid($0.key, $0.value) }) else { throw DictationError.notReady }
         return root

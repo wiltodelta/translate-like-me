@@ -75,17 +75,18 @@ struct LocalModelFiles: Sendable {
                 var done: Int64 = 0
                 // ModelSnapshot removed every file failing its hash, so one
                 // of the full size is good and needs no Hub request.
+                // An interrupted file is not counted as done, so a resumed
+                // download never shows its bar full.
                 for file in model.files {
-                    defer {
-                        done += file.bytes
-                        progress(Double(done) / total)
+                    if !has(file, in: root) {
+                        let before = Double(done)
+                        _ = try await hub.snapshot(from: .init(id: source.modelRepo), revision: source.revision,
+                                                   matching: [file.name]) {
+                            progress((before + $0.fractionCompleted * Double(file.bytes)) / total)
+                        }
                     }
-                    if has(file, in: root) { continue }
-                    let before = Double(done)
-                    _ = try await hub.snapshot(from: .init(id: source.modelRepo), revision: source.revision,
-                                               matching: [file.name]) {
-                        progress((before + $0.fractionCompleted * Double(file.bytes)) / total)
-                    }
+                    done += file.bytes
+                    progress(Double(done) / total)
                 }
             }
         } catch is ModelSnapshot.Incomplete {

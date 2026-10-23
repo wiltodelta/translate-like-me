@@ -63,6 +63,8 @@ Compute-policy findings and the reproducible synthetic benchmark:
   hashes existing files against the pinned revision's Hub metadata, using SHA-256
   for LFS and Git blob SHA-1 for ordinary files. Remove corrupt files before
   resuming a partial download, preserve good files, and validate the result again;
+  a transient `URLError` refetches after the network returns, resuming the SDK's
+  `.incomplete` files, until five attempts in a row add no bytes;
   the SDK admits partial caches and trusts matching metadata without rehashing.
   Load only verified local files and suppress SDK transcript logging.
   Validate Whisper tokenizer hashes explicitly; the SDK's literal

@@ -124,7 +124,7 @@ Victor's personal website (`wiltodelta/wiltodelta-app`, page `/projects/translat
   10-minute tool timeout; run it detached (`nohup caffeinate -dimu ... > log &`).
   A `.build` cloned into another worktree
   fails release builds until `.build/arm64-apple-macosx/release/ModuleCache` is
-  deleted, because its modules embed the old path.
+  deleted, and `build.sh` until `.build/mlx-metal` is, because both embed the old path.
 
 ## Interface
 
