@@ -181,8 +181,7 @@ Compute-policy findings and the reproducible synthetic benchmark:
   or capture and unloads the runtime before the translation check. Microphone
   consent comes on the second screen; enabling dictation follows both grants.
   Outside onboarding, permission prompts belong to enabling dictation. A release build needs both
-  the audio-input entitlement and microphone purpose string. Test with the signed
-  dev bundle, never the installed app's settings or privacy state.
+  the audio-input entitlement and microphone purpose string.
 - The indicator appears only when the microphone delivers its first audio
   (`.starting` to `.recording`, about 60 ms after the press: an
   `AVAudioSinkNode` sees 512-frame I/O cycles while the tap delivers 100 ms

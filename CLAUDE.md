@@ -6,8 +6,7 @@ to three), auto-detecting the direction and applying the user's writing style,
 and rewrites selected rough notes into a finished message in the same language
 with named Rewrite presets (up to three), plus local multilingual dictation.
 SwiftUI + AppKit, SwiftPM; Sparkle for updates, WhisperKit and MLX Audio Swift for local ASR, MLX for the
-local translation model. Supports the
-three latest macOS releases (15+) on Apple silicon only.
+local translation model.
 
 Shared rules for our macOS apps: `~/Documents/GitHub/claude-config/docs/macos-apps.md`; this file states only what differs.
 
@@ -15,10 +14,8 @@ Shared rules for our macOS apps: `~/Documents/GitHub/claude-config/docs/macos-ap
 
 Assemble the bundle with `./build.sh` (needs Xcode 26+: `actool` compiles the
 Icon Composer icon); `swift build` alone leaves a stale binary inside
-`Translate Like Me Dev.app`. Releases are driven by `vX.Y.Z` git tags through GitHub
-Actions, which signs with the Developer ID from repository secrets and
-notarizes (`notarize.sh`), then bumps the cask in `wiltodelta/homebrew-tap`;
-locally `build.sh` signs with the same identity from the keychain. The
+`Translate Like Me Dev.app`. The app has a cask, which release CI bumps in
+`wiltodelta/homebrew-tap`. The
 product page is on Victor's personal website; `translatelikeme.com` only
 redirects there and forwards mail, both in Cloudflare. Full
 detail, including the secrets and where the keys are kept (1Password):
@@ -39,8 +36,7 @@ Victor's personal website (`wiltodelta/wiltodelta-app`, page `/projects/translat
   Do not glob old build bundles: stale FluidAudio output can remain after removal.
   MLX looks for `mlx.metallib` only beside the executable, not in
   `Contents/Resources`: call `MLXKernels.use()` before any MLX model loads.
-- CI can lag local Swift. In subprocess tests, use explicit `@Sendable` task
-  closures, a precomputed deadline and the concrete test type: the dynamic `Self`
+- In subprocess tests, use explicit `@Sendable` task closures, a precomputed deadline and the concrete test type: the dynamic `Self`
   form failed Swift 6.3.3's region-based isolation checker.
 - A closure stored as a plain `async` function type runs off the main thread even
   when written in a `@MainActor` type's `static let`; the compiler accepted a
@@ -48,71 +44,81 @@ Victor's personal website (`wiltodelta/wiltodelta-app`, page `/projects/translat
   such properties a `@MainActor` function type.
 - Lint config in `.swiftlint.yml` scans `Sources/` and `Tests/` at 120-column lines (fixtures inside multiline strings exempt, `Tests/.swiftlint.yml`).
 - `Tests/TranslateLikeMeTests/` covers pure logic, selection orchestration with
-  injected effects, and `ProcessRunner` with synthetic subprocesses. Hold an
-  injected `sleep` with `TestGate`, and assert the pre-sleep state before awaiting
-  it: a mutant that never sleeps otherwise hangs `swift test` until killed. UI,
-  Accessibility, CGEvent and Sparkle require native verification; render UI changes with
-  `./capture-screenshots.sh` (it also regenerates `screenshots/`, light and
-  dark, flipping the system to Dark Mode and back; needs
-  Accessibility and Screen Recording for the terminal and a Mac left alone).
-  ScreenCaptureKit composites only the app and an opaque backdrop, excluding
-  unrelated windows, alerts and the Dock. A closed or resized target fails the
-  capture; Settings activation settles before the frame and backdrop are measured.
-  Inspect every generated image. System Events `entire contents`
-  does not reach the SwiftUI controls in Settings: press them by walking
-  `AXUIElement` children and matching the title or accessibility label. A
-  picker is an `AXPopUpButton` (its value is the selection): press it, then
-  press the `AXMenuItem` by title, and read the result back from the
-  defaults (`plutil -extract languagePairs raw`, base64 JSON) rather than
-  sending keys, which land in whatever app is in front. System Events
-  `keystroke` maps characters through the active layout: under Russian a
-  `keystroke "k" using command down` and a typed name went into a Slack draft
-  instead (2026-10-20). Send `key code` values, and never drive another
-  person's conversation; verify dictation delivery by the user's own dictation
-  and the `Dictation destination` and `read ... after N ms` log lines.
-- A build without `RELEASE=1` is `com.wiltodelta.translatelikeme.dev`: its own
-  settings domain, login item and Accessibility grant (granted once), so it
-  runs beside the installed app; if both have the same shortcuts set, quit one
-  before testing them. Override a setting for one launch with the argument
-  domain (`open -n "Translate Like Me Dev.app" --args -provider grok`). Onboarding
-  opens with `-didCompleteFirstRun NO -languagePairs '<5b5d>'` (no pairs). The
-  bundle is hardened, so lldb cannot attach: read a crash's stack from
-  `~/Library/Logs/DiagnosticReports/TranslateLikeMe-*.ips` (JSON after the
-  first line).
-  A standalone AX probe must touch `NSApplication.shared` first: without a
+  injected effects, and `ProcessRunner` with synthetic subprocesses.
+- Hold an injected `sleep` with `TestGate`, and assert the pre-sleep state
+  before awaiting it: a mutant that never sleeps otherwise hangs `swift test`
+  until killed.
+- UI, Accessibility, CGEvent and Sparkle require native verification. Render UI
+  changes with `./capture-screenshots.sh`; it also regenerates `screenshots/`,
+  light and dark, flipping the system to Dark Mode and back, and needs
+  Accessibility and Screen Recording for the terminal and a Mac left alone.
+  Inspect every generated image.
+- The capture uses ScreenCaptureKit, which composites only the app and an
+  opaque backdrop, excluding unrelated windows, alerts and the Dock. A closed
+  or resized target fails the capture; Settings activation settles before the
+  frame and backdrop are measured.
+- `-AppleInterfaceStyle Dark` in the argument domain does not darken the app;
+  render Dark Mode by flipping the system appearance, as
+  `capture-screenshots.sh` does.
+- System Events `entire contents` does not reach the SwiftUI controls in
+  Settings: press them by walking `AXUIElement` children and matching the
+  title or accessibility label.
+- A picker is an `AXPopUpButton` (its value is the selection): press it, then
+  press the `AXMenuItem` by title, and read the result back from the defaults
+  (`plutil -extract languagePairs raw`, base64 JSON) rather than sending keys,
+  which land in whatever app is in front.
+- System Events `keystroke` maps characters through the active layout: under
+  Russian a `keystroke "k" using command down` and a typed name went into a
+  Slack draft instead (2026-10-20). Send `key code` values, and never drive
+  another person's conversation.
+- Verify dictation delivery by the user's own dictation and the
+  `Dictation destination` and `read ... after N ms` log lines.
+- A standalone AX probe must touch `NSApplication.shared` first: without a
   window server connection the system-wide element answered
   `kAXErrorCannotComplete` for every frontmost app (2026-10-20).
-  Probe engine CLIs with `env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN
+- The dev bundle id is `com.wiltodelta.translatelikeme.dev`, with its own
+  Accessibility grant (granted once); if it and the installed app have the
+  same shortcuts set, quit one before testing them.
+- Override a setting for one launch with the argument domain
+  (`open -n "Translate Like Me Dev.app" --args -provider grok`). Onboarding
+  opens with `-didCompleteFirstRun NO -languagePairs '<5b5d>'` (no pairs).
+- The bundle is hardened, so lldb cannot attach: read a crash's stack from
+  `~/Library/Logs/DiagnosticReports/TranslateLikeMe-*.ips` (JSON after the
+  first line).
+- Probe engine CLIs with `env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN
   -u ANTHROPIC_BASE_URL`, or the harness's own variables redirect `claude`.
-  Time a CLI by its answer event, not its exit: read its JSON stream in raw
+- Time a CLI by its answer event, not its exit: read its JSON stream in raw
   chunks (`docs/cli-translation-latency.md`). `claude --bare` refuses
   subscription auth, so it cannot replace the translation flags.
-  Check a prompt change live with a temporary XCTest that calls
+- Check a prompt change live with a temporary XCTest that calls
   `Translator.translate` or `Translator.rewrite` behind an env-var guard
   (`swift test --filter`, three runs per case, delete it after), rather than
   by pressing hotkeys: keystrokes land in whatever window is in front.
-  Check the local engine live the same way: set `GPU.metallib` to the built
+- Check the local engine live the same way: set `GPU.metallib` to the built
   app's `Contents/Resources/mlx.metallib` and pass `LocalModelFiles(base:)` the
-  dev domain's `Application Support/.../Translation`; xctest's bundle has neither.
-  Check paste delivery the same way: drive `SelectionWorkflow` with
+  dev domain's `Application Support/.../Translation`; xctest's bundle has
+  neither.
+- Check paste delivery the same way: drive `SelectionWorkflow` with
   `LiveSelectionAccess` against a disposable AppKit window, snapshotting and
   restoring the user's clipboard around any marker it seeds. Chrome's key
   window can be the user's own window rather than a tab opened for the check,
   so Copy posted to Chrome's pid lands there (2026-10-20).
-  Every `agy` probe or live test lands in Antigravity's history
+- Every `agy` probe or live test lands in Antigravity's history
   (`~/.gemini/antigravity-cli`); deleting its summary rows does not stick (agy
   restores them at startup), so keep live agy runs few.
-  `-AppleInterfaceStyle Dark` in the argument domain does not darken the app;
-  render Dark Mode by flipping the system appearance, as `capture-screenshots.sh` does.
-  A standalone microphone probe gets the dev bundle's grant only as an `.app`
+- A standalone microphone probe gets the dev bundle's grant only as an `.app`
   with the dev bundle id, Developer ID signature, hardened runtime and the
   audio-input entitlement, launched with `open -W -n --stdout`; a bare binary
-  reads not-determined. Make a Bluetooth probe refuse unless the default input
-  is Bluetooth: AirPods dropped off the Mac mid-session and a run silently
-  measured the built-in microphone. Prove which input a probe recorded by its
-  frames, not `kAudioDevicePropertyDeviceIsRunningSomewhere`: another process
-  held the built-in microphone running before a probe started (2026-10-21).
-  Measure latency in a release build: `swift test -c release --arch arm64
+  reads not-determined.
+- Make a Bluetooth probe refuse unless the default input is Bluetooth: AirPods
+  dropped off the Mac mid-session and a run silently measured the built-in
+  microphone. Prove which input a probe recorded by its frames, not
+  `kAudioDevicePropertyDeviceIsRunningSomewhere`: another process held the
+  built-in microphone running before a probe started (2026-10-21).
+- A microphone probe built from the worker's sources stays off the speakers
+  when launched with `-dictationMutedOutputDevice probe-none` (argument
+  domain): the mute sees a pending record and never engages.
+- Measure latency in a release build: `swift test -c release --arch arm64
   --build-system native -Xswiftc -enable-testing --filter <probe>` (debug MLX
   hides CPU-side costs; this rebuilds the release tree, about 6 minutes). Load
   models for such probes from an APFS clone (`cp -cR`) of the installed cache,
@@ -129,15 +135,13 @@ Victor's personal website (`wiltodelta/wiltodelta-app`, page `/projects/translat
 ## Interface
 
 The UI follows Apple's Human Interface Guidelines; read the relevant HIG page
-before changing a surface. Secondary text the app draws uses
-`Color.secondaryText` (primary at 0.66 opacity), never `.secondary`, which the
-SwiftLint rule `no_system_secondary_text` refuses: the system style measured
-3.88-3.93:1 on the settings forms (2026-10-11), under 4.5:1.
+before changing a surface. The system `.secondary` style measured 3.88-3.93:1
+on the settings forms (2026-10-11), under 4.5:1, which is why the app uses
+`Color.secondaryText`.
 The result popup uses an opaque semantic backing because glass could not keep
-text above 4.5:1 across desktop colors and tint settings (2026-10-17). watch-me-sleep and rota use the same token.
-Deviation from the global rules: the status menu's section headers and disabled
-rows stay as NSMenu draws them (about 1.9:1 in light), since the app does not
-draw them.
+text above 4.5:1 across desktop colors and tint settings (2026-10-17).
+The status menu's section headers and disabled rows stay as NSMenu draws them
+(about 1.9:1 in light), as `macos-apps.md` allows for text the system draws.
 
 ## Localization
 
