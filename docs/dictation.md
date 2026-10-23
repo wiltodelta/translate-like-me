@@ -46,7 +46,12 @@ superiority or production quality across every supported language.
 input tokenizer files. Qwen runs natively on the GPU; its derived tokenizer is
 kept outside the verified snapshot. See [Qwen integration](qwen-integration.md)
 for lifecycle, cancellation and verification details.
-WhisperKit's downloader maintains partial transfers. `ModelSnapshot` checks
+WhisperKit's downloader maintains partial transfers: each file in flight stays
+as `.incomplete` under `.cache/huggingface/download` and resumes with a Range
+request. The SDK gives up on a dropped connection after five one-second retries,
+so `ModelSnapshot` fetches again on a transient `URLError`, after a network path
+returns and a 1-16 second backoff, and fails only after five attempts in a row
+add no bytes on disk. `ModelSnapshot` checks
 all required Core ML components and validates every existing snapshot file
 against metadata for the pinned revision: SHA-256 for LFS weights and Git blob
 SHA-1 for ordinary files. The SDK itself accepts partial snapshots and skips

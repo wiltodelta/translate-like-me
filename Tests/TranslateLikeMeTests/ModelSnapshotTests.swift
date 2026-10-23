@@ -98,6 +98,79 @@ final class ModelSnapshotTests: XCTestCase {
             XCTFail("A cache hit must belong to the pinned revision")
         } catch is ModelSnapshot.Incomplete {} catch { XCTFail("Unexpected error: \(error)") }
     }
+
+    func testDroppedConnectionResumesWhileEachAttemptAddsBytes() async throws {
+        let failures = ModelSnapshot.attemptsWithoutProgress + 1
+        let run = try await retrying { fixture, call in
+            if call <= failures {
+                // Each attempt appends to the Hub's partial file, as a Range request would.
+                let partial = fixture.root.appendingPathComponent(".cache/huggingface/download/weight.incomplete")
+                try FileManager.default.createDirectory(at: partial.deletingLastPathComponent(),
+                                                        withIntermediateDirectories: true)
+                try Data(repeating: 1, count: call * 10).write(to: partial)
+                throw URLError(.networkConnectionLost)
+            }
+            try fixture.write("model.mil", bytes: Data("program".utf8))
+            try fixture.write("weights/weight.bin", bytes: Data("weights".utf8), lfs: true)
+        }
+        XCTAssertNil(run.error)
+        XCTAssertEqual(run.calls, failures + 1)
+        XCTAssertEqual(run.pauses, Array(repeating: 0, count: failures),
+                       "Attempts that add bytes never count toward giving up")
+    }
+
+    func testDroppedConnectionGivesUpAfterAttemptsWithoutProgress() async throws {
+        let run = try await retrying { _, _ in throw URLError(.notConnectedToInternet) }
+        XCTAssertEqual((run.error as? URLError)?.code, .notConnectedToInternet)
+        XCTAssertEqual(run.calls, ModelSnapshot.attemptsWithoutProgress)
+        XCTAssertEqual(run.pauses, Array(1..<ModelSnapshot.attemptsWithoutProgress))
+    }
+
+    func testStallAfterEarlierProgressStillGivesUp() async throws {
+        let limit = ModelSnapshot.attemptsWithoutProgress
+        let run = try await retrying { fixture, call in
+            // A runaway retry loop stops here instead of hanging the suite.
+            if call > limit * 4 { throw CocoaError(.fileReadUnknown) }
+            if call == 1 { try fixture.write("model.mil", bytes: Data("program".utf8)) }
+            throw URLError(.networkConnectionLost)
+        }
+        XCTAssertEqual((run.error as? URLError)?.code, .networkConnectionLost)
+        XCTAssertEqual(run.calls, 1 + limit, "Progress is measured against the previous attempt, not the start")
+        XCTAssertEqual(run.pauses, Array(0..<limit))
+    }
+
+    func testCancellationAndOtherFailuresAreNotRetried() async throws {
+        for failure in [URLError(.cancelled), CocoaError(.fileWriteOutOfSpace)] as [Error] {
+            let run = try await retrying { _, _ in throw failure }
+            XCTAssertNotNil(run.error, "\(failure) must reach the caller")
+            XCTAssertEqual(run.calls, 1)
+            XCTAssertEqual(run.pauses, [], "\(failure) must not be retried")
+        }
+    }
+
+    private struct RetryRun {
+        let calls: Int
+        let pauses: [Int]
+        let error: Error?
+    }
+
+    private func retrying(_ fetch: @escaping @Sendable (SnapshotFixture, Int) throws -> Void) async throws -> RetryRun {
+        let fixture = SnapshotFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        let calls = OSAllocatedUnfairLock(initialState: 0)
+        let pauses = OSAllocatedUnfairLock(initialState: [Int]())
+        var snapshot = fixture.snapshot
+        snapshot.pause = { stalled in pauses.withLock { $0.append(stalled) } }
+        var failure: Error?
+        do {
+            _ = try await snapshot.prepare(download: true) {
+                try fetch(fixture, calls.withLock { $0 += 1; return $0 })
+            }
+        } catch {
+            failure = error
+        }
+        return RetryRun(calls: calls.withLock { $0 }, pauses: pauses.withLock { $0 }, error: failure)
+    }
 }
 
 struct SnapshotFixture: Sendable {
