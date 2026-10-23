@@ -63,9 +63,7 @@ app's footprint.
 - **0.6B 8-bit does not replace Turbo**; against the 1.7B it was worse on 22 of
   40 Russian reading clips and better on 2.
 - **1.7B 4-bit**: against the 8-bit it was worse on 8 Russian clips and
-  better on 4. It is the only candidate for the 16 GiB tier, and needs a paired
-  run with Turbo in the Swift runner (memory, latency, the app's speech gate)
-  before it can be weighed.
+  better on 4. The paired app-path run below weighs it against Turbo.
 - **Context biasing works for the words it names.** Qwen3-ASR reads the system
   turn as background text ([technical report](https://arxiv.org/abs/2601.21337);
   official template: `<|im_start|>system\n{context}<|im_end|>`). Passing each
@@ -83,6 +81,45 @@ app's footprint.
   the app passed no context.
 - Timing is not reported: a 12 GB download ran during these arms, and the
   context arms looked slower in a way 14 words of prompt cannot explain.
+
+### Paired app-path run: Turbo and Qwen 8-bit and 4-bit
+
+The same 100 clips through the app's own `DictationEngine` (speech gate,
+padding, tail, Qwen decoder, Whisper language adapter and transcript cleanup),
+with the language preference a Russian-English pair sets. A temporary
+release-mode XCTest loaded the 4-bit export
+(`78a389c776a5483b2d0d4ea5494e11012e0d6159`) through the same `ModelSnapshot`
+hash checks. Each arm ran in a fresh process, two rounds in reversed order. Qwen
+transcripts were identical in both rounds; Turbo changed 4 of 102.
+
+| Arm | Russian reading | English reading | Russian podcast | Footprint after load / peak |
+|---|---:|---:|---:|---|
+| Turbo | 5.54 | 6.79 | 7.98 | 0.05 / 0.69 GB, see below |
+| Qwen 1.7B 8-bit | 2.37 | 3.83 | 8.24 | 3.1-3.2 / 5.71 GB |
+| Qwen 1.7B 4-bit | 3.83 | 4.60 | 9.61 | 2.5 / 4.99 GB |
+
+WER in percent, first round. Footprint is the test process's
+`phys_footprint`, which leaves out Turbo's model in the system's Neural Engine
+service ([model efficiency](dictation-model-efficiency.md)).
+
+Per clip, sign test:
+
+| Comparison | Russian reading | English reading | Russian podcast |
+|---|---|---|---|
+| 4-bit vs Turbo | 15 better, 11 worse (p 0.56) | 17 / 5 (p 0.017) | 7 / 11 (p 0.48) |
+| 8-bit vs Turbo | 16 / 4 (p 0.012) | 17 / 3 (p 0.003) | 7 / 10 (p 0.63) |
+| 4-bit vs 8-bit | 2 / 11 (p 0.023) | 2 / 4 (p 0.69) | 7 / 10 (p 0.63) |
+
+- 4-bit beats Turbo only in English reading; Russian reading and the podcast
+  are not distinguishable at this size. 8-bit beats Turbo in both reading sets,
+  and 4-bit is worse than 8-bit in Russian.
+- 4-bit saves 0.86 GB of download and 0.7 GB of peak, not half: the peak during
+  long clips (podcast clips run to 59 s) is activations, not weights. Between
+  clips both stayed under 2.8 GB.
+- Latency was not measured cleanly: another session's training job held the
+  GPU at 89-98% throughout, which slows the GPU-bound Qwen and barely touches
+  Turbo on the Neural Engine. The one usable result is same-device: 4-bit was
+  faster than 8-bit in 173 of 200 pairs.
 
 ## Translation and Rewrite
 
@@ -164,8 +201,10 @@ acceptance and 1.59× on the 31B. Not measured here.
 ## What this suggests
 
 - Dictation, above 16 GiB: keep Qwen3-ASR 1.7B 8-bit; 0.6B 4-bit is unusable.
-- Dictation, 16 GiB and below: Qwen3-ASR 1.7B 4-bit is the one candidate
-  against Turbo; it needs the paired Swift-runner comparison first.
+- Dictation, 16 GiB and below: 4-bit is not worth a catalog entry (paired
+  app-path run above). If Qwen is to be offered at 16 GiB, the case is for the
+  shipping 8-bit, decided by a clean latency run and the memory it leaves beside
+  the translation model.
 - An optional user vocabulary passed as Qwen context is the cheapest measured
   quality gain: a one-argument change, with an effect limited to the words it
   names. Keep it short; whether a long list costs latency is unmeasured.
