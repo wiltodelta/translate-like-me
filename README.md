@@ -12,7 +12,7 @@ and press a shortcut to improve or translate it in place. The app lives in the
 menu bar, ready when you need it.
 
 [Download for macOS](https://github.com/wiltodelta/translate-like-me/releases/latest)
-· [Website](https://translatelikeme.com)
+· [Website](https://wiltodelta.com/projects/translate-like-me/)
 · [User guide](docs/user-guide.md)
 
 [![Build](https://github.com/wiltodelta/translate-like-me/actions/workflows/build.yml/badge.svg)](https://github.com/wiltodelta/translate-like-me/actions/workflows/build.yml)

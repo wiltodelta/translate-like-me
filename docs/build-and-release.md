@@ -55,9 +55,7 @@ checkout's caches intact.
   measurements of the original round artwork and sets the symbols in Nunito
   ExtraBold, the original's typeface (OFL, subset in `scripts/fonts`). It then
   renders `Resources/appicon_1024.png` from the icon with `ictool` (inside Icon
-  Composer.app, which also renders every appearance for review). The
-  website's icons follow `appicon_1024.png` at deploy time; its link preview
-  after `uv run scripts/make-og-image.py`.
+  Composer.app, which also renders every appearance for review).
 - **Menu bar icon:** `Resources/MenuBarIcon.png` (idle, the face as an outline)
   and `MenuBarBusy.png` (a solid tile with the features cut out) are template
   images drawn by `uv run scripts/make-menubar-icons.py`, in the outline / fill
@@ -66,7 +64,7 @@ checkout's caches intact.
   `screenshots/` (the menu, General, Translation, Rewrite, and the listening and
   recognizing dictation indicators, translation and Rewrite progress, and the
   Dictation settings pane), each in the light appearance
-  and in Dark Mode (`*-dark.png`, which the website serves to dark visitors).
+  and in Dark Mode (`*-dark.png`, which Victor's personal website shows to dark-mode visitors).
   It switches the system appearance for the dark pass and restores the
   user's on exit. ScreenCaptureKit composites only the app and an opaque
   backdrop, excluding alerts, the Dock and unrelated windows. The script waits
@@ -83,10 +81,7 @@ checkout's caches intact.
   all four activity states and presses each Cancel button to verify dismissal.
   Add `CAPTURE_LANGUAGE=de` to check the German labels.
   `CAPTURE_RESULTS_ONLY=1 CAPTURE_OUT=<dir> ./capture-screenshots.sh` checks
-  the recovery submenu's empty, partial and full states. The default run
-  ends by rebuilding the website's link preview, `site/og-image.png`
-  (1200x630, `scripts/make-og-image.py`), which lays the menu screenshot
-  beside the icon and tagline.
+  the recovery submenu's empty, partial and full states.
 - **CRITICAL:** `swift build` alone updates only the SwiftPM build directory; it
   does NOT refresh the binary inside the assembled `.app`. Always run `./build.sh`
   before installing or testing the bundle, otherwise you run a stale binary.
@@ -196,31 +191,22 @@ gh release download vX.Y.Z -p "*.zip" -D /tmp/asset-check && \
 
 ## Website
 
-`https://translatelikeme.com` is `site/index.html`, published to GitHub Pages
-by [`.github/workflows/pages.yml`](../.github/workflows/pages.yml) on every
-push to `main` that touches the page, `screenshots/` or the app icon; the
-workflow copies those two in, so each has one committed copy. The domain
-(registered 2026-10-01 at Namecheap) uses Cloudflare DNS on the free plan
-(account kuznetsov.va@gmail.com): four A records to GitHub's Pages addresses
-and `www` as a CNAME to `wiltodelta.github.io`, all DNS only (proxying would
-stop GitHub issuing the certificate), and the TXT record
-`_github-pages-challenge-wiltodelta` that verifies the domain on the
-`wiltodelta` account, so no other account can publish Pages on it. A second
-TXT record on the root, `google-site-verification=...`, verifies the domain
-property in Google Search Console (account kuznetsov.va@gmail.com, added
-2026-10-01). Keep both TXT records: deleting one unverifies the domain there.
+The product page is <https://wiltodelta.com/projects/translate-like-me/> on
+Victor's personal website. Since 2026-10-23 `translatelikeme.com` only
+redirects there: a Cloudflare Redirect Rule ("Redirect to wiltodelta.com
+product page") answers every request on the root and `www` with a 301, over
+a proxied placeholder A record `192.0.2.1` and a proxied `www` CNAME to the
+root. The domain is registered at Namecheap (2026-10-01) with Cloudflare DNS
+on the free plan. Keep two TXT records, since deleting either unverifies the
+domain:
+
+- `_github-pages-challenge-wiltodelta`: stops any other account publishing
+  GitHub Pages on the domain.
+- `google-site-verification=...` on the root: keeps the Google Search Console
+  property (added 2026-10-01) for the change of address.
 
 Mail to any address at the domain goes to kuznetsov.va@gmail.com through
 Cloudflare Email Routing (catch-all rule; the MX, SPF and DKIM records are
 Cloudflare's). Cloudflare is there for that: Email Routing is free only with
 Cloudflare DNS, and the free tiers elsewhere refuse a newly registered domain
 (Forward Email) or hold one domain (ImprovMX, already used).
-
-For search engines and AI assistants the site also serves `robots.txt` and
-`llms.txt` (one sentence and links to the README), and the page carries a
-schema.org `SoftwareApplication` block whose `sameAs` lists the directory
-listings (OpenAlternative, Peerlist).
-
-The page repeats facts from this repository by hand (the README's features,
-privacy, requirements and cask command, the languages in `Languages.swift`,
-the screenshots' sizes), so update it when those change.

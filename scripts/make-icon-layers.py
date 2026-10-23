@@ -14,8 +14,8 @@ Colors and the dark-appearance variants live in icon.json, which this script
 writes too. build.sh compiles the .icon with actool.
 
 It then renders Resources/appicon_1024.png from the icon with Icon Composer's
-ictool (the default appearance, macOS 27 design), the raster the website's
-icons and link preview are made from, so they show the icon the app ships.
+ictool (the default appearance, macOS 27 design), the raster Victor's
+personal website takes the product icon from, so it shows the icon the app ships.
 
 Run: uv run scripts/make-icon-layers.py
 """

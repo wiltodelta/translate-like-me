@@ -19,8 +19,8 @@ Icon Composer icon); `swift build` alone leaves a stale binary inside
 Actions, which signs with the Developer ID from repository secrets and
 notarizes (`notarize.sh`), then bumps the cask in `wiltodelta/homebrew-tap`;
 locally `build.sh` signs with the same identity from the keychain. The
-website `translatelikeme.com` is `site/index.html` on GitHub Pages, its DNS
-and mail forwarding in Cloudflare. Full
+product page is on Victor's personal website; `translatelikeme.com` only
+redirects there and forwards mail, both in Cloudflare. Full
 detail, including the secrets and where the keys are kept (1Password):
 `docs/build-and-release.md`.
 

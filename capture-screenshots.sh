@@ -74,7 +74,7 @@ fi
 # CAPTURE_MODELS_ONLY=1 with CAPTURE_OUT=<dir> checks both model managers.
 # CAPTURE_MODEL_KIND=translation|speech limits that pass to one manager.
 # CAPTURE_MODEL_INTERACTIONS=0 captures the manager without retesting its dismissal routes.
-# CAPTURE_MENU_ONLY=1 refreshes just menu.png and menu-dark.png (and the link preview).
+# CAPTURE_MENU_ONLY=1 refreshes just menu.png and menu-dark.png.
 # CAPTURE_ACTIVITY_ONLY=1 captures translation, Rewrite and dictation indicators.
 # CAPTURE_RESULTS_ONLY=1 with CAPTURE_OUT=<dir> checks empty, partial and full
 # recovery submenus. Its synthetic launch fixtures never call a model or record audio.
@@ -840,5 +840,3 @@ case "${CAPTURE_APPEARANCE:-both}" in
     *) echo "CAPTURE_APPEARANCE must be light, dark, both, or current." >&2; exit 2 ;;
 esac
 
-# The website's link preview lays the new menu screenshot beside the tagline.
-[ "$OUT" != screenshots ] || uv run scripts/make-og-image.py
