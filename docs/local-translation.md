@@ -76,7 +76,8 @@ average at 70 to 180, so its timings are not comparable with the benchmark.
   resolved the self-correction ("на четыре часа") in 6 of 6.
 - Gemma 4 E2B, Russian first: "When is the release planned?" came back
   unchanged in 3 of 6 runs, and German came out in English instead of Russian
-  in 6 of 6. Rewrite kept "на три часа, не на четыре" in 6 of 6.
+  in 6 of 6 (French and Spanish too, 12 of 12 on October 22, which the echo
+  retry cannot catch: [local model candidates](local-model-candidates.md)). Rewrite kept "на три часа, не на четыре" in 6 of 6.
 - The benchmark wrote every pair English first, so it never took the
   prompt's "every other case" rule for English and missed the echo.
 - `Translator.translateLocally` therefore asks once more, with the pair

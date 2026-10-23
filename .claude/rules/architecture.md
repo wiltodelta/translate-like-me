@@ -83,7 +83,9 @@ Read before editing this domain.
   The model detects the direction: text in `first` becomes `second`, anything
   else becomes `first` (`Translator.systemPrompt`). On-device detection
   (`NLLanguageRecognizer`) was measured and rejected: constrained to ru/en it
-  called Spanish and "Скинь PR по TranslateLikeMe" English at 1.00.
+  called Spanish and "Скинь PR по TranslateLikeMe" English at 1.00. Gemma 4 E2B
+  breaks the rule for third languages, sending German, French and Spanish to
+  English (`docs/local-translation.md`).
   `Settings.persistLanguagePairs()` runs first at launch and writes the pairs
   once: the pre-pairs `languageA`/`languageB`/`replaceKeyCode` (or ru/en ⌥⌘F for
   an earlier run that kept the defaults) for an existing user, none for a new

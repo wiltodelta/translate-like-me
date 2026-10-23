@@ -196,7 +196,84 @@ run matched the plain output. Not worth adding.
 mlx-swift-lm 3.32.3, pinned on October 22, also has `MTPSpeculativeTokenIterator`
 and a `gemma4_unified_assistant` drafter for Gemma 4 12B; its
 [PR 415](https://github.com/ml-explore/mlx-swift-lm/pull/415) reports about 62%
-acceptance and 1.59× on the 31B. Not measured here.
+acceptance and 1.59× on the 31B. Measured for the 12B in the next section.
+
+### Gemma 4 12B, second round
+
+Twenty-three cases: the fifteen above plus German, French and Spanish inputs to
+a Russian/English pair, two more styled translations (en↔de), a formal one
+(ru→en), a Rewrite beside a received message and a Rewrite of mixed
+Russian-English notes. Three runs each, the same grading, Python mlx-vlm
+0.7.10 and mlx-lm 0.32.2. Two changes were tried, alone and together:
+
+- **Channel mask**: a logit bias of -1e9 on `<|channel>` and `<channel|>`
+  after the chat template's empty thought channel. In the app this is a
+  `LogitProcessor` passed through `GenerationComponents`.
+- **Style fix**: rule (5) of `Translator.systemPrompt` gains "Output only that
+  restyled translation, once: never the literal translation and never a second
+  version." Adding "as one version" to the closing line changed nothing.
+
+| Arm | Thought-channel loop | Two versions, of 15 styled runs | Third language into Russian, of 12 |
+|---|---:|---:|---:|
+| Gemma 4 12B | 2 of 69 runs | 15 | 10 |
+| + mask | 0 | 15 | 12 |
+| + style fix | 2 | 3 | 10 |
+| + mask and style fix | 0 | 3 | 12 |
+| TranslateGemma 12B (shipping) | 0 | 5 | 12 |
+| TranslateGemma 12B + style fix | 0 | 0 | 12 |
+| Gemma 4 E2B (shipping), either prompt | 0 | 0 | 0 |
+
+The mask ends the loop and the style fix ends the duplicate in every styled
+case but one: English to German with a casual style still came back as a
+literal German sentence and a restyled copy in 3 of 3 runs, under both
+wordings.
+
+Cases passing in all three runs:
+
+| Arm | Translation, of 17 | Rewrite, of 6 |
+|---|---:|---:|
+| Gemma 4 12B, mask and style fix | 16 | 6 |
+| TranslateGemma 12B, shipping prompt | 14 | 3 |
+| TranslateGemma 12B, style fix | 15 | 3 |
+| Gemma 4 E2B, shipping prompt | 11, plus 2 echoes the app retries | 3 |
+
+- Gemma 4 12B's one failure is the German duplicate. Its Rewrites were the only
+  ones to answer the received message as the author ("Марк, пятница подходит,
+  но только после обеда. Пришли повестку заранее.") where TranslateGemma kept
+  "Пусть пришлёт" and Gemma 4 E2B wrote "Mark" in Latin script.
+- TranslateGemma 12B also returns two versions with a style today (English to
+  German 3 of 3, Russian to formal English 2 of 3), which the style fix removed
+  in 15 of 15 styled runs. With it the German case came back literal rather
+  than restyled, and misspelled "Budget" as "Budet" in every run, so it still
+  fails. The CI-sentence reordering, "смержу" turned into "проверю" and the
+  invented "Pete," recur.
+- Gemma 4 E2B translated every German, French and Spanish input into English
+  under a Russian/English pair, 12 of 12, against the prompt's rule; the echo
+  retry cannot catch it because the output is not the input.
+
+Draft-model speed, through the app's Swift stack: a temporary release-mode
+XCTest loaded the target with `VLMModelFactory` and
+`mlx-community/gemma-4-12B-it-assistant-4bit` (0.27 GB, the drafter for the
+non-QAT 4-bit target) with `MTPDrafterModelFactory`, then decoded the 23
+prompts greedily with the mask, without a draft and with blocks of 3 and 4,
+interleaved, two rounds. Another session's training job held the GPU at 98%
+throughout, so only ratios inside the process count:
+
+| Block | Accepted drafts | Faster than plain | Decode speedup | Total speedup | Same text |
+|---|---:|---|---:|---:|---|
+| 3 | 64% | 35 of 46 (p 0.0005) | 1.23× | 1.07× | 44 of 46 |
+| 4 | 54% | 33 of 46 (p 0.005) | 1.27× | 1.07× | 44 of 46 |
+
+The total gains little because these runs prefilled the whole prompt, which
+the app's prompt-head reuse would mostly skip. Peak MLX memory with the drafter
+was 7.63 GB, TranslateGemma's tier. Python decoding earlier today, before that job
+started, gave Gemma 4 12B 11-13 tok/s and TranslateGemma 15 tok/s, so the drafter would
+bring them roughly level; a clean paired latency run is still missing.
+
+Adopting it would take: loading `gemma4_unified` through MLXVLM, since
+`LLMModelFactory` does not register it; the channel mask; registering the
+drafter; checking that prompt-head reuse works with the MTP iterator's cache;
+the style fix; and its license is Apache-2.0 rather than the Gemma Terms.
 
 ## What this suggests
 
@@ -208,10 +285,18 @@ acceptance and 1.59× on the 31B. Not measured here.
 - An optional user vocabulary passed as Qwen context is the cheapest measured
   quality gain: a one-argument change, with an effect limited to the words it
   names. Keep it short; whether a long list costs latency is unmeasured.
-- Translation: no candidate replaces TranslateGemma 12B as one model for both
-  jobs. Hy-MT2 7B would need app-side direction detection and a second model for
-  Rewrite. Gemma 4 12B is the one worth another round, with its MTP drafter and
-  a prompt that stops the duplicate styled copy and the third-language loop.
+- Translation: Hy-MT2 7B would need app-side direction detection and a second
+  model for Rewrite. Gemma 4 12B with the channel mask and the style fix passed
+  more cases than TranslateGemma 12B, especially in Rewrite, at the same memory
+  tier; replacing the default needs the integration listed above.
+- The style fix, applied to `Translator.systemPrompt`, was checked live: a
+  temporary XCTest ran the five styled cases three times each through
+  `Translator.translate` (claude, codex, grok) and the local engine
+  (TranslateGemma 12B, Gemma 4 E2B): no run
+  of the 75 returned two versions, and every CLI applied the style. Codex
+  answered "слушай скинь мне доки по апи до вечера плиз" with a formal Russian
+  sentence instead of English in 4 of 9 runs, and in 4 of 6 with the prompt
+  before the fix, so that failure predates it. agy was not run.
 - The shipping prompts have failures of their own: TranslateGemma's formal
   Rewrite takes the example's name, and both shipping models alter meaning in
   single cases. Prompt changes need the live XCTest check described in
