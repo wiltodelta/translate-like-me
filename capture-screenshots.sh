@@ -75,6 +75,7 @@ fi
 # CAPTURE_MODEL_KIND=translation|speech limits that pass to one manager.
 # CAPTURE_MODEL_INTERACTIONS=0 captures the manager without retesting its dismissal routes.
 # CAPTURE_MENU_ONLY=1 refreshes just menu.png and menu-dark.png (and the link preview).
+# CAPTURE_ACTIVITY_ONLY=1 captures translation, Rewrite and dictation indicators.
 # CAPTURE_RESULTS_ONLY=1 with CAPTURE_OUT=<dir> checks empty, partial and full
 # recovery submenus. Its synthetic launch fixtures never call a model or record audio.
 
@@ -440,6 +441,7 @@ launch() {
         arguments+=(-onboardingPreview YES -onboardingStage "${CAPTURE_ONBOARDING_STAGE:-preparation}")
     fi
     if [ -n "${4:-}" ]; then arguments+=(-lastResultsPreview "$4"); fi
+    if [ -n "${5:-}" ]; then arguments+=(-activityPreview "$5"); fi
     if [ -n "$LANGUAGE" ]; then arguments+=(-AppleLanguages "($LANGUAGE)"); fi
     if [ -n "${2:-}" ]; then arguments+=(-dictationPreview "$2"); fi
     open -n "$APP_DIR" --args "${arguments[@]}"
@@ -756,8 +758,40 @@ capture_models() {
     done
 }
 
+# Shipping indicator content with synthetic states, without engines or microphone access.
+capture_activity() {
+    appearance "set dark mode to $1" >/dev/null
+    local state indicator name
+    for state in translation rewrite recording recognizing; do
+        case "$state" in
+            translation|rewrite)
+                launch 0 "" "" "" "$state"
+                if [ "$state" = rewrite ]; then indicator=$(localized Rewrite)
+                else indicator=$(localized Translation); fi
+                name="$state-progress$2" ;;
+            *)
+                launch 0 "$state"
+                indicator=$(localized Dictation)
+                name="dictation-$state$2" ;;
+        esac
+        local frame=""
+        for _ in $(seq 1 20); do
+            frame=$(helper named "$PID" "$indicator")
+            [ -n "$frame" ] && break
+            sleep 0.2
+        done
+        [ -n "$frame" ] || { echo "Activity indicator did not appear: $state"; exit 1; }
+        read -r SX SY SW SH <<< "$frame"
+        show_backdrop "$SX" "$SY" "$SW" "$SH"
+        capture_frame "$name" "$SX" "$SY" "$SW" "$SH"
+        helper dismiss-id "$PID" activity-cancel
+        helper expect-id-absent "$PID" activity-cancel
+    done
+}
+
 # capture_all <dark mode true|false> <file suffix>: every screen in one appearance.
 capture_all() {
+    if [ "${CAPTURE_ACTIVITY_ONLY:-0}" = 1 ]; then capture_activity "$1" "$2"; return; fi
     if [ "${CAPTURE_MODELS_ONLY:-0}" = 1 ]; then capture_models "$1" "$2"; return; fi
     if [ "${CAPTURE_ONBOARDING_ONLY:-0}" = 1 ]; then capture_onboarding "$1" "$2"; return; fi
     if [ "${CAPTURE_RESULTS_ONLY:-0}" = 1 ]; then capture_results "$1" "$2"; return; fi
@@ -793,22 +827,7 @@ capture_all() {
     open_menu
     capture_settings "$(localized Dictation)" "dictation$2"
 
-    # Shipping indicator content with synthetic states, without microphone access.
-    local indicator
-    indicator=$(localized Dictation)
-    for state in recording recognizing; do
-        launch 0 "$state"
-        local frame=""
-        for _ in $(seq 1 20); do
-            frame=$(helper named "$PID" "$indicator")
-            [ -n "$frame" ] && break
-            sleep 0.2
-        done
-        [ -n "$frame" ] || { echo "Dictation indicator did not appear."; exit 1; }
-        read -r SX SY SW SH <<< "$frame"
-        show_backdrop "$SX" "$SY" "$SW" "$SH"
-        capture_frame "dictation-$state$2" "$SX" "$SY" "$SW" "$SH"
-    done
+    capture_activity "$1" "$2"
 }
 
 case "${CAPTURE_APPEARANCE:-both}" in

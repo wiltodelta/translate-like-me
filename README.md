@@ -93,7 +93,8 @@ for a plain translation, useful when reading someone else's words. You can keep
 up to three pairs, each with its own style and shortcut.
 
 Use translation on its own, or after Rewrite to send a polished message in
-another language.
+another language. During translation and Rewrite, a small panel at the bottom
+of the screen shows the operation in progress and lets you cancel it.
 
 <p align="center">
   <picture>

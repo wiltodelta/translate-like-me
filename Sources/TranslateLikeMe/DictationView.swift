@@ -201,28 +201,8 @@ struct DictationIndicatorContent: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: listening ? "mic.fill" : "circle.dotted")
-                .font(.title3)
-                .frame(width: 20)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title).font(.body.weight(.medium))
-                if listening {
-                    ProgressView(value: level)
-                        .accessibilityLabel("Microphone level")
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            Button(action: cancel) {
-                Image(systemName: "xmark").frame(width: 28, height: 28)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Cancel Dictation")
-        }
-        .padding(16)
-        .frame(width: 280, height: 80)
-        .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 16))
+        ActivityIndicatorContent(title: title, symbol: listening ? "mic.fill" : "circle.dotted",
+                                 level: listening ? level : nil, cancelTitle: "Cancel Dictation", cancel: cancel)
     }
 }
 
@@ -233,44 +213,16 @@ private struct LiveDictationIndicator: View {
     }
 }
 
-private final class DictationPanel: NSPanel {
-    override var canBecomeKey: Bool { false }
-    override var canBecomeMain: Bool { false }
-}
-
 @MainActor
 final class DictationIndicator {
     static let shared = DictationIndicator()
-    private var panel: DictationPanel?
+    private let indicator = ActivityIndicator(title: String(localized: "Dictation"))
 
-    func show() { present(LiveDictationIndicator(controller: .shared)) }
-    func hide() { panel?.orderOut(nil) }
+    func show() { indicator.show(LiveDictationIndicator(controller: .shared)) }
+    func hide() { indicator.hide() }
 
     // Deterministic synthetic states for native capture, without opening a mic.
     func preview(_ phase: DictationSession.Phase) {
-        present(DictationIndicatorContent(phase: phase, level: 0.55, cancel: { [weak self] in self?.hide() }))
-    }
-
-    private func present(_ content: some View) {
-        if panel == nil {
-            let window = DictationPanel(contentRect: NSRect(x: 0, y: 0, width: 280, height: 80),
-                                         styleMask: [.borderless, .nonactivatingPanel],
-                                         backing: .buffered, defer: false)
-            window.title = String(localized: "Dictation")
-            window.isOpaque = false
-            window.backgroundColor = .clear
-            window.hasShadow = true
-            window.hidesOnDeactivate = false
-            window.level = .floating
-            window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-            panel = window
-        }
-        guard let panel else { return }
-        panel.contentView = NSHostingView(rootView: content)
-        let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
-        if let frame = screen?.visibleFrame {
-            panel.setFrameOrigin(NSPoint(x: frame.midX - 140, y: frame.minY + 24))
-        }
-        panel.orderFrontRegardless()
+        indicator.show(DictationIndicatorContent(phase: phase, level: 0.55, cancel: { [weak self] in self?.hide() }))
     }
 }

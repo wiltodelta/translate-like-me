@@ -17,22 +17,65 @@ final class TranslationActivity {
     }
 }
 
+typealias SelectionTransform = @Sendable (String) async throws -> String
+
+@MainActor
+struct TranslationInteraction {
+    var showProgress: (PopupController.ResultKind, @escaping () -> Void) -> Void
+    var hideProgress: () -> Void
+    var showError: (String) -> Void
+    var showLimit: (String) -> Void
+    var showResult: (String, PopupController.ResultKind) -> Void
+    var run: @MainActor (PopupController.ResultKind, SelectionTransform) async throws -> SelectionOutcome
+
+    static let live = TranslationInteraction(
+        showProgress: { ActivityIndicator.translation.show(kind: $0, cancel: $1) },
+        hideProgress: { ActivityIndicator.translation.hide() },
+        showError: { PopupController.shared.showError($0) },
+        showLimit: { PopupController.shared.showLimitReached($0) },
+        showResult: { PopupController.shared.showResult($0, kind: $1) },
+        run: { try await runSelection(kind: $0, transform: $1) })
+
+    private static func runSelection(kind: PopupController.ResultKind,
+                                     transform: SelectionTransform) async throws -> SelectionOutcome {
+        // Text Input Sources and the event monitors belong on the main thread.
+        let copyKey = KeyboardLayout.copyKey
+        let pasteKey = KeyboardLayout.pasteKey
+        let activity = SelectionActivity()
+        let stopMonitoring = activity.monitor()
+        defer { stopMonitoring() }
+        // AX can wait on another process. Cancellation here must never send Copy.
+        let pid = await Task.detached(priority: .userInitiated) { SelectionTarget.focusedPID ?? 0 }.value
+        try Task.checkCancellation()
+        let focusedApp = NSRunningApplication(processIdentifier: pid)?.bundleIdentifier ?? "unknown"
+        log.notice("Selection focused app: \(focusedApp, privacy: .public)")
+        return try await SelectionWorkflow(
+            access: LiveSelectionAccess(pid: pid, activity: activity, copyKey: copyKey, pasteKey: pasteKey),
+            didProduceResult: { await LastResults.shared.record($0, kind: kind) }
+        ).run(transform: transform)
+    }
+}
+
 // Drives the translate and rewrite flows: copy the selection, run it through the
 // engine, paste the result back in place. Errors surface in a small cursor-anchored popup.
 //
-// A run checks the original process, user activity and clipboard ownership
-// before insertion. Changed context leaves the result in the popup; the shared
-// paste receipt controls when the clipboard can be restored (SelectionWorkflow).
+// The shared paste receipt controls when the clipboard can be restored
+// (SelectionWorkflow); an undelivered result remains available in the popup.
 @MainActor
 final class TranslationController {
     static let shared = TranslationController()
 
-    private init() {}
+    private let interaction: TranslationInteraction
+    private(set) var operation: Task<Void, Never>?
+
+    init(interaction: TranslationInteraction = .live) { self.interaction = interaction }
+
+    func cancel() { operation?.cancel() }
 
     // Translates the selection with `pair` (each pair has its own shortcut).
     func run(pair: LanguagePair) {
         guard pair.isComplete else {
-            PopupController.shared.showError(
+            interaction.showError(
                 String(localized: "Choose two different languages for this pair in Settings first."))
             return
         }
@@ -60,38 +103,30 @@ final class TranslationController {
             return
         }
         TranslationActivity.shared.isBusy = true
-        // Text Input Sources are read here, on the main thread, not in the workflow.
-        let copyKey = KeyboardLayout.copyKey
-        let pasteKey = KeyboardLayout.pasteKey
-        let activity = SelectionActivity()
-        let stopMonitoring = activity.monitor()
-        Task {
-            defer { TranslationActivity.shared.isBusy = false; stopMonitoring() }
-
-            // AX can wait on another process. Monitor input before the lookup,
-            // so a focus change during it invalidates Copy without blocking UI.
-            let pid = await Task.detached(priority: .userInitiated) { SelectionTarget.focusedPID ?? 0 }.value
-            let focusedApp = NSRunningApplication(processIdentifier: pid)?.bundleIdentifier ?? "unknown"
-            log.notice("""
-                \(action, privacy: .public) started, \(subject, privacy: .public), \
-                focused app: \(focusedApp, privacy: .public)
-                """)
-            let workflow = SelectionWorkflow(access: LiveSelectionAccess(pid: pid, activity: activity,
-                                                                        copyKey: copyKey, pasteKey: pasteKey),
-                                             didProduceResult: { result in
-                                                 await LastResults.shared.record(result, kind: kind)
-                                             })
+        interaction.showProgress(kind) { [weak self] in self?.cancel() }
+        operation = Task {
+            defer {
+                interaction.hideProgress()
+                TranslationActivity.shared.isBusy = false
+                operation = nil
+            }
+            log.notice("\(action, privacy: .public) started, \(subject, privacy: .public)")
             do {
-                switch try await workflow.run(transform: transform) {
+                try Task.checkCancellation()
+                let outcome = try await interaction.run(kind, transform)
+                try Task.checkCancellation()
+                switch outcome {
                 case .noSelection:
-                    PopupController.shared.showError(
+                    interaction.showError(
                         String(localized: "No text selected. Select some text first, then try again."))
                 case .pasted:
                     log.info("\(action, privacy: .public) done, selection replaced")
                 case .result(let result):
                     log.info("\(action, privacy: .public) done, result shown without automatic insertion")
-                    PopupController.shared.showResult(result, kind: kind)
+                    interaction.showResult(result, kind)
                 }
+            } catch where Task.isCancelled || error is CancellationError {
+                log.info("\(action, privacy: .public) cancelled")
             } catch {
                 // The message can quote the engine's output, so it stays private.
                 let kind = String(describing: type(of: error))
@@ -100,9 +135,9 @@ final class TranslationController {
                     \(action, privacy: .public) failed (\(kind, privacy: .public)): \(detail, privacy: .private)
                     """)
                 if let limit = error as? LimitReachedError {
-                    PopupController.shared.showLimitReached(limit.message)
+                    interaction.showLimit(limit.message)
                 } else {
-                    PopupController.shared.showError(error.localizedDescription)
+                    interaction.showError(error.localizedDescription)
                 }
             }
         }

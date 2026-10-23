@@ -92,7 +92,14 @@ Read before editing this domain.
   earlier single global `style` into every pair when none has a style yet,
   and removes it.
   `TranslationController.run(pair:)` copies the
-  selection, translates, and pastes back.
+  selection, translates, and pastes back. Translation and Rewrite show the shared
+  nonactivating `ActivityIndicator` at the bottom of the pointer's screen, with
+  Translating / Rewriting and a Cancel button. `TranslationInteraction` injects
+  selection execution and presentation for controller tests. Progress spans the
+  selection lookup, engine and paste receipt; every exit hides it. Cancellation
+  keeps the busy guard until unwinding, suppresses late results and errors, and
+  checks cancellation after the AX lookup before sending Copy. Dictation uses
+  the same panel and content geometry through `DictationIndicator`.
 - Rewrite presets (`RewritePreset`, up to `Rewrite.maxPresets` = 3, stored as
   JSON in `Settings.rewritePresets`, edited in the Rewrite pane) each carry a name (the menu item's title; new ones are "Preset
   <n>"), an optional shortcut and a writing style. The shared RemoveButton confirms

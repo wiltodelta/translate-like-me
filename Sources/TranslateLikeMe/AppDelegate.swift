@@ -69,6 +69,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if Settings.didCompleteFirstRun { ensureAccessibilityPermission() }
         showOnboardingOnFirstRun()
         Updater.shared.start()
+        if Bundle.main.bundleIdentifier == "com.wiltodelta.translatelikeme.dev",
+           let preview = UserDefaults.standard.string(forKey: "activityPreview") {
+            ActivityIndicator.translation.show(kind: preview == "rewrite" ? .message : .translation) {
+                ActivityIndicator.translation.hide()
+            }
+        }
         if let preview = dictationPreview, preview != "settings" {
             DictationIndicator.shared.preview(preview == "recording" ? .recording : .recognizing)
         }

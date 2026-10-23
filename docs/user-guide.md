@@ -85,6 +85,10 @@ available. Copying is explicit and does not run the engine again.
   Rewrite) to replace them with a finished message. The menu then also lists
   a **Rewrite selection** section with one item per preset.
 - Open Settings with ⌘, when the app is active, or reopen the app to bring Settings back.
+- During translation and Rewrite, a small panel at the bottom of the screen
+  shows **Translating…** or **Rewriting…**. Its cross button cancels the operation.
+  The panel stays visible until the operation finishes without taking focus from
+  the editor.
 - The icon shows a busy glyph while a translation is running. A run that stops responding
   times out after two minutes so another translation can start.
 - Automatic insertion requires the original app to keep focus, with no typing,
