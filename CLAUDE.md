@@ -24,6 +24,10 @@ and mail forwarding in Cloudflare. Full
 detail, including the secrets and where the keys are kept (1Password):
 `docs/build-and-release.md`.
 
+## Personal website
+
+Victor's personal website (`wiltodelta/wiltodelta-app`, page `/projects/translate-like-me/`) imports `screenshots/general.png`, `screenshots/general-dark.png` and the README sections "Features", "Speak first, polish afterwards" from each stable release at its tag. The two section names are alternatives: either one must exist. Before tagging a release whose UI changed, regenerate those screenshots. Do not rename or remove them, or those sections, without updating `releaseSource` in that repository's `src/data/project-catalog.json` in the same change. After publishing, run `pnpm run build:products` there, read the page, and update its copy (`project-catalog.json`) when user-visible behavior changed. Nothing does this automatically yet; the full procedure is `docs/product-updates.md` there, "What product repositories owe the site".
+
 ## Code quality
 
 - `bash maintain.sh` runs the canonical Swift gate.
