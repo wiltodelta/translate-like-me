@@ -91,19 +91,21 @@ final class HotKeyManager {
         optionMonitorID = id
         optionGesture = OptionKeyGesture(keyCode: keyCode, initialFlags: NSEvent.modifierFlags)
         let observe: @Sendable (NSEvent) -> Void = { event in
-            let changed = event.type == .flagsChanged
-            let code = changed ? Int(event.keyCode) : 0
+            let type = event.type
+            let code = type == .flagsChanged ? Int(event.keyCode) : 0
             let flags = event.modifierFlags
-            let eventType = event.type.rawValue
+            let momentum = type == .scrollWheel ? event.momentumPhase : []
             MainActor.assumeIsolated {
                 let manager = HotKeyManager.shared
                 guard manager.optionMonitorID == id else { return }
-                let action = changed
-                    ? manager.optionGesture?.flagsChanged(keyCode: code, flags: flags)
-                    : manager.optionGesture?.cancel()
+                let action = manager.optionGesture?.handle(type: type, keyCode: code, flags: flags,
+                                                          momentumPhase: momentum)
                 if action == .cancel {
                     // Classify cancellation without logging typed keys or characters.
-                    log.notice("Dictation input cancellation: event type \(eventType), modifiers \(flags.rawValue)")
+                    log.notice("""
+                        Dictation input cancellation: event type \(type.rawValue), modifiers \(flags.rawValue), \
+                        momentum \(momentum.rawValue)
+                        """)
                 }
                 manager.apply(action)
             }

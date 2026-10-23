@@ -60,7 +60,8 @@ available. Copying is explicit and does not run the engine again.
   and insert the text. Recording continues briefly after you let go, up to a
   second and less once you have fallen quiet, so a last word is not cut off. In **Hold key**, you can record the left
   Option instead. Other input during the hold cancels dictation, so an Option
-  combination does not insert speech. There is no tap-to-toggle mode or menu
+  combination does not insert speech. Inertial scrolling from an earlier trackpad
+  gesture does not cancel recording. There is no tap-to-toggle mode or menu
   command to start recording. Recording is bounded to five minutes. The menu
   offers **Copy Last Result > Dictation** to recover the latest transcript.
   Languages in your configured translation pairs receive a preference during

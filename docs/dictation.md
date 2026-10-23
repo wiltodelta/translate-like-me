@@ -21,7 +21,8 @@ settings or cancels an active session; it never starts a separate recording.
 To choose the other Option, click Hold key and press and release left Option.
 The two sides are separate bindings; the binding can also be cleared. Earlier
 ordinary-combination preferences are read as right Option. Other input during a
-hold cancels that recording, including Option combinations. Recording uses the
+hold cancels that recording, including Option combinations. Inertial scrolling
+from a previous gesture does not cancel it. Recording uses the
 Microphone chosen in Settings > Dictation while it is connected, otherwise the
 system input, resolved each time recording starts.
 
@@ -227,6 +228,17 @@ events after re-registration; Carbon actions explicitly cancel an armed Option
 press because Carbon can consume the intervening key before NSEvent sees it.
 Repeated flags for the same held Option are ignored. They do not cancel capture
 or rearm a hold blocked by another key or input event.
+Momentum scroll events from a previous flick also leave the hold intact. Direct
+scrolling, keys and pointer input still cancel it. Recording starts independently
+of text-field focus; only delivery resolves the current destination.
+On October 23, 2026, the installed app's notice log showed a press at 09:47:30
+immediately cancelled by a scroll-wheel event while still starting. That log did
+not include the momentum phase, so it establishes scroll cancellation but does
+not prove whether that event was inertial. Cancellation diagnostics now include
+the momentum phase. A regression test constructs native scroll events for all
+three momentum phases, verifies AppKit's decoded phases and checks that release
+still completes the hold. A separate test keeps direct scroll, key and pointer
+cancellation covered for both Option keys.
 The held-key monitor stays installed through capture. Resetting it on press
 would lose the release event. There is no dedicated dictation cancellation key:
 reaching for Escape while holding Option is awkward, and the interval after

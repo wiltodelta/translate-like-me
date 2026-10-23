@@ -163,7 +163,8 @@ Compute-policy findings and the reproducible synthetic benchmark:
   other input during the hold cancels. No toggle, menu-start path or dedicated cancellation key.
   Escape is not registered for dictation. Keep the hold monitor alive on press
   or its release will be lost. `OptionKeyGesture` observes local/global NSEvent events.
-  Keys, other modifiers, clicks and scroll cancel. Carbon actions cancel too.
+  Keys, other modifiers, clicks and direct scrolling cancel. Momentum scroll
+  events from a previous flick do not cancel the hold. Carbon actions cancel too.
   Repeated flags for the same held Option are ignored, not treated as new input;
   they never rearm a hold already blocked by cancellation.
   Release during microphone startup drains active capture or cancels its pending start;

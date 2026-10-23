@@ -17,6 +17,16 @@ struct OptionKeyGesture {
         blocked = !Self.modifiers(initialFlags).isEmpty
     }
 
+    mutating func handle(type: NSEvent.EventType, keyCode: Int, flags: NSEvent.ModifierFlags,
+                         momentumPhase: NSEvent.Phase = []) -> Action? {
+        if type == .flagsChanged {
+            return flagsChanged(keyCode: keyCode, flags: flags)
+        }
+        // A previous flick can keep scrolling after the user presses Option.
+        if type == .scrollWheel && !momentumPhase.isEmpty { return nil }
+        return cancel()
+    }
+
     mutating func flagsChanged(keyCode: Int, flags: NSEvent.ModifierFlags) -> Action? {
         let active = Self.modifiers(flags)
         if !active.contains(.option) {
