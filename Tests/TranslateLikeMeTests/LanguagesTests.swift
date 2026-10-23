@@ -254,8 +254,10 @@ final class LanguagesTests: XCTestCase {
     func testPromptCarriesOnlyItsOwnPairsStyle() {
         var styled = pair("ru", "en")
         styled.style = "Casual, short sentences."
-        XCTAssertTrue(Translator.systemPrompt(pair: styled).contains("in this voice"))
-        XCTAssertTrue(Translator.systemPrompt(pair: styled).contains("Casual, short sentences."))
+        let prompt = Translator.systemPrompt(pair: styled)
+        XCTAssertTrue(prompt.contains("in this voice"))
+        XCTAssertTrue(prompt.contains("Casual, short sentences."))
+        XCTAssertTrue(prompt.contains("never a second version"))
         styled.style = " \n"
         XCTAssertFalse(Translator.systemPrompt(pair: styled).contains("in this voice"))
     }

@@ -139,6 +139,10 @@ enum Translator {
                 + "while keeping the language and meaning: \(style) "
                 + "Restyling is a step applied AFTER translating; "
                 + "it never replaces the translation or changes its language. "
+                // TranslateGemma 12B otherwise returned the literal translation
+                // and a restyled copy (docs/local-model-candidates.md).
+                + "Output only that restyled translation, once: never the literal translation "
+                + "and never a second version. "
             examples += "\nExample (style: casual, lots of slang, short punchy sentences): "
                 + "input \"The quarterly report is ready and has been sent to the finance department for review.\" "
                 + "-> output is NOT a literal translation like "
