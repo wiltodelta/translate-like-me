@@ -1,4 +1,4 @@
-# Local model candidates (October 22, 2026)
+# Local model candidates (October 22-23, 2026)
 
 > Research snapshot. The shipping catalog is in [dictation](dictation.md) and
 > [local translation](local-translation.md); nothing here changed it.
@@ -116,10 +116,15 @@ Per clip, sign test:
 - 4-bit saves 0.86 GB of download and 0.7 GB of peak, not half: the peak during
   long clips (podcast clips run to 59 s) is activations, not weights. Between
   clips both stayed under 2.8 GB.
-- Latency was not measured cleanly: another session's training job held the
-  GPU at 89-98% throughout, which slows the GPU-bound Qwen and barely touches
-  Turbo on the Neural Engine. The one usable result is same-device: 4-bit was
-  faster than 8-bit in 173 of 200 pairs.
+- Latency, rerun with the same probe on October 23 on a quiet machine: the
+  median clip took Turbo 1.16 s, 4-bit 1.20 s and 8-bit 1.37 s. Per clip,
+  4-bit and Turbo were level (4-bit faster in 54 of 100), 8-bit was slower
+  than Turbo in 65 of 100 (p 0.004, median 1.20× Turbo's time), and 4-bit was
+  faster than 8-bit in 68 of 100 (p 0.0004, 0.82× 8-bit's time). A second
+  round, under other processes holding the load average near 30, slowed every
+  arm and reversed these orderings, so it is not used. The first measurement,
+  while another session's training job held the GPU, had 4-bit faster than
+  8-bit in 173 of 200 pairs.
 
 ## Translation and Rewrite
 
@@ -268,31 +273,49 @@ throughout, so only ratios inside the process count:
 | 3 | 64% | 35 of 46 (p 0.0005) | 1.23× | 1.07× | 44 of 46 |
 | 4 | 54% | 33 of 46 (p 0.005) | 1.27× | 1.07× | 44 of 46 |
 
-The total gains little because these runs prefilled the whole prompt, which
-the app's prompt-head reuse would mostly skip. Peak MLX memory with the drafter
-was 7.63 GB, TranslateGemma's tier. Python decoding earlier today, before that job
-started, gave Gemma 4 12B 11-13 tok/s and TranslateGemma 15 tok/s, so the drafter would
-bring them roughly level; a clean paired latency run is still missing.
+The total gained little because these runs prefilled the whole prompt; with
+the app's prompt-head reuse the drafter's total speedup is 1.29× (below).
+
+Clean latency, October 23: the same 23 prompts through the app's own path for
+each model (`LLMModelFactory` for TranslateGemma, MLXVLM with the mask for
+Gemma 4 12B), with `MLXLoader.PromptHeads` reusing the instructions as the app
+does, the app's sampling (0.3 / 0.95), one warm-up pass building the heads,
+then one measured pass; each arm in a fresh process, two rounds in reversed
+order, no other compute job running. Peak is MLX's in the Swift process, so it
+reads higher than the Python peaks above.
+
+| Arm | Median / p90 | First text | Decode | Peak |
+|---|---|---|---:|---:|
+| TranslateGemma 12B (shipping) | 3.63 / 6.85 s | 1.06 s | 10.3 tok/s | 8.06 GB |
+| Gemma 4 12B | 3.90 / 7.21 s | 1.18 s | 8.8 tok/s | 7.96 GB |
+| Gemma 4 12B + drafter (block 3) | 2.83 / 5.84 s | 0.95 s | 12.8 tok/s | 8.20 GB |
+
+Per prompt, the drafter made Gemma 4 12B faster in 42 of 46 runs (p 5e-9,
+median 1.29×) and faster than TranslateGemma in 32 of 46 (p 0.011, 1.18×);
+without it Gemma 4 12B and TranslateGemma were level (20 of 46). Every run
+reused its prompt head, drafts were again accepted at 64%, and outputs matched
+the quality round, including the German duplicate. GPU utilization had a
+median of 91%, all of it these runs.
 
 Adopting it would take: loading `gemma4_unified` through MLXVLM, since
 `LLMModelFactory` does not register it; the channel mask; registering the
-drafter; checking that prompt-head reuse works with the MTP iterator's cache;
-the style fix; and its license is Apache-2.0 rather than the Gemma Terms.
+drafter; the style fix; and its license is Apache-2.0 rather than the Gemma Terms.
 
 ## What this suggests
 
 - Dictation, above 16 GiB: keep Qwen3-ASR 1.7B 8-bit; 0.6B 4-bit is unusable.
 - Dictation, 16 GiB and below: 4-bit is not worth a catalog entry (paired
   app-path run above). If Qwen is to be offered at 16 GiB, the case is for the
-  shipping 8-bit, decided by a clean latency run and the memory it leaves beside
-  the translation model.
+  shipping 8-bit: clearly more accurate than Turbo in reading, about 20% slower
+  per clip, and 5.7 GB at peak beside the translation model.
 - An optional user vocabulary passed as Qwen context is the cheapest measured
   quality gain: a one-argument change, with an effect limited to the words it
   names. Keep it short; whether a long list costs latency is unmeasured.
 - Translation: Hy-MT2 7B would need app-side direction detection and a second
   model for Rewrite. Gemma 4 12B with the channel mask and the style fix passed
   more cases than TranslateGemma 12B, especially in Rewrite, at the same memory
-  tier; replacing the default needs the integration listed above.
+  tier, and with its drafter answered a median 1.18× faster per prompt;
+  replacing the default needs the integration listed above.
 - The style fix, applied to `Translator.systemPrompt`, was checked live: a
   temporary XCTest ran the five styled cases three times each through
   `Translator.translate` (claude, codex, grok) and the local engine

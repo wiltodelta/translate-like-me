@@ -129,7 +129,8 @@ Victor's personal website (`wiltodelta/wiltodelta-app`, page `/projects/translat
   benchmarks and their method: `docs/local-model-candidates.md`; survey candidates by sweeping
   publishers' Hugging Face listings by date, since a list of model families missed one. Read GPU load before
   timing an MLX probe (`ioreg -r -d 1 -c IOAccelerator`, `Device Utilization %`):
-  another session's training held it at 89-98% through a whole run (2026-10-22). A microphone probe built from the
+  another session's training held it at 89-98% through a whole run (2026-10-22). Read the load average too
+  (`sysctl -n vm.loadavg`): near 30 it slowed every dictation arm and reversed their order (2026-10-23). A microphone probe built from the
   worker's sources stays off the speakers when launched with
   `-dictationMutedOutputDevice probe-none` (argument domain): the mute sees a
   pending record and never engages.
