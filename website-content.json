@@ -1,0 +1,26 @@
+{
+  "intro": "Select text in any Mac app and translate it in place with a shortcut. Add your writing style, turn rough notes into a message, or dictate at the cursor.",
+  "requirements": "macOS 15 or later on a Mac with Apple silicon. Allow Accessibility access to replace selected text and microphone access for dictation.",
+  "sections": [
+    [
+      "Translate without copying and pasting",
+      "Select text in the app you are using and press a shortcut. The translation replaces your selection, so you can keep writing. Write in either language: the app works out which way to translate. Keep a few language pairs, each with its own shortcut and style. A small progress panel lets you cancel translation or Rewrite."
+    ],
+    [
+      "Make it sound like you",
+      "Describe how you like to write. Use a different style for a personal message and a work email, or turn rough notes into a finished message with Rewrite. Select a message you received together with your notes, and Rewrite drafts your reply."
+    ],
+    [
+      "Speak instead of typing",
+      "Hold a key, say what you want to write and release it. Your words appear where you were typing. Speech recognition happens on your Mac. Most players pause while you speak and resume afterwards."
+    ],
+    [
+      "Choose where translation happens",
+      "Use a supported AI service or download a local model to translate and rewrite on your Mac. Gemma 4 12B is the new choice for larger Macs, with a lighter option for Macs with less memory. Local models work without an account after the download, and interrupted downloads resume."
+    ],
+    [
+      "Your text is never lost",
+      "If you switch apps or the text can’t be replaced, the result appears in a small window you can copy from. Your clipboard comes back as it was, and the menu keeps your last results until you quit."
+    ]
+  ]
+}

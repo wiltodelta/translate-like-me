@@ -77,8 +77,11 @@ checkout's caches intact.
   `CAPTURE_APPEARANCE=current` to leave the system theme and pointer untouched;
   the capture fails if the theme changes while a frame is being recorded.
   `CAPTURE_ACTIVITY_ONLY=1 CAPTURE_OUT=<dir> ./capture-screenshots.sh` captures
-  all four activity states and presses each Cancel button to verify dismissal.
+  all four activity states, waits for each panel frame to settle, and presses
+  each Cancel button to verify dismissal.
   Add `CAPTURE_LANGUAGE=de` to check the German labels.
+  Release 3.7.12 captures use `CAPTURE_LOCAL_MODEL=gemma-4-12b` to show the
+  newly available model in Translation and Manage Models.
   `CAPTURE_RESULTS_ONLY=1 CAPTURE_OUT=<dir> ./capture-screenshots.sh` checks
   the recovery submenu's empty, partial and full states.
 - **CRITICAL:** `swift build` alone updates only the SwiftPM build directory; it
@@ -191,7 +194,12 @@ gh release download vX.Y.Z -p "*.zip" -D /tmp/asset-check && \
 ## Website
 
 The product page is <https://wiltodelta.com/projects/translate-like-me/> on
-Victor's personal website. Since 2026-10-23 `translatelikeme.com` only
+Victor's personal website. `website-content.json` supplies its introduction and
+feature sections from the published release tag, alongside the General settings
+screenshots. Refresh the website with `pnpm run build:products` in
+`wiltodelta-app` after publication; a live deployment needs separate approval.
+
+Since 2026-10-23 `translatelikeme.com` only
 redirects there: a Cloudflare Redirect Rule ("Redirect to wiltodelta.com
 product page") answers every request on the root and `www` with a 301, over
 a proxied placeholder A record `192.0.2.1` and a proxied `www` CNAME to the

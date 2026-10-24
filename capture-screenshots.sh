@@ -781,8 +781,17 @@ capture_activity() {
             sleep 0.2
         done
         [ -n "$frame" ] || { echo "Activity indicator did not appear: $state"; exit 1; }
-        read -r SX SY SW SH <<< "$frame"
-        show_backdrop "$SX" "$SY" "$SW" "$SH"
+        local stable=NO latest=""
+        for _ in 1 2 3; do
+            read -r SX SY SW SH <<< "$frame"
+            show_backdrop "$SX" "$SY" "$SW" "$SH"
+            latest=$(helper named "$PID" "$indicator")
+            if [ "$latest" = "$frame" ]; then stable=YES; break; fi
+            kill "$BACKDROP_PID"; wait "$BACKDROP_PID" 2>/dev/null || true; BACKDROP_PID=""
+            frame="$latest"
+            [ -n "$frame" ] || { echo "Activity indicator closed during capture: $state"; exit 1; }
+        done
+        [ "$stable" = YES ] || { echo "Activity indicator did not settle: $state"; exit 1; }
         capture_frame "$name" "$SX" "$SY" "$SW" "$SH"
         helper dismiss-id "$PID" activity-cancel
         helper expect-id-absent "$PID" activity-cancel
