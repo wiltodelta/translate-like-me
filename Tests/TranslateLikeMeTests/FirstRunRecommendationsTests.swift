@@ -100,9 +100,9 @@ final class FirstRunRecommendationsTests: XCTestCase {
                 physicalMemory: UInt64(memory) << 30, availableStorage: needed), .gemma4E2B)
         }
         for memory in [18, 24, 32, 64] {
-            let needed = LocalModel.translateGemma12B.downloadBytes + LocalModelFiles.storageMargin
+            let needed = LocalModel.gemma4Model12B.downloadBytes + LocalModelFiles.storageMargin
             XCTAssertEqual(FirstRunRecommendations.localFallback(languages: ["ru", "en"],
-                physicalMemory: UInt64(memory) << 30, availableStorage: needed), .translateGemma12B)
+                physicalMemory: UInt64(memory) << 30, availableStorage: needed), .gemma4Model12B)
         }
     }
 
@@ -112,7 +112,7 @@ final class FirstRunRecommendationsTests: XCTestCase {
                 FirstRunRecommendations.apply(in: defaults, suggestions: ["ru", "en"],
                                               physicalMemory: memory << 30)
                 XCTAssertEqual(defaults.string(forKey: "localModel"),
-                               (memory <= 16 ? LocalModel.gemma4E2B : .translateGemma12B).rawValue)
+                               (memory <= 16 ? LocalModel.gemma4E2B : .gemma4Model12B).rawValue)
                 XCTAssertEqual(defaults.string(forKey: "dictationModel"),
                                (memory <= 16 ? DictationModel.turbo : .qwen3ASR).rawValue)
                 FirstRunRecommendations.apply(in: defaults, suggestions: ["de", "en"],
@@ -125,7 +125,7 @@ final class FirstRunRecommendationsTests: XCTestCase {
 
     func testLocalOfferRequiresMeasuredLanguagesMemoryAndSelectedModelStorage() {
         for memory: UInt64 in [8, 16, 24, 32] {
-            let model: LocalModel = memory <= 16 ? .gemma4E2B : .translateGemma12B
+            let model: LocalModel = memory <= 16 ? .gemma4E2B : .gemma4Model12B
             let needed = model.downloadBytes + LocalModelFiles.storageMargin
             XCTAssertNil(FirstRunRecommendations.localFallback(languages: ["en"],
                 physicalMemory: memory << 30, availableStorage: needed, installed: true))

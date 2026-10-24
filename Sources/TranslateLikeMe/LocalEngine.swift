@@ -2,6 +2,7 @@ import Foundation
 import MLX
 import MLXLLM
 import MLXLMCommon
+import MLXVLM
 import os
 @preconcurrency import WhisperKit
 
@@ -14,7 +15,8 @@ protocol LocalGenerating: Sendable {
 }
 
 protocol LocalLoading: Sendable {
-    func load(_ model: LocalModel, from directory: URL) async throws -> any LocalGenerating
+    // `drafter` is the draft model's directory when the model has one.
+    func load(_ model: LocalModel, from directory: URL, drafter: URL?) async throws -> any LocalGenerating
     // Frees what the unloaded model left in the runtime's buffer cache.
     func release()
 }
@@ -98,7 +100,8 @@ actor LocalEngine {
         unloadNow()
         startPressureMonitor()
         let started = ContinuousClock.now
-        let generator = try await loader.load(model, from: files.root(for: model))
+        let generator = try await loader.load(model, from: files.root(for: model),
+                                              drafter: files.drafterRoot(for: model))
         try Task.checkCancellation()
         let elapsed = started.duration(to: .now)
         log.notice("Local model \(model.rawValue, privacy: .public) loaded in \(elapsed, privacy: .public)")
@@ -148,19 +151,46 @@ actor LocalEngine {
 // Python's token ids on both models' prompts, checked 2026-10-20); the prompt's
 // turn markers come from LocalModel, so no chat template is needed.
 struct MLXLoader: LocalLoading {
-    func load(_ model: LocalModel, from directory: URL) async throws -> any LocalGenerating {
+    // Tokens per drafting round, one of them the previous round's bonus; 3
+    // was as fast as 4 with more drafts accepted (docs/local-model-candidates.md).
+    static let draftBlock = 3
+
+    func load(_ model: LocalModel, from directory: URL, drafter: URL?) async throws -> any LocalGenerating {
         guard MLXKernels.use() else { throw CocoaError(.fileNoSuchFile) }
         // MLX otherwise keeps freed buffers up to the memory limit.
         Memory.cacheLimit = 64 << 20
-        let container = try await LLMModelFactory.shared.loadContainer(from: directory, using: TokenizerLoader())
-        return Generator(container: container, heads: PromptHeads())
+        let container = model.loadsThroughVLM
+            ? try await VLMModelFactory.shared.loadContainer(from: directory, using: TokenizerLoader())
+            : try await LLMModelFactory.shared.loadContainer(from: directory, using: TokenizerLoader())
+        let maskIDs = await container.perform { (context: ModelContext) in
+            model.maskedTokens.compactMap { context.tokenizer.convertTokenToId($0) }
+        }
+        if maskIDs.count != model.maskedTokens.count {
+            log.error("Local model \(model.rawValue, privacy: .public) lacks a token it must mask")
+        }
+        var draft: Draft?
+        if let drafter {
+            await Gemma4AssistantRegistration.register()
+            draft = Draft(model: try await MTPDrafterModelFactory.shared.load(from: drafter,
+                                                                              using: TokenizerLoader()).model)
+        }
+        return Generator(container: container, heads: PromptHeads(), draft: draft, maskIDs: maskIDs)
     }
 
     func release() { Memory.clearCache() }
 
+    // The draft model is not Sendable; it is used only inside the target's
+    // `ModelContainer.perform`, which runs one generation at a time.
+    final class Draft: @unchecked Sendable {
+        let model: any MTPDrafterModel
+        init(model: any MTPDrafterModel) { self.model = model }
+    }
+
     private struct Generator: LocalGenerating {
         let container: ModelContainer
         let heads: PromptHeads
+        let draft: Draft?
+        let maskIDs: [Int]
 
         // The sampling of the benchmark (temperature 0.3, top-p 0.95). A
         // cancelled run drains the SDK producer before releasing the model.
@@ -173,13 +203,51 @@ struct MLXLoader: LocalLoading {
                 let parameters = GenerateParameters(maxTokens: maxTokens, temperature: 0.3, topP: 0.95)
                 let (cache, rest) = try heads.split(tokens, head: context.tokenizer.encode(text: head,
                     addSpecialTokens: false), model: context.model, parameters: parameters)
-                let iterator = try TokenIterator(input: LMInput(tokens: MLXArray(rest)), model: context.model,
-                                                 cache: cache, parameters: parameters)
-                let (stream, producer) = generateTask(promptTokenCount: tokens.count,
-                    modelConfiguration: context.configuration, tokenizer: context.tokenizer, iterator: iterator)
+                let input = LMInput(tokens: MLXArray(rest))
+                let ids = maskIDs
+                let components = ids.isEmpty ? GenerationComponents()
+                    : GenerationComponents(logitProcessorFactory: { TokenMask(ids: ids) })
+                func start<Iterator: TokenIteratorProtocol>(_ iterator: Iterator)
+                    -> (AsyncStream<Generation>, Task<Void, Never>) {
+                    generateTask(promptTokenCount: tokens.count, modelConfiguration: context.configuration,
+                                 tokenizer: context.tokenizer, iterator: iterator)
+                }
+                let (stream, producer) = if let draft {
+                    start(try MTPSpeculativeTokenIterator(input: input, mainModel: context.model,
+                        drafter: draft.model, mainCache: cache, parameters: parameters, blockSize: MLXLoader.draftBlock,
+                        components: components))
+                } else {
+                    start(try TokenIterator(input: input, model: context.model, cache: cache,
+                                            parameters: parameters, components: components))
+                }
                 return try await LocalGeneration.collect(stream, producer: producer)
             }
         }
+    }
+
+    // Rules tokens out of the answer by a bias no logit can overcome. The
+    // bias spans the vocabulary, so it is built once per generation; the
+    // speculative iterator's copies share it, as they share the generation.
+    struct TokenMask: LogitProcessor {
+        let ids: [Int]
+        private let bias = TokenMaskBias()
+
+        init(ids: [Int]) { self.ids = ids }
+
+        mutating func prompt(_ prompt: MLXArray) {}
+
+        func process(logits: MLXArray) -> MLXArray {
+            if let values = bias.values, values.dim(-1) == logits.dim(-1), values.dtype == logits.dtype {
+                return logits + values
+            }
+            var values = [Float](repeating: 0, count: logits.dim(-1))
+            for id in ids where id < values.count { values[id] = -1e9 }
+            let built = MLXArray(values).asType(logits.dtype)
+            bias.values = built
+            return logits + built
+        }
+
+        mutating func didSample(token: MLXArray) {}
     }
 
     // The instructions open every prompt, about 360 of TranslateGemma's 380
@@ -243,6 +311,11 @@ struct MLXLoader: LocalLoading {
             throw TokenizerError.missingChatTemplate
         }
     }
+}
+
+// One generation's mask bias, shared by the copies of its `TokenMask`.
+final class TokenMaskBias {
+    var values: MLXArray?
 }
 
 // Collect one SDK generation. The producer owns the model until it completes.

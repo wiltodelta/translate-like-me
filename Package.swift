@@ -30,6 +30,7 @@ let package = Package(
                            .product(name: "MLXAudioSTT", package: "mlx-audio-swift"),
                            .product(name: "MLX", package: "mlx-swift"),
                            .product(name: "MLXLLM", package: "mlx-swift-lm"),
+                           .product(name: "MLXVLM", package: "mlx-swift-lm"),
                            .product(name: "MLXLMCommon", package: "mlx-swift-lm")],
             path: "Sources/TranslateLikeMe",
             // The compiler lists every localizable string it type-checked, one

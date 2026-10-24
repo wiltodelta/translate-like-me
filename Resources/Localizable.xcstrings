@@ -11664,60 +11664,60 @@
         }
       }
     },
-    "The most accurate, writing styles and Rewrite included. About 6.7 GB to download, needs 16 GB of memory." : {
+    "The most accurate, writing styles and Rewrite included. About 7 GB to download, needs 16 GB of memory." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Am genauesten, auch mit Schreibstil und beim Umschreiben. Etwa 6,7 GB Download, braucht 16 GB Arbeitsspeicher."
+            "value" : "Am genauesten, auch mit Schreibstil und beim Umschreiben. Etwa 7 GB Download, braucht 16 GB Arbeitsspeicher."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "El más preciso, también con estilo de escritura y al reescribir. Unos 6,7 GB de descarga; necesita 16 GB de memoria."
+            "value" : "El más preciso, también con estilo de escritura y al reescribir. Unos 7 GB de descarga; necesita 16 GB de memoria."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Le plus précis, y compris avec un style d’écriture et pour la réécriture. Environ 6,7 Go à télécharger, nécessite 16 Go de mémoire."
+            "value" : "Le plus précis, y compris avec un style d’écriture et pour la réécriture. Environ 7 Go à télécharger, nécessite 16 Go de mémoire."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Il più preciso, anche con lo stile di scrittura e nella riscrittura. Download di circa 6,7 GB, richiede 16 GB di memoria."
+            "value" : "Il più preciso, anche con lo stile di scrittura e nella riscrittura. Download di circa 7 GB, richiede 16 GB di memoria."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "最も正確で、文体の指定や書き直しにも対応します。ダウンロードは約6.7 GB、16 GBのメモリが必要です。"
+            "value" : "最も正確で、文体の指定や書き直しにも対応します。ダウンロードは約7 GB、16 GBのメモリが必要です。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "가장 정확하며 글쓰기 스타일과 다시 쓰기에도 잘 맞습니다. 다운로드 크기 약 6.7GB, 메모리 16GB가 필요합니다."
+            "value" : "가장 정확하며 글쓰기 스타일과 다시 쓰기에도 잘 맞습니다. 다운로드 크기 약 7GB, 메모리 16GB가 필요합니다."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O mais preciso, inclusive com estilo de escrita e ao reescrever. Cerca de 6,7 GB para baixar; precisa de 16 GB de memória."
+            "value" : "O mais preciso, inclusive com estilo de escrita e ao reescrever. Cerca de 7 GB para baixar; precisa de 16 GB de memória."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Самая точная, в том числе со стилем письма и при переписывании. Загрузка около 6,7 ГБ, нужно 16 ГБ памяти."
+            "value" : "Самая точная, в том числе со стилем письма и при переписывании. Загрузка около 7 ГБ, нужно 16 ГБ памяти."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "最准确，写作风格和改写同样出色。需下载约 6.7 GB，需要 16 GB 内存。"
+            "value" : "最准确，写作风格和改写同样出色。需下载约 7 GB，需要 16 GB 内存。"
           }
         }
       }
@@ -12066,6 +12066,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "翻译所选内容"
+          }
+        }
+      }
+    },
+    "Translates almost as well, but is slower and weaker in Rewrite. About 6.7 GB to download, needs 16 GB of memory." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Übersetzt fast genauso gut, ist aber langsamer und schwächer beim Umschreiben. Etwa 6,7 GB Download, braucht 16 GB Arbeitsspeicher."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traduce casi igual de bien, pero es más lento y flojea al reescribir. Unos 6,7 GB de descarga; necesita 16 GB de memoria."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traduit presque aussi bien, mais il est plus lent et moins bon pour la réécriture. Environ 6,7 Go à télécharger, nécessite 16 Go de mémoire."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traduce quasi altrettanto bene, ma è più lento e meno efficace nella riscrittura. Download di circa 6,7 GB, richiede 16 GB di memoria."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻訳の精度はほぼ同等ですが、速度が遅く、書き直しは苦手です。ダウンロードは約6.7 GB、16 GBのメモリが必要です。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "번역은 거의 비슷하게 잘하지만 더 느리고 다시 쓰기에는 약합니다. 다운로드 크기 약 6.7GB, 메모리 16GB가 필요합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traduz quase tão bem, mas é mais lento e mais fraco ao reescrever. Cerca de 6,7 GB para baixar; precisa de 16 GB de memória."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Переводит почти так же хорошо, но медленнее и слабее при переписывании. Загрузка около 6,7 ГБ, нужно 16 ГБ памяти."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻译质量几乎相同，但速度较慢，改写能力较弱。需下载约 6.7 GB，需要 16 GB 内存。"
           }
         }
       }

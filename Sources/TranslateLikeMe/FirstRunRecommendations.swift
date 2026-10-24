@@ -47,7 +47,7 @@ enum FirstRunRecommendations {
     // Product policy prefers the lighter model through 16 GiB and the larger
     // model above that, accepting the lighter model's documented quality tradeoff.
     static func localModel(physicalMemory: UInt64) -> LocalModel {
-        physicalMemory <= 16 << 30 ? .gemma4E2B : .translateGemma12B
+        physicalMemory <= 16 << 30 ? .gemma4E2B : .gemma4Model12B
     }
 
     static func dictationModel(physicalMemory: UInt64) -> DictationModel {

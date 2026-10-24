@@ -37,9 +37,12 @@ and macOS consent. Rewrite does not appear in onboarding.
 | Mac memory | Translation | Dictation |
 |---|---|---|
 | 8-16 GiB | Gemma 4 E2B | Whisper large-v3-turbo |
-| Above 16 GiB | TranslateGemma 12B | Qwen3-ASR |
+| Above 16 GiB | Gemma 4 12B | Qwen3-ASR |
 
 These are Victor's explicit choices, accepting E2B's measured quality limitations.
+Gemma 4 12B replaced TranslateGemma 12B above 16 GiB on 2026-10-23, after it
+passed more of 23 cases and answered faster with its draft model
+([local model candidates](local-model-candidates.md)).
 [Translation evidence](local-translation.md) covers 15 synthetic en/ru/de cases,
 three runs each: E2B mishandled direction and corrected details. Measured
 alternatives for both tiers: [local model candidates](local-model-candidates.md). Hardware alone

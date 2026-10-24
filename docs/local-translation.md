@@ -4,8 +4,9 @@ The `Local model` engine (`Provider.local`) translates and rewrites on this Mac
 with MLX on Metal, in the app's own process: no CLI, no account, no network once
 the model is downloaded. This file records why these models, how the engine is
 built, and how it was measured.
-Candidates measured against it on October 22 (Hy-MT2, Gemma 4 12B, a draft
-model for TranslateGemma): [local model candidates](local-model-candidates.md).
+Candidates measured against it on October 22-23 (Hy-MT2, Gemma 4 12B, which
+the catalog then added, a draft model for TranslateGemma):
+[local model candidates](local-model-candidates.md).
 
 Settings keeps the model picker and shows **Manage Models…** beside
 its status. The sheet uses `ModelManagementView`, shared with Dictation, to list
@@ -14,12 +15,27 @@ all models and download, cancel or confirm removal without changing the selectio
 
 ## Models
 
-Two 4-bit MLX conversions from `mlx-community`, pinned in `LocalModel`:
+Three 4-bit MLX conversions from `mlx-community`, pinned in `LocalModel`:
 
 | Model | Revision | Download | Peak memory | Minimum Mac |
 |---|---|---|---|---|
-| TranslateGemma 12B (default) | `f3dcfd54df14` | 6.65 GB | 7.5 GB | 16 GB |
+| Gemma 4 12B, with its drafter | `73bcf09092aa`, drafter `537797012376` | 7.01 GB | 8.2 GB | 16 GB |
+| TranslateGemma 12B (fallback default) | `f3dcfd54df14` | 6.65 GB | 7.5 GB | 16 GB |
 | Gemma 4 E2B | `238767527555` | 3.58 GB | 3.3 GB | 8 GB |
+
+TranslateGemma stays `LocalModel.default`, the model a profile without a stored
+pick reads, so an install that downloaded it before Gemma 4 12B existed keeps
+working; first-run recommendations write their pick explicitly.
+
+Gemma 4 12B (`gemma4_unified`) loads through MLXVLM, which needs its
+`processor_config.json` although no image is passed. Its prompt closes the
+template's empty thought channel before the answer and a logit mask rules out
+`<|channel>` and `<channel|>` (`LocalModel.maskedTokens`), which ended a loop in
+empty thought channels on German input. Its 0.24 GB draft model
+(`gemma-4-12B-it-assistant-4bit`, `LocalModel.drafter`) is a second repository
+downloaded, verified and removed with it, recorded on the same marker; decoding
+runs `MTPSpeculativeTokenIterator` with blocks of 3 over the reused prompt
+head. Measurements: [local model candidates](local-model-candidates.md).
 
 Licenses: TranslateGemma is under the Gemma Terms of Use (gated by manual
 approval on `google/translategemma-12b-it`, not on the `mlx-community`
@@ -183,7 +199,7 @@ still above 70).
 
 The [3.7.6 code review](review-3.7.6.md) records the lifecycle regressions and fixes.
 
-The opt-in `LocalModelIntegrationTests` runs both models through the native
+The opt-in `LocalModelIntegrationTests` runs every model through the native
 `Translator.translateLocally` path, three times in each English/Russian direction,
 and checks required synthetic terms and unloading. After `./build.sh`, set
 `TLM_LOCAL_CHECK_REPORT` to a JSON output file and `TLM_LOCAL_METALLIB` to

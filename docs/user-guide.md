@@ -12,8 +12,9 @@ Translate Like Me.
   temporary Core ML compilation files.
 - For translation and Rewrite, the provider's official CLI installed and signed in: `claude`
   (Claude Code), `codex` (Codex), `grok` (Grok Build) or `agy` (Antigravity);
-  or, for the local model, 16 GB of memory for TranslateGemma 12B (8 GB for
-  Gemma 4 E2B) and room for its download (6.7 GB or 3.6 GB) with 2 GB to spare.
+  or, for the local model, 16 GB of memory for Gemma 4 12B or TranslateGemma 12B
+  (8 GB for Gemma 4 E2B) and room for its download (7 GB, 6.7 GB or 3.6 GB) with
+  2 GB to spare.
 
 ## First run
 
@@ -169,18 +170,22 @@ Antigravity rules, skills or MCP servers.
 
 **Local model** runs on your Mac with [MLX](https://github.com/ml-explore/mlx-swift),
 in the app's own process: no CLI, account or network after the download.
-Settings > Translation offers two models, downloaded once from Hugging Face
+Settings > Translation offers three models, downloaded once from Hugging Face
 and checked against their published hashes:
 
 | Model | Download | Memory | Notes |
 |---|---|---|---|
-| TranslateGemma 12B | 6.7 GB | 16 GB Mac | The most accurate, writing styles and Rewrite included |
+| Gemma 4 12B | 7 GB | 16 GB Mac | The most accurate, writing styles and Rewrite included |
+| TranslateGemma 12B | 6.7 GB | 16 GB Mac | Translates almost as well; slower and weaker in Rewrite |
 | Gemma 4 E2B | 3.6 GB | 8 GB Mac | About three times faster; less accurate (below) |
 
-Fresh profiles select Gemma 4 E2B on 8-16 GB Macs and TranslateGemma 12B
-above 16 GB. Existing selections are preserved.
+Fresh profiles select Gemma 4 E2B on 8-16 GB Macs and Gemma 4 12B above
+16 GB. Existing selections are preserved.
 
-In a 15-case test on an M5 ([local translation evaluation](local-translation.md)), TranslateGemma 12B
+In a 23-case test on an M5 ([local model candidates](local-model-candidates.md)), Gemma 4 12B
+passed 16 of 17 translations and all 6 Rewrites, against TranslateGemma 12B's 15
+and 3, and answered about 1.2 times faster with its draft model. In an earlier
+15-case test ([local translation evaluation](local-translation.md)), TranslateGemma 12B
 translated every case and resolved spoken self-corrections in Rewrite; Gemma 4
 E2B kept the corrected-away detail in every Rewrite run and translated a third
 language into the pair's second language. Either can return a sentence

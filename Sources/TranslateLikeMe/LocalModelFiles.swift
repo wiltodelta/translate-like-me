@@ -25,29 +25,38 @@ struct LocalModelFiles: Sendable {
     // apps being translated from.
     static let storageMargin: Int64 = 2_000_000_000
 
-    private func source(_ model: LocalModel) -> ModelDownloadConfig {
-        ModelDownloadConfig(modelRepo: model.repository, revision: model.revision)
+    // Each repository is a snapshot of its own.
+    private func root(of part: LocalModelRepository) -> URL {
+        ModelDownloader(config: part.source).localRepoLocation(downloadBase: base)
     }
 
-    func root(for model: LocalModel) -> URL {
-        ModelDownloader(config: source(model)).localRepoLocation(downloadBase: base)
-    }
+    func root(for model: LocalModel) -> URL { root(of: model.repositories[0]) }
+
+    func drafterRoot(for model: LocalModel) -> URL? { model.drafter.map(root(of:)) }
 
     // Outside the snapshot, which ModelSnapshot treats as model files only.
     private func marker(for model: LocalModel) -> URL {
         base.appendingPathComponent("\(model.rawValue).verified")
     }
 
+    // One revision per line, so a model alone writes just its revision.
+    static func verifiedRevisions(_ model: LocalModel) -> String {
+        model.repositories.map(\.revision).joined(separator: "\n")
+    }
+
     func isInstalled(_ model: LocalModel) -> Bool {
-        guard (try? String(contentsOf: marker(for: model), encoding: .utf8)) == model.revision else { return false }
-        let root = root(for: model)
-        return model.files.allSatisfy { has($0, in: root) }
+        guard (try? String(contentsOf: marker(for: model), encoding: .utf8)) == Self.verifiedRevisions(model) else {
+            return false
+        }
+        return model.repositories.allSatisfy { part in part.files.allSatisfy { has($0, in: root(of: part)) } }
     }
 
     // Bytes still to fetch: a resumed download keeps what is already there.
     func remainingBytes(_ model: LocalModel) -> Int64 {
-        let root = root(for: model)
-        return model.files.reduce(0) { $0 + (has($1, in: root) ? 0 : $1.bytes) }
+        model.repositories.reduce(0) { total, part in
+            let root = root(of: part)
+            return part.files.reduce(total) { $0 + (has($1, in: root) ? 0 : $1.bytes) }
+        }
     }
 
     private func has(_ file: (name: String, bytes: Int64), in root: URL) -> Bool {
@@ -64,42 +73,53 @@ struct LocalModelFiles: Sendable {
             throw LocalModelError.insufficientStorage(needed + Self.storageMargin)
         }
         try? FileManager.default.removeItem(at: marker(for: model))
-        let root = root(for: model)
-        let snapshot = ModelSnapshot(root: root, revision: model.revision, variant: "",
-                                     required: model.files.map(\.name))
-        let source = source(model)
-        do {
-            _ = try await snapshot.prepare(download: true) {
-                let hub = HubApiWrapper(downloadBase: base, endpoint: source.endpoint)
-                let total = Double(model.downloadBytes)
-                var done: Int64 = 0
-                // ModelSnapshot removed every file failing its hash, so one
-                // of the full size is good and needs no Hub request.
-                // An interrupted file is not counted as done, so a resumed
-                // download never shows its bar full.
-                for file in model.files {
-                    if !has(file, in: root) {
-                        let before = Double(done)
-                        _ = try await hub.snapshot(from: .init(id: source.modelRepo), revision: source.revision,
-                                                   matching: [file.name]) {
-                            progress((before + $0.fractionCompleted * Double(file.bytes)) / total)
+        let total = Double(model.downloadBytes)
+        var done: Int64 = 0
+        for part in model.repositories {
+            let root = root(of: part)
+            let source = part.source
+            let snapshot = ModelSnapshot(root: root, revision: source.revision, variant: "",
+                                         required: part.files.map(\.name))
+            let start = done
+            do {
+                _ = try await snapshot.prepare(download: true) {
+                    let hub = HubApiWrapper(downloadBase: base, endpoint: source.endpoint)
+                    var fetched = start
+                    // ModelSnapshot removed every file failing its hash, so one
+                    // of the full size is good and needs no Hub request.
+                    // An interrupted file is not counted as done, so a resumed
+                    // download never shows its bar full.
+                    for file in part.files {
+                        if !has(file, in: root) {
+                            let before = Double(fetched)
+                            _ = try await hub.snapshot(from: .init(id: source.modelRepo), revision: source.revision,
+                                                       matching: [file.name]) {
+                                progress((before + $0.fractionCompleted * Double(file.bytes)) / total)
+                            }
                         }
+                        fetched += file.bytes
+                        progress(Double(fetched) / total)
                     }
-                    done += file.bytes
-                    progress(Double(done) / total)
                 }
+            } catch is ModelSnapshot.Incomplete {
+                throw LocalModelError.incomplete
             }
-        } catch is ModelSnapshot.Incomplete {
-            throw LocalModelError.incomplete
+            done += part.files.reduce(0) { $0 + $1.bytes }
         }
-        try model.revision.write(to: marker(for: model), atomically: true, encoding: .utf8)
+        try Self.verifiedRevisions(model).write(to: marker(for: model), atomically: true, encoding: .utf8)
     }
 
     func remove(_ model: LocalModel) throws {
         try? FileManager.default.removeItem(at: marker(for: model))
-        let root = root(for: model)
-        if FileManager.default.fileExists(atPath: root.path) { try FileManager.default.removeItem(at: root) }
+        for part in model.repositories {
+            let root = root(of: part)
+            if FileManager.default.fileExists(atPath: root.path) { try FileManager.default.removeItem(at: root) }
+        }
     }
+}
+
+extension LocalModelRepository {
+    var source: ModelDownloadConfig { ModelDownloadConfig(modelRepo: repository, revision: revision) }
 }
 
 enum LocalModelError: LocalizedError {

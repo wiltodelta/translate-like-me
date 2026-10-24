@@ -127,9 +127,10 @@ You can keep the CLI's default model and effort settings.
 | Local translation | MLX, inside the app |
 
 Fresh profiles select **Gemma 4 E2B** on Macs with **8-16 GB** of memory and
-**TranslateGemma 12B** above **16 GB**. Dictation selects **Whisper large-v3-turbo**
+**Gemma 4 12B** above **16 GB**. Dictation selects **Whisper large-v3-turbo**
 through **16 GB** and **Qwen3-ASR** above that. Existing model choices are
-preserved. TranslateGemma can also be selected manually on a 16 GB Mac.
+preserved. Gemma 4 12B and TranslateGemma 12B can also be selected manually on
+a 16 GB Mac.
 The lighter model has more limitations in translation and Rewrite. See the
 [setup instructions and model comparison](docs/user-guide.md#providers).
 

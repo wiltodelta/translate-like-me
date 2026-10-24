@@ -22,7 +22,7 @@ final class LocalModelIntegrationTests: XCTestCase {
     func testCachedModelsTranslateSyntheticTextThroughTheNativeEngine() async throws {
         guard let report = ProcessInfo.processInfo.environment["TLM_LOCAL_CHECK_REPORT"],
               let library = ProcessInfo.processInfo.environment["TLM_LOCAL_METALLIB"] else {
-            throw XCTSkip("Opt in with TLM_LOCAL_CHECK_REPORT and TLM_LOCAL_METALLIB after downloading both models")
+            throw XCTSkip("Opt in with TLM_LOCAL_CHECK_REPORT and TLM_LOCAL_METALLIB after downloading every model")
         }
         GPU.metallib = URL(fileURLWithPath: library)
         let base = ProcessInfo.processInfo.environment["TLM_LOCAL_MODELS_BASE"].map(URL.init(fileURLWithPath:))
