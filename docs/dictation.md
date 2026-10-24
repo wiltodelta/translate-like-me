@@ -128,7 +128,9 @@ installation, lifecycle, native UI and build checks.
 
 `DictationRecorder` queues capture immediately and publishes metering through a
 locked request. `DictationCaptureWorker` owns every engine operation on a serial
-user-initiated queue, including configuration callbacks and teardown. No indicator
+user-initiated queue, including configuration callbacks and teardown. Its
+`DictationInputGraph` adapter holds the AVAudioEngine graph; synthetic graphs
+exercise the same worker lifecycle without opening real audio devices. No indicator
 is shown before the first audio; the press reads no AX target. After the
 post-release capture tail, stopping marks the request inactive without waiting
 for hardware initialization. A queued
@@ -153,11 +155,28 @@ hold's sink is attached. Stop and discard re-prepare the engine; disabling
 dictation releases it. Wake, an idle configuration change, a microphone choice,
 or a different resolved input or format rebuilds it. The engine's I/O unit
 reports its own aggregate device, so the worker compares the input it resolved
-at build. A chosen microphone other than the system input is bound with
+at build. An explicit microphone choice is bound with
 `kAudioOutputUnitProperty_CurrentDevice` on the input node's unit before its
-format is read; the system input is left unbound.
+format is read, including when it equals the current system default. Only a
+system-following or disconnected-choice fallback remains unbound.
+`DictationInputRoute` validates a live input and compares UID, native rate,
+channel count and data source. The worker observes device/default changes
+separately from engine notifications, re-prepares a returning idle input and
+rechecks the route/running state at drain. Compatibility policy and physical
+coverage are documented in [microphone compatibility](dictation-device-compatibility.md).
 The tap is installed with a nil format, because a stale explicit format raised
-an uncatchable exception when AirPods changed format.
+an uncatchable exception when AirPods changed format. Bluetooth can still change
+format after `start()`: Yealink BH74 switched from 44.1 kHz to 16 kHz as its
+microphone opened, stopping the engine and invalidating the prepared tap.
+Before any nonzero audio, an active hold can rebuild and restart at most twice,
+closing its old WAV and recreating the tap and file for the new format. Output
+mute and media pause remain owned by the same hold during these restarts.
+Release or cancellation forbids a restart. After nonzero audio arrives, a configuration
+interruption fails the recording instead of recognizing a partial phrase.
+Old graph notifications are rejected by generation, and failed graphs are torn
+down before idle preparation can reuse them. Apple's
+[configuration notification](https://developer.apple.com/documentation/foundation/nsnotification/name-swift.struct/avaudioengineconfigurationchange)
+documents the engine stop on hardware sample-rate or channel-count changes.
 
 During a hold the default output device is muted, if it was unmuted, so media
 does not reach the recording. `DictationOutputMute` records the device UID in
@@ -208,16 +227,24 @@ script tests. The media task uses an explicit `@Sendable` closure and concrete
 static helper references: CI's Swift 6.3.3 rejects the dynamic `Self` form that
 local Swift 6.4 accepts.
 
+Device-specific source-to-text research, synthetic format and recognition matrices,
+and aggregate diagnostic fields: [audio pipeline investigation](dictation-audio-pipeline.md).
+
 The recorder writes only its current temporary PCM WAV at the processed input's
-native rate and channel count. WhisperKit's audio loader converts it to 16 kHz
-mono before speech detection and recognition. `DictationAudioFile` serializes
+native rate and channel count. `DictationAudioLoader` selects a stable channel by
+non-DC energy and converts the complete finite stream to 16 kHz mono before
+speech detection and recognition. `DictationAudioFile` serializes
 non-real-time tap writes, metering and file close with a lock. It finalizes the
 WAV header before recognition, rejects late callbacks and bounds recording to
-five minutes by counting captured frames. The file is removed after recognition
-or cancellation. Device/format changes that stop or invalidate the
-engine fail the active recording rather than recognize a partial file. Choose
-Try Again in Dictation settings after correcting the devices; a new recording
-creates an engine for the current system devices.
+five minutes by counting captured frames. Native and normalized diagnostics record only aggregate signal/format numbers.
+Tap sample times expose missing/overlapping frames without altering audio. Nonfinite
+PCM fails before writing or inference; voice and transcripts never enter these logs. The file is removed after recognition
+or cancellation. Device/format changes after nonzero audio that stop or
+invalidate the engine fail the active recording rather than recognize a partial file. After
+correcting the device, the next Option hold retries with a rebuilt input graph
+and clears the previous error. Preparation and permission failures still require
+Try Again in Dictation settings. A headset microphone muted by its hardware
+remains muted; dictation only changes the output mute, never the input mute.
 Only the latest text result remains in memory, accessible through Copy Last
 Dictation. No transcript/audio archive, telemetry, account, or cloud inference
 is added. Passing the resulting text to existing translation or Rewrite actions
@@ -333,6 +360,36 @@ metering, the frame limit, rejected late writes and format-change errors without
 opening a microphone. Controller tests also cover microphone startup failure
 and interrupted capture without recognizing partial audio. These checks do not
 measure acoustic suppression or prove hardware route behavior.
+
+`DictationCaptureWorkerTests` injects graphs into the real serial worker and
+reproduces the 44.1-to-16 kHz startup transition with synthetic PCM, both before
+buffers and after initial digital silence. It pins the
+rebuilt WAV's rate and frame count, isolation from late callbacks of the old tap,
+the restart limit, release before a queued configuration callback, stable
+muted-stream acceptance, and rejection of interruptions after nonzero audio.
+Isolated mutations removing the signal/active-request guard or retry bound,
+reusing the old tap relay, treating zeros as signal, or dropping quiet signal
+fail these tests. `DictationRecoveryTests` checks the next
+hold after a failed capture and preserves preparation/permission failures.
+
+The October 23 Yealink investigation read a real `AVAudioEngine` stop and an
+old 44.1 kHz tap against 16 kHz hardware in system logs. Native checks of the
+worker succeeded on the built-in microphone, without media commands or output
+mute changes. After the initial disconnected-headset attempt, signed source-level
+probes captured nonzero audio on Yealink BH74 in three baseline and three candidate
+holds, with the headset still selected and output at 44.1 kHz before each hold.
+The WAVs were 16 kHz and were deleted after reading frame/signal counts. These
+probes looped digital silence on the output and disabled media commands and
+output muting. Both arms passed, so the original intermittent engine stop did
+not reproduce and this comparison does not attribute a hardware improvement
+to the patch. It verifies capture on that headset, not ASR or focused-app delivery.
+The subsequent [Bluetooth readiness research](dictation-startup.md#bluetooth-readiness-research-october-23-2026)
+found that the first-buffer flag includes all-zero PCM buffers. Recovery now
+uses a separate nonzero-signal flag, including signal below the level meter's
+floor. Initial digital silence can be discarded on a bounded format recovery;
+nonzero samples forbid discarding a partial phrase. A stable silent stream
+alone triggers no restart or failure. Buffer arrival still drives the indicator
+and does not promise that no later Bluetooth configuration change can occur.
 
 The voice-processing records from here through the maximum-ducking release
 validation describe the recorder removed on October 20, 2026; they are kept as

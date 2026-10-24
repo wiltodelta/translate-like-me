@@ -3,7 +3,7 @@ import Foundation
 // Qwen's greedy token loop stays in the calling task, so cancellation drains
 // inference before the controller permits another session or runtime unload.
 enum DictationQwenDecoding {
-    enum Failure: Error { case limit }
+    enum Failure: Error, Equatable { case tokenLimit(Int), repetition(Int) }
 
     static func decode(endTokens: Set<Int>, maximumTokens: Int = 1024,
                        next: (Int?) throws -> Int) throws -> [Int] {
@@ -15,9 +15,9 @@ enum DictationQwenDecoding {
             tokens.append(token)
             // Match the SDK's greedy repetition backstop, but report an error
             // instead of delivering a silently truncated transcript.
-            if tokens.count >= 24, Set(tokens.suffix(24)).count <= 3 { throw Failure.limit }
+            if tokens.count >= 24, Set(tokens.suffix(24)).count <= 3 { throw Failure.repetition(tokens.count) }
         }
-        throw Failure.limit
+        throw Failure.tokenLimit(tokens.count)
     }
 
     static func transcript(_ source: String) -> String {

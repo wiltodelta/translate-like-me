@@ -1,9 +1,11 @@
 # Dictation startup investigation
 
 > The voice-processing recorder described through "Verification of the queued
-> implementation" was replaced by raw prepared input; see the last section.
+> implementation" was replaced by [raw prepared input](#raw-prepared-input-october-20-2026).
 > Listening now follows a first-audio sink node, about 60 ms after the press:
-> [dictation latency](dictation-latency.md).
+> [dictation latency](dictation-latency.md). The October 23 research records the
+> first-buffer recovery limitation before the correction described in
+> [the follow-up](#follow-up-implementation-and-headset-check).
 
 October 20, 2026. The user approved optimizing startup without background
 microphone capture. The reported installed version was 3.7.4.
@@ -203,3 +205,382 @@ so the fix is not proven against a repeat.
 Probe sources and metadata-only JSON results are in the gitignored
 `.build/diagnostics/dictation-raw-input/` of the worktree that measured them;
 the verdicts above are the record.
+
+
+## Bluetooth readiness research, October 23, 2026
+
+The Yealink BH74 failure has two independent contributors: Bluetooth route
+renegotiation stopped the engine, and the controller then rejected every hold
+in its failed phase. System logs showed the prepared 44.1 kHz tap against
+16 kHz hardware. Removing microphone mute did not prevent that engine stop.
+
+Apple's [configuration-change contract](https://developer.apple.com/documentation/avfaudio/avaudioengineconfigurationchangenotification)
+says the engine stops and retains its old node connection formats when hardware
+rate or channels change. Connections must be reestablished. Teardown must not
+run synchronously inside the notification callback's internal queue. The app's
+own capture queue and graph-generation checks preserve that separation.
+Apple's [Bluetooth explanation](https://support.apple.com/en-us/102217) confirms
+that opening the headset microphone changes its audio mode; preparing a stopped
+engine is not evidence that this later transition has completed.
+
+Source inspection, not execution of these applications:
+
+- [TypeWhisper AudioRecordingService](https://github.com/TypeWhisper/typewhisper-mac/blob/cda5bf73b074287e6a4c4c11ed4eb49a74fb4a75/TypeWhisper/Services/AudioRecordingService.swift#L3822)
+  stages startup samples by capture generation. Its readiness checker distinguishes
+  steady signal, a steady all-zero stream and absent/stalled buffers. An all-zero
+  stream can be headset mute or a dead route; its recording path rebuilds once,
+  then can accept persistent silence rather than repeatedly restarting a muted
+  microphone. Its [recovery coordinator](https://github.com/TypeWhisper/typewhisper-mac/blob/cda5bf73b074287e6a4c4c11ed4eb49a74fb4a75/TypeWhisper/Services/AudioEngineRecoverySupport.swift#L397)
+  coalesces configuration events and bounds recovery. Its timing constants are
+  that project's policy, not measurements on this Mac.
+- [VoiceInk CoreAudioRecorder](https://github.com/Beingpax/VoiceInk/blob/22e5ec5479b712797c3b338fcb875961e58800b6/VoiceInk/Infrastructure/Audio/CoreAudioRecorder.swift#L368)
+  uses an input-only AUHAL, explicitly disables output, binds the selected input,
+  initializes before a hold and starts on demand. It checks the physical nominal
+  rate and unit input format before reusing a prepared unit. Apple's
+  [TN2091](https://developer.apple.com/library/archive/technotes/tn2091/_index.html)
+  documents this input-only path and native-rate requirement. This architecture
+  reduces dependence on an output graph; avoiding Bluetooth renegotiation or
+  improving latency on BH74 remains an unmeasured hypothesis.
+- [Yealink's BH74 mute instructions](https://support.yealink.com/docs/bh74/mute-headset/97e6cbf3c5f349048f2bb42efe3777f1)
+  specify boom-up/button mute and boom-down unmute. Synchronization of that
+  physical state with Core Audio's mute property has not been established here.
+
+A synthetic executable compiled with the real `DictationAudioFile.swift`
+confirmed that appending a nonempty buffer of exact zeros sets
+`isDeliveringAudio` even though its level remains zero. The prepared worker
+fix uses that property to forbid startup recovery after first audio. Therefore
+an initial silent buffer can close the recovery window before the Bluetooth
+route settles. The existing worker tests cover no-buffer startup changes and
+changes after nonzero audio, but do not establish correct recovery through an
+initial silent stream. Do not treat that fix as complete hardware validation.
+
+Next implementation target: distinguish arrival of PCM buffers, stable input
+readiness and signal presence. Preserve startup samples from the accepted
+capture generation, coalesce route changes within a bounded startup deadline,
+and avoid mistaking hardware mute for an endless restart request. Add a
+synthetic zero-buffer-then-format-change regression before changing that policy.
+Keep the stopped microphone between holds; a continuously running stream would
+change the user-selected capture/privacy behavior and hold Bluetooth in its
+microphone mode. Evaluate input-only AUHAL only if live BH74 checks show the
+engine path remains unreliable, rather than assuming the lower-level API fixes
+Bluetooth. Required hardware checks remain direct Bluetooth cold starts,
+repeated holds after idle, physical mute/unmute, release during startup and
+reconnection. No new live headset measurements were made for this research.
+
+
+### Follow-up implementation and headset check
+
+`DictationAudioFile` now exposes buffer arrival separately from nonzero signal.
+Its PCM energy calculation detects even signal below the visible meter floor.
+The real-time sink can also mark signal before the tap writes. Startup recovery
+uses the signal flag, so exact-zero startup buffers do not forbid rebuilding a
+changed graph. Nonzero audio still forbids silently discarding a partial phrase.
+An uninterrupted silent stream neither triggers a rebuild nor fails capture.
+The zero-buffer/format-change regression failed before this change and passes
+after it; separate cases cover a steady muted stream and very quiet signal.
+
+After Yealink was reconnected, signed probes of the baseline source and the
+candidate worker each captured three of three holds with nonzero PCM at 16 kHz.
+Each hold began with the headset output at 44.1 kHz, and the default input UID
+still matched at completion. Playback consisted only of digital silence; media
+commands and output-mute writes were disabled. Temporary recordings were
+removed after reading aggregate counts. These are capture checks, not speech
+recognition or paste-delivery checks, and the baseline also passed: the original
+intermittent engine-stop failure was not reproduced in this series. The synthetic
+regression establishes the corrected silence boundary; these headset checks do
+not establish a measured reliability improvement or exercise physical mute and
+reconnection during a hold. The installed application was not replaced by them.
+
+
+### Installed-app verification remains incomplete
+
+After the approved local replacement, the installed process prepared its model
+and registered the hold shortcut. The user's own holds then reproduced a
+configuration interruption after signal had arrived and a first-audio timeout
+following a slow startup rebuild. Other holds completed Qwen recognition and
+clipboard delivery. Thus the source-level probe's successful captures did not
+establish reliable installed-app behavior; the probe excluded output mute and
+media commands, which remain contributors to isolate before attributing the
+remaining route failures.
+
+The user also reports that recognized words are consistently close to, but
+different from, what was spoken. Logs contain neither the original speech nor
+the recognized text. A spoken-versus-recognized example is required to separate
+missing startup speech, input quality/format problems, language selection and
+ASR model errors. Do not attribute that report solely to the known startup
+latency or treat successful paste delivery as recognition accuracy. No personal
+audio or transcript has been added to the repository for this investigation.
+
+
+### Synthetic accuracy check after the installed-app report
+
+The user supplied a spoken-versus-recognized example with phonetic substitutions
+across the phrase. A temporary, environment-guarded XCTest synthesized that
+supplied phrase with macOS Milena, converted it to mono Float32 WAV at 16 and
+48 kHz, wrote it through the production `DictationAudioFile`, and called
+`DictationEngine.transcribe` with Qwen and downloading disabled. It used an APFS
+clone of the installed model cache and the installed bundle's Metal library.
+No microphone, speakers or personal recording was used. Each rate was tested
+three times with no language preference and three times with ru/en preference.
+All twelve outputs had the supplied word sequence after case, punctuation and
+е/ё normalization. This was a debug-host accuracy check, not a release-build
+latency measurement or proof of the installed microphone path.
+
+The temporary XCTest verdict itself was red: its initial term checker removed
+Russian diacritics from output but not terms, and its uncalibrated 10 ms duration
+tolerance also rejected a 17.6 ms shortening on the 48 kHz conversion. Independent
+Unicode word-sequence comparison of all saved synthetic outputs matched twelve
+of twelve. The 16 kHz native-rate case also recognized correctly; the small
+48 kHz duration difference does not establish the cause of the headset report.
+The probe and all synthetic audio/model clones were removed after inspection.
+
+Remaining evidence needed: one consented real capture from the application
+path, a local listening check for pitch/speed/distortion, and comparison of
+Qwen and Whisper on that identical clip. Do not declare the headset or the
+model faulty from the synthetic result alone, and do not add personal voice
+samples or full transcripts to this repository.
+
+
+### Consented headset speech comparison
+
+The user approved one eight-second local voice capture, local playback and
+comparison, followed by removal. A signed, nonactivating development helper
+used the production capture worker, WAV writer, output mute and media path.
+It recorded 128,000 mono frames at the native 16 kHz rate with no interruption;
+the default input UID matched before and after capture. Aggregate peak was
+0.138, RMS 0.0159, exact-zero samples 5.42%, and clipped samples zero. These
+figures establish sample shape and amplitude, not intelligibility or freedom
+from acoustic/Bluetooth distortion. This successful warm capture does not
+resolve the intermittent installed-app startup failures above.
+
+The same WAV went through the production loader and transcription engine with
+the configured language preferences, using an APFS clone of the model cache.
+Qwen and Whisper Turbo each ran three times. Each model produced one identical
+output across its three runs. Against the supplied twelve-word reference,
+case/punctuation and е/ё normalized, Qwen had three word edits in every run;
+Turbo had six. No run preserved the complete supplied word sequence. These
+repetitions establish within-clip consistency, not an accuracy rate across
+speakers or recordings. Unlike the synthetic check, both models made phonetic
+substitutions on real headset speech. Changing to Turbo alone is not supported
+as a remedy. The evidence still cannot distinguish the acoustic input from
+recognizer sensitivity to this voice or separate missing initial speech.
+
+The clip was played once locally through an explicitly selected Yealink output.
+Perceptual feedback on pitch, speed, muffling and distortion remains necessary;
+the agent did not listen to it. The temporary voice sample, full reference and
+recognized transcripts, model clone, helper and opt-in test were removed after
+comparison. No personal audio or full transcript is retained in the repository.
+
+
+### Manual playback failure
+
+A second consented Yealink recording produced 129,600 mono frames at 16 kHz.
+The user reported that manual playback did not start. The helper had accepted
+`AVAudioPlayer.play()` returning true, while its Core Audio log repeatedly
+reported `HALC_ProxyIOContext::_StartIO`, `StartAndWaitForState` error 35 on the
+Yealink output. Output-mute restoration had completed before playback. The
+playback request was therefore not proof that the user could hear the sample.
+When inspected, the helper was no longer running and its termination cleanup
+had removed the voice file; no crash report for the helper was found.
+
+A fresh standalone process advanced playback on six of six one-second digital-
+silence checks, three with the explicit Yealink UID and three on the default
+Yealink route. This separates a currently usable output from the failed
+post-capture playback context, but does not establish the cause of error 35.
+The revised helper plays in a fresh child process, checks progress and the
+completion callback, rejects a stalled start, and reports failure instead of
+claiming successful playback from the start return alone. Its packaged signed
+child completed three of three silent checks and rejected a missing file.
+Personal speech playback and intelligibility remain unverified. No additional
+microphone capture was made during this playback repair.
+
+
+### User listening feedback and remaining transport comparison
+
+On the next approved sample, the helper captured 129,600 mono frames at 16 kHz,
+and the separate playback child returned successful completion. The user
+selected the combined muffled/distorted/interrupted-voice response. This is
+perceptual evidence of poor sound during replay, not a measured distinction
+between capture and playback distortion. In the capture-through-stop interval,
+filtered diagnostic process logs contained no matching error, overload,
+underrun, discontinuity or format-mismatch messages. Absence from that log
+filter does not establish continuous or undistorted PCM. At inspection the
+helper had exited and removed its voice sample, so waveform analysis was no
+longer possible. Do not imply it was performed.
+
+Read-only Audio system information confirmed direct Bluetooth transport for
+BH74, native mono input at 16 kHz and stereo default output at 44.1 kHz after
+capture. These rates alone are not a format bug. Apple's Bluetooth guidance
+above describes lower output quality during microphone mode; it does not
+prove this headset's recorded phonetic substitutions are expected. The
+[official BH74 connectivity specification](https://support.yealink.com/docs/bh74/yealink-bh74-datasheet/42a5293c6b4741f2b7cb1703b6d4e998)
+lists USB cable, BT51C adapter and direct Bluetooth. A same-headset USB-cable
+comparison in ordinary dictation is the next proposed transport control, with
+a built-in Mac microphone as the alternative control. Neither has been
+performed. The temporary signed helper, public synthetic silence and its
+source copies were removed; no diagnostic voice sample remains.
+
+
+### AirPods ordinary-dictation control
+
+After the user connected AirPods instead of Yealink, read-only Audio system
+information showed AirPods as default input and output over Bluetooth. No
+explicit dictation microphone override was stored; the running installed app
+follows the system input. Qwen remained selected. The user's requested short
+phrase failed with the recognition-limit message. Installed-process logs show
+capture at 12:18:32-12:18:40 on October 23, first audio after 33 ms, 121,515
+loaded samples (about 7.6 seconds at the loader's 16 kHz), successful drain,
+then a DictationError during Qwen decoding. This is not the recording-duration
+limit. The current error/log combines the 1,024-token cap and repetitive-token
+backstop, so it does not prove which one fired. No transcript or voice sample
+was inspected or retained for this ordinary hold.
+
+A temporary synthetic-only XCTest generated the requested phrase with Milena
+at native 16 kHz, then called the production DictationEngine six times in one
+runtime with ru/en preferences and an APFS clone of the installed cache.
+Every output matched the supplied word sequence after case/punctuation and
+е/ё normalization; no run reached the decoding guard. This reproduces neither
+the AirPods failure nor the real-speech sound quality. It establishes a
+passing synthetic control, not that the hardware or model is fault-free.
+The test, synthetic WAV and model clone were removed after inspection.
+The next proposed control is ordinary dictation with the built-in Mac
+microphone and unchanged Qwen model. Bluetooth capture, recognizer sensitivity
+to real speech and state of the long-running installed runtime remain open
+contributors; a new microphone alone has not resolved the report.
+
+
+### Built-in microphone ordinary-dictation control
+
+The user selected MacBook Air Microphone and repeated the control phrase with
+Qwen unchanged. Readback confirmed the explicit BuiltInMicrophoneDevice UID;
+the installed process logged binding to the selected input. The hold at
+12:21:31-12:21:38 on October 23 loaded 107,179 samples (about 6.7 seconds at
+16 kHz), drained successfully, and completed recognition without error. The
+user's returned text had two lexical substitutions against the supplied
+reference, treating the output hyphen as a word separator. No audio sample was
+saved for analysis. This establishes that phonetic substitutions also occur
+with a built-in input; it does not identify recognizer error versus a shared
+capture/preprocessing problem. The installed-runtime Qwen state remains an
+additional untested contributor. Proposed next control: Whisper Turbo on the
+same explicitly selected built-in microphone. The earlier same-clip model
+comparison used Yealink audio, so it cannot settle this built-in control.
+
+
+### Approved installed-app switch to Whisper
+
+The user approved selecting Whisper large-v3-turbo and downloading its assets
+for the built-in-microphone control. The model was selected through the running
+installed app's Settings picker. The initial preparation reported NSURLError;
+subsequent preparation reached `Dictation model ready` at 12:26:46 on October
+23. UI readback showed Ready. Defaults readback confirmed `dictationModel` is
+`turbo` and the explicit BuiltInMicrophoneDevice UID remains selected. These
+assets intentionally remain in the installed cache for the approved test;
+Qwen assets were not removed. Ordinary user dictation on this model/microphone
+combination remains to be checked; readiness alone is not accuracy evidence.
+
+
+### Pipeline-wide follow-up
+
+Whisper on the verified built-in input also substituted several words in the
+user's returned control text. The installed process logged a successful drain
+and Whisper decode for that hold; it was not a Qwen run. The user then asked
+for a device-aware audit of the entire pipeline and reported that built-in Mac
+microphones work better than all tested headsets. The source audit, primary
+references, synthetic signal/recognition matrices and candidate diagnostic
+changes are recorded in [the audio pipeline investigation](dictation-audio-pipeline.md).
+
+Before proposing candidate installation, live state was read again: the
+installed app had restarted, still used the previously approved 3.7.11 binary,
+and was now configured for Qwen and system input. The current system input was
+the built-in Mac microphone at 48 kHz. No cause is attributed to the restart
+or setting changes. Earlier model-specific results are tied to their observed
+process/logs; do not infer current settings from the earlier switch approval
+or silently restore an old preference snapshot during replacement.
+
+
+### Autonomous research and conversion fix, October 23
+
+The user requested completion of the dictation-product research and testing
+without further dictated control phrases. The follow-up compares documented
+behavior in Wispr Flow, Superwhisper, Aqua Voice, VoiceInk and TypeWhisper, then
+keeps explicit microphone selection and raw native capture rather than adding
+unmeasured voice processing or an LLM cleanup step. The decision, primary
+sources and measured limits are in [the autonomous pipeline follow-up](dictation-audio-pipeline.md).
+
+An owned finite-file loader now selects one stable channel by non-DC energy
+instead of summing arbitrary channels, drains the converter and validates the
+native duration. A first mastering-filter candidate was rejected when Whisper
+worsened an English control. The revised candidate preserves the common-rate
+filter and completed a separate 240-result factorial comparison with no worsened
+cases; all 54 candidate speech results matched their synthetic references and
+all six silence results were empty. These are two generated voices, not a
+natural-speech accuracy estimate. Metadata-only native graph checks passed six
+starts on the available built-in microphone; no headset was exposed for physical
+coverage. No additional user voice was saved or replayed.
+
+At the final installed-state readback, PID 24925 still ran the approved diagnostic
+3.7.11 executable with SHA-256
+`30da64fa6d28a113a2083ee4f04c3d82b59e53f0427882cf781c9b6f84e75e67`, using Qwen.
+The loader change is a separate local candidate, not an installed or published
+fix. Installation approval for the preceding diagnostic bundle does not cover
+this new behavior. The original headset distortion and built-in lexical
+substitutions are not declared resolved by the synthetic comparison.
+
+
+### Approved installation of the owned loader, October 23, 16:40 PDT
+
+The user explicitly approved replacing the installed app with the tested local
+3.7.11 candidate and restarting it while preserving settings and models. The
+previous process exited through normal Quit. A staged copy passed deep/strict
+signature verification before replacement; the installed executable now has
+SHA-256 `4de6f86ab3edd4d34e8282bd7d12e49d83b8c286f4c8c53fe87748d8123fc3a7`.
+The new process, PID 23511, registered its shortcuts, prepared the system input
+as built-in 48 kHz mono and logged `Dictation model ready`. Qwen remains selected.
+The full defaults dictionary is unchanged across quit/restart; all 148 dictation
+model files retain their sizes and modification times. The temporary stage and
+rollback bundle were removed after verification. No new speech-quality result
+is inferred from successful installation and readiness.
+
+Installation receipt and startup evidence:
+`~/.local/state/agent-artifacts/translate-like-me/install-audio-loader-20261023T233802Z/`.
+This approved installation supersedes the earlier candidate-only status; no
+commit, release tag or publication was performed.
+
+
+### Device compatibility implementation, October 23
+
+The user prioritized correct handling of different microphones and requested
+research plus implementation without more dictated phrases. A same-format
+route change, numeric ID reuse, missing-input return and notification/drain
+race were reproduced with failing tests before fixes. The worker now observes
+Core Audio topology and selected-device properties, validates input snapshots,
+pins explicit selections even when they equal the default and rechecks route
+and running state before accepting the final file. Startup recovery still has
+two retries before nonzero audio; interrupted speech is never joined across
+routes. Full contract, source references and measured limits:
+[microphone compatibility](dictation-device-compatibility.md).
+
+A signed disposable helper prepared six real built-in graphs without starting
+capture or retaining PCM. Three explicit bindings to the current default all
+succeeded. A separate metadata-only check passed five listener lifecycle cycles.
+These checks do not newly verify AirPods/BH74/USB recording or physical mute.
+The installed 16:40 loader build was left running while this new candidate was
+prepared; installation and publication are separate operations.
+
+
+### Approved compatibility-build installation, October 23, 19:45 PDT
+
+The user explicitly approved replacing the installed app with the tested device
+compatibility build, preserving settings and models. The previous process quit
+normally; the staged and installed bundles passed deep/strict signature checks.
+PID 39843 runs executable SHA-256
+`586ce13571b61fd652c3b04bbe71b8cfd14659fceca9471d98c8578dba9ecede`, local version
+3.7.11. Startup registered shortcuts, prepared the built-in system input at
+48 kHz mono and reported the selected Qwen model ready. The full preferences
+dictionary and metadata for all 171 dictation/translation model files were
+unchanged across replacement. The temporary stage and rollback bundle were
+removed after verification. This supersedes the earlier candidate-only status;
+readiness adds no new Bluetooth/USB speech-quality evidence.
+
+Installation receipt:
+`~/.local/state/agent-artifacts/translate-like-me/install-device-compatibility-20261024T024430Z/`.

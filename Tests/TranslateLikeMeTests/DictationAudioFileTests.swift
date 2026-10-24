@@ -1,11 +1,10 @@
 import AVFoundation
 import Foundation
-@preconcurrency import WhisperKit
 import XCTest
 @testable import TranslateLikeMe
 
 final class DictationAudioFileTests: XCTestCase {
-    func testFinalizedNativePCMCanBeReadAsWhisperAudio() throws {
+    func testFinalizedNativePCMCanBeReadAsModelInput() throws {
         let url = temporaryFile()
         defer { try? FileManager.default.removeItem(at: url) }
         let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 2))
@@ -20,7 +19,7 @@ final class DictationAudioFileTests: XCTestCase {
         let file = try AVAudioFile(forReading: url)
         XCTAssertEqual(file.length, 4_800)
         XCTAssertEqual(file.fileFormat.sampleRate, 48_000)
-        let samples = try AudioProcessor.loadAudioAsFloatArray(fromPath: url.path)
+        let samples = try DictationAudioLoader.load(url)
         XCTAssertEqual(samples.count, 1_600)
         XCTAssertEqual(try XCTUnwrap(samples.dropFirst(100).first), 0.25, accuracy: 0.001)
     }
@@ -95,6 +94,20 @@ final class DictationAudioFileTests: XCTestCase {
         XCTAssertEqual(try AVAudioFile(forReading: url).length, 100)
     }
 
+    func testDigitalSilenceAndQuietSignalAreDistinctFromBufferArrival() throws {
+        let url = temporaryFile()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1))
+        let capture = try DictationAudioFile(url: url, format: format)
+        XCTAssertNil(capture.append(try buffer(format: format, frames: 100, value: 0)))
+        XCTAssertTrue(capture.isDeliveringAudio)
+        XCTAssertFalse(capture.hasSignal)
+        XCTAssertNil(capture.append(try buffer(format: format, frames: 100, value: 0.000_000_1)))
+        XCTAssertEqual(capture.level, 0, "Signal can be below the visible meter's floor")
+        XCTAssertTrue(capture.hasSignal, "Even quiet nonzero audio forbids discarding a phrase on recovery")
+        try capture.finish()
+    }
+
     func testFormatChangeFailsInsteadOfReturningPartialAudioAsSuccess() throws {
         let url = temporaryFile()
         defer { try? FileManager.default.removeItem(at: url) }
@@ -122,6 +135,69 @@ final class DictationAudioFileTests: XCTestCase {
         relay.deliver(chunk)
         try sink.finish()
         XCTAssertEqual(try AVAudioFile(forReading: url).length, 160)
+    }
+
+    func testNonfiniteSamplesFailBeforeWritingAudio() throws {
+        for sample in [Float.nan, .infinity, -.infinity] {
+            let url = temporaryFile()
+            defer { try? FileManager.default.removeItem(at: url) }
+            let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1))
+            let capture = try DictationAudioFile(url: url, format: format)
+            let chunk = try buffer(format: format, frames: 4, value: sample)
+            XCTAssertEqual(capture.append(chunk), false)
+            XCTAssertThrowsError(try capture.finish())
+            XCTAssertEqual(try AVAudioFile(forReading: url).length, 0)
+        }
+    }
+
+    func testRelayForwardsNativeSampleTimesToTheFileDiagnostics() throws {
+        let url = temporaryFile()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1))
+        let sink = try DictationAudioFile(url: url, format: format)
+        let relay = DictationTapRelay()
+        relay.attach(sink, ended: { _ in })
+        let chunk = try buffer(format: format, frames: 160, value: 0.5)
+        relay.deliver(chunk, at: AVAudioTime(sampleTime: 0, atRate: 16_000))
+        relay.deliver(chunk, at: AVAudioTime(sampleTime: 320, atRate: 16_000))
+        relay.detach()
+        try sink.finish()
+        XCTAssertEqual(sink.diagnostics.missingFrames, 160)
+        XCTAssertEqual(sink.diagnostics.untimedBuffers, 0)
+        XCTAssertEqual(try AVAudioFile(forReading: url).length, 320, "Diagnostics must not repair or trim PCM")
+    }
+
+    func testNativeWAVPreservesEveryChannelAndSampleAcrossInputRates() throws {
+        for rate in [16_000.0, 24_000, 44_100, 48_000] {
+            for channels: AVAudioChannelCount in [1, 2, 3] {
+                let url = temporaryFile()
+                defer { try? FileManager.default.removeItem(at: url) }
+                let layout = try XCTUnwrap(AVAudioChannelLayout(
+                    layoutTag: kAudioChannelLayoutTag_DiscreteInOrder | channels))
+                let format = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: rate,
+                                                       interleaved: false, channelLayout: layout))
+                let capture = try DictationAudioFile(url: url, format: format)
+                let chunk = try buffer(format: format, frames: 60, value: 0)
+                for channel in 0..<Int(channels) {
+                    for sample in 0..<60 {
+                        chunk.floatChannelData![channel][sample] = Float(sample - 30) / Float(100 * (channel + 1))
+                    }
+                }
+                XCTAssertNil(capture.append(chunk))
+                try capture.finish()
+                let file = try AVAudioFile(forReading: url)
+                XCTAssertEqual(file.fileFormat.sampleRate, rate)
+                XCTAssertEqual(file.fileFormat.channelCount, channels)
+                XCTAssertEqual(file.length, 60)
+                let restored = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: 60))
+                try file.read(into: restored)
+                XCTAssertEqual(restored.frameLength, 60)
+                for channel in 0..<Int(channels) {
+                    XCTAssertEqual(Array(UnsafeBufferPointer(start: restored.floatChannelData![channel], count: 60)),
+                                   Array(UnsafeBufferPointer(start: chunk.floatChannelData![channel], count: 60)))
+                }
+            }
+        }
     }
 
     private func temporaryFile() -> URL {

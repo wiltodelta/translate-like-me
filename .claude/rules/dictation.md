@@ -107,12 +107,18 @@ Compute-policy findings and the reproducible synthetic benchmark:
   (process input-running reads zero). Warm up only with an existing grant, after
   preparation's permission check; rebuild after wake, on an idle configuration
   change, on a microphone choice, or when the resolved input or its format
-  differs from the one the engine was built on. `DictationMicrophone.resolve`
-  gives the chosen device (stored by UID, handed to the worker through
-  `DictationRecording.useInput`) while it is connected, else the default input;
-  only a device other than the default input is bound on the input unit, so the
-  default path stays as measured. The I/O unit's current device is the engine's
-  aggregate, not the input; compare the input resolved at build. Re-prepare after
+  differs from the one the engine was built on. `DictationInputRoute.resolve`
+  validates the chosen UID, liveness and input channels, else uses a usable
+  default without overwriting the preference. Explicit choices are bound even
+  when they equal the current default; only the system/fallback path is unbound.
+  Compare UID and native rate/channels/data source as well as numeric ID.
+  `DictationInputObserver` forwards topology and selected-device property events
+  to the capture queue, unregisters on shutdown and ignores unchanged snapshots.
+  Re-prepare an absent idle input when hardware returns. Drain rechecks the route
+  and running state rather than trusting notification delivery. Details and
+  hardware coverage: `docs/dictation-device-compatibility.md`.
+  The I/O unit's current device is the engine's aggregate, not the input;
+  compare the input resolved at build. Re-prepare after
   every stop or discard and drop a graph that failed to start; disabling
   dictation releases the engine, after a hold in progress ends.
   The press mutes the default output (`DictationOutputMute`) only if it was
@@ -122,12 +128,21 @@ Compute-policy findings and the reproducible synthetic benchmark:
   retry on launch, idle preparation and before another hold. Never lower volume or
   change it otherwise. Install the tap with a nil format and read the format
   after it: AirPods changed format between a read and the tap, and a stale tap
-  format raises an uncatchable Objective-C exception. Write native PCM and let
-  WhisperKit resample on read. Tap
+  format raises an uncatchable Objective-C exception. Write native PCM.
+  `DictationAudioLoader` selects one stable channel by non-DC energy and drains finite AVAudioConverter input fully to 16 kHz mono; never
+  sum arbitrary input channels or relabel their rate. Tap
   callbacks are explicitly `@Sendable` and never enter the main actor for audio
   writes; the relay forwards only while a hold's sink is attached. The locked sink
   closes before recognition and rejects late writes. Bound capture by frame
-  count; a route/format interruption fails instead of recognizing partial audio.
+  count. While the hold has delivered only digital silence, it may rebuild the graph and
+  WAV at most twice after a configuration interruption (Bluetooth switches to
+  HFP at startup). Keep output mute/media ownership through this recovery;
+  release/cancel forbids another start. After any nonzero audio, an interruption fails
+  instead of recognizing partial audio. Tear down a failed graph, and ignore
+  notifications from older graph generations. Buffer arrival and nonzero signal
+  are distinct: a zero PCM buffer proves capture activity but must not close
+  the recovery window. Do not infer a broken route from silence alone, since a
+  hardware-muted headset can deliver a stable zero stream.
 - In configuration callbacks, read the current engine from worker state
   inside the capture queue, guarded by the engine generation. Do not capture
   `AVAudioEngine` across a Sendable closure: the CI SDK does not mark it

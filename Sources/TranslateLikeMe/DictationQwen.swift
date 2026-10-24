@@ -1,4 +1,5 @@
 import Foundation
+import os
 @preconcurrency import MLX
 @preconcurrency import MLXAudioSTT
 @preconcurrency import WhisperKit
@@ -68,7 +69,8 @@ actor DictationQwen {
             do {
                 let tokens = try Self.decode(model, audio: audio, prefix: languagePrefix, endTokens: endTokens)
                 transcripts.append(DictationQwenDecoding.transcript(tokenizer.decode(tokens: tokens)))
-            } catch DictationQwenDecoding.Failure.limit {
+            } catch let failure as DictationQwenDecoding.Failure {
+                Logger.app("dictation").error("Qwen decoding stopped: \(String(describing: failure), privacy: .public)")
                 throw DictationError.recognitionLimit
             }
         }

@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 import Synchronization
+import os
 
 // NSLock serializes the non-real-time tap's writes with meter reads and close.
 // The tap never enters the main actor. Closing rejects late audio callbacks.
@@ -17,15 +18,18 @@ final class DictationAudioFile: @unchecked Sendable {
     private var quietFrames: AVAudioFramePosition = 0
     private var ended = false
     private var failure: Error?
+    private var metrics: DictationAudioMetrics
     // Set by the first write or, sooner, the real-time sink, without the write
     // lock, which file I/O can hold.
     private let heard = Atomic(false)
+    private let signal = Atomic(false)
 
     init(url: URL, format: AVAudioFormat, maximumDuration: TimeInterval = 300) throws {
         guard format.sampleRate > 0, format.channelCount > 0,
               format.commonFormat == .pcmFormatFloat32, !format.isInterleaved,
               maximumDuration > 0 else { throw DictationError.microphone }
         self.format = format
+        metrics = DictationAudioMetrics(rate: format.sampleRate, channels: Int(format.channelCount))
         frameLimit = AVAudioFramePosition(format.sampleRate * maximumDuration)
         var settings = format.settings
         settings[AVLinearPCMIsNonInterleaved] = false // WAV stores interleaved samples; processing buffers do not.
@@ -34,11 +38,16 @@ final class DictationAudioFile: @unchecked Sendable {
     }
 
     var level: Double { lock.withLock { meter } }
+    var diagnostics: DictationAudioMetrics { lock.withLock { metrics } }
     var isDeliveringAudio: Bool { heard.load(ordering: .relaxed) }
-    func markHeard() { heard.store(true, ordering: .relaxed) }
+    var hasSignal: Bool { signal.load(ordering: .relaxed) }
+    func markSignal() {
+        signal.store(true, ordering: .relaxed)
+        heard.store(true, ordering: .relaxed)
+    }
 
     // nil means continue; a terminal success/failure is reported exactly once.
-    func append(_ buffer: AVAudioPCMBuffer) -> Bool? {
+    func append(_ buffer: AVAudioPCMBuffer, at time: AVAudioTime? = nil) -> Bool? {
         lock.withLock {
             guard !ended, let file else { return nil }
             guard buffer.format == format else {
@@ -50,6 +59,12 @@ final class DictationAudioFile: @unchecked Sendable {
             buffer.frameLength = AVAudioFrameCount(min(AVAudioFramePosition(originalLength), frameLimit - frames))
             defer { buffer.frameLength = originalLength }
             guard buffer.frameLength > 0 else { return nil }
+            let measurement = metrics.observe(buffer, at: time)
+            guard measurement.valid else {
+                failure = DictationError.microphone
+                ended = true
+                return false
+            }
             do {
                 try file.write(from: buffer)
             } catch {
@@ -59,8 +74,9 @@ final class DictationAudioFile: @unchecked Sendable {
             }
             let count = AVAudioFramePosition(buffer.frameLength)
             frames += count
-            markHeard()
-            meter = Self.level(of: buffer)
+            heard.store(true, ordering: .relaxed)
+            if measurement.hasSignal { signal.store(true, ordering: .relaxed) }
+            meter = measurement.level
             track(meter, frames: count)
             if frames >= frameLimit {
                 ended = true
@@ -101,22 +117,13 @@ final class DictationAudioFile: @unchecked Sendable {
     func finish() throws {
         try lock.withLock {
             ended = true
+            if file != nil {
+                Logger.app("dictation").notice("""
+                    Dictation native audio: writtenFrames=\(self.frames) \(self.metrics.summary, privacy: .public)
+                    """)
+            }
             file = nil // Finalize the WAV header before recognition opens it.
             if let failure { throw failure }
         }
-    }
-
-    private static func level(of buffer: AVAudioPCMBuffer) -> Double {
-        guard let channels = buffer.floatChannelData, buffer.frameLength > 0 else { return 0 }
-        var energy: Double = 0
-        for channel in 0..<Int(buffer.format.channelCount) {
-            for frame in 0..<Int(buffer.frameLength) {
-                let sample = Double(channels[channel][frame])
-                energy += sample * sample
-            }
-        }
-        let mean = energy / (Double(buffer.frameLength) * Double(buffer.format.channelCount))
-        let decibels = 10 * log10(max(mean, 1e-12))
-        return min(1, max(0, (decibels + 60) / 60))
     }
 }

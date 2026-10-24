@@ -26,6 +26,23 @@ func audioDeviceUID(_ device: AudioObjectID) -> String? {
     audioDeviceString(device, kAudioDevicePropertyDeviceUID)
 }
 
+// Transport metadata does not open the input or change its format.
+func audioDeviceTransport(_ device: AudioObjectID?) -> String {
+    guard let device else { return "unknown" }
+    var address = audioAddress(kAudioDevicePropertyTransportType)
+    var transport: UInt32 = 0
+    var size = UInt32(MemoryLayout<UInt32>.size)
+    guard AudioObjectGetPropertyData(device, &address, 0, nil, &size, &transport) == noErr else { return "unknown" }
+    switch transport {
+    case kAudioDeviceTransportTypeBuiltIn: return "built-in"
+    case kAudioDeviceTransportTypeBluetooth, kAudioDeviceTransportTypeBluetoothLE: return "bluetooth"
+    case kAudioDeviceTransportTypeUSB: return "usb"
+    case kAudioDeviceTransportTypeVirtual: return "virtual"
+    case kAudioDeviceTransportTypeAggregate: return "aggregate"
+    default: return "other"
+    }
+}
+
 private func audioDeviceString(_ device: AudioObjectID, _ selector: AudioObjectPropertySelector) -> String? {
     var address = audioAddress(selector)
     var value: Unmanaged<CFString>?

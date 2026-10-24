@@ -101,7 +101,7 @@ final class DictationIntegrationTests: XCTestCase {
         let detector = try DictationSpeechDetector(
             directory: root.appendingPathComponent(DictationEngine.detectorModel))
         for example in examples {
-            let samples = try AudioProcessor.loadAudioAsFloatArray(fromPath: example.file)
+            let samples = try DictationAudioLoader.load(URL(fileURLWithPath: example.file))
             XCTAssertEqual(try detector.containsSpeech(samples), !example.expected.isEmpty,
                            "Speech detection mismatch for synthetic case \(example.file)")
         }

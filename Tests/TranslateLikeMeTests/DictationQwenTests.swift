@@ -21,7 +21,7 @@ final class DictationQwenTests: XCTestCase {
         XCTAssertThrowsError(try DictationQwenDecoding.decode(endTokens: [9], maximumTokens: 2) { _ in
             calls += 1
             return calls
-        }) { XCTAssertTrue($0 is DictationQwenDecoding.Failure) }
+        }) { XCTAssertEqual($0 as? DictationQwenDecoding.Failure, .tokenLimit(2)) }
         XCTAssertEqual(calls, 2)
     }
 
@@ -30,7 +30,7 @@ final class DictationQwenTests: XCTestCase {
         XCTAssertThrowsError(try DictationQwenDecoding.decode(endTokens: [9]) { _ in
             calls += 1
             return 1
-        }) { XCTAssertTrue($0 is DictationQwenDecoding.Failure) }
+        }) { XCTAssertEqual($0 as? DictationQwenDecoding.Failure, .repetition(24)) }
         XCTAssertEqual(calls, 24)
     }
 

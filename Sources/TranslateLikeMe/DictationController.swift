@@ -55,6 +55,7 @@ final class DictationController {
     @ObservationIgnored private let sleep: @MainActor (Duration) async throws -> Void
     @ObservationIgnored private var ownsActivity = false
     @ObservationIgnored private var prepareAfterOperation = false
+    @ObservationIgnored private var canRetryCapture = false
 
     init(enabled: Bool, model: DictationModel = .turbo,
          engine: any DictationRecognizing, recorder: any DictationRecording,
@@ -158,7 +159,8 @@ final class DictationController {
     }
 
     func shortcutPressed() {
-        guard enabled, phase == .ready, operation == nil, !TranslationActivity.shared.isBusy else {
+        guard enabled, phase == .ready || (phase == .failed && canRetryCapture),
+              operation == nil, !TranslationActivity.shared.isBusy else {
             dictationLog.notice("""
                 Dictation press ignored: enabled \(self.enabled), phase \
                 \(String(describing: self.phase), privacy: .public), \
@@ -166,6 +168,7 @@ final class DictationController {
                 """)
             return
         }
+        if phase == .failed { recorder.warmUp(rebuild: true) }
         dictationLog.notice("Dictation hold pressed")
         startCapture()
     }
@@ -184,6 +187,8 @@ final class DictationController {
     }
 
     private func startCapture() {
+        error = nil
+        canRetryCapture = false
         ownsActivity = true
         TranslationActivity.shared.isBusy = true
         let id = session.begin(.starting)
@@ -314,6 +319,9 @@ final class DictationController {
 
     private func fail(_ message: String, id: UUID) {
         guard session.transition(.failed, for: id) else { return }
+        // A failed hold can retry on the next press; preparation failures still
+        // require Settings so a hotkey never bypasses permission or asset setup.
+        canRetryCapture = ownsActivity
         dictationLog.notice("Dictation entered failed state")
         error = message
         if ownsActivity { interaction.showError(message) }

@@ -41,7 +41,7 @@ final class DictationMicrophones {
     // Engine builds add and remove private aggregates, so most notifications
     // change nothing visible; assign only real changes to spare the picker.
     private func refresh() {
-        let devices = audioDevices().filter { !isHidden($0) && hasInput($0) }
+        let devices = audioDevices().filter { !isHidden($0) && DictationInputRoute.read($0) != nil }
         let available = devices.compactMap { device -> DictationMicrophone? in
             guard let uid = audioDeviceUID(device), let name = audioDeviceName(device) else { return nil }
             return DictationMicrophone(uid: uid, name: name)
@@ -59,12 +59,6 @@ final class DictationMicrophones {
         var devices = [AudioDeviceID](repeating: 0, count: Int(size) / MemoryLayout<AudioDeviceID>.size)
         guard AudioObjectGetPropertyData(system, &address, 0, nil, &size, &devices) == noErr else { return [] }
         return devices
-    }
-
-    private func hasInput(_ device: AudioDeviceID) -> Bool {
-        var address = audioAddress(kAudioDevicePropertyStreams, kAudioDevicePropertyScopeInput)
-        var size: UInt32 = 0
-        return AudioObjectGetPropertyDataSize(device, &address, 0, nil, &size) == noErr && size > 0
     }
 
     // Engines and other apps create private aggregate devices; never list them.

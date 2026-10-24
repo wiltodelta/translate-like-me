@@ -20,11 +20,13 @@ actor DictationEngine: DictationRecognizing {
     private let waitForFiles: @Sendable () async -> Void
     private let availableStorage: @Sendable (URL) throws -> Int64
     private let languageIdentifiers: @Sendable () -> [String]
+    private let loadAudio: @Sendable (URL) throws -> [Float]
 
     init(directory: URL? = nil, waitForFiles: @escaping @Sendable () async -> Void = {},
          languageIdentifiers: @escaping @Sendable () -> [String] = {
              DictationLanguagePreference.configuredIdentifiers
          },
+         loadAudio: @escaping @Sendable (URL) throws -> [Float] = { try DictationAudioLoader.load($0) },
          availableStorage: @escaping @Sendable (URL) throws -> Int64 = { url in
         let attributes = try FileManager.default.attributesOfFileSystem(forPath: url.path)
         guard let bytes = attributes[.systemFreeSize] as? NSNumber else { throw CocoaError(.fileReadUnknown) }
@@ -34,6 +36,7 @@ actor DictationEngine: DictationRecognizing {
         self.waitForFiles = waitForFiles
         self.languageIdentifiers = languageIdentifiers
         self.availableStorage = availableStorage
+        self.loadAudio = loadAudio
     }
 
     private var kit: WhisperKit?
@@ -144,9 +147,8 @@ actor DictationEngine: DictationRecognizing {
     func prepareTokenizer(model: DictationModel, in base: URL, download: Bool,
                           progress: @escaping @Sendable (Double) -> Void) async throws -> URL {
         guard let tokenizer = model.tokenizer else { throw DictationError.notReady }
-        let tokenizers = ModelDownloader(config: ModelDownloadConfig(
-            modelRepo: tokenizer.repository, revision: tokenizer.revision))
-        let root = tokenizers.localRepoLocation(downloadBase: base)
+        let configuration = ModelDownloadConfig(modelRepo: tokenizer.repository, revision: tokenizer.revision)
+        let root = ModelDownloader(config: configuration).localRepoLocation(downloadBase: base)
         // Pinned files verified against that revision's Git blob ids. SDK 1.1.1's
         // cache precheck treats literal file patterns as directories, so validate
         // these two small assets explicitly before allowing an offline reload.
@@ -163,6 +165,7 @@ actor DictationEngine: DictationRecognizing {
             if FileManager.default.fileExists(atPath: file.path) { try FileManager.default.removeItem(at: file) }
         }
         try await ModelSnapshot.resuming(root) {
+            let tokenizers = ModelDownloader(config: configuration)
             _ = try await tokenizers.resolveRepo(patterns: Array(files.keys), downloadBase: base) {
                 progress(0.85 + $0.fractionCompleted * 0.1)
             }
@@ -175,8 +178,11 @@ actor DictationEngine: DictationRecognizing {
         guard kit != nil || qwen != nil, let speechDetector else { throw DictationError.notReady }
         working = true
         defer { working = false }
-        var samples = try AudioProcessor.loadAudioAsFloatArray(fromPath: audio.path)
-        let hasSignal = samples.contains(where: { abs($0) > 0.00001 })
+        var samples = try loadAudio(audio)
+        let metrics = DictationAudioMetrics.normalized(samples)
+        recognitionLog.notice("Dictation normalized audio: \(metrics.summary, privacy: .public)")
+        guard metrics.invalidSamples == 0 else { throw DictationError.microphone }
+        let hasSignal = metrics.hasSignal(above: 0.00001)
         recognitionLog.notice("Dictation audio loaded: samples \(samples.count), signal \(hasSignal)")
         guard hasSignal else {
             recognitionLog.notice("Dictation decoding skipped: silent or empty audio")

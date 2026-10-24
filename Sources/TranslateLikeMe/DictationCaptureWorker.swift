@@ -25,20 +25,11 @@ final class DictationTapRelay: @unchecked Sendable {
         lock.withLock { (sink, ended) = (nil, nil) }
     }
 
-    func fail() {
-        listening.store(false, ordering: .relaxed)
-        let ended = lock.withLock {
-            defer { (sink, self.ended) = (nil, nil) }
-            return self.ended
-        }
-        ended?(false)
-    }
-
     // The tap delivers 100 ms buffers; the sink sees each 512-frame I/O cycle,
     // so the first nonzero sample shows Listening about 100 ms sooner.
     func hear(_ audio: UnsafePointer<AudioBufferList>) {
         guard listening.load(ordering: .relaxed), let sink = lock.withLock({ self.sink }) else { return }
-        if !sink.isDeliveringAudio {
+        if !sink.hasSignal {
             let buffers = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: audio))
             let sound = buffers.contains { buffer in
                 guard let data = buffer.mData?.assumingMemoryBound(to: Float.self) else { return false }
@@ -46,14 +37,14 @@ final class DictationTapRelay: @unchecked Sendable {
                 return UnsafeBufferPointer(start: data, count: count).contains { $0 != 0 }
             }
             guard sound else { return }
-            sink.markHeard()
+            sink.markSignal()
         }
         listening.store(false, ordering: .relaxed)
     }
 
-    func deliver(_ buffer: AVAudioPCMBuffer) {
+    func deliver(_ buffer: AVAudioPCMBuffer, at time: AVAudioTime? = nil) {
         let (sink, ended) = lock.withLock { (self.sink, self.ended) }
-        if let sink, let success = sink.append(buffer) { ended?(success) }
+        if let sink, let success = sink.append(buffer, at: time) { ended?(success) }
     }
 }
 
@@ -66,20 +57,43 @@ final class DictationTapRelay: @unchecked Sendable {
 // (`docs/dictation-startup.md`).
 final class DictationCaptureWorker: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.wiltodelta.translatelikeme.capture", qos: .userInitiated)
-    private let relay = DictationTapRelay()
-    private let mute = DictationOutputMute()
-    private let playback = DictationMediaPlayback()
-    private var engine: AVAudioEngine?
+    private var relay = DictationTapRelay()
+    typealias MakeGraph = @Sendable (AudioDeviceID?, Bool, DictationTapRelay,
+                                    @escaping @Sendable () -> Void) throws -> any DictationInputGraph
+    private let makeGraph: MakeGraph
+    typealias ObserveInputs = @Sendable (@escaping @Sendable () -> Void) -> any DictationInputWatching
+    private let resolveInput: @Sendable (String?) -> DictationInputRoute?
+    private var inputObserver: (any DictationInputWatching)?
+    private let mute: DictationOutputMute
+    private let playback: DictationMediaPlayback
+    private var engine: (any DictationInputGraph)?
     private var format: AVAudioFormat?
-    private var inputDevice: AudioDeviceID?
+    private var inputRoute: DictationInputRoute?
     private var generation = 0
     private var keepsPrepared = false
     private var capture: DictationAudioFile?
     private var current: DictationCaptureRequest?
-    private var observer: NSObjectProtocol?
     private var preferredInput: String?
+    private var captureEnded: (@Sendable (Bool) -> Void)?
+    private var startupRestarts = 0
 
-    init() { queue.async { [self] in mute.recoverInterrupted() } }
+    init(mute: DictationOutputMute = DictationOutputMute(),
+         playback: DictationMediaPlayback = DictationMediaPlayback(),
+         resolveInput: @escaping @Sendable (String?) -> DictationInputRoute? = { DictationInputRoute.resolve($0) },
+         observeInputs: @escaping ObserveInputs = { DictationInputObserver(changed: $0) },
+         makeGraph: @escaping MakeGraph = { try AVDictationInputGraph(device: $0, followsSystem: $1,
+                                                                     relay: $2, changed: $3) }) {
+        self.resolveInput = resolveInput
+        self.mute = mute
+        self.playback = playback
+        self.makeGraph = makeGraph
+        queue.async { [self] in
+            self.mute.recoverInterrupted()
+            inputObserver = observeInputs { [weak self] in
+                self?.queue.async { [weak self] in self?.inputDevicesChanged() }
+            }
+        }
+    }
 
     // The chosen microphone's UID, nil for the system input; the next build or press applies it.
     func useInput(_ uid: String?) { queue.async { [self] in preferredInput = uid } }
@@ -104,21 +118,25 @@ final class DictationCaptureWorker: @unchecked Sendable {
     func start(_ request: DictationCaptureRequest, ended: @escaping @Sendable (Bool) -> Void) {
         queue.async { [self] in
             current = request
+            captureEnded = ended
+            startupRestarts = 0
             do {
                 guard request.isActive else { throw CancellationError() }
                 try startEngine(request, ended: ended)
-            } catch {
-                request.fail(error)
-                if !(error is CancellationError) {
-                    captureLog.error("Microphone startup failed: \(String(describing: error), privacy: .public)")
-                }
-                discardCurrent()
-                if request.isActive { ended(false) }
-                // A graph that failed to start may pass the stale check; never reuse it.
-                tearDown()
-                settle()
-            }
+            } catch { startFailed(request, error: error, ended: ended) }
         }
+    }
+
+    private func startFailed(_ request: DictationCaptureRequest, error: Error,
+                             ended: @escaping @Sendable (Bool) -> Void) {
+        request.fail(error)
+        if !(error is CancellationError) {
+            captureLog.error("Microphone startup failed: \(String(describing: error), privacy: .public)")
+        }
+        discardCurrent()
+        if request.isActive { ended(false) }
+        tearDown()
+        settle()
     }
 
     private func startEngine(_ request: DictationCaptureRequest,
@@ -149,6 +167,11 @@ final class DictationCaptureWorker: @unchecked Sendable {
                     do {
                         if let error = request.failure { throw error }
                         guard current === request, let capture else { throw DictationError.microphone }
+                        guard engine?.isRunning == true, !isStale else {
+                            request.fail(DictationError.microphone)
+                            stopCapture()
+                            throw DictationError.microphone
+                        }
                         stopCapture()
                         try capture.finish()
                         self.capture = nil
@@ -172,6 +195,8 @@ final class DictationCaptureWorker: @unchecked Sendable {
     func shutdown() {
         queue.sync {
             keepsPrepared = false
+            inputObserver?.stop()
+            inputObserver = nil
             discardCurrent()
             tearDown()
             playback.finishPending()
@@ -184,6 +209,7 @@ final class DictationCaptureWorker: @unchecked Sendable {
         capture = nil
         if let current { try? FileManager.default.removeItem(at: current.url) }
         current = nil
+        captureEnded = nil
     }
 
     private func stopCapture() {
@@ -212,66 +238,59 @@ final class DictationCaptureWorker: @unchecked Sendable {
         }
     }
 
-    private func prepared() throws -> (AVAudioEngine, AVAudioFormat) {
+    private func prepared() throws -> (any DictationInputGraph, AVAudioFormat) {
         if let engine, let format { return (engine, format) }
-        let system = defaultAudioDevice(kAudioHardwarePropertyDefaultInputDevice)
-        let device = DictationMicrophone.resolve(preferredInput, system: { system })
-        let engine = AVAudioEngine()
-        let input = engine.inputNode
-        // The system input needs no binding, which keeps the measured default path unchanged.
-        if let device, device != system { try Self.bind(input, to: device) }
-        guard Self.isUsable(input.outputFormat(forBus: 0)) else { throw DictationError.microphone }
-        let relay = relay
-        // A nil format taps whatever the bus has now. AirPods changed their input
-        // format between a read and the tap (24 kHz, then 2 ch 44.1 kHz), and a
-        // tap given the stale format raises an Objective-C exception, which Swift
-        // cannot catch. A later change fails the sink's format check instead.
-        input.installTap(onBus: 0, bufferSize: 1_024, format: nil) { @Sendable buffer, _ in
-            relay.deliver(buffer)
-        }
-        let format = input.outputFormat(forBus: 0)
-        guard Self.isUsable(format) else {
-            input.removeTap(onBus: 0)
-            throw DictationError.microphone
-        }
-        // Signals first audio only; the tap still writes the recording.
-        let sink = AVAudioSinkNode { @Sendable _, _, audio in
-            relay.hear(audio)
-            return noErr
-        }
-        engine.attach(sink)
-        engine.connect(input, to: sink, format: nil)
+        guard let route = resolveInput(preferredInput) else { throw DictationError.microphone }
+        let device = route.device
         generation += 1
         let generation = generation
-        observer = NotificationCenter.default.addObserver(
-            forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil
-        ) { [weak self] _ in
+        // Old tap callbacks must never see a replacement graph's recording.
+        let relay = DictationTapRelay()
+        self.relay = relay
+        let engine = try makeGraph(device, route.uid != preferredInput, relay) { [weak self] in
             self?.queue.async { [weak self] in self?.configurationChanged(generation) }
         }
-        (self.engine, self.format, inputDevice) = (engine, format, device)
+        let format = engine.format
+        let selection = preferredInput == nil ? "system" : route.uid == preferredInput ? "chosen" : "fallback"
+        captureLog.notice("""
+            Dictation input prepared: transport=\(audioDeviceTransport(device), privacy: .public) \
+            selection=\(selection, privacy: .public) rate=\(format.sampleRate) channels=\(format.channelCount)
+            """)
+        (self.engine, self.format, inputRoute) = (engine, format, route)
+        inputObserver?.watch(route)
         return (engine, format)
     }
 
-    // Binds the input before its format is read or a tap installed.
-    private static func bind(_ input: AVAudioInputNode, to device: AudioDeviceID) throws {
-        var device = device
-        guard let unit = input.audioUnit else { throw DictationError.microphone }
-        let status = AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
-                                          &device, UInt32(MemoryLayout<AudioDeviceID>.size))
-        guard status == noErr else {
-            captureLog.error("Dictation could not select the chosen microphone: \(status, privacy: .public)")
-            throw DictationError.microphone
+    private func inputDevicesChanged() {
+        if engine == nil {
+            if keepsPrepared, capture == nil { prepareIdle() }
+        } else if isStale {
+            configurationChanged(generation)
         }
-        captureLog.notice("Dictation input bound to the chosen microphone")
     }
 
     private func configurationChanged(_ generation: Int) {
         guard generation == self.generation, let engine else { return }
-        if let current, capture != nil {
-            guard !engine.isRunning || engine.inputNode.outputFormat(forBus: 0) != format else { return }
+        if let current, let capture {
+            guard !engine.isRunning || isStale else { return }
+            // Stop callbacks and drain any in-flight write before deciding
+            // whether this hold has heard audio and can safely start over.
+            tearDown()
+            try? capture.finish()
+            // Bluetooth can change from its playback format to HFP only after
+            // start(). Discard only exact digital silence, with a finite budget per hold.
+            if current.isActive, !capture.hasSignal, startupRestarts < 2, let ended = captureEnded {
+                startupRestarts += 1
+                captureLog.notice("Dictation rebuilding input after a startup configuration change")
+                self.capture = nil
+                do { try startEngine(current, ended: ended) } catch {
+                    startFailed(current, error: error, ended: ended)
+                }
+                return
+            }
             captureLog.error("Audio engine stopped or changed its input format during dictation")
             current.fail(DictationError.microphone)
-            relay.fail()
+            captureEnded?(false)
         } else {
             // A device or format change while idle invalidates the prepared graph.
             tearDown()
@@ -284,20 +303,15 @@ final class DictationCaptureWorker: @unchecked Sendable {
     // Its I/O unit reports the engine's own aggregate device, not that input.
     private var isStale: Bool {
         guard let engine, let format else { return false }
-        return DictationMicrophone.resolve(preferredInput) != inputDevice
-            || engine.inputNode.outputFormat(forBus: 0) != format
-    }
-
-    private static func isUsable(_ format: AVAudioFormat) -> Bool {
-        format.sampleRate > 0 && format.channelCount > 0
+        return resolveInput(preferredInput) != inputRoute
+            || engine.format != format
     }
 
     private func tearDown() {
-        if let observer { NotificationCenter.default.removeObserver(observer); self.observer = nil }
-        if let engine {
-            engine.stop()
-            engine.inputNode.removeTap(onBus: 0)
-        }
-        (engine, format, inputDevice) = (nil, nil, nil)
+        generation += 1
+        relay.detach()
+        inputObserver?.watch(nil)
+        engine?.shutdown()
+        (engine, format, inputRoute) = (nil, nil, nil)
     }
 }
