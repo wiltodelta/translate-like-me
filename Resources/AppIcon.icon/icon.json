@@ -100,24 +100,6 @@
           "fill-specializations": [
             {
               "value": {
-                "solid": "srgb:0.94902,0.94902,0.94902,1.00000"
-              }
-            },
-            {
-              "appearance": "dark",
-              "value": {
-                "solid": "srgb:0.94902,0.94902,0.94902,1.00000"
-              }
-            }
-          ],
-          "glass": false,
-          "image-name": "symbols.svg",
-          "name": "symbols"
-        },
-        {
-          "fill-specializations": [
-            {
-              "value": {
                 "solid": "srgb:0.21961,0.14510,0.23137,1.00000"
               }
             },
@@ -129,8 +111,8 @@
             }
           ],
           "glass": true,
-          "image-name": "plate.svg",
-          "name": "plate"
+          "image-name": "mouth.svg",
+          "name": "mouth"
         }
       ],
       "lighting": "individual",

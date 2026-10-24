@@ -5,8 +5,8 @@
 """Draw the menu bar template images, Resources/MenuBarIcon.png (idle) and
 Resources/MenuBarBusy.png (a translation runs).
 
-The glyph is the app icon's face reduced to 18 pt: a rounded tile with angry
-brows, eyes and the symbol plate as a bar. Idle it is an outline; busy it is a
+The glyph is the app icon's face reduced to 18 pt: a rounded tile with two
+eyes and the open smile. Idle it is an outline; busy it is a
 solid tile with the features cut out, the outline / .fill pairing SF Symbols
 uses and that Rota and Watch Me While I Fall Asleep follow, so the three read as
 one family in the menu bar. Shapes are drawn at 1024 and downsampled, so the
@@ -27,14 +27,12 @@ CANVAS = 1024
 PIXELS = 72  # 18 pt at 4x; App.swift sizes the image to 18 pt
 
 # Drawn for 18 pt rather than taken from make-icon-layers.py: the app icon's
-# curved brows and small pupils do not survive the reduction.
+# brows and pupils do not survive the reduction.
 TILE = (70, 70, 954, 954)
 TILE_RADIUS, TILE_STROKE = 250, 84
-BROWS = [((285, 282), (455, 338)), ((739, 282), (569, 338))]  # outer end to inner end, slanting down
-BROW_WIDTH = 60
-EYES = [(372, 470), (652, 470)]
-EYE_RADIUS = 92
-MOUTH = (300, 640, 724, 736)  # the symbol plate
+EYES = [(372, 420), (652, 420)]
+EYE_RADIUS = 88
+SMILE = (300, 470, 724, 790)  # the bottom half of this ellipse box is the open mouth
 
 
 def glyph(busy: bool) -> Image.Image:
@@ -48,14 +46,9 @@ def glyph(busy: bool) -> Image.Image:
         draw.rounded_rectangle((x0 + TILE_STROKE, y0 + TILE_STROKE, x1 - TILE_STROKE, y1 - TILE_STROKE),
                                TILE_RADIUS - TILE_STROKE, fill=0)
         ink = 255
-    half = BROW_WIDTH / 2
-    for start, end in BROWS:
-        draw.line((*start, *end), fill=ink, width=BROW_WIDTH)
-        for x, y in (start, end):
-            draw.ellipse((x - half, y - half, x + half, y + half), fill=ink)
     for x, y in EYES:
         draw.ellipse((x - EYE_RADIUS, y - EYE_RADIUS, x + EYE_RADIUS, y + EYE_RADIUS), fill=ink)
-    draw.rounded_rectangle(MOUTH, (MOUTH[3] - MOUTH[1]) / 2, fill=ink)
+    draw.chord(SMILE, 0, 180, fill=ink)
     image = Image.new("RGBA", (PIXELS, PIXELS), (0, 0, 0, 0))
     image.putalpha(mask.resize((PIXELS, PIXELS), Image.LANCZOS))
     return image

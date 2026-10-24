@@ -48,15 +48,14 @@ checkout's caches intact.
   plus a flat `AppIcon.icns` for macOS 15; this needs Xcode 26 or later on a
   macOS 26 host (on macOS 15 actool's asset agent crashes, so CI runs on
   `macos-26`). Its
-  layers (brows, eyes, pupils, symbol plate, symbols) are flat SVGs, so
-  macOS 27 gives each its own Liquid Glass, and `icon.json` holds their
-  colors and dark and tinted variants; both are written by
-  `uv run scripts/make-icon-layers.py`, which draws the shapes from
-  measurements of the original round artwork and sets the symbols in Nunito
-  ExtraBold, the original's typeface (OFL, subset in `scripts/fonts`). It then
-  renders `Resources/appicon_1024.png` from the icon with `ictool` (inside Icon
-  Composer.app, which also renders every appearance for review).
-- **Menu bar icon:** `Resources/MenuBarIcon.png` (idle, the face as an outline)
+  layers (brows, eyes, pupils, open mouth) are flat SVGs, so macOS 27 gives
+  each its own Liquid Glass, and `icon.json` holds their colors and dark and
+  tinted variants; both are written by `uv run scripts/make-icon-layers.py`.
+  It then renders `Resources/appicon_1024.png` from the icon with `ictool`
+  (inside Icon Composer.app, which also renders every appearance for review).
+  The face smiles because the earlier one, frowning and swearing "@!%$", read
+  as angry to users (replaced 2026-10-23).
+- **Menu bar icon:** `Resources/MenuBarIcon.png` (idle, the smiling face as an outline)
   and `MenuBarBusy.png` (a solid tile with the features cut out) are template
   images drawn by `uv run scripts/make-menubar-icons.py`, in the outline / fill
   pairing Rota and Watch Me While I Fall Asleep use.
