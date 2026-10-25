@@ -6,6 +6,7 @@ struct ActivityIndicatorContent: View {
     let title: LocalizedStringKey
     var symbol: String?
     var level: Double?
+    var note: LocalizedStringKey?
     let cancelTitle: LocalizedStringKey
     let cancel: () -> Void
 
@@ -26,6 +27,12 @@ struct ActivityIndicatorContent: View {
                     ProgressView(value: level)
                         .accessibilityLabel("Microphone level")
                 }
+                if let note {
+                    Text(note)
+                        .font(.callout)
+                        .foregroundStyle(Color.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Button(action: cancel) {
@@ -36,7 +43,8 @@ struct ActivityIndicatorContent: View {
             .accessibilityIdentifier("activity-cancel")
         }
         .padding(16)
-        .frame(width: 280, height: 80)
+        .frame(width: 280)
+        .frame(minHeight: 80)
         .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 16))
     }
 }
@@ -79,7 +87,9 @@ final class ActivityIndicator {
         }
         guard let panel else { return }
         panel.title = title
-        panel.contentView = NSHostingView(rootView: content)
+        let hosting = NSHostingView(rootView: content)
+        panel.contentView = hosting
+        panel.setContentSize(hosting.fittingSize)
         let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
         if let frame = screen?.visibleFrame {
             panel.setFrameOrigin(NSPoint(x: frame.midX - 140, y: frame.minY + 24))

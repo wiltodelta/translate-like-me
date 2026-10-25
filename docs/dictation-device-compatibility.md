@@ -109,7 +109,17 @@ lot of noise and distortion". The same phrase synthesized and band-limited to 8,
 capture (AirPods at 24 kHz) did not fix it: Qwen produced a wrong Russian
 sentence three times out of three. The AirPods microphone signal itself limits
 recognition here, as the October 23 headset reports suggested; the recordings
-were deleted after analysis. After nonzero audio, a changed route fails
+were deleted after analysis.
+
+The same day the user recorded with QuickTime: AirPods in Standard and Voice
+Isolation modes and the built-in microphone in both. Only the built-in microphone
+in Standard mode gave a coherent Russian transcript; Voice Isolation made both
+inputs worse. Wispr Flow, Willow, Spokenly and six other dictation products
+document worse accuracy from AirPods and recommend the built-in microphone, and
+none ships processing that fixes it; speech-enhancement artifacts are a known
+cause of ASR errors ([Iwamoto et al.](https://arxiv.org/abs/2201.06685)). The
+user kept the system input as the default and chose a warning, as Wispr Flow
+shows one, over switching inputs. After nonzero audio, a changed route fails
 rather than joining microphones or accepting a partial recording. Release and
 cancellation forbid another start. Drain rechecks the current route and engine
 running state even if a notification has not yet arrived. These are deliberate

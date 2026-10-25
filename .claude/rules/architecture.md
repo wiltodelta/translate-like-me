@@ -105,7 +105,8 @@ Read before editing this domain.
   selection lookup, engine and paste receipt; every exit hides it. Cancellation
   keeps the busy guard until unwinding, suppresses late results and errors, and
   checks cancellation after the AX lookup before sending Copy. Dictation uses
-  the same panel and content geometry through `DictationIndicator`.
+  the same panel and content geometry through `DictationIndicator`; an optional
+  `note` line (the dictation headset tip) grows the panel from its 80-point minimum.
 - Rewrite presets (`RewritePreset`, up to `Rewrite.maxPresets` = 3, stored as
   JSON in `Settings.rewritePresets`, edited in the Rewrite pane) each carry a name (the menu item's title; new ones are "Preset
   <n>"), an optional shortcut and a writing style. The shared RemoveButton confirms

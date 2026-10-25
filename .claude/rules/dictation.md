@@ -216,6 +216,13 @@ Compute-policy findings and the reproducible synthetic benchmark:
   Listening before audio invites words the recording misses. Keep a shared 20-point icon slot in the listening and recognizing indicator
   states so the text does not shift when the symbol changes. Native previews
   render those states without opening the microphone; they do not verify recording.
+- Bluetooth headsets dictate less accurately than the built-in microphone
+  (vendors and the 2026-10-25 recordings agree, `docs/dictation-device-compatibility.md`),
+  but the input stays the user's choice (decision 2026-10-25). The Dictation pane
+  notes it under the microphone picker while the input a hold would use is
+  Bluetooth, and the indicator adds "The built-in microphone is more accurate"
+  for a whole hold at most once an hour (`DictationHeadsetTip`, in memory).
+  Preview it with `-dictationPreview headset`.
 
 Native capture restores the complete backed-up development preference domain
 with `setPersistentDomain`, after stopping its owned app. `defaults import`
