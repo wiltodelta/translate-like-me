@@ -120,3 +120,7 @@ resident until memory pressure or disabling. Therefore translation's new
 background preparation does not remove the normal dictation release tail or
 decoding time. No dictation behavior changed in this investigation. Retain the
 existing hold-only capture and word-preserving tail.
+
+A subsequent six-policy Qwen buffer-pool experiment also found no consistent
+speedup. Its paired method, unchanged transcripts and memory tradeoff are
+recorded in [local inference experiments](local-model-startup-research.md#qwen-allocation-pool-full-factorial-comparison).

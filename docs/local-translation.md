@@ -218,6 +218,9 @@ removing the call that prepares the instruction heads failed its head assertion.
 Dictation baseline and the separate release-tail cost:
 [dictation latency](dictation-latency.md#startup-recheck-october-25-2026).
 
+Follow-up research and native experiments: [local inference optimization](local-model-startup-research.md),
+including the VLM decode fusion gap, buffer reuse and streaming ASR limits.
+
 ## Build
 
 `build.sh` uses the native build system, which compiles no `.metal` sources.
