@@ -11,7 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var statusItem: NSStatusItem!
     private let statusMenu = StatusMenu()
     // One model for both windows, so an edit in one shows in the other.
-    private lazy var store = SettingsStore()
+    private lazy var store = SettingsStore(localConfigurationChanged: { LocalPreparation.refreshSelected() })
     private var settingsWindow: NSWindow?
     private var settingsTabs: SettingsTabViewController?
     private var onboardingWindow: NSWindow?
@@ -64,7 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // Render enabled settings for native capture without loading a model or
         // requesting microphone access. This launch-only fixture never records.
         let dictationPreview = UserDefaults.standard.string(forKey: "dictationPreview")
-        if dictationPreview != "settings" { DictationController.shared.restore() }
+        restoreLocalModels(preview: dictationPreview)
         registerHotKeys()
         if Settings.didCompleteFirstRun { ensureAccessibilityPermission() }
         showOnboardingOnFirstRun()
@@ -78,6 +78,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if let preview = dictationPreview, preview != "settings" {
             DictationIndicator.shared.preview(preview == "recording" ? .recording : .recognizing)
         }
+    }
+
+    private func restoreLocalModels(preview: String?) {
+        if preview != "settings" { DictationController.shared.restore() }
+        if preview == nil { LocalPreparation.refreshSelected() }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

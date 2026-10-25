@@ -1,6 +1,6 @@
 import Foundation
 
-// Holds the idle sleep until the test opens it, so no test waits on the clock.
+// Holds asynchronous work until the test opens it, so no test waits on the clock.
 actor TestGate {
     private var isOpen = false
     private var waiters: [CheckedContinuation<Void, Never>] = []

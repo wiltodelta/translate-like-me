@@ -231,8 +231,11 @@ Read before editing this domain.
   `EngineStatus` checks the model's memory minimum before calling a verified download ready
   (`LocalModelFiles`: a marker
   and exact sizes; hashes are checked once, after downloading). The engine
-  keeps one model resident and frees it after 10 idle minutes, on memory
-  pressure, or when the model is switched. Each run reuses a copy of the KV cache
+  prepares the selected installed model and up to three instruction heads in the
+  background (`LocalPreparation`), after launch, onboarding, download and settings
+  edits. It keeps one model resident without timed eviction, freeing it on memory
+  pressure, when the engine is deselected, or when the model is switched. Each
+  run reuses a copy of the KV cache
   of the instructions before the selection (`LocalModel.promptHead`,
   `MLXLoader.PromptHeads`, latest three), only when the prompt's tokens begin
   with the head's. Loading, generation and removal share

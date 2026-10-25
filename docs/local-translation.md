@@ -119,14 +119,19 @@ Jinja). On the shipping translation prompt it produced the same ids as Python
 
 ## Runtime
 
-- `LocalEngine` (an actor) keeps one model resident, loads it on the first run,
-  frees it ten minutes after the last run (`idleDelay`), on a memory-pressure
-  warning when idle, when the model is switched in Settings or removed.
+- `LocalPreparation` prepares the selected installed model and up to three
+  instruction heads in the background after launch, onboarding completion, a
+  download or a configuration edit. Translation pairs take priority over Rewrite
+  presets within the existing three-entry KV cache budget. Edits are coalesced
+  for 300 ms; superseded preparation is cancelled and drained. Missing assets
+  are never downloaded by preparation, and onboarding retains its explicit checks.
+- `LocalEngine` (an actor) keeps one model resident without timed eviction.
+  It frees the model on a memory-pressure warning when idle, when the local
+  engine is deselected, when the model is switched in Settings or removed.
   A pressure notification during generation is remembered until the operation
   drains. Loading, generation and deletion share an exclusive queue across awaits,
   so onboarding checks cannot load a second model or race removal with translation.
-  `LocalLoading` hides MLX, so the lifecycle is unit tested with a fake loader
-  and an injected sleep.
+  `LocalLoading` hides MLX, so the lifecycle is unit tested with a fake loader.
 - Sampling is the benchmark's: temperature 0.3, top-p 0.95. The token limit is
   twice the selection's characters, at least 256 and at most 8192. The SDK's
   `generateTask` producer is awaited even after consumer cancellation, before model
@@ -179,6 +184,39 @@ costs one prefill of it, paid by the first run of each pair or preset. Through
 `LocalEngine` itself, steady runs of the two sentences took 3.5-5.0 s on the
 same swapping machine. Gemma 4 E2B's prompt has the same split; its 15 cached
 layers are under 6 MB.
+
+## Startup preparation (October 25, 2026)
+
+A temporary release-mode XCTest compared the same native engine with and without
+`prepare(model:systems:)` on this 32 GiB Mac. Six paired trials alternated arm
+order, unloaded the model between arms and translated the same synthetic
+English sentence into Russian. Each arm then repeated the request without
+unloading. Both arms used Gemma 4 12B with its drafter, the shipping prompt and
+the packaged Metal library. All 24 translations passed the same required-term
+checks. Model files came from an APFS clone of the installed cache, with no
+network, microphone, clipboard or user text involved.
+
+| Request | Without preparation, median | After preparation, median | Trials per arm |
+|---|---|---|---|
+| First translation | 9.29 s | 2.37 s | 6 |
+| Repeated translation | 2.40 s | 2.19 s | 6 |
+
+Preparation itself took a median 7.08 s (5.88-9.07 s). It moves work before
+the request; it does not make loading or token generation faster. The median
+paired reduction in first-request waiting was 7.04 s; all six pairs improved
+(two-sided sign test p = 0.03125). Other processes were using the GPU and CPU,
+so these are measurements under load, not an idle-machine speed promise. Disk
+and shader caches were not flushed. A request before background preparation
+finishes still waits, and memory pressure still releases the model. This
+change does not promise instantaneous translation or faster repeated requests.
+
+The probe used `swift test -c release --arch arm64 --build-system native
+-Xswiftc -enable-testing --filter StartupLatencyProbeTests`; it was removed
+after measurement, as with the project's other temporary live probes.
+The lifecycle regression was mutation-checked in a disposable project copy:
+removing the call that prepares the instruction heads failed its head assertion.
+Dictation baseline and the separate release-tail cost:
+[dictation latency](dictation-latency.md#startup-recheck-october-25-2026).
 
 ## Build
 

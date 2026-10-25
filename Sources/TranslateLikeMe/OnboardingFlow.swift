@@ -197,7 +197,10 @@ extension OnboardingFlow.Effects {
                  guard dictation.phase == .ready else {
                      throw OnboardingFailure(message: dictation.error ?? String(localized: "Dictation is not ready."))
                  }
-             }, complete: { Settings.didCompleteFirstRun = true })
+             }, complete: {
+                 Settings.didCompleteFirstRun = true
+                 LocalPreparation.refreshSelected()
+             })
     }
 
     private static func checkEngine(_ provider: Provider) async throws {

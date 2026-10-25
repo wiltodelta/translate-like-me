@@ -50,7 +50,7 @@ enum EngineProbe {
             health = EngineHealth(error)
         }
         // The test run loaded a local model (up to 7.5 GB); onboarding checks
-        // every engine, so it is freed now rather than after the idle delay.
+        // every engine, so release it before the next engine is checked.
         if !provider.usesCLI { await LocalEngine.shared.releaseIfIdle(reason: "check") }
         return health
     }

@@ -202,12 +202,9 @@ final class LocalEngineTests: XCTestCase {
         try? FileManager.default.removeItem(at: base)
     }
 
-    private func engine(loader: FakeLoader, memory: UInt64 = 32 << 30,
-                        sleep: @escaping @Sendable (Duration) async throws -> Void = { _ in
-                            try await Task.sleep(for: .seconds(3600))
-                        }) -> LocalEngine {
+    private func engine(loader: FakeLoader, memory: UInt64 = 32 << 30) -> LocalEngine {
         LocalEngine(files: LocalModelFiles(base: base, availableStorage: { _ in .max }), loader: loader,
-                    physicalMemory: memory, sleep: sleep)
+                    physicalMemory: memory)
     }
 
     func testRunsLoadOnceAndPassTheModelsPrompt() async throws {
@@ -239,22 +236,17 @@ final class LocalEngineTests: XCTestCase {
         XCTAssertEqual(loader.drafters.last, .some(nil))
     }
 
-    func testIdleDelayReleasesTheModel() async throws {
+    func testPreparationLoadsAndWarmsWithoutGeneratingThenReusesTheModel() async throws {
         let loader = FakeLoader()
-        let gate = TestGate()
-        let engine = engine(loader: loader) { delay in
-            XCTAssertEqual(delay, LocalEngine.idleDelay)
-            await gate.wait()
-        }
+        let engine = engine(loader: loader)
+        try await engine.prepare(model: .gemma4E2B, systems: ["S", "T"])
+        XCTAssertEqual(loader.events, ["load gemma-4-e2b"])
+        XCTAssertEqual(loader.heads, [LocalModel.gemma4E2B.promptHead(system: "S"),
+                                      LocalModel.gemma4E2B.promptHead(system: "T")])
+        XCTAssertEqual(loader.maxTokens, [], "Preparation must not generate an answer")
         _ = try await engine.complete(system: "S", text: "a", model: .gemma4E2B)
         XCTAssertEqual(loader.events, ["load gemma-4-e2b"])
-        await gate.open()
-        for _ in 0..<100 {
-            if await engine.loadedModel == nil { break }
-            await Task.yield()
-        }
-        let loaded = await engine.loadedModel
-        XCTAssertNil(loaded)
+        await engine.releaseIfIdle(reason: "memory pressure")
         XCTAssertEqual(loader.events, ["load gemma-4-e2b", "release"])
     }
 
@@ -269,7 +261,7 @@ final class LocalEngineTests: XCTestCase {
         await gate.open()
         _ = try await run.value
         let loaded = await engine.loadedModel
-        XCTAssertNil(loaded, "Pressure during generation must not wait ten minutes")
+        XCTAssertNil(loaded, "Pressure during generation must release after drain")
         XCTAssertEqual(loader.events, ["load gemma-4-e2b", "release"])
     }
 
@@ -354,10 +346,12 @@ private final class FakeLoader: LocalLoading, @unchecked Sendable {
     let generationGate: TestGate?
     init(generationGate: TestGate? = nil) { self.generationGate = generationGate }
     private let state = OSAllocatedUnfairLock(initialState: (events: [String](), maxTokens: [Int](),
-                                                             drafters: [URL?]()))
+                                                             drafters: [URL?](), heads: [String]()))
     var events: [String] { state.withLock { $0.events } }
     var maxTokens: [Int] { state.withLock { $0.maxTokens } }
     var drafters: [URL?] { state.withLock { $0.drafters } }
+    var heads: [String] { state.withLock { $0.heads } }
+    fileprivate func prepare(head: String) { state.withLock { $0.heads.append(head) } }
 
     func load(_ model: LocalModel, from directory: URL, drafter: URL?) async throws -> any LocalGenerating {
         state.withLock {
@@ -373,6 +367,8 @@ private final class FakeLoader: LocalLoading, @unchecked Sendable {
 
     private struct Generator: LocalGenerating {
         let loader: FakeLoader
+
+        func prepare(head: String) async throws { loader.prepare(head: head) }
 
         func complete(_ prompt: String, head: String, maxTokens: Int) async throws -> String {
             XCTAssertTrue(prompt.hasPrefix(head))

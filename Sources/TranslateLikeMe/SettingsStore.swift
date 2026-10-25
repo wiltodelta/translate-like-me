@@ -18,16 +18,17 @@ final class SettingsStore {
                 Settings.provider = provider
             }
             loadPick()
+            if provider != oldValue { localConfigurationChanged() }
         }
     }
 
-    // The model the local engine runs. A switch frees the previous one at once
-    // rather than after the idle delay, since both together can exceed memory.
+    // A switch releases the previous model before loading the next, since both
+    // together can exceed memory.
     var localModel: LocalModel {
         didSet {
             guard localModel != oldValue else { return }
             Settings.localModel = localModel
-            Task { await LocalEngine.shared.releaseIfIdle(reason: "model changed") }
+            localConfigurationChanged()
         }
     }
 
@@ -45,6 +46,7 @@ final class SettingsStore {
     @ObservationIgnored private var loadingPick = false
     @ObservationIgnored private let refreshCatalog: (Provider) async -> Void
     @ObservationIgnored private var modelChanges: AnyCancellable?
+    @ObservationIgnored private let localConfigurationChanged: () -> Void
 
     // An unchanged value is not stored: a field hands back its unchanged text when
     // it loses focus, and storing it rewrote the settings domain (a launch's
@@ -53,6 +55,7 @@ final class SettingsStore {
         didSet {
             guard pairs != oldValue else { return }
             Settings.languagePairs = pairs
+            localConfigurationChanged()
             // Hotkeys look their pair up when pressed, so a style or language
             // edit needs no re-registration.
             if oldValue.map(\.id) != pairs.map(\.id) || oldValue.map(\.shortcut) != pairs.map(\.shortcut) {
@@ -65,6 +68,7 @@ final class SettingsStore {
         didSet {
             guard rewritePresets != oldValue else { return }
             Settings.rewritePresets = rewritePresets
+            localConfigurationChanged()
             // Looked up when pressed too, so only ids and shortcuts matter here.
             if oldValue.map(\.id) != rewritePresets.map(\.id)
                 || oldValue.map(\.shortcut) != rewritePresets.map(\.shortcut) {
@@ -73,7 +77,9 @@ final class SettingsStore {
         }
     }
 
-    init(refreshCatalog: @escaping (Provider) async -> Void = { await EngineStatus.refreshModels(for: $0) }) {
+    init(refreshCatalog: @escaping (Provider) async -> Void = { await EngineStatus.refreshModels(for: $0) },
+         localConfigurationChanged: @escaping () -> Void = {}) {
+        self.localConfigurationChanged = localConfigurationChanged
         self.refreshCatalog = refreshCatalog
         provider = Settings.provider
         localModel = Settings.localModel

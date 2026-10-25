@@ -10,6 +10,7 @@ private let log = Logger.app("local")
 
 // A model loaded into memory, ready to complete a prompt.
 protocol LocalGenerating: Sendable {
+    func prepare(head: String) async throws
     // `head` begins `prompt` and repeats across runs, so its state can be reused.
     func complete(_ prompt: String, head: String, maxTokens: Int) async throws -> String
 }
@@ -23,32 +24,27 @@ protocol LocalLoading: Sendable {
 
 // Runs translations on this Mac. One model is resident at a time: loading
 // takes 2-6 s from a warm disk cache (docs/local-translation.md), so it stays
-// loaded between runs, and is released after `idleDelay` without a run.
+// loaded between runs until memory pressure, a configuration change or removal.
 // Memory pressure releases it once the active operation drains, since
 // TranslateGemma holds 7.5 GB.
 actor LocalEngine {
     static let shared = LocalEngine()
-
-    static let idleDelay: Duration = .seconds(600)
+    static let promptHeadLimit = 3
 
     private let files: LocalModelFiles
     private let loader: any LocalLoading
     private let physicalMemory: UInt64
-    private let sleep: @Sendable (Duration) async throws -> Void
     private var loaded: (model: LocalModel, generator: any LocalGenerating)?
     private var occupied = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
     private var releaseRequested = false
-    private var idleRelease: Task<Void, Never>?
     private var pressure: DispatchSourceMemoryPressure?
 
     init(files: LocalModelFiles = .live, loader: any LocalLoading = MLXLoader(),
-         physicalMemory: UInt64 = ProcessInfo.processInfo.physicalMemory,
-         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
+         physicalMemory: UInt64 = ProcessInfo.processInfo.physicalMemory) {
         self.files = files
         self.loader = loader
         self.physicalMemory = physicalMemory
-        self.sleep = sleep
     }
 
     var loadedModel: LocalModel? { loaded?.model }
@@ -57,8 +53,6 @@ actor LocalEngine {
     // Actors reenter across awaits. Keep model loading, generation and deletion
     // exclusive for the whole operation, including the SDK producer's drain.
     private func acquire() async {
-        idleRelease?.cancel()
-        idleRelease = nil
         if occupied { await withCheckedContinuation { waiters.append($0) } } else { occupied = true }
     }
 
@@ -68,7 +62,6 @@ actor LocalEngine {
             unloadNow()
         }
         if waiters.isEmpty { occupied = false } else { waiters.removeFirst().resume() }
-        scheduleRelease()
     }
 
     func remove(_ model: LocalModel) async throws {
@@ -80,13 +73,28 @@ actor LocalEngine {
         try files.remove(model)
     }
 
+    // Prepare only installed assets, without generating or sending user text.
+    // This shares the same exclusive queue as a foreground run and removal.
+    func prepare(model: LocalModel, systems: [String]) async throws {
+        try Task.checkCancellation()
+        await acquire()
+        defer { finishOperation() }
+        try Task.checkCancellation()
+        if loaded?.model != model { unloadNow() }
+        let generator = try await generator(for: model)
+        for system in systems {
+            try Task.checkCancellation()
+            // Let a waiting foreground operation build its own head immediately.
+            guard waiters.isEmpty else { break }
+            try await generator.prepare(head: model.promptHead(system: system))
+        }
+    }
+
     func complete(system: String, text: String, model: LocalModel) async throws -> String {
         try Task.checkCancellation()
         await acquire()
         defer { finishOperation() }
         try Task.checkCancellation()
-        guard model.fits(physicalMemory: physicalMemory) else { throw LocalModelError.insufficientMemory(model) }
-        guard files.isInstalled(model) else { throw LocalModelError.notDownloaded(model) }
         let generator = try await generator(for: model)
         try Task.checkCancellation()
         return try await generator.complete(model.prompt(system: system, text: text),
@@ -96,6 +104,8 @@ actor LocalEngine {
 
     // A different model replaces the resident one after the preceding run drains.
     private func generator(for model: LocalModel) async throws -> any LocalGenerating {
+        guard model.fits(physicalMemory: physicalMemory) else { throw LocalModelError.insufficientMemory(model) }
+        guard files.isInstalled(model) else { throw LocalModelError.notDownloaded(model) }
         if let loaded, loaded.model == model { return loaded.generator }
         unloadNow()
         startPressureMonitor()
@@ -109,16 +119,6 @@ actor LocalEngine {
         return generator
     }
 
-    private func scheduleRelease() {
-        idleRelease?.cancel()
-        guard !occupied, loaded != nil else { return }
-        let sleep = sleep
-        idleRelease = Task { [weak self] in
-            guard (try? await sleep(Self.idleDelay)) != nil, !Task.isCancelled else { return }
-            await self?.releaseIfIdle(reason: "idle")
-        }
-    }
-
     func releaseIfIdle(reason: String) {
         guard !occupied else { releaseRequested = true; return }
         guard let model = loaded?.model else { return }
@@ -127,8 +127,6 @@ actor LocalEngine {
     }
 
     private func unloadNow() {
-        idleRelease?.cancel()
-        idleRelease = nil
         guard loaded != nil else { return }
         loaded = nil
         loader.release()
@@ -191,6 +189,16 @@ struct MLXLoader: LocalLoading {
         let heads: PromptHeads
         let draft: Draft?
         let maskIDs: [Int]
+
+        func prepare(head: String) async throws {
+            try await container.perform { (context: ModelContext) in
+                try Task.checkCancellation()
+                let parameters = GenerateParameters(maxTokens: 1, temperature: 0.3, topP: 0.95)
+                let tokens = context.tokenizer.encode(text: head, addSpecialTokens: false)
+                guard !tokens.isEmpty else { return }
+                _ = try heads.prepare(tokens, model: context.model, parameters: parameters)
+            }
+        }
 
         // The sampling of the benchmark (temperature 0.3, top-p 0.95). A
         // cancelled run drains the SDK producer before releasing the model.
@@ -264,6 +272,13 @@ struct MLXLoader: LocalLoading {
         func split(_ tokens: [Int], head: [Int], model: any LanguageModel,
                    parameters: GenerateParameters) throws -> ([KVCache]?, [Int]) {
             guard !head.isEmpty, tokens.count > head.count, tokens.starts(with: head) else { return (nil, tokens) }
+            let cache = try prepare(head, model: model, parameters: parameters)
+            return (cache.map { $0.copy() }, Array(tokens[head.count...]))
+        }
+
+        // Return the resident cache; only a generation needs its own copies.
+        func prepare(_ head: [Int], model: any LanguageModel,
+                     parameters: GenerateParameters) throws -> [KVCache] {
             let cache: [KVCache]
             if let index = entries.firstIndex(where: { $0.head == head }) {
                 cache = entries.remove(at: index).cache
@@ -277,8 +292,8 @@ struct MLXLoader: LocalLoading {
                 }
             }
             entries.append((head, cache))
-            if entries.count > 3 { entries.removeFirst() }
-            return (cache.map { $0.copy() }, Array(tokens[head.count...]))
+            if entries.count > LocalEngine.promptHeadLimit { entries.removeFirst() }
+            return cache
         }
     }
 

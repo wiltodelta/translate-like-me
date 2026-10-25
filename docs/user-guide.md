@@ -189,8 +189,10 @@ and 3, and answered about 1.2 times faster with its draft model. In an earlier
 translated every case and resolved spoken self-corrections in Rewrite; Gemma 4
 E2B kept the corrected-away detail in every Rewrite run and translated a third
 language into the pair's second language. Either can return a sentence
-unchanged; the app then asks once more, which fixed every such case in testing. The model stays
-in memory for ten minutes after the last translation. TranslateGemma is
+unchanged; the app then asks once more, which fixed every such case in testing.
+The selected installed model and its instruction cache are prepared in the
+background when the app starts. The model stays in memory until memory pressure,
+a model change or switching away from the local engine. TranslateGemma is
 provided under the Gemma Terms of Use, Gemma 4 under the Apache 2.0 license.
 
 The app invokes each official CLI as a subprocess. It never extracts subscription

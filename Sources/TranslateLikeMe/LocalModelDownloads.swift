@@ -10,7 +10,7 @@ private let log = Logger.app("local")
 @MainActor
 @Observable
 final class LocalModelDownloads {
-    static let shared = LocalModelDownloads()
+    static let shared = LocalModelDownloads(didDownload: { LocalPreparation.refreshSelected() })
 
     typealias State = ModelDownloadState
     typealias Removal = @MainActor (LocalModel) async throws -> Void
@@ -20,8 +20,11 @@ final class LocalModelDownloads {
     @ObservationIgnored private var removing: Set<LocalModel> = []
     @ObservationIgnored private let files = LocalModelFiles.live
     @ObservationIgnored private let removeModel: Removal
+    @ObservationIgnored private let didDownload: () -> Void
 
-    init(removeModel: @escaping Removal = { try await LocalEngine.shared.remove($0) }) {
+    init(didDownload: @escaping () -> Void = {},
+         removeModel: @escaping Removal = { try await LocalEngine.shared.remove($0) }) {
+        self.didDownload = didDownload
         self.removeModel = removeModel
         refresh()
     }
@@ -53,6 +56,7 @@ final class LocalModelDownloads {
                     }
                 }
                 states[model] = .ready
+                didDownload()
                 log.notice("Local model \(model.rawValue, privacy: .public) downloaded and verified")
             } catch let error where error is CancellationError || Task.isCancelled {
                 states[model] = .notDownloaded

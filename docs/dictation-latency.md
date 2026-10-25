@@ -92,3 +92,31 @@ fresh processes, so it gets no warm-up.
 
 Probe sources and metadata-only JSON lived in a task temporary directory and
 were removed; the verdicts above are the record.
+
+## Startup recheck (October 25, 2026)
+
+Read-only installed-app logs for October 25, 08:23-10:23 America/Los_Angeles,
+contained 38 press-to-first-audio measurements and 37 completed
+recognitions. These describe ordinary use, with different recording lengths,
+not a controlled benchmark. Median press-to-first-audio was 94 ms (nearest-rank p95 124 ms).
+Median release-to-recognized-text was 1.421 s (p95 3.025 s), including the
+existing 200-1,000 ms release tail. Recognition itself had a median of 555 ms
+(p95 1.089 s). The interval between recording drain and recognition start,
+which includes model preparation, reached 2.631 s; its median was below 1 ms.
+These timings stop before paste delivery. The same log window recorded the
+translation model being released for memory pressure. Timestamps were bounded
+again in the parser: this machine's `log show --end` returned later rows too.
+
+A temporary release-mode XCTest separately loaded Qwen three times from an
+APFS clone of the installed model cache and recognized the same synthetic
+`say` recording twice per load. Preparation took a median 3.587 s
+(3.013-3.983 s, n = 3); recognition took a median 641 ms
+(511-853 ms, n = 6). All six results contained the required synthetic term.
+CPU and GPU were under other processes' load. The probe used no microphone
+and does not measure physical capture or paste latency.
+
+Dictation already prepares and warms Qwen at launch while enabled and keeps it
+resident until memory pressure or disabling. Therefore translation's new
+background preparation does not remove the normal dictation release tail or
+decoding time. No dictation behavior changed in this investigation. Retain the
+existing hold-only capture and word-preserving tail.

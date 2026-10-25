@@ -4,7 +4,7 @@ import XCTest
 @MainActor
 final class LocalModelDownloadsTests: XCTestCase {
     func testRemovalAvailabilityTracksTheSelectedModel() {
-        let downloads = LocalModelDownloads { _ in XCTFail("Availability must not remove files") }
+        let downloads = LocalModelDownloads(removeModel: { _ in XCTFail("Availability must not remove files") })
         for selected in LocalModel.allCases {
             for model in LocalModel.allCases {
                 XCTAssertEqual(downloads.canRemove(model, selected: selected), model != selected)
@@ -22,7 +22,7 @@ final class LocalModelDownloadsTests: XCTestCase {
         }
         Settings.provider = .local
         let store = SettingsStore(refreshCatalog: { _ in })
-        let downloads = LocalModelDownloads { _ in XCTFail("Switching must not remove files") }
+        let downloads = LocalModelDownloads(removeModel: { _ in XCTFail("Switching must not remove files") })
         for model in LocalModel.allCases + LocalModel.allCases.reversed() {
             store.localModel = model
             XCTAssertEqual(Settings.localModel, model)
@@ -36,7 +36,9 @@ final class LocalModelDownloadsTests: XCTestCase {
     func testSelectedModelCannotBeRemoved() {
         let saved = UserDefaults.standard.object(forKey: "localModel")
         defer { UserDefaults.standard.set(saved, forKey: "localModel") }
-        let downloads = LocalModelDownloads { _ in XCTFail("The selected model must never reach removal") }
+        let downloads = LocalModelDownloads(removeModel: { _ in
+            XCTFail("The selected model must never reach removal")
+        })
 
         for model in LocalModel.allCases {
             Settings.localModel = model
@@ -50,7 +52,7 @@ final class LocalModelDownloadsTests: XCTestCase {
     func testRemovalRechecksTheSelectionAfterConfirmation() {
         let saved = UserDefaults.standard.object(forKey: "localModel")
         defer { UserDefaults.standard.set(saved, forKey: "localModel") }
-        let downloads = LocalModelDownloads { _ in XCTFail("A newly selected model must stay protected") }
+        let downloads = LocalModelDownloads(removeModel: { _ in XCTFail("A newly selected model must stay protected") })
         Settings.localModel = .gemma4E2B
         XCTAssertTrue(downloads.canRemove(.translateGemma12B, selected: Settings.localModel))
         let state = downloads.state(of: .translateGemma12B)
