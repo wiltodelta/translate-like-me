@@ -3501,60 +3501,60 @@
         }
       }
     },
-    "Dictation from a Bluetooth headset is usually less accurate than from the built-in microphone." : {
+    "Dictation from any Bluetooth microphone is much less accurate than from your Mac's built-in microphone." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mit einem Bluetooth-Headset ist das Diktieren meist ungenauer als mit dem integrierten Mikrofon."
+            "value" : "Mit jedem Bluetooth-Mikrofon ist das Diktieren deutlich ungenauer als mit dem integrierten Mikrofon deines Mac."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "El dictado con unos auriculares Bluetooth suele ser menos preciso que con el micrófono integrado."
+            "value" : "Con cualquier micrófono Bluetooth, el dictado es mucho menos preciso que con el micrófono integrado del Mac."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La dictée avec un casque Bluetooth est généralement moins précise qu’avec le micro intégré."
+            "value" : "Avec tout micro Bluetooth, la dictée est nettement moins précise qu’avec le micro intégré de votre Mac."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La dettatura con cuffie Bluetooth è in genere meno precisa che con il microfono integrato."
+            "value" : "Con qualsiasi microfono Bluetooth la dettatura è molto meno precisa che con il microfono integrato del Mac."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bluetoothヘッドセットでの音声入力は、通常、内蔵マイクより精度が低くなります。"
+            "value" : "Bluetoothマイクでの音声入力は、Macの内蔵マイクに比べて精度が大きく下がります。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bluetooth 헤드셋으로 받아쓰기하면 일반적으로 내장 마이크보다 정확도가 낮습니다."
+            "value" : "Bluetooth 마이크로 받아쓰기하면 Mac의 내장 마이크보다 정확도가 크게 낮습니다."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O ditado com um headset Bluetooth costuma ser menos preciso do que com o microfone integrado."
+            "value" : "Com qualquer microfone Bluetooth, o ditado é bem menos preciso do que com o microfone integrado do Mac."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "С Bluetooth-гарнитурой диктовка обычно менее точна, чем со встроенным микрофоном."
+            "value" : "С любым Bluetooth-микрофоном диктовка заметно менее точна, чем со встроенным микрофоном Mac."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "使用蓝牙耳机听写通常不如使用内建麦克风准确。"
+            "value" : "使用任何蓝牙麦克风听写，准确度都明显低于 Mac 的内建麦克风。"
           }
         }
       }
@@ -11312,64 +11312,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Antigravity CLI 未返回任何结果。"
-          }
-        }
-      }
-    },
-    "The built-in microphone is more accurate." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das integrierte Mikrofon ist genauer."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "El micrófono integrado es más preciso."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Le micro intégré est plus précis."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Il microfono integrato è più preciso."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "内蔵マイクの方が精度が高くなります。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "내장 마이크가 더 정확합니다."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O microfone integrado é mais preciso."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Встроенный микрофон точнее."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "内建麦克风更准确。"
           }
         }
       }

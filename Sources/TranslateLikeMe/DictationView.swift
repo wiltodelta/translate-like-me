@@ -88,12 +88,11 @@ private struct DictationMicrophonePicker: View {
             }
         }
         .disabled(!dictation.enabled || dictation.isActive)
-        // Reading the observed device list above re-evaluates this on device changes.
-        if DictationHeadsetTip.usesHeadset(dictation.microphone?.uid) {
-            Text("Dictation from a Bluetooth headset is usually less accurate than from the built-in microphone.")
-                .foregroundStyle(Color.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-        }
+        // AirPods recordings stayed unrecognizable through every capture path,
+        // QuickTime's included; vendors agree (docs/dictation-device-compatibility.md).
+        Text("Dictation from any Bluetooth microphone is much less accurate than from your Mac's built-in microphone.")
+            .foregroundStyle(Color.secondaryText)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -195,7 +194,6 @@ struct DictationPreparationStatus: View {
 struct DictationIndicatorContent: View {
     let phase: DictationSession.Phase
     let level: Double
-    var headsetTip = false
     let cancel: () -> Void
 
     private var listening: Bool { phase == .recording }
@@ -208,20 +206,15 @@ struct DictationIndicatorContent: View {
     }
 
     var body: some View {
-        // The tip stays for the whole hold, so the panel keeps one height.
         ActivityIndicatorContent(title: title, symbol: listening ? "mic.fill" : "circle.dotted",
-                                 level: listening ? level : nil,
-                                 note: headsetTip ? "The built-in microphone is more accurate." : nil,
-                                 cancelTitle: "Cancel Dictation", cancel: cancel)
+                                 level: listening ? level : nil, cancelTitle: "Cancel Dictation", cancel: cancel)
     }
 }
 
 private struct LiveDictationIndicator: View {
     let controller: DictationController
-    let headsetTip: Bool
     var body: some View {
-        DictationIndicatorContent(phase: controller.phase, level: controller.level, headsetTip: headsetTip,
-                                  cancel: { controller.cancel() })
+        DictationIndicatorContent(phase: controller.phase, level: controller.level, cancel: { controller.cancel() })
     }
 }
 
@@ -229,21 +222,12 @@ private struct LiveDictationIndicator: View {
 final class DictationIndicator {
     static let shared = DictationIndicator()
     private let indicator = ActivityIndicator(title: String(localized: "Dictation"))
-    private var headsetTip = DictationHeadsetTip()
 
-    func show() {
-        let controller = DictationController.shared
-        let tip = DictationHeadsetTip.usesHeadset(controller.microphone?.uid) && headsetTip.due(at: .now)
-        indicator.show(LiveDictationIndicator(controller: controller, headsetTip: tip))
-    }
+    func show() { indicator.show(LiveDictationIndicator(controller: .shared)) }
     func hide() { indicator.hide() }
 
-    // Deterministic synthetic states for native capture, without opening a mic:
-    // "recording", "headset" (Listening with the headset tip), else Recognizing.
-    func preview(named name: String) {
-        let listening = name == "recording" || name == "headset"
-        indicator.show(DictationIndicatorContent(phase: listening ? .recording : .recognizing, level: 0.55,
-                                                 headsetTip: name == "headset",
-                                                 cancel: { [weak self] in self?.hide() }))
+    // Deterministic synthetic states for native capture, without opening a mic.
+    func preview(_ phase: DictationSession.Phase) {
+        indicator.show(DictationIndicatorContent(phase: phase, level: 0.55, cancel: { [weak self] in self?.hide() }))
     }
 }

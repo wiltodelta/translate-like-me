@@ -76,7 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
         if let preview = dictationPreview, preview != "settings" {
-            DictationIndicator.shared.preview(named: preview)
+            DictationIndicator.shared.preview(preview == "recording" ? .recording : .recognizing)
         }
     }
 

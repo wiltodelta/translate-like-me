@@ -28,7 +28,11 @@ func audioDeviceUID(_ device: AudioObjectID) -> String? {
 
 // Transport metadata does not open the input or change its format.
 func audioDeviceTransport(_ device: AudioObjectID?) -> String {
-    guard let transport = transportType(device) else { return "unknown" }
+    guard let device else { return "unknown" }
+    var address = audioAddress(kAudioDevicePropertyTransportType)
+    var transport: UInt32 = 0
+    var size = UInt32(MemoryLayout<UInt32>.size)
+    guard AudioObjectGetPropertyData(device, &address, 0, nil, &size, &transport) == noErr else { return "unknown" }
     switch transport {
     case kAudioDeviceTransportTypeBuiltIn: return "built-in"
     case kAudioDeviceTransportTypeBluetooth, kAudioDeviceTransportTypeBluetoothLE: return "bluetooth"
@@ -37,19 +41,6 @@ func audioDeviceTransport(_ device: AudioObjectID?) -> String {
     case kAudioDeviceTransportTypeAggregate: return "aggregate"
     default: return "other"
     }
-}
-
-func audioDeviceIsBluetooth(_ device: AudioObjectID?) -> Bool {
-    [kAudioDeviceTransportTypeBluetooth, kAudioDeviceTransportTypeBluetoothLE].contains(transportType(device))
-}
-
-private func transportType(_ device: AudioObjectID?) -> UInt32? {
-    guard let device else { return nil }
-    var address = audioAddress(kAudioDevicePropertyTransportType)
-    var transport: UInt32 = 0
-    var size = UInt32(MemoryLayout<UInt32>.size)
-    guard AudioObjectGetPropertyData(device, &address, 0, nil, &size, &transport) == noErr else { return nil }
-    return transport
 }
 
 private func audioDeviceString(_ device: AudioObjectID, _ selector: AudioObjectPropertySelector) -> String? {

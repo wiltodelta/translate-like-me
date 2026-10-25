@@ -118,8 +118,10 @@ inputs worse. Wispr Flow, Willow, Spokenly and six other dictation products
 document worse accuracy from AirPods and recommend the built-in microphone, and
 none ships processing that fixes it; speech-enhancement artifacts are a known
 cause of ASR errors ([Iwamoto et al.](https://arxiv.org/abs/2201.06685)). The
-user kept the system input as the default and chose a warning, as Wispr Flow
-shows one, over switching inputs. After nonzero audio, a changed route fails
+user kept the system input as the default, with a manual choice in Settings,
+and chose one permanent note under the microphone picker: dictation from any
+Bluetooth microphone is much less accurate than from the Mac's built-in one.
+A tip in the dictation indicator was built and then removed at their request. After nonzero audio, a changed route fails
 rather than joining microphones or accepting a partial recording. Release and
 cancellation forbid another start. Drain rechecks the current route and engine
 running state even if a notification has not yet arrived. These are deliberate
