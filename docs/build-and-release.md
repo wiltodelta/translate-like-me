@@ -196,8 +196,12 @@ gh release download vX.Y.Z -p "*.zip" -D /tmp/asset-check && \
 The product page is <https://wiltodelta.com/projects/translate-like-me/> on
 Victor's personal website. `website-content.json` supplies its introduction and
 feature sections from the published release tag, alongside the General settings
-screenshots. Refresh the website with `pnpm run build:products` in
-`wiltodelta-app` after publication; a live deployment needs separate approval.
+screenshots. The site's icon is generated separately from
+`assets/brand-sources/translate-like-me.png` by `pnpm run assets:build`;
+refreshing release content alone does not replace it. For every release, follow
+`wiltodelta-app/docs/product-updates.md`, "What product repositories owe the site",
+for website impact assessment, asset and copy preparation, preview, the required
+publication decision and live verification.
 
 Since 2026-10-23 `translatelikeme.com` only
 redirects there: a Cloudflare Redirect Rule ("Redirect to wiltodelta.com

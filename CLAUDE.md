@@ -23,7 +23,23 @@ detail, including the secrets and where the keys are kept (1Password):
 
 ## Personal website
 
-Victor's personal website (`wiltodelta/wiltodelta-app`, page `/projects/translate-like-me/`) imports `screenshots/general.png`, `screenshots/general-dark.png` and the README sections "Features", "Speak first, polish afterwards" from each stable release at its tag. The two section names are alternatives: either one must exist. Before tagging a release whose UI changed, regenerate those screenshots. Do not rename or remove them, or those sections, without updating `releaseSource` in that repository's `src/data/project-catalog.json` in the same change. After publishing, run `pnpm run build:products` there, read the page, and update its copy (`project-catalog.json`) when user-visible behavior changed. Nothing does this automatically yet; the full procedure is `docs/product-updates.md` there, "What product repositories owe the site".
+Victor's personal website (`wiltodelta/wiltodelta-app`, page
+`/projects/translate-like-me/`) imports `screenshots/general.png`,
+`screenshots/general-dark.png`, `website-content.json` and the README section
+"Features" or "Speak first, polish afterwards" from the stable release tag.
+Keep those paths and section alternatives in step with `releaseSource` in the
+site's `src/data/project-catalog.json`.
+
+At every release, compare the candidate with the previous published release
+for icon, screenshot and visitor-facing description changes. Prepare the
+website changes that apply, then propose their live publication before closing
+the release task; a local rebuild alone does not settle that decision. Reuse
+existing deployment approval when it covers these changes; otherwise ask once
+with the concrete icon, screenshot and copy changes. If none apply, no website
+deployment proposal is needed. The icon has a separate retained source in the
+website: `build:products` does not update it. Follow the site's
+`docs/product-updates.md`, "What product repositories owe the site", for asset
+preparation, preview, approval and live verification.
 
 ## Code quality
 
