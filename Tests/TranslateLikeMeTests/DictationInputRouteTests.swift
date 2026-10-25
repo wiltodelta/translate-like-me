@@ -260,7 +260,6 @@ private final class RouteScenario: @unchecked Sendable {
 
     func worker() -> DictationCaptureWorker {
         DictationCaptureWorker(mute: DictationOutputMute(control: UnavailableCaptureOutput()),
-            playback: DictationMediaPlayback(command: { _, _ in "{\"status\":\"ignored\"}" }),
             resolveInput: { _ in
                 let route = self.lock.withLock { self.route }
                 self.resolved(route)

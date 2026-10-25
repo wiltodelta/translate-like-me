@@ -65,7 +65,6 @@ final class DictationCaptureWorker: @unchecked Sendable {
     private let resolveInput: @Sendable (String?) -> DictationInputRoute?
     private var inputObserver: (any DictationInputWatching)?
     private let mute: DictationOutputMute
-    private let playback: DictationMediaPlayback
     private var engine: (any DictationInputGraph)?
     private var format: AVAudioFormat?
     private var inputRoute: DictationInputRoute?
@@ -78,14 +77,12 @@ final class DictationCaptureWorker: @unchecked Sendable {
     private var startupRestarts = 0
 
     init(mute: DictationOutputMute = DictationOutputMute(),
-         playback: DictationMediaPlayback = DictationMediaPlayback(),
          resolveInput: @escaping @Sendable (String?) -> DictationInputRoute? = { DictationInputRoute.resolve($0) },
          observeInputs: @escaping ObserveInputs = { DictationInputObserver(changed: $0) },
          makeGraph: @escaping MakeGraph = { try AVDictationInputGraph(device: $0, followsSystem: $1,
                                                                      relay: $2, changed: $3) }) {
         self.resolveInput = resolveInput
         self.mute = mute
-        self.playback = playback
         self.makeGraph = makeGraph
         queue.async { [self] in
             self.mute.recoverInterrupted()
@@ -149,7 +146,6 @@ final class DictationCaptureWorker: @unchecked Sendable {
         request.publish(capture)
         relay.attach(capture, ended: ended)
         mute.engage()
-        playback.begin()
         try request.startIfActive { try engine.start() }
         // Release/cancel stays nonblocking even during a slow hardware start.
         // Drain any captured frames on stop, but stop the microphone immediately.
@@ -199,7 +195,6 @@ final class DictationCaptureWorker: @unchecked Sendable {
             inputObserver = nil
             discardCurrent()
             tearDown()
-            playback.finishPending()
         }
     }
 
@@ -217,7 +212,6 @@ final class DictationCaptureWorker: @unchecked Sendable {
         // Stopping also releases what `prepare()` allocated; spare an idle graph.
         if engine?.isRunning == true { engine?.stop() }
         mute.release()
-        playback.end()
     }
 
     // After a hold, or a release that arrived during one, keep the graph only if wanted.

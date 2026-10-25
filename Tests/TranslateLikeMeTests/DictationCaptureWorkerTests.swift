@@ -112,7 +112,6 @@ final class DictationCaptureWorkerTests: XCTestCase {
 
     private func makeWorker(_ scenario: CaptureGraphScenario) -> DictationCaptureWorker {
         DictationCaptureWorker(mute: DictationOutputMute(control: UnavailableCaptureOutput()),
-            playback: DictationMediaPlayback(command: { _, _ in "{\"status\":\"ignored\"}" }),
             resolveInput: { _ in DictationInputRoute(device: 77, uid: "test-input") },
             observeInputs: { _ in RouteTestObservation() },
             makeGraph: { _, _, relay, changed in scenario.makeGraph(relay: relay, changed: changed) })

@@ -300,8 +300,8 @@ configuration interruption after signal had arrived and a first-audio timeout
 following a slow startup rebuild. Other holds completed Qwen recognition and
 clipboard delivery. Thus the source-level probe's successful captures did not
 establish reliable installed-app behavior; the probe excluded output mute and
-media commands, which remain contributors to isolate before attributing the
-remaining route failures.
+media commands. Output mute remains a contributor to isolate before attributing
+the remaining route failures; the media commands have since been removed.
 
 The user also reports that recognized words are consistently close to, but
 different from, what was spoken. Logs contain neither the original speech nor

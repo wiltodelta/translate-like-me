@@ -136,7 +136,7 @@ Compute-policy findings and the reproducible synthetic benchmark:
   closes before recognition and rejects late writes. Bound capture by frame
   count. While the hold has delivered only digital silence, it may rebuild the graph and
   WAV at most twice after a configuration interruption (Bluetooth switches to
-  HFP at startup). Keep output mute/media ownership through this recovery;
+  HFP at startup). Keep output mute ownership through this recovery;
   release/cancel forbids another start. After any nonzero audio, an interruption fails
   instead of recognizing partial audio. Tear down a failed graph, and ignore
   notifications from older graph generations. Buffer arrival and nonzero signal
