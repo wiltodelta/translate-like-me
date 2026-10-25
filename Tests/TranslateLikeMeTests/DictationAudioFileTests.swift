@@ -24,6 +24,26 @@ final class DictationAudioFileTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(samples.dropFirst(100).first), 0.25, accuracy: 0.001)
     }
 
+    // A cold AirPods microphone sent about 0.5 s of exact zeros before any sound (2026-10-25).
+    func testListeningWaitsForSoundOrASecondOfZeros() throws {
+        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1))
+        let quiet = temporaryFile()
+        defer { try? FileManager.default.removeItem(at: quiet) }
+        let muted = try DictationAudioFile(url: quiet, format: format)
+        XCTAssertNil(muted.append(try buffer(format: format, frames: 8_000, value: 0)))
+        XCTAssertTrue(muted.isDeliveringAudio)
+        XCTAssertFalse(muted.isListening, "Half a second of zeros is a cold microphone, not sound")
+        XCTAssertNil(muted.append(try buffer(format: format, frames: 8_000, value: 0)))
+        XCTAssertTrue(muted.isListening, "A hardware-muted input still gets Listening after a second")
+        try muted.finish()
+        let spoken = temporaryFile()
+        defer { try? FileManager.default.removeItem(at: spoken) }
+        let speech = try DictationAudioFile(url: spoken, format: format)
+        XCTAssertNil(speech.append(try buffer(format: format, frames: 160, value: 0.25)))
+        XCTAssertTrue(speech.isListening)
+        try speech.finish()
+    }
+
     func testTrailingQuietNeedsContrastAndResetsOnSpeech() throws {
         let url = temporaryFile()
         defer { try? FileManager.default.removeItem(at: url) }

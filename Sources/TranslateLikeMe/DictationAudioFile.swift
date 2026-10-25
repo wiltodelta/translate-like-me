@@ -23,6 +23,7 @@ final class DictationAudioFile: @unchecked Sendable {
     // lock, which file I/O can hold.
     private let heard = Atomic(false)
     private let signal = Atomic(false)
+    private let listening = Atomic(false)
 
     init(url: URL, format: AVAudioFormat, maximumDuration: TimeInterval = 300) throws {
         guard format.sampleRate > 0, format.channelCount > 0,
@@ -41,9 +42,14 @@ final class DictationAudioFile: @unchecked Sendable {
     var diagnostics: DictationAudioMetrics { lock.withLock { metrics } }
     var isDeliveringAudio: Bool { heard.load(ordering: .relaxed) }
     var hasSignal: Bool { signal.load(ordering: .relaxed) }
+    // A cold AirPods microphone sent about 0.5 s of exact zeros first, and speech
+    // in that time was lost (2026-10-25). A hardware-muted input never sends more
+    // than zeros, so a second of them also counts as listening.
+    var isListening: Bool { listening.load(ordering: .relaxed) }
     func markSignal() {
         signal.store(true, ordering: .relaxed)
         heard.store(true, ordering: .relaxed)
+        listening.store(true, ordering: .relaxed)
     }
 
     // nil means continue; a terminal success/failure is reported exactly once.
@@ -76,6 +82,9 @@ final class DictationAudioFile: @unchecked Sendable {
             frames += count
             heard.store(true, ordering: .relaxed)
             if measurement.hasSignal { signal.store(true, ordering: .relaxed) }
+            if measurement.hasSignal || frames >= AVAudioFramePosition(format.sampleRate) {
+                listening.store(true, ordering: .relaxed)
+            }
             meter = measurement.level
             track(meter, frames: count)
             if frames >= frameLimit {

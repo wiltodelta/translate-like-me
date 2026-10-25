@@ -280,7 +280,7 @@ private final class FreshInstallEngine: DictationRecognizing {
 private final class FreshInstallRecorder: DictationRecording {
     var onEnd: ((Bool) -> Void)?
     let level = 0.0
-    let isDeliveringAudio = true
+    let isListening = true
     let trailingQuiet: TimeInterval = 0
     var permitted = false
     var starts = 0

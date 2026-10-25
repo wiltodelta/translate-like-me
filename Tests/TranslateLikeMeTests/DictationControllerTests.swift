@@ -7,11 +7,11 @@ final class DictationControllerTests: XCTestCase {
     func testListeningAppearsOnlyOnceTheMicrophoneDeliversAudio() async {
         let engine = ControlledDictationEngine()
         let recorder = ControlledDictationRecorder()
-        recorder.isDeliveringAudio = false
+        recorder.isListening = false
         let shown = expectation(description: "Listening shown after first audio")
         let controller = DictationController(enabled: true, engine: engine, recorder: recorder,
             interaction: DictationInteraction(endCapture: {}, showError: { _ in }, showResult: { _ in }, showCapture: {
-                XCTAssertTrue(recorder.isDeliveringAudio, "No Listening before the microphone delivers audio")
+                XCTAssertTrue(recorder.isListening, "No Listening before the microphone delivers audio")
                 shown.fulfill()
             }), saveModel: { _ in })
         controller.restore()
@@ -19,7 +19,7 @@ final class DictationControllerTests: XCTestCase {
         controller.shortcutPressed()
         XCTAssertEqual(recorder.starts, 1)
         XCTAssertEqual(controller.phase, .starting)
-        recorder.isDeliveringAudio = true
+        recorder.isListening = true
         await fulfillment(of: [shown], timeout: 2)
         XCTAssertEqual(controller.phase, .recording)
         controller.cancel()
@@ -424,7 +424,7 @@ final class ControlledDictationEngine: DictationRecognizing {
 final class ControlledDictationRecorder: DictationRecording {
     var onEnd: ((Bool) -> Void)?
     let level = 0.5
-    var isDeliveringAudio = true
+    var isListening = true
     var trailingQuiet: TimeInterval = 0
     let audio = URL(fileURLWithPath: "/synthetic-dictation.wav")
     var permissions = 0

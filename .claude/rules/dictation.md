@@ -112,6 +112,9 @@ Compute-policy findings and the reproducible synthetic benchmark:
   default without overwriting the preference. Explicit choices are bound even
   when they equal the current default; only the system/fallback path is unbound.
   Compare UID and native rate/channels/data source as well as numeric ID.
+  Snapshot the route after building the graph: building an AirPods graph moved
+  their nominal rate between 24 and 48 kHz, and a pre-build snapshot rebuilt the
+  idle graph about four times a second.
   `DictationInputObserver` forwards topology and selected-device property events
   to the capture queue, unregisters on shutdown and ignores unchanged snapshots.
   Re-prepare an absent idle input when hardware returns. Drain rechecks the route
@@ -136,7 +139,12 @@ Compute-policy findings and the reproducible synthetic benchmark:
   closes before recognition and rejects late writes. Bound capture by frame
   count. While the hold has delivered only digital silence, it may rebuild the graph and
   WAV at most twice after a configuration interruption (Bluetooth switches to
-  HFP at startup). Keep output mute ownership through this recovery;
+  HFP at startup) or a failed `start()` (AirPods returned -10868 on a graph
+  prepared for their previous format). A running graph that delivers no buffer
+  within 1 s is rebuilt from the same budget: an AirPods graph built during their
+  mode switch started without error and stayed silent. An exhausted budget fails
+  the hold through one shared path. The controller only caps the whole startup
+  at 10 s from the press, since an AirPods rebuild took 2.5 s. Keep output mute ownership through this recovery;
   release/cancel forbids another start. After any nonzero audio, an interruption fails
   instead of recognizing partial audio. Tear down a failed graph, and ignore
   notifications from older graph generations. Buffer arrival and nonzero signal
@@ -197,8 +205,11 @@ Compute-policy findings and the reproducible synthetic benchmark:
   consent comes on the second screen; enabling dictation follows both grants.
   Outside onboarding, permission prompts belong to enabling dictation. A release build needs both
   the audio-input entitlement and microphone purpose string.
-- The indicator appears only when the microphone delivers its first audio
-  (`.starting` to `.recording`, about 60 ms after the press: an
+- The indicator appears only when the microphone delivers its first nonzero
+  sample, or once a second of zero frames is recorded (a hardware-muted input;
+  `DictationAudioFile.isListening`):
+  a cold AirPods microphone sent about 0.5 s of exact zeros first, and speech then
+  was lost. Normally this is `.starting` to `.recording` about 60 ms after the press: an
   `AVAudioSinkNode` sees 512-frame I/O cycles while the tap delivers 100 ms
   buffers, and the meter polls every 10 ms until then, every 50 ms after), already reading
   Listening: a Preparing state was taken for "wait before speaking", and

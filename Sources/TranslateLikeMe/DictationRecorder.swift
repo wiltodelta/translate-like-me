@@ -5,7 +5,7 @@ import Foundation
 protocol DictationRecording: AnyObject {
     var onEnd: ((Bool) -> Void)? { get set }
     var level: Double { get }
-    var isDeliveringAudio: Bool { get }
+    var isListening: Bool { get }
     var trailingQuiet: TimeInterval { get }
     func requestPermission() async -> Bool
     func useInput(_ uid: String?)
@@ -57,7 +57,7 @@ final class DictationRecorder: DictationRecording {
     }
 
     var level: Double { request?.sink?.level ?? 0 }
-    var isDeliveringAudio: Bool { request?.sink?.isDeliveringAudio ?? false }
+    var isListening: Bool { request?.sink?.isListening ?? false }
     var trailingQuiet: TimeInterval { request?.sink?.trailingQuiet ?? 0 }
 
     func stop() throws -> Task<URL, Error> {

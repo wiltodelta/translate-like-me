@@ -3,6 +3,9 @@ import Observation
 import os
 
 private let dictationLog = Logger.app("dictation")
+// The capture worker rebuilds a silent or failed start itself; AirPods took 2.5 s
+// per rebuild after their profile switch (2026-10-25), so this only bounds the whole.
+private let dictationStartupLimit = Duration.seconds(10)
 
 @MainActor
 struct DictationInteraction {
@@ -199,6 +202,9 @@ final class DictationController {
                 guard let self, self.session.id == id else { return }
                 if success {
                     self.stop()
+                } else if self.phase == .starting {
+                    self.fail(DictationError.microphone.localizedDescription, id: id)
+                    self.endCapture()
                 } else {
                     self.fail(String(localized: """
                         Recording stopped unexpectedly. Check your microphone, then try again.
@@ -211,14 +217,14 @@ final class DictationController {
             meter = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { [weak self] _ in
                 MainActor.assumeIsolated {
                     guard let self, self.session.id == id, self.phase == .starting else { return }
-                    // Listening appears only once the microphone delivers audio.
-                    if self.recorder.isDeliveringAudio {
+                    // Listening appears only once the microphone delivers sound.
+                    if self.recorder.isListening {
                         self.session.transition(.recording, for: id)
                         self.interaction.showCapture()
                         let elapsed = Int(started.duration(to: .now) / .milliseconds(1))
                         dictationLog.notice("Dictation first audio \(elapsed, privacy: .public) ms after press")
                         self.meterLevel(id)
-                    } else if started.duration(to: .now) > .seconds(3) {
+                    } else if started.duration(to: .now) > dictationStartupLimit {
                         self.fail(DictationError.microphone.localizedDescription, id: id)
                         self.endCapture()
                     }

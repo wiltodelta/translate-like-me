@@ -80,8 +80,36 @@ a prepared graph without starting its microphone. If no graph could be prepared,
 a returning device triggers another preparation while dictation remains enabled.
 Shutdown unregisters listeners; already queued callbacks cannot reopen capture.
 
-Before any nonzero signal, a route or format interruption may discard startup
-silence and rebuild, at most twice. After nonzero audio, a changed route fails
+Before any nonzero signal, a route or format interruption, or a failed engine
+start, may discard startup silence and rebuild, at most twice. On October 25,
+AirPods failed `start()` with -10868 on a graph prepared for their earlier
+44.1 kHz stereo format, and after a 48 to 24 kHz HFP switch the rebuild took
+2.5 s, past the controller's 3-second first-audio limit. The worker now owns
+silent and failed starts, and the controller only caps the whole startup at
+10 seconds from the press.
+The same AirPods moved their nominal rate between 24 and 48 kHz each time the
+app built its idle graph. Because the route was snapshotted before the build, every
+graph looked stale, and the idle graph was rebuilt about four times a second. The
+route is now read after the build. A graph built during that mode switch started
+without error and never delivered a buffer, while a fresh graph delivered within
+0.2 s, so a running graph with no buffer after 1 s is rebuilt from the same budget.
+A cold AirPods microphone then sent 0.49-0.61 s of exact zeros (five of five fresh
+starts), so Listening waits for the first nonzero sample, or a second of an
+all-zero stream for a hardware-muted input. Speech in those zeros is lost: two
+recorded phrases kept about 0.6 s of speech and Qwen returned empty text, and one
+such hold in the app produced Chinese text. Later holds on the same graph started
+in about 35 ms without zeros.
+
+With the capture fixed, the user's own AirPods recordings of a known Russian
+phrase stayed unrecognizable: Qwen returned empty, Chinese or English text, and
+Whisper Turbo returned English. The recordings were continuous, at their stated
+rate, with no repeated or broken buffers, and the user heard their voice "with a
+lot of noise and distortion". The same phrase synthesized and band-limited to 8,
+16 and 24 kHz was recognized by both models in every run. A voice-processing
+capture (AirPods at 24 kHz) did not fix it: Qwen produced a wrong Russian
+sentence three times out of three. The AirPods microphone signal itself limits
+recognition here, as the October 23 headset reports suggested; the recordings
+were deleted after analysis. After nonzero audio, a changed route fails
 rather than joining microphones or accepting a partial recording. Release and
 cancellation forbid another start. Drain rechecks the current route and engine
 running state even if a notification has not yet arrived. These are deliberate

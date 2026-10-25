@@ -61,6 +61,7 @@ final class DictationCaptureWorker: @unchecked Sendable {
     typealias MakeGraph = @Sendable (AudioDeviceID?, Bool, DictationTapRelay,
                                     @escaping @Sendable () -> Void) throws -> any DictationInputGraph
     private let makeGraph: MakeGraph
+    private let firstBufferLimit: DispatchTimeInterval
     typealias ObserveInputs = @Sendable (@escaping @Sendable () -> Void) -> any DictationInputWatching
     private let resolveInput: @Sendable (String?) -> DictationInputRoute?
     private var inputObserver: (any DictationInputWatching)?
@@ -79,11 +80,13 @@ final class DictationCaptureWorker: @unchecked Sendable {
     init(mute: DictationOutputMute = DictationOutputMute(),
          resolveInput: @escaping @Sendable (String?) -> DictationInputRoute? = { DictationInputRoute.resolve($0) },
          observeInputs: @escaping ObserveInputs = { DictationInputObserver(changed: $0) },
+         firstBufferLimit: DispatchTimeInterval = .seconds(1),
          makeGraph: @escaping MakeGraph = { try AVDictationInputGraph(device: $0, followsSystem: $1,
                                                                      relay: $2, changed: $3) }) {
         self.resolveInput = resolveInput
         self.mute = mute
         self.makeGraph = makeGraph
+        self.firstBufferLimit = firstBufferLimit
         queue.async { [self] in
             self.mute.recoverInterrupted()
             inputObserver = observeInputs { [weak self] in
@@ -117,11 +120,45 @@ final class DictationCaptureWorker: @unchecked Sendable {
             current = request
             captureEnded = ended
             startupRestarts = 0
-            do {
-                guard request.isActive else { throw CancellationError() }
-                try startEngine(request, ended: ended)
-            } catch { startFailed(request, error: error, ended: ended) }
+            begin(request)
         }
+    }
+
+    // A Bluetooth input can change format between preparation and the press,
+    // which fails start() itself (-10868 with AirPods); rebuild as for a change after start.
+    private func begin(_ request: DictationCaptureRequest) {
+        guard let ended = captureEnded else { return }
+        do {
+            guard request.isActive else { throw CancellationError() }
+            try startEngine(request, ended: ended)
+        } catch {
+            if !(error is CancellationError),
+               restartsStartup(request, after: "a failed start: \(String(describing: error))") { return }
+            startFailed(request, error: error, ended: ended)
+        }
+    }
+
+    // Bluetooth can change from its playback format to HFP only after start(). Discard
+    // only exact digital silence, with a finite budget per hold; release/cancel forbids it.
+    private func restartsStartup(_ request: DictationCaptureRequest, after cause: String) -> Bool {
+        // Stop callbacks and drain any in-flight write before deciding
+        // whether this hold has heard audio and can safely start over.
+        tearDown()
+        try? capture?.finish()
+        guard request.isActive, capture?.hasSignal != true, startupRestarts < 2 else { return false }
+        startupRestarts += 1
+        captureLog.notice("Dictation rebuilding input after \(cause, privacy: .public)")
+        capture = nil
+        begin(request)
+        return true
+    }
+
+    // A hold that can no longer restart fails; the stop that follows cleans up.
+    private func failRunning(_ request: DictationCaptureRequest, after cause: String) {
+        if restartsStartup(request, after: cause) { return }
+        captureLog.error("Dictation capture failed after \(cause, privacy: .public)")
+        request.fail(DictationError.microphone)
+        captureEnded?(false)
     }
 
     private func startFailed(_ request: DictationCaptureRequest, error: Error,
@@ -147,6 +184,8 @@ final class DictationCaptureWorker: @unchecked Sendable {
         relay.attach(capture, ended: ended)
         mute.engage()
         try request.startIfActive { try engine.start() }
+        let generation = generation
+        queue.asyncAfter(deadline: .now() + firstBufferLimit) { [weak self] in self?.checkFirstBuffer(generation) }
         // Release/cancel stays nonblocking even during a slow hardware start.
         // Drain any captured frames on stop, but stop the microphone immediately.
         if !request.isActive { stopCapture() }
@@ -250,9 +289,22 @@ final class DictationCaptureWorker: @unchecked Sendable {
             Dictation input prepared: transport=\(audioDeviceTransport(device), privacy: .public) \
             selection=\(selection, privacy: .public) rate=\(format.sampleRate) channels=\(format.channelCount)
             """)
-        (self.engine, self.format, inputRoute) = (engine, format, route)
-        inputObserver?.watch(route)
+        // Building the graph can move a Bluetooth input's nominal rate (AirPods flipped
+        // 24/48 kHz, 2026-10-25); a pre-build snapshot made every idle graph stale at once.
+        var built = route
+        if let current = resolveInput(preferredInput), current.uid == route.uid { built = current }
+        (self.engine, self.format, inputRoute) = (engine, format, built)
+        inputObserver?.watch(built)
         return (engine, format)
+    }
+
+    // AirPods graphs built while the headset changed mode started without error and
+    // never delivered a buffer, while a fresh graph did within 0.2 s (2026-10-25).
+    // A hardware-muted input still delivers zero buffers, so it is not affected.
+    private func checkFirstBuffer(_ generation: Int) {
+        guard generation == self.generation, let current, current.isActive, let capture,
+              engine?.isRunning == true, !capture.isDeliveringAudio else { return }
+        failRunning(current, after: "no audio buffer within the startup limit")
     }
 
     private func inputDevicesChanged() {
@@ -265,26 +317,9 @@ final class DictationCaptureWorker: @unchecked Sendable {
 
     private func configurationChanged(_ generation: Int) {
         guard generation == self.generation, let engine else { return }
-        if let current, let capture {
+        if let current, capture != nil {
             guard !engine.isRunning || isStale else { return }
-            // Stop callbacks and drain any in-flight write before deciding
-            // whether this hold has heard audio and can safely start over.
-            tearDown()
-            try? capture.finish()
-            // Bluetooth can change from its playback format to HFP only after
-            // start(). Discard only exact digital silence, with a finite budget per hold.
-            if current.isActive, !capture.hasSignal, startupRestarts < 2, let ended = captureEnded {
-                startupRestarts += 1
-                captureLog.notice("Dictation rebuilding input after a startup configuration change")
-                self.capture = nil
-                do { try startEngine(current, ended: ended) } catch {
-                    startFailed(current, error: error, ended: ended)
-                }
-                return
-            }
-            captureLog.error("Audio engine stopped or changed its input format during dictation")
-            current.fail(DictationError.microphone)
-            captureEnded?(false)
+            failRunning(current, after: "an input configuration change")
         } else {
             // A device or format change while idle invalidates the prepared graph.
             tearDown()

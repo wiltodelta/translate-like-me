@@ -1,6 +1,7 @@
 import AVFoundation
 import CoreAudio
 import Foundation
+import Synchronization
 import XCTest
 @testable import TranslateLikeMe
 
@@ -96,6 +97,75 @@ final class DictationCaptureWorkerTests: XCTestCase {
         XCTAssertEqual(scenario.graphs, 3)
     }
 
+    // AirPods failed start() with -10868 on an idle graph built for their previous format (2026-10-25).
+    func testFailedStartBeforeAudioRebuildsTheGraph() async throws {
+        let done = expectation(description: "Failed start recovered")
+        let scenario = CaptureGraphScenario(changes: 0, failedStarts: 1, completed: { done.fulfill() })
+        let worker = makeWorker(scenario)
+        let request = DictationCaptureRequest()
+        defer { worker.shutdown() }
+        worker.prepare(rebuild: false)
+        worker.start(request) { _ in XCTFail("A recovered start must not end the hold") }
+        await fulfillment(of: [done], timeout: 2)
+        request.end()
+        let url = try await worker.stop(request).value
+        XCTAssertEqual(try AVAudioFile(forReading: url).length, 160)
+        XCTAssertEqual(scenario.graphs, 2)
+    }
+
+    func testRunningGraphWithoutBuffersIsRebuilt() async throws {
+        let done = expectation(description: "Silent graph replaced")
+        let scenario = CaptureGraphScenario(changes: 0, deadStarts: 1, completed: { done.fulfill() })
+        let worker = makeWorker(scenario, firstBufferLimit: .milliseconds(20))
+        let request = DictationCaptureRequest()
+        defer { worker.shutdown() }
+        worker.start(request) { _ in XCTFail("A recovered start must not end the hold") }
+        await fulfillment(of: [done], timeout: 2)
+        request.end()
+        let url = try await worker.stop(request).value
+        XCTAssertEqual(try AVAudioFile(forReading: url).length, 160)
+        XCTAssertEqual(scenario.graphs, 2)
+    }
+
+    func testRepeatedFailedStartsHaveABoundedRetryBudget() async {
+        let done = expectation(description: "Unstartable input failed")
+        let scenario = CaptureGraphScenario(changes: 0, failedStarts: 10, completed: {})
+        let worker = makeWorker(scenario)
+        let request = DictationCaptureRequest()
+        defer { worker.shutdown() }
+        worker.start(request) { success in
+            XCTAssertFalse(success)
+            done.fulfill()
+        }
+        await fulfillment(of: [done], timeout: 2)
+        XCTAssertNotNil(request.failure)
+        XCTAssertEqual(scenario.graphs, 3)
+    }
+
+    // Building an AirPods graph moved the input's nominal rate between 24 and 48 kHz, and
+    // a pre-build snapshot rebuilt the idle graph about four times a second (2026-10-25).
+    func testRateMovedByBuildingTheGraphDoesNotRebuildItAgain() async {
+        let observing = expectation(description: "Input observer registered")
+        let rate = Mutex(24_000.0)
+        let notify = Mutex<(@Sendable () -> Void)?>(nil)
+        let scenario = CaptureGraphScenario(changes: 0, building: { _ in
+            rate.withLock { $0 = $0 == 24_000 ? 48_000 : 24_000 }
+        }, completed: {})
+        let worker = makeWorker(scenario, resolveInput: { _ in
+            DictationInputRoute(device: 77, uid: "test-input", sampleRate: rate.withLock { $0 })
+        }, observeInputs: { changed in
+            notify.withLock { $0 = changed }
+            observing.fulfill()
+            return RouteTestObservation()
+        })
+        defer { worker.shutdown() }
+        await fulfillment(of: [observing], timeout: 2)
+        worker.prepare(rebuild: false)
+        for _ in 0..<3 { notify.withLock { $0 }?() }
+        worker.shutdown()
+        XCTAssertEqual(scenario.graphs, 1)
+    }
+
     func testReleaseBeforeConfigurationCallbackNeverRestartsTheMicrophone() async {
         let queued = expectation(description: "Configuration callback queued after release")
         let request = DictationCaptureRequest()
@@ -110,10 +180,16 @@ final class DictationCaptureWorkerTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: request.url.path))
     }
 
-    private func makeWorker(_ scenario: CaptureGraphScenario) -> DictationCaptureWorker {
+    private func makeWorker(_ scenario: CaptureGraphScenario,
+                            resolveInput: @escaping @Sendable (String?) -> DictationInputRoute? = { _ in
+                                DictationInputRoute(device: 77, uid: "test-input")
+                            },
+                            observeInputs: @escaping DictationCaptureWorker.ObserveInputs = { _ in
+                                RouteTestObservation()
+                            },
+                            firstBufferLimit: DispatchTimeInterval = .seconds(60)) -> DictationCaptureWorker {
         DictationCaptureWorker(mute: DictationOutputMute(control: UnavailableCaptureOutput()),
-            resolveInput: { _ in DictationInputRoute(device: 77, uid: "test-input") },
-            observeInputs: { _ in RouteTestObservation() },
+            resolveInput: resolveInput, observeInputs: observeInputs, firstBufferLimit: firstBufferLimit,
             makeGraph: { _, _, relay, changed in scenario.makeGraph(relay: relay, changed: changed) })
     }
 }
@@ -124,29 +200,43 @@ private final class CaptureGraphScenario: @unchecked Sendable {
     private var count = 0
     private var firstRelay: DictationTapRelay?
     private let changes: Int
+    private let failedStarts: Int
+    private let deadStarts: Int
     private let startupSample: Float?
     private let finalSample: Float
     private let beforeChange: @Sendable () -> Void
     private let afterChange: @Sendable () -> Void
+    private let building: @Sendable (Int) -> Void
     private let completed: @Sendable () -> Void
     var graphs: Int { lock.withLock { count } }
 
-    init(changes: Int, startupSample: Float? = nil, finalSample: Float = 0.25,
+    init(changes: Int, failedStarts: Int = 0, deadStarts: Int = 0, startupSample: Float? = nil,
+         finalSample: Float = 0.25,
          beforeChange: @escaping @Sendable () -> Void = {},
-         afterChange: @escaping @Sendable () -> Void = {}, completed: @escaping @Sendable () -> Void) {
+         afterChange: @escaping @Sendable () -> Void = {},
+         building: @escaping @Sendable (Int) -> Void = { _ in }, completed: @escaping @Sendable () -> Void) {
         self.changes = changes
+        self.failedStarts = failedStarts
+        self.deadStarts = deadStarts
         self.startupSample = startupSample
         self.finalSample = finalSample
         self.beforeChange = beforeChange
         self.afterChange = afterChange
+        self.building = building
         self.completed = completed
     }
 
     func makeGraph(relay: DictationTapRelay, changed: @escaping @Sendable () -> Void) -> any DictationInputGraph {
         let index = lock.withLock { let index = count; count += 1; return index }
         if index == 0 { firstRelay = relay }
+        building(index)
         return SyntheticCaptureGraph(rate: index == 0 ? 44_100 : 16_000, start: { graph in
-            if index < self.changes {
+            if index < self.failedStarts {
+                graph.isRunning = false
+                throw NSError(domain: "com.apple.coreaudio.avfaudio", code: -10_868)
+            } else if index < self.deadStarts {
+                return
+            } else if index < self.changes {
                 if let sample = self.startupSample { try graph.deliver(to: relay, sample: sample) }
                 self.beforeChange()
                 graph.format = AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1)!
