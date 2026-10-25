@@ -185,3 +185,5 @@ Accessibility, Screen Recording, and an unlocked Mac left alone during capture.
 
 [Apache License 2.0](LICENSE). Dependencies and model weights have their own
 licenses and notices.
+
+Made by [Victor Kuznetsov](https://wiltodelta.com/).
