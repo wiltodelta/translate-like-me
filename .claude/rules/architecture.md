@@ -11,9 +11,7 @@ description: App architecture -- the status item and its standard NSMenu, settin
 Read before editing this domain.
 
 - `AppDelegate` owns an `NSStatusItem` whose `menu` is `StatusMenu`, a standard
-  `NSMenu` for both clicks. HIG (The menu bar, menu bar extras): "display a menu,
-  not a popover"; the system draws the menu's material, appearance and
-  accessibility. It is rebuilt on every open
+  `NSMenu` for both clicks. It is rebuilt on every open
   (`menuNeedsUpdate`), keeps the same items in every state (status rows change
   text, never disappear), and uses the standard `terminate(_:)` selector so
   macOS 26 supplies Quit's icon. Settings is an `NSTabViewController` in toolbar
@@ -32,17 +30,15 @@ Read before editing this domain.
   `AppDelegate.showSettings`, replacing the dummy SwiftUI Settings command.
   Reopening brings Settings forward, or the visible onboarding window.
   No control is focused when a pane opens
-  (`SettingsTabViewController.clearFocus`): AppKit focused the Rewrite pane's
-  first preset name with its text selected, so the next key renamed it. The
+  (`SettingsTabViewController.clearFocus`). The
   window is a `SettingsWindow` that keeps every frame, the pane-switch
   animation steps included, inside the screen's visible frame, and
   a pane taller than the screen scrolls (`SettingsLayout.maxPaneHeight`) instead
   of running under the Dock. At `Languages.maxPairs` the Add Pair button stays,
   disabled, beside "Up to 3 pairs". The popup (`PopupController`) stays a cursor-anchored
-  panel: HIG Writing wants errors "as close to the problem as possible". It never
-  becomes key, so its Copy / Open Settings buttons are not keyboard-reachable; that
-  is deliberate (decided 2026-09-28): taking focus would steal the field the user
-  is typing in. A skipped insertion leaves the result available through Copy,
+  panel that never becomes key, so its Copy / Open Settings buttons are
+  deliberately not keyboard-reachable: taking focus would steal the field the
+  user is typing in. A skipped insertion leaves the result available through Copy,
   without overwriting a newer user copy. `LastResults` retains one nonempty
   completed result per `PopupController.ResultKind` in memory, before paste;
   failures and cancellations keep the earlier result. StatusMenu's Copy Last
@@ -53,8 +49,6 @@ Read before editing this domain.
   text is below. Its opaque `windowBackgroundColor` backing keeps text readable
   over arbitrary desktop colors and Liquid Glass settings. macOS 27 hides `NSMenuItem.image` unless `preferredImageVisibility
   = .visible`; the status rows and the updates item set it (`StatusMenu.showsImage`).
-  A scheduled Sparkle check shows its own window only while the app is active, so a
-  launch-time find is announced in the menu, not over the user's app.
 - `Languages.all` derives languages from `Locale.availableIdentifiers`,
   each with its English `name` for the
   engine's prompt and a `displayName` in the interface language
@@ -82,14 +76,10 @@ Read before editing this domain.
   (pairs sharing languages get a subtitle saying which applies a style).
   The model detects the direction: text in `first` becomes `second`, anything
   else becomes `first` (`Translator.systemPrompt`). On-device detection
-  (`NLLanguageRecognizer`) was measured and rejected: constrained to ru/en it
-  called Spanish and "Скинь PR по TranslateLikeMe" English at 1.00. Gemma 4 E2B
+  (`NLLanguageRecognizer`) was measured and rejected. Gemma 4 E2B
   breaks the rule for third languages, sending German, French and Spanish to
   English (`docs/local-translation.md`).
-  With a style, the prompt asks for the restyled translation only, once:
-  TranslateGemma 12B otherwise returned the literal one and a restyled copy, and
-  none of 75 runs across claude, codex, grok and both local models did with the
-  rule (`docs/local-model-candidates.md`).
+  With a style, the prompt asks for the restyled translation only, once.
   `Settings.persistLanguagePairs()` runs first at launch and writes the pairs
   once: the pre-pairs `languageA`/`languageB`/`replaceKeyCode` (or ru/en ⌥⌘F for
   an earlier run that kept the defaults) for an existing user, none for a new
@@ -113,25 +103,20 @@ Read before editing this domain.
   shortcut/style. Deletion runs after the sheet dismisses to preserve row bindings. StyleEditor
   names its text area with the localized pair/preset title. A preset never translates:
   the message stays in the notes' language and a pair's shortcut translates it
-  afterwards. Presets are told apart by purpose, not language, as Apple's
-  Writing Tools, Wispr Flow and DeepL Write tell theirs apart by tone, and
-  because a language bound into each preset is what Superwhisper users ask to
-  be rid of (an earlier draft here bound one, decided against 2026-10-08).
+  afterwards. Presets are told apart by purpose; never bind a language into
+  a preset.
   `HotKeyManager.reload` installs the enabled dictation hold monitor first, then
   registers pairs and presets, skipping a combo already taken, and `SettingsStore.owner(of:except:)` refuses a combo either
   list uses. A row holding a `TextField` binds its item by id
   (`RewriteSettingsView.binding(for:)`), never by index through
-  `ForEach($array)`: the field re-reads its binding during the resize
-  animation after a removal and crashed past the shortened array. The menu
+  `ForEach($array)`, which crashed after a removal.
+  The menu
   adds a Rewrite selection section only while a preset exists. `TranslationController.rewrite(preset:)` shares the copy, engine and
   paste flow with `run(pair:)` (`perform`). `Rewrite.systemPrompt` keeps the
-  notes' language even beside a received message in another (21 of 21 live
-  runs, 2026-10-08), keeps questions for the recipient, drops filler and
-  superseded self-corrections, treats the received message as context only,
-  writes a name taken from it in the message's script ("Марк", 1 of 3 runs
-  without that rule, 3 of 3 with it), and allows the recipient's name but no
-  greeting word (10 of 21 runs opened "Hi Pete," without that rule, 0 of 12
-  with it).
+  notes' language even beside a received message in another, keeps questions
+  for the recipient, drops filler and superseded self-corrections, treats the
+  received message as context only, writes a name taken from it in the
+  message's script, and allows the recipient's name but no greeting word.
   Each run, translate or rewrite, logs its focused app, outcome, and
   failures through `os.Logger`: `/usr/bin/log stream --level info --predicate
   'subsystem == "com.wiltodelta.translatelikeme"'` (plain `log` is a zsh
@@ -176,8 +161,7 @@ Read before editing this domain.
   live adapters share the pasteboard through `LivePasteAccess`. No AX element,
   range or value is compared: those checks failed in Chrome, Claude and Slack.
   The focused process is AX's system-wide focused application, else the
-  frontmost app (`SelectionTarget.focusedPID`): frontmost Slack once left the
-  former unanswered, and the copy guard read every run as no selection. A
+  frontmost app (`SelectionTarget.focusedPID`). A
   failed AX answer logs its error code.
   Copy and Paste events go to the original pid and carry an app marker so the
   activity monitor ignores them. Their key codes come from the ASCII-capable
@@ -198,7 +182,7 @@ Read before editing this domain.
   and timeout kill the owned process group when isolated, otherwise the child,
   close its streams and await termination. Status transport failures remain
   failures rather than being reported as a signed-out account. claude, codex
-  and grok answer 0.5-1.1 s before they exit, so translations read their JSON
+  and grok answer before they exit, so translations read their JSON
   event streams (`CLIStreams.swift`) and `run(answered:)` returns at the
   answer, leaving the child to exit or be killed at the deadline. A failure
   still waits for the exit status and reaches `FailureDetail` in the shape of
@@ -266,8 +250,7 @@ Read before editing this domain.
   unreadable one gives an empty list and "Default" only (claude falls back to
   its documented aliases). `HarnessCatalog.model(_:)` finds a model by id, else
   a claude alias ("opus" in the user's settings) as the first catalog model
-  whose `short_name` it is, which is what claude runs (checked live for all
-  four aliases, 2026-10-08), so "Default (Opus 5.5)" names a version.
+  whose `short_name` it is, which is what claude runs, so "Default (Opus 5.5)" names a version.
   `HarnessCatalog.efforts(for:)` is the one effort
   rule, nil for an unknown model so nothing is guessed; the cache is read at
   translation time only when a pick exists. Picks are stored per provider
@@ -280,9 +263,8 @@ Read before editing this domain.
   probe, cached in `Settings.grokDefaultModel`; agy runs the model selected in
   it, which it does not print. A default effort the picked model does not list is dropped.
   Known gap: codex still loads the
-  global `$CODEX_HOME/AGENTS.md` into every translation (measured ~9.3k tokens
-  for a 37 KB file, 2026-09-23); codex 0.156 has no flag for it (see
-  `Translator.runCodex`).
+  global `$CODEX_HOME/AGENTS.md` into every translation; codex 0.156 has no
+  flag for it (see `Translator.runCodex`).
 - Grok runs with the `GROK_CLAUDE_*`/`GROK_CURSOR_*` compat cells off
   (`cliEnvironment`) and an empty tool allowlist, because otherwise it imports
   `~/.claude` rules, skills and MCP servers and may act as an agent instead of
@@ -293,22 +275,18 @@ Read before editing this domain.
   `.agents/agents/translatelikeme/agent.md` under Application Support, which is
   its working directory): `inheritCustomizations: false`,
   `excludeDefaultComponents: true`, `tools: []`, the prompt in the message
-  through `--input-format stream-json`. Measured 2026-10-19 (agy 1.4.2): ~1k
-  input tokens instead of ~20.9k, no file, command or network tool, 5-9 s per
-  translation. A Gemini safety-filter notice arrives as a SUCCESS result and is
+  through `--input-format stream-json`. A Gemini safety-filter notice arrives as a SUCCESS result and is
   turned into a failure (`Antigravity.response`). agy has no ephemeral mode;
   every run stays in its history (`~/.gemini/antigravity-cli`), kept by
-  decision (2026-10-19).
+  decision.
 - Exhausted-limit failures surface as `LimitReachedError`: `LimitDetector`
   (LimitReached.swift) matches real CLI payloads, API quota bodies included (claude prints its limit
   line on stdout, codex on stderr, agy "Individual quota reached" on stderr;
   grok's limit payload is not yet captured)
   and `PopupController.showLimitReached` shows the engine's reset time with an
   Open Settings action. `EngineStatus` stays
-  sign-in-based: `claude usage` is too slow (~26s) for proactive checks.
-- Updates are Sparkle (`Updater`): a daily check against the appcast each
-  release publishes, with gentle reminders so a scheduled find never takes
-  focus (the menu item turns into "Install Update…"). Packaging and keys:
+  sign-in-based: `claude usage` is too slow for proactive checks.
+- Updates are Sparkle (`Updater`, the family's shared file). Packaging and keys:
   `docs/build-and-release.md`.
 - Logging goes through `Logger.app(category)`, one subsystem.
 - Isolated first-run checks and native permission verification:
