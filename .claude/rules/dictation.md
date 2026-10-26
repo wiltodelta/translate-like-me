@@ -10,6 +10,11 @@ paths:
   - "Tests/TranslateLikeMeTests/Dictation*.swift"
   - "Tests/TranslateLikeMeTests/ModelSnapshotTests.swift"
   - "Tests/TranslateLikeMeTests/OptionKeyGestureTests.swift"
+  - "Sources/TranslateLikeMe/CoreAudioDevices.swift"
+  - "Sources/TranslateLikeMe/LastResults.swift"
+  - "scripts/*ictation*"
+  - "scripts/check-qwen.py"
+  - "docs/dictation*.md"
 description: "Minimal local dictation: model, recording lifecycle, cancellation, and caret delivery"
 ---
 
@@ -18,7 +23,7 @@ description: "Minimal local dictation: model, recording lifecycle, cancellation,
 Product scope: `docs/dictation-feature-plan.md`. Implementation and verification:
 `docs/dictation.md`. A small curated local ASR catalog, automatic detection within each model's languages,
 one Option hold key, system microphone unless one is chosen in Settings, no cleanup LLM. Settings has a dedicated
-Dictation pane. The user explicitly added model selection after the 3.5.0 release.
+Dictation pane. Model selection is a user decision; keep it.
 Compute-policy findings and the reproducible synthetic benchmark:
 `docs/dictation-model-efficiency.md`.
 
@@ -98,10 +103,8 @@ Compute-policy findings and the reproducible synthetic benchmark:
   reports ready with missing assets, and does not restart during termination.
   Do not reintroduce timed
   eviction without measuring reload latency.
-- Capture uses raw `AVAudioEngine` input, without voice processing: its per-press
-  initialization cost about 1.2 s and lost first words, and a prepared
-  voice-processing unit kept media ducked while idle (user decision 2026-10-20,
-  `docs/dictation-startup.md`). Between holds the worker keeps the engine
+- Capture uses raw `AVAudioEngine` input, without voice processing (user
+  decision). Between holds the worker keeps the engine
   prepared but stopped, with the relay tap and a first-audio sink node
   installed; it opens no microphone
   (process input-running reads zero). Warm up only with an existing grant, after
@@ -112,9 +115,7 @@ Compute-policy findings and the reproducible synthetic benchmark:
   default without overwriting the preference. Explicit choices are bound even
   when they equal the current default; only the system/fallback path is unbound.
   Compare UID and native rate/channels/data source as well as numeric ID.
-  Snapshot the route after building the graph: building an AirPods graph moved
-  their nominal rate between 24 and 48 kHz, and a pre-build snapshot rebuilt the
-  idle graph about four times a second.
+  Snapshot the route after building the graph, never before.
   `DictationInputObserver` forwards topology and selected-device property events
   to the capture queue, unregisters on shutdown and ignores unchanged snapshots.
   Re-prepare an absent idle input when hardware returns. Drain rechecks the route
@@ -138,13 +139,10 @@ Compute-policy findings and the reproducible synthetic benchmark:
   writes; the relay forwards only while a hold's sink is attached. The locked sink
   closes before recognition and rejects late writes. Bound capture by frame
   count. While the hold has delivered only digital silence, it may rebuild the graph and
-  WAV at most twice after a configuration interruption (Bluetooth switches to
-  HFP at startup) or a failed `start()` (AirPods returned -10868 on a graph
-  prepared for their previous format). A running graph that delivers no buffer
-  within 1 s is rebuilt from the same budget: an AirPods graph built during their
-  mode switch started without error and stayed silent. An exhausted budget fails
-  the hold through one shared path. The controller only caps the whole startup
-  at 10 s from the press, since an AirPods rebuild took 2.5 s. Keep output mute ownership through this recovery;
+  WAV at most twice after a configuration interruption or a failed `start()`. A
+  running graph that delivers no buffer within 1 s is rebuilt from the same
+  budget. An exhausted budget fails the hold through one shared path. The
+  controller only caps the whole startup at 10 s from the press. Keep output mute ownership through this recovery;
   release/cancel forbids another start. After any nonzero audio, an interruption fails
   instead of recognizing partial audio. Tear down a failed graph, and ignore
   notifications from older graph generations. Buffer arrival and nonzero signal
@@ -158,27 +156,17 @@ Compute-policy findings and the reproducible synthetic benchmark:
   create and use their engine inside one task, returning only sample values.
 - Delivery goes wherever keyboard focus is when recognition finishes, in any
   app (user decision 2026-10-20): typing, clicks and app switches during
-  recognition no longer retain the result. Field-level AX targets and the
-  custom-renderer window target were removed after a day of logs showed them
-  failing in Chrome, Claude, Slack and on any click; translation and Rewrite
-  now deliver the same way (`architecture.md`). `SelectionTarget.destination`
+  recognition no longer retain the result. Translation and Rewrite deliver the
+  same way (`architecture.md`); do not reintroduce field-level AX or window
+  targets. `SelectionTarget.destination`
   is AX's focused process, else the frontmost app; only a secure text field or
   no process at all retains the result.
-- `PasteDelivery.insert` snapshots the clipboard just before writing; the
-  shared `PasteDelivery` resolves the destination, guards the change count and
-  restores only its own write. It promises the string through `PasteReceipt`
-  and posts Paste to the destination pid: a read of the promised string is the
-  delivery proof, because a paste must read the clipboard and AX cannot see
-  into custom renderers. Restore only after that read (300 ms later, never
-  before 700 ms), so a busy app never pastes the older clipboard; the previous
-  fixed 720 ms wait raced slow apps. No read within 3 s retains the result
-  without a second paste. TransientType keeps clipboard managers from reading
-  it. Cancellation still restores. Diagnostics log the destination bundle id,
-  pid and read latency, never text. The Paste key code comes from
-  the ASCII-capable layout (`KeyboardLayout`, main thread only), so Dvorak sends
-  Cmd+V rather than the fixed ANSI code's Cmd+K; Russian and other non-Latin
-  layouts use their ASCII-capable layout. Keep the last transcript in `LastResults` for
-  explicit Copy Last Result > Dictation, shared with Translation and Rewrite.
+- `PasteDelivery` follows the shared contract in `architecture.md`
+  (`SelectionWorkflow`); `insert` snapshots the clipboard just before writing. TransientType keeps clipboard managers from
+  reading it. Cancellation still restores. Diagnostics log the destination
+  bundle id, pid and read latency, never text. Keep the last transcript in
+  `LastResults` for explicit Copy Last Result > Dictation, shared with
+  Translation and Rewrite.
 - Hold-to-talk is the only recording mode. Default to right Option; the binding
   field accepts left or right Option only. Press begins capture, release finishes
   after a tail of up to one second that catches a last word spoken while letting go
@@ -207,18 +195,13 @@ Compute-policy findings and the reproducible synthetic benchmark:
   the audio-input entitlement and microphone purpose string.
 - The indicator appears only when the microphone delivers its first nonzero
   sample, or once a second of zero frames is recorded (a hardware-muted input;
-  `DictationAudioFile.isListening`):
-  a cold AirPods microphone sent about 0.5 s of exact zeros first, and speech then
-  was lost. Normally this is `.starting` to `.recording` about 60 ms after the press: an
-  `AVAudioSinkNode` sees 512-frame I/O cycles while the tap delivers 100 ms
-  buffers, and the meter polls every 10 ms until then, every 50 ms after), already reading
-  Listening: a Preparing state was taken for "wait before speaking", and
-  Listening before audio invites words the recording misses. Keep a shared 20-point icon slot in the listening and recognizing indicator
+  `DictationAudioFile.isListening`), already reading Listening; show no
+  Preparing state and no Listening before audio.
+  Keep a shared 20-point icon slot in the listening and recognizing indicator
   states so the text does not shift when the symbol changes. Native previews
   render those states without opening the microphone; they do not verify recording.
 - Bluetooth microphones dictate much less accurately than the Mac's built-in
-  microphone (vendors and the 2026-10-25 recordings agree,
-  `docs/dictation-device-compatibility.md`). Dictation follows the system input
+  microphone. Dictation follows the system input
   unless a microphone is chosen in Settings, and the Dictation pane always says
   so under the microphone picker; nothing warns during dictation (user decision
   2026-10-25).
