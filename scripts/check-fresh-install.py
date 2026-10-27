@@ -21,20 +21,23 @@ log = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run(arguments, *, env=None, cwd=None, timeout=180):
+def run(arguments, *, env=None, cwd=None, timeout=180, merge_stderr=True):
     """Bound the whole subprocess group, including shell/CLI grandchildren."""
     child = subprocess.Popen(
         [str(item) for item in arguments], cwd=ROOT if cwd is None else cwd, env=env,
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT if merge_stderr else subprocess.PIPE,
+        text=True, start_new_session=True,
     )
     try:
-        output, _ = child.communicate(timeout=timeout)
+        output, diagnostics = child.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
         os.killpg(child.pid, signal.SIGKILL)
         child.communicate()
         raise RuntimeError("Fresh-install subprocess exceeded its deadline") from None
     if child.returncode:
-        raise RuntimeError("Subprocess failed (%s):\n%s" % (child.returncode, output))
+        raise RuntimeError("Subprocess failed (%s):\n%s%s" % (child.returncode, output, diagnostics or ""))
+    if diagnostics:
+        log.info("%s", diagnostics.rstrip())
     return output
 
 
@@ -132,12 +135,13 @@ def main():
         raise RuntimeError("The isolated XCTest host needs the team Developer ID Application identity")
     if not args.skip_build:
         run(["swift", "build", "--build-tests"], timeout=300)
-    bin_directory = Path(run(["swift", "build", "--show-bin-path"]).strip())
+    bin_directory = Path(run(["swift", "build", "--show-bin-path"], merge_stderr=False).strip())
     test_bundle = bin_directory / "TranslateLikeMeTests.xctest"
     if not test_bundle.is_dir():
         raise RuntimeError("Test bundle is absent; rerun without --skip-build")
     prefix = "TranslateLikeMeTests.FreshInstallTests/"
-    tests = [item.removeprefix(prefix) for item in run(["swift", "test", "list", "--skip-build"]).splitlines()
+    tests = [item.removeprefix(prefix) for item in run(
+        ["swift", "test", "list", "--skip-build"], merge_stderr=False).splitlines()
              if item.startswith(prefix)]
     if not tests:
         raise RuntimeError("No fresh-install tests were discovered")

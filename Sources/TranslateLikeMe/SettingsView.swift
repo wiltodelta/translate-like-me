@@ -99,6 +99,7 @@ struct TranslationSettingsView: View {
             Picker("Service", selection: $store.provider) {
                 ForEach(Provider.allCases, id: \.self) { Text($0.name).tag($0) }
             }
+            .accessibilityIdentifier("translation-service")
             if store.provider.usesCLI {
                 modelPickers
             } else {
@@ -107,8 +108,21 @@ struct TranslationSettingsView: View {
         } header: {
             Text("Translation engine")
         } footer: {
-            Text(engineFooter)
-                .foregroundStyle(Color.secondaryText)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(engineFooter)
+                if store.provider.usesCLI {
+                    Text(store.provider.historySummary)
+                    if store.provider == .openai {
+                        Text("Global Codex instructions may still affect the result.")
+                    }
+                    if store.resolution.rejectedEffort != nil {
+                        Text("The saved effort is unavailable for this model. The CLI default will be used.")
+                    } else if store.resolution.efforts == nil && store.resolution.choice.effort != nil {
+                        Text("The CLI catalog does not report effort support for this model.")
+                    }
+                }
+            }
+            .foregroundStyle(Color.secondaryText)
         }
     }
 
@@ -117,17 +131,18 @@ struct TranslationSettingsView: View {
     @ViewBuilder private var modelPickers: some View {
         Picker("Model", selection: $store.pick.model) {
             Text(Self.defaultLabel(store.defaultModel.map(modelName))).tag(String?.none)
-            ForEach(store.catalog.models, id: \.id) { Text($0.name).tag(Optional($0.id)) }
-            // A pick the CLI no longer lists stays visible instead of blank.
-            if let picked = store.pick.model, store.catalog.efforts(for: picked) == nil {
-                Text(picked).tag(Optional(picked))
-            }
+            ForEach(store.modelOptions, id: \.id) { Text($0.name).tag(Optional($0.id)) }
         }
-        if !store.effortOptions.isEmpty {
-            Picker("Effort", selection: $store.pick.effort) {
-                Text(Self.defaultLabel(store.configured.effort.map(effortName))).tag(String?.none)
+        .accessibilityIdentifier("translation-model")
+        if store.showsEffortPicker {
+            Picker("Effort", selection: $store.displayedEffort) {
+                Text(Self.defaultLabel(store.defaultEffort.map(effortName))).tag(String?.none)
                 ForEach(store.effortOptions, id: \.id) { Text($0.name).tag(Optional($0.id)) }
+                if store.resolution.efforts == nil, let saved = store.pick.effort {
+                    Text(effortName(saved)).tag(Optional(saved))
+                }
             }
+            .accessibilityIdentifier("translation-effort")
         }
     }
 

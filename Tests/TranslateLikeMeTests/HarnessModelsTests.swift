@@ -119,40 +119,85 @@ final class HarnessModelsTests: XCTestCase {
         }
     }
 
-    // MARK: - HarnessChoice.resolve
+    // MARK: - HarnessResolution
+
+    func testResolutionReportsCatalogDefaultWithoutPinningItsModel() {
+        let catalog = HarnessCatalog(models: [
+            HarnessModel(id: "current", name: "Current", efforts: [.init(id: "low", name: "Low")])
+        ], defaultModel: "current")
+        let result = HarnessResolution.resolve(picked: .init(effort: "low"), configured: .init(), catalog: catalog)
+        XCTAssertEqual(result.model, "current")
+        XCTAssertEqual(result.modelSource, .catalog)
+        XCTAssertEqual(result.effortSource, .application)
+        XCTAssertEqual(result.choice, .init(effort: "low"))
+    }
+
+    func testMissingCapabilityFieldsRemainUnknown() {
+        let data = Data(#"{"models":[{"slug":"unknown"}]}"#.utf8)
+        let catalog = HarnessModels.parseCodex(data)
+        XCTAssertNotNil(catalog.model("unknown"))
+        XCTAssertNil(catalog.efforts(for: "unknown"))
+        let result = HarnessResolution.resolve(picked: .init(model: "unknown", effort: "high"),
+                                               configured: .init(), catalog: catalog)
+        XCTAssertEqual(result.choice.effort, "high")
+        let changed = HarnessModels.parseCodex(Data(
+            #"{"models":[{"slug":"changed","supported_reasoning_levels":[{"renamed":"low"}]}]}"#.utf8))
+        XCTAssertNil(changed.efforts(for: "changed"), "A changed schema is unknown, not unsupported")
+        let unsupported = HarnessCatalog(models: [HarnessModel(id: "none", name: "None", efforts: [])])
+        let rejected = HarnessResolution.resolve(picked: .init(model: "none", effort: "high"),
+                                                 configured: .init(), catalog: unsupported)
+        XCTAssertNil(rejected.choice.effort)
+        XCTAssertEqual(rejected.rejectedEffort, "high")
+    }
+
+    func testDefaultModelValidatesPersistedEffortAgainstCatalogDefault() {
+        let catalog = HarnessCatalog(models: [
+            HarnessModel(id: "grok-current", name: "Current", efforts: [.init(id: "low", name: "Low")])
+        ], defaultModel: "grok-current")
+        let choice = HarnessResolution.resolve(picked: .init(effort: "xhigh"), configured: .init(),
+                                           catalog: catalog).choice
+        XCTAssertNil(choice.effort)
+        XCTAssertNil(choice.model, "Validation must not pin a CLI default to a model")
+    }
+
+    func testMissingClaudeCatalogPreservesConfiguredEffortForAnAlias() {
+        let choice = HarnessResolution.resolve(picked: .init(model: "opus"), configured: .init(effort: "low"),
+                                           catalog: HarnessModels.claudeAliases).choice
+        XCTAssertEqual(choice, .init(model: "opus", effort: "low"))
+    }
 
     private let catalog = HarnessCatalog(models: [
         HarnessModel(id: "gpt-6-luna", name: "GPT-6-Luna", efforts: [.init(id: "low", name: "Low")])
     ])
 
     func testPickWinsOverConfiguredDefault() {
-        let choice = HarnessChoice.resolve(picked: .init(model: "gpt-6-luna", effort: "low"),
+        let choice = HarnessResolution.resolve(picked: .init(model: "gpt-6-luna", effort: "low"),
                                            configured: .init(model: "gpt-5.6-sol", effort: "medium"),
-                                           catalog: { self.catalog })
+                                           catalog: self.catalog).choice
         XCTAssertEqual(choice, .init(model: "gpt-6-luna", effort: "low"))
     }
 
-    // With no pick the user's own config passes through, and no cache is read.
-    func testNoPickUsesTheConfigWithoutReadingTheCatalog() {
-        let choice = HarnessChoice.resolve(picked: .init(), configured: .init(model: "gpt-5.6-sol", effort: "medium"),
-                                           catalog: { XCTFail("catalog read without a pick"); return self.catalog })
+    func testNoPickUsesCompatibleConfiguredDefaults() {
+        let choice = HarnessResolution.resolve(picked: .init(),
+                                               configured: .init(model: "gpt-5.6-sol", effort: "medium"),
+                                               catalog: self.catalog).choice
         XCTAssertEqual(choice, .init(model: "gpt-5.6-sol", effort: "medium"))
     }
 
     func testEffortTheResolvedModelRejectsIsDropped() {
-        let inherited = HarnessChoice.resolve(picked: .init(model: "gpt-6-luna"),
+        let inherited = HarnessResolution.resolve(picked: .init(model: "gpt-6-luna"),
                                               configured: .init(model: "gpt-5.6-sol", effort: "medium"),
-                                              catalog: { self.catalog })
+                                              catalog: self.catalog).choice
         XCTAssertEqual(inherited, .init(model: "gpt-6-luna", effort: nil))
         // A stale pick is checked too, e.g. after the CLI's cache refreshed.
-        let stale = HarnessChoice.resolve(picked: .init(model: "gpt-6-luna", effort: "ultra"),
-                                          configured: .init(), catalog: { self.catalog })
+        let stale = HarnessResolution.resolve(picked: .init(model: "gpt-6-luna", effort: "ultra"),
+                                          configured: .init(), catalog: self.catalog).choice
         XCTAssertEqual(stale, .init(model: "gpt-6-luna", effort: nil))
     }
 
     func testUnknownModelKeepsTheEffort() {
-        let choice = HarnessChoice.resolve(picked: .init(model: "gpt-9"), configured: .init(effort: "medium"),
-                                           catalog: { self.catalog })
+        let choice = HarnessResolution.resolve(picked: .init(model: "gpt-9"), configured: .init(effort: "medium"),
+                                           catalog: self.catalog).choice
         XCTAssertEqual(choice, .init(model: "gpt-9", effort: "medium"))
     }
 }

@@ -72,6 +72,8 @@ fi
 # CAPTURE_ONBOARDING_ONLY=1 with CAPTURE_OUT=<dir> renders the three-screen onboarding
 # with synthetic model and permission state, never real downloads or TCC prompts.
 # CAPTURE_MODELS_ONLY=1 with CAPTURE_OUT=<dir> checks both model managers.
+# CAPTURE_PROVIDERS_ONLY=1 with CAPTURE_OUT=<dir> captures each translation
+# engine and a synthetic incompatible-effort state, without translating text.
 # CAPTURE_MODEL_KIND=translation|speech limits that pass to one manager.
 # CAPTURE_MODEL_INTERACTIONS=0 captures the manager without retesting its dismissal routes.
 # CAPTURE_MENU_ONLY=1 refreshes just menu.png and menu-dark.png.
@@ -186,6 +188,44 @@ func axMatches(_ node: AXUIElement, key: String, value: String, visited: inout I
 }
 
 switch args[1] {
+case "reset-picker":
+    NSApplication.shared.setActivationPolicy(.prohibited)
+    requireUnlockedSession()
+    let app = AXUIElementCreateApplication(Int32(args[2])!)
+    guard let roots = axAttribute(app, kAXWindowsAttribute) as? [AXUIElement] else {
+        captureFailure("No windows for picker reset")
+    }
+    var visited = 0
+    let controls = roots.flatMap { axMatches($0, key: kAXIdentifierAttribute, value: args[3], visited: &visited) }
+    guard controls.count == 1,
+          AXUIElementPerformAction(controls[0], kAXPressAction as CFString) == .success else {
+        captureFailure("Could not open picker: \(args[3])")
+    }
+    var menuItem: AXUIElement?
+    for _ in 0..<20 {
+        var count = 0
+        menuItem = axMatches(app, key: kAXRoleAttribute, value: kAXMenuItemRole, visited: &count).first {
+            (axAttribute($0, kAXTitleAttribute) as? String)?.hasPrefix(args[4]) == true
+        }
+        if menuItem != nil { break }
+        Thread.sleep(forTimeInterval: 0.05)
+    }
+    guard let menuItem, AXUIElementPerformAction(menuItem, kAXPressAction as CFString) == .success else {
+        captureFailure("Could not choose Default")
+    }
+    var reset = false
+    var values: [String] = []
+    for _ in 0..<40 {
+        var count = 0
+        let current = axMatches(app, key: kAXIdentifierAttribute, value: args[3], visited: &count)
+        values = current.map { String(describing: axAttribute($0, kAXValueAttribute)) }
+        if current.isEmpty || current.contains(where: {
+            (axAttribute($0, kAXValueAttribute) as? String)?.hasPrefix(args[4]) == true
+        }) { reset = true; break }
+        Thread.sleep(forTimeInterval: 0.05)
+    }
+    guard reset else { captureFailure("Picker did not reset: \(values)") }
+    print("Verified picker reset: \(args[3])")
 case "press-id", "dismiss-id", "expect", "expect-absent", "expect-id-absent", "expect-disabled", "expect-enabled":
     NSApplication.shared.setActivationPolicy(.prohibited)
     let app = AXUIElementCreateApplication(Int32(args[2])!)
@@ -394,7 +434,15 @@ helper() { "$WORK/helper" "$@"; }
 # built bundle, for the menu items and windows the script finds by title.
 localized() {
     if [ -z "$LANGUAGE" ] || [ "$LANGUAGE" = en ]; then printf '%s' "$1"; return; fi
-    plutil -extract "$1" raw -o - "$APP_DIR/Contents/Resources/$LANGUAGE.lproj/Localizable.strings"
+    # plutil -extract interprets periods as key-path separators. UI sentences
+    # need exact dictionary lookup, including punctuation and placeholders.
+    python3 - "$APP_DIR/Contents/Resources/$LANGUAGE.lproj/Localizable.strings" "$1" <<'PYTHON'
+import json
+import subprocess
+import sys
+data = subprocess.check_output(["plutil", "-convert", "json", "-o", "-", sys.argv[1]])
+sys.stdout.write(json.loads(data)[sys.argv[2]])
+PYTHON
 }
 
 # --- Accessibility driving -------------------------------------------------------
@@ -442,6 +490,12 @@ launch() {
     fi
     if [ -n "${4:-}" ]; then arguments+=(-lastResultsPreview "$4"); fi
     if [ -n "${5:-}" ]; then arguments+=(-activityPreview "$5"); fi
+    if [ "${CAPTURE_INCOMPATIBLE_EFFORT:-0}" = 1 ]; then
+        arguments+=(-harnessModel.anthropic opus -harnessEffort.anthropic synthetic-unsupported)
+    fi
+    if [ "${CAPTURE_UNKNOWN_EFFORT:-0}" = 1 ]; then
+        arguments+=(-harnessModel.anthropic synthetic-unknown -harnessEffort.anthropic low)
+    fi
     if [ -n "$LANGUAGE" ]; then arguments+=(-AppleLanguages "($LANGUAGE)"); fi
     if [ -n "${2:-}" ]; then arguments+=(-dictationPreview "$2"); fi
     open -n "$APP_DIR" --args "${arguments[@]}"
@@ -526,7 +580,21 @@ let saved = try PropertyListSerialization.propertyList(
 UserDefaults.standard.setPersistentDomain(saved, forName: CommandLine.arguments[1])
 guard UserDefaults.standard.synchronize() else { exit(1) }
 SWIFT
+    if ! defaults export "$DOMAIN" "$WORK/defaults-after.plist" >/dev/null; then
+        restore_failed=1
+    elif ! python3 - "$WORK/defaults.plist" "$WORK/defaults-after.plist" <<'PYTHON'
+import plistlib
+import sys
+with open(sys.argv[1], "rb") as stream:
+    before = plistlib.load(stream)
+with open(sys.argv[2], "rb") as stream:
+    after = plistlib.load(stream)
+if before != after:
+    raise SystemExit("Development preferences differ after restoration")
+PYTHON
+    then restore_failed=1; fi
     appearance "set dark mode to $ORIGINAL_DARK" >/dev/null || true
+    [ "$(appearance 'get dark mode')" = "$ORIGINAL_DARK" ] || restore_failed=1
     [ "${CAPTURE_APPEARANCE:-both}" = current ] || helper pointer $POINTER
     [ -n "$BACKDROP_PID" ] && kill "$BACKDROP_PID" 2>/dev/null
     if [ "$restore_failed" = 0 ]; then
@@ -799,7 +867,37 @@ capture_activity() {
 }
 
 # capture_all <dark mode true|false> <file suffix>: every screen in one appearance.
+capture_providers() {
+    appearance "set dark mode to $1" >/dev/null
+    sleep 2
+    for provider in ${CAPTURE_PROVIDER_LIST:-anthropic openai grok antigravity local}; do
+        launch 1 "" "$provider"
+        open_menu
+        capture_settings "$(localized Translation)" "provider-$provider$2"
+    done
+    CAPTURE_INCOMPATIBLE_EFFORT=1 launch 1 "" anthropic
+    open_menu
+    ax "click menu item \"$(localized "Settings…")\" of menu 1 of $STATUS_ITEM" >/dev/null
+    sleep 1
+    helper expect "$PID" "$(localized "The saved effort is unavailable for this model. The CLI default will be used.")"
+    helper expect "$PID" opus
+    capture_window "$(localized Translation)" "provider-incompatible-effort$2"
+    CAPTURE_UNKNOWN_EFFORT=1 launch 1 "" anthropic
+    open_menu
+    ax "click menu item \"$(localized "Settings…")\" of menu 1 of $STATUS_ITEM" >/dev/null
+    sleep 1
+    helper expect-enabled "$PID" translation-effort
+    helper expect "$PID" "$(localized "The CLI catalog does not report effort support for this model.")"
+    capture_window "$(localized Translation)" "provider-unknown-effort$2"
+    if ! helper reset-picker "$PID" translation-effort "$(localized Default)"; then
+        capture_window "$(localized Translation)" "provider-reset-failed$2"
+        return 1
+    fi
+    capture_window "$(localized Translation)" "provider-unknown-effort-default$2"
+}
+
 capture_all() {
+    if [ "${CAPTURE_PROVIDERS_ONLY:-0}" = 1 ]; then capture_providers "$1" "$2"; return; fi
     if [ "${CAPTURE_ACTIVITY_ONLY:-0}" = 1 ]; then capture_activity "$1" "$2"; return; fi
     if [ "${CAPTURE_MODELS_ONLY:-0}" = 1 ]; then capture_models "$1" "$2"; return; fi
     if [ "${CAPTURE_ONBOARDING_ONLY:-0}" = 1 ]; then capture_onboarding "$1" "$2"; return; fi

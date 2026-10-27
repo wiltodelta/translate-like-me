@@ -232,7 +232,7 @@ Read before editing this domain.
   `MLXKernels.use()` points MLX at before either loads a model. Benchmark, prompt format, tokenizer
   check and build detail: `docs/local-translation.md`.
 - Translations run the model and effort picked in Settings, else the CLI
-  default (`HarnessChoice.current`). The pickers list `HarnessModels`, read from
+  default (`HarnessResolution.current`). The pickers list `HarnessModels`, read from
   each CLI's own cache: claude `~/.claude/cache/model-catalog/<account>-cc.json`
   (per-model efforts; Haiku has none; `state.model` is its default), codex and
   grok `models_cache.json`; agy keeps no cache, so its list is the last `agy
@@ -251,9 +251,12 @@ Read before editing this domain.
   its documented aliases). `HarnessCatalog.model(_:)` finds a model by id, else
   a claude alias ("opus" in the user's settings) as the first catalog model
   whose `short_name` it is, which is what claude runs, so "Default (Opus 5.5)" names a version.
-  `HarnessCatalog.efforts(for:)` is the one effort
-  rule, nil for an unknown model so nothing is guessed; the cache is read at
-  translation time only when a pick exists. Picks are stored per provider
+  `HarnessResolution` is shared by Settings and launches: catalog defaults validate
+  effort without becoming pinned model flags. `HarnessCatalog.efforts(for:)`
+  returns nil for unknown capabilities (fallback aliases included), an empty list
+  for confirmed unsupported effort, or the accepted values. Incompatible flags
+  are suppressed, with a Settings explanation, while saved preferences survive
+  model switches and catalog failures. Picks are stored per provider
   (`Settings.harnessPick`). claude and codex run isolated from their user
   config, so `HarnessDefaults` reads just the user's default model and effort
   (claude `settings.json` `model`/`effortLevel`, codex `config.toml`
@@ -261,14 +264,19 @@ Read before editing this domain.
   its own config, and its default model (for the "Default (…)" label and the
   Effort picker) is the "Default model:" line of `grok models`, the sign-in
   probe, cached in `Settings.grokDefaultModel`; agy runs the model selected in
-  it, which it does not print. A default effort the picked model does not list is dropped.
-  Known gap: codex still loads the
-  global `$CODEX_HOME/AGENTS.md` into every translation; codex 0.156 has no
-  flag for it (see `Translator.runCodex`).
+  it, which it does not print. Explicit `CLIAdapting` implementations in
+  `CLIEngines.swift` construct `CLIInvocation`s; `ProcessRunner` and the existing
+  stream parsers execute them. `CLIAdapterTests` verify the Settings-to-process
+  contract with synthetic subprocesses. `EngineProbe` accepts the bounded
+  Hello-to-Hola smoke result, not arbitrary nonempty text; quality is measured
+  separately by opt-in `ProviderEvaluationTests`. See `docs/provider-support.md`
+  for the matrix and CLI-upgrade procedure. Known gap: Codex still loads global
+  `$CODEX_HOME/AGENTS.md`; a synthetic loopback request confirmed that setting
+  `project_doc_max_bytes=0` does not suppress it. Keep its original auth home.
 - Grok runs with the `GROK_CLAUDE_*`/`GROK_CURSOR_*` compat cells off
   (`cliEnvironment`) and an empty tool allowlist, because otherwise it imports
   `~/.claude` rules, skills and MCP servers and may act as an agent instead of
-  translating (flag rationale in `Translator.runGrok`). Its sign-in check is
+  translating (flag rationale in `GrokAdapter`). Its sign-in check is
   `grok models` output.
 - agy has no system-prompt, tools-off or ignore-config flag, so it runs as the
   app's own custom agent (`Antigravity.agentDefinition`, written to

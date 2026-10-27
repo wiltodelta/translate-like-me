@@ -3,32 +3,9 @@ import Foundation
 // A model and reasoning effort for one CLI: a pick made in Settings, a CLI
 // config default (HarnessDefaults), or the two resolved for a run. A nil field
 // means "not set".
-struct HarnessChoice: Equatable {
+struct HarnessChoice: Codable, Equatable {
     var model: String?
     var effort: String?
-
-    // The pick wins over the configured default. A pick is checked against the
-    // catalog, which is only loaded then: an effort the resolved model does not
-    // list is dropped (the CLI then uses its own default), so a stale pick or a
-    // model switch never makes a run fail. With no pick, the user's own config
-    // pairing passes through unchecked and no cache is read.
-    static func resolve(picked: HarnessChoice, configured: HarnessChoice,
-                        catalog: () -> HarnessCatalog) -> HarnessChoice {
-        var choice = HarnessChoice(model: picked.model ?? configured.model,
-                                   effort: picked.effort ?? configured.effort)
-        if picked != HarnessChoice(), let effort = choice.effort,
-           let allowed = catalog().efforts(for: choice.model), !allowed.contains(where: { $0.id == effort }) {
-            choice.effort = nil
-        }
-        return choice
-    }
-
-    // What a run of `provider`'s CLI uses now.
-    static func current(for provider: Provider) -> HarnessChoice {
-        resolve(picked: Settings.harnessPick(for: provider),
-                configured: HarnessDefaults.configured(for: provider),
-                catalog: { HarnessModels.catalog(for: provider) })
-    }
 }
 
 struct HarnessEffort: Equatable {
@@ -39,8 +16,8 @@ struct HarnessEffort: Equatable {
 struct HarnessModel: Equatable {
     let id: String
     let name: String
-    // In the CLI's own order; empty when the model takes no effort setting.
-    var efforts: [HarnessEffort]
+    // nil: unknown; []: confirmed unsupported; otherwise the CLI's own order.
+    var efforts: [HarnessEffort]?
     // The alias the CLI also accepts for this family ("opus"), nil where none.
     var alias: String?
 }
@@ -60,8 +37,7 @@ struct HarnessCatalog: Equatable {
         return models.first { $0.id == id } ?? models.first { $0.alias == alias }
     }
 
-    // The efforts `model` accepts, or nil when the model is not listed, so
-    // callers never guess.
+    // nil also covers a listed model whose capabilities could not be read.
     func efforts(for model: String?) -> [HarnessEffort]? {
         self.model(model)?.efforts
     }
@@ -99,7 +75,7 @@ enum HarnessModels {
     // for when the catalog cannot be read; efforts are then unknown.
     static let claudeAliases = HarnessCatalog(models: [
         ("fable", "Fable"), ("opus", "Opus"), ("sonnet", "Sonnet"), ("haiku", "Haiku")
-    ].map { HarnessModel(id: $0.0, name: $0.1, efforts: []) })
+    ].map { HarnessModel(id: $0.0, name: $0.1, efforts: nil) })
 
     // claude's catalog: `catalog.config.models` entries with `id`, `name`,
     // `short_name` (the family, whose lowercase is its alias), and
@@ -112,9 +88,9 @@ enum HarnessModels {
               !models.isEmpty else { return nil }
         let parsed = models.compactMap { model -> HarnessModel? in
             guard let id = model["id"] as? String else { return nil }
-            let options = (model["thinking"] as? [String: Any])?["effort_options"] as? [[String: Any]] ?? []
+            let options = (model["thinking"] as? [String: Any])?["effort_options"] as? [[String: Any]]
             return HarnessModel(id: id, name: model["name"] as? String ?? id,
-                                efforts: options.compactMap { effort($0["id"], name: $0["name"]) },
+                                efforts: efforts(options, id: "id", name: "name"),
                                 alias: (model["short_name"] as? String)?.lowercased())
         }
         return HarnessCatalog(models: parsed,
@@ -132,9 +108,9 @@ enum HarnessModels {
             .sorted { ($0["priority"] as? Int ?? .max) < ($1["priority"] as? Int ?? .max) }
             .compactMap { model in
                 guard let slug = model["slug"] as? String else { return nil }
-                let levels = model["supported_reasoning_levels"] as? [[String: Any]] ?? []
+                let levels = model["supported_reasoning_levels"] as? [[String: Any]]
                 return HarnessModel(id: slug, name: model["display_name"] as? String ?? slug,
-                                    efforts: levels.compactMap { effort($0["effort"], name: nil) })
+                                    efforts: efforts(levels, id: "effort"))
             })
     }
 
@@ -148,9 +124,9 @@ enum HarnessModels {
             .compactMap { entry -> HarnessModel? in
                 guard let info = (entry as? [String: Any])?["info"] as? [String: Any],
                       let id = info["id"] as? String, info["hidden"] as? Bool != true else { return nil }
-                let efforts = info["reasoning_efforts"] as? [[String: Any]] ?? []
+                let levels = info["reasoning_efforts"] as? [[String: Any]]
                 return HarnessModel(id: id, name: info["name"] as? String ?? id,
-                                    efforts: efforts.compactMap { effort($0["value"], name: $0["label"]) })
+                                    efforts: efforts(levels, id: "value", name: "label"))
             }
             .sorted { $0.id.compare($1.id, options: .numeric) == .orderedDescending })
     }
@@ -192,7 +168,7 @@ enum HarnessModels {
                 }
             }
             if let index = models.firstIndex(where: { $0.id == id }) {
-                if let level { models[index].efforts.append(level) }
+                if let level { models[index].efforts?.append(level) }
             } else {
                 models.append(HarnessModel(id: id, name: name, efforts: level.map { [$0] } ?? []))
             }
@@ -200,13 +176,21 @@ enum HarnessModels {
         // agy lists Medium before High and Low.
         let order = ["low", "medium", "high", "xhigh", "max"]
         let rank = { (id: String) in order.firstIndex(of: id) ?? order.count }
-        for index in models.indices { models[index].efforts.sort { rank($0.id) < rank($1.id) } }
+        for index in models.indices { models[index].efforts?.sort { rank($0.id) < rank($1.id) } }
         return HarnessCatalog(models: models)
     }
 
     private static func effort(_ id: Any?, name: Any?) -> HarnessEffort? {
-        guard let id = id as? String else { return nil }
+        guard let id = id as? String, !id.isEmpty else { return nil }
         return HarnessEffort(id: id, name: name as? String ?? id.capitalized)
+    }
+
+    // A partially changed schema cannot prove that an effort is unsupported.
+    private static func efforts(_ entries: [[String: Any]]?, id: String,
+                                name: String? = nil) -> [HarnessEffort]? {
+        guard let entries else { return nil }
+        let parsed = entries.compactMap { entry in effort(entry[id], name: name.flatMap { entry[$0] }) }
+        return parsed.count == entries.count ? parsed : nil
     }
 
     // Claude Code writes one catalog per signed-in account; the newest is the one

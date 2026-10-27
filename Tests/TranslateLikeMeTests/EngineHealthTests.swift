@@ -2,6 +2,15 @@ import XCTest
 @testable import TranslateLikeMe
 
 final class EngineHealthTests: XCTestCase {
+    func testSmokeCheckRejectsEchoesAndAssistantReplies() {
+        XCTAssertEqual(EngineProbe.translationHealth("¡Hola!"), .working)
+        XCTAssertEqual(EngineProbe.translationHealth("  Hola.\n"), .working)
+        for response in ["Hello", "How can I help?", "", "Translation: Hola", "Please sign in"] {
+            guard case .failed = EngineProbe.translationHealth(response) else {
+                return XCTFail("Incorrect translation counted as working: \(response)")
+            }
+        }
+    }
     func testSignInCheckDecidesOnlyWhenItFails() {
         XCTAssertNil(EngineHealth(EngineStatus.Readiness.ready))
         XCTAssertEqual(EngineHealth(.notInstalled), .notInstalled)

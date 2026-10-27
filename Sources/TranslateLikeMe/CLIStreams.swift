@@ -9,11 +9,18 @@ protocol CLIAnswerStream {
     // The complete answer, nil until the stream reports it.
     static func answer(in stdout: String) -> String?
     static var isAnswered: @Sendable (Data) -> Bool { get }
+    // A structured failure remains a failure even if the CLI exits with 0.
+    static func failed(in stdout: String) -> Bool
     // A failed run as the CLI's plain output showed it.
     static func plain(_ output: ProcessRunner.Output) -> ProcessRunner.Output
 }
 
 enum CLIStream {
+    static func errorMessage(in event: [String: Any]) -> String? {
+        event["message"] as? String ?? (event["error"] as? [String: Any])?["message"] as? String
+            ?? event["data"] as? String
+    }
+
     // Complete lines only: the last one may still be growing.
     static func events(in stdout: String) -> [[String: Any]] {
         let end = stdout.hasSuffix("\n") ? stdout.endIndex : stdout.lastIndex(of: "\n") ?? stdout.startIndex
@@ -58,6 +65,8 @@ enum ClaudeStream: CLIAnswerStream {
 
     static let isAnswered = CLIStream.answered(at: "result", answer)
 
+    static func failed(in stdout: String) -> Bool { result(in: stdout)?.isError == true }
+
     // Text mode printed the failure message on stdout.
     static func plain(_ output: ProcessRunner.Output) -> ProcessRunner.Output {
         .init(stdout: result(in: output.stdout)?.text ?? output.stdout, stderr: output.stderr, status: output.status)
@@ -66,6 +75,10 @@ enum ClaudeStream: CLIAnswerStream {
 
 // `codex exec --json`: the last agent message once the turn completed.
 enum CodexStream: CLIAnswerStream {
+    static func failed(in stdout: String) -> Bool {
+        CLIStream.events(in: stdout).contains { ["error", "turn.failed"].contains($0["type"] as? String ?? "") }
+    }
+
     static func answer(in stdout: String) -> String? {
         let events = CLIStream.events(in: stdout)
         guard events.contains(where: { $0["type"] as? String == "turn.completed" }) else { return nil }
@@ -78,10 +91,16 @@ enum CodexStream: CLIAnswerStream {
 
     // Error events as the `ERROR:` lines plain mode writes to stderr.
     static func errorLines(in stdout: String) -> String {
-        CLIStream.events(in: stdout).compactMap { event -> String? in
-            guard event["type"] as? String == "error", let message = event["message"] as? String else { return nil }
-            return "ERROR: " + message + "\n"
-        }.joined()
+        var messages: [String] = []
+        for event in CLIStream.events(in: stdout) {
+            let message: String?
+            switch event["type"] as? String {
+            case "error", "turn.failed": message = CLIStream.errorMessage(in: event)
+            default: continue
+            }
+            if let message, !messages.contains(message) { messages.append(message) }
+        }
+        return messages.map { "ERROR: " + $0 + "\n" }.joined()
     }
 
     static let isAnswered = CLIStream.answered(at: "turn.completed", answer)
@@ -94,6 +113,10 @@ enum CodexStream: CLIAnswerStream {
 
 // `grok --output-format streaming-json`: text fragments, complete at the end event.
 enum GrokStream: CLIAnswerStream {
+    static func failed(in stdout: String) -> Bool {
+        CLIStream.events(in: stdout).contains { $0["type"] as? String == "error" }
+    }
+
     static func answer(in stdout: String) -> String? {
         let events = CLIStream.events(in: stdout)
         guard events.contains(where: { $0["type"] as? String == "end" }) else { return nil }
@@ -104,6 +127,9 @@ enum GrokStream: CLIAnswerStream {
 
     // Plain mode's stdout held only the answer, which a failure lacks.
     static func plain(_ output: ProcessRunner.Output) -> ProcessRunner.Output {
-        .init(stdout: answer(in: output.stdout) ?? "", stderr: output.stderr, status: output.status)
+        let errors = CLIStream.events(in: output.stdout).filter { $0["type"] as? String == "error" }
+            .compactMap { CLIStream.errorMessage(in: $0) }.joined(separator: "\n")
+        return .init(stdout: answer(in: output.stdout) ?? "", stderr: errors + "\n" + output.stderr,
+                     status: output.status)
     }
 }

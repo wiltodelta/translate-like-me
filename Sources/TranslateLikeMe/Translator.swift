@@ -85,15 +85,11 @@ enum Translator {
     }
 
     private static func runEngine(system: String, text: String, provider: Provider) async throws -> String {
-        switch provider {
-        case .anthropic: return try await runClaude(system: system, text: text)
-        case .openai: return try await runCodex(system: system, text: text)
-        case .grok: return try await runGrok(system: system, text: text)
-        case .antigravity: return try await runAntigravity(system: system, text: text)
-        case .local:
+        guard provider.usesCLI else {
             return try cleaned(await LocalEngine.shared.complete(system: system, text: text,
                                                                  model: Settings.localModel))
         }
+        return try await CLIEngines.run(system: system, text: text, provider: provider)
     }
 
     // MARK: - Prompt
@@ -154,162 +150,10 @@ enum Translator {
         return rules
     }
 
-    private static func cleaned(_ raw: String) throws -> String {
+    static func cleaned(_ raw: String) throws -> String {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { throw TranslatorError.empty }
         return trimmed
-    }
-
-    // MARK: - CLI engines
-
-    private static func runClaude(system: String, text: String) async throws -> String {
-        let binary = try await resolveBinary(name: Provider.anthropic.cliBinaryName)
-        // `claude -p` is an agent harness, not a bare model endpoint: by default it
-        // prepends ~20-30k tokens on every invocation - tool definitions, all of the
-        // user's MCP server schemas, and their global/project CLAUDE.md - to what is
-        // a tiny translation, adding several seconds of latency. Measured input drops
-        // from ~10k+ tokens (~5-8s) to ~150 tokens (~2.4s, on Sonnet) with all three
-        // stripped:
-        //   --tools ""            no built-in tool schemas
-        //   --strict-mcp-config   no MCP servers (none passed via --mcp-config)
-        //   --setting-sources ""  no settings and, crucially, no CLAUDE.md
-        // Dropping CLAUDE.md is also correct on its own: the user's working
-        // instructions there should never leak into or steer the translation. This
-        // is NOT extended thinking - the model does one short turn.
-        // --no-session-persistence: claude would otherwise keep every selection
-        // in ~/.claude/projects indefinitely.
-        // The result event ends the run (ClaudeStream).
-        var args = ["-p", "--output-format", "stream-json", "--verbose", "--system-prompt", system,
-                    "--tools", "", "--strict-mcp-config", "--setting-sources", "",
-                    "--no-session-persistence"]
-        // The model and effort picked in Settings, else the user's defaults from
-        // their Claude Code settings, which --setting-sources "" would otherwise
-        // drop (HarnessChoice, HarnessDefaults).
-        let choice = HarnessChoice.current(for: .anthropic)
-        if let model = choice.model { args += ["--model", model] }
-        if let effort = choice.effort { args += ["--effort", effort] }
-        return try await runStream(ClaudeStream.self, binary: binary, args: args, stdin: text)
-    }
-
-    private static func runCodex(system: String, text: String) async throws -> String {
-        let binary = try await resolveBinary(name: Provider.openai.cliBinaryName)
-
-        // Like `claude -p`, `codex exec` is an agent harness:
-        //   --ignore-user-config   don't load ~/.codex/config.toml (disables all MCP
-        //                          servers in one flag; auth still uses CODEX_HOME)
-        //   --ignore-rules         don't load execpolicy `.rules` files
-        // Known gap: codex still loads the global $CODEX_HOME/AGENTS.md (measured
-        // 2026-09-23: a 37 KB file added ~9.3k input tokens per translation). No
-        // flag or -c key in codex 0.156 turns it off without also moving auth.json,
-        // and a separate CODEX_HOME would fork the user's refresh token.
-        // The model and reasoning effort are the ones picked in Settings, else the
-        // user's own defaults from that config, passed back explicitly
-        // (HarnessChoice, HarnessDefaults).
-        // --ephemeral keeps the selection out of ~/.codex/sessions. codex is an
-        // agent with tools on by default, so text from a web page could talk it
-        // into reading local files: the sandbox is read-only and every tool that
-        // reads, runs or browses is off (feature names from `codex features list`,
-        // codex-cli 0.156.1, checked 2026-09-24). `-c features.<name>=false`, not
-        // `--disable`: codex rejects an unknown `--disable` name outright, so a
-        // renamed feature would break every translation; an unknown `-c` key only
-        // warns.
-        // --json: events on stdout, the final message in the last agent item (CodexStream).
-        var args = ["exec", "--json", "--skip-git-repo-check", "--ignore-user-config", "--ignore-rules",
-                    "--ephemeral", "-s", "read-only"]
-        for feature in ["shell_tool", "unified_exec", "browser_use", "browser_use_external",
-                        "computer_use", "image_generation", "apps", "view_image", "multi_agent",
-                        "plugins", "in_app_browser"] {
-            args += ["-c", "features.\(feature)=false"]
-        }
-        let choice = HarnessChoice.current(for: .openai)
-        if let model = choice.model { args += ["-m", model] }
-        if let effort = choice.effort { args += ["-c", "model_reasoning_effort=\(effort)"] }
-        // "-": the prompt comes on stdin, so the selection is not in the process
-        // list the way a command-line argument is.
-        args += ["-"]
-        return try await runStream(CodexStream.self, binary: binary, args: args,
-                                   stdin: promptEnvelope(system: system, text: text))
-    }
-
-    private static func runGrok(system: String, text: String) async throws -> String {
-        let binary = try await resolveBinary(name: Provider.grok.cliBinaryName)
-
-        // `grok -p` is an agent harness too. Measured 2026-09-22 (grok 1.0.41,
-        // default model grok-4.7, a one-line ru<->en translation):
-        //   defaults                                  ~28k input tokens, ~6-7s,
-        //                                             and it may browse the cwd
-        //                                             instead of translating
-        //   Provider.grok.cliEnvironment              no imported rules, skills,
-        //                                             MCP, memory or workflows
-        //   --tools X --disallowed-tools X            an empty allowlist: `--tools ""`
-        //                                             is ignored, and --disallowed-tools
-        //                                             alone leaves always-on tools
-        //   prompt envelope + --verbatim              the system prompt alone did not
-        //                                             stop it answering the input
-        // Together: ~5.7k tokens and correct output; 4-6s at the model's default
-        // effort (2026-09-23; ~3.4s when it was forced to low). Errors go to
-        // stderr, exit 1; streaming-json events carry the answer (GrokStream).
-        // `--prompt-file /dev/stdin` is the single-turn mode of `-p` with the prompt
-        // on stdin, so the selection stays out of the process list (as for codex);
-        // same output and latency as `-p` (grok 1.0.50, 2026-10-11).
-        var args = ["--prompt-file", "/dev/stdin", "--verbatim", "--output-format", "streaming-json",
-                    "--system-prompt-override", system,
-                    "--tools", "todo_write", "--disallowed-tools", "todo_write",
-                    "--no-subagents", "--max-turns", "1"]
-        // grok applies its own config defaults; only a pick made in Settings is passed.
-        let choice = HarnessChoice.current(for: .grok)
-        if let model = choice.model { args += ["-m", model] }
-        if let effort = choice.effort { args += ["--reasoning-effort", effort] }
-        return try await runStream(GrokStream.self, binary: binary, args: args,
-                                   stdin: promptEnvelope(system: system, text: text),
-                                   extraEnv: Provider.grok.cliEnvironment)
-    }
-
-    // agy runs as the app's own isolated agent (Antigravity explains why).
-    // --disable-slash-commands: a selection starting with "/" is never expanded
-    // as a command or skill. Only a model and effort picked in Settings are
-    // passed; agy otherwise runs the model selected in it, and ignores an effort
-    // given without a model.
-    private static func runAntigravity(system: String, text: String) async throws -> String {
-        let binary = try await resolveBinary(name: Provider.antigravity.cliBinaryName)
-        var args = ["--agent", Antigravity.agentName, "--disable-slash-commands",
-                    "--input-format", "stream-json", "--output-format", "stream-json", "-p="]
-        let choice = HarnessChoice.current(for: .antigravity)
-        if let model = choice.model {
-            args += ["--model", model]
-            if let effort = choice.effort { args += ["--effort", effort] }
-        }
-        let output = try await runProcess(binary: binary, args: args,
-                                          stdin: Antigravity.streamMessage(promptEnvelope(system: system, text: text)),
-                                          directory: try Antigravity.workspace())
-        return try cleaned(Antigravity.response(inStream: output))
-    }
-
-    // CLIs without a system-prompt flag carry it inside the single prompt.
-    private static func promptEnvelope(system: String, text: String) -> String {
-        system + "\n\nInput: " + text + "\nOutput:"
-    }
-
-    // MARK: - Process
-
-    // Returns at the answer the CLI's event stream reports (CLIStreams.swift). A
-    // failure is passed on in the shape the CLI's plain output had, for FailureDetail.
-    private static func runStream(_ stream: (some CLIAnswerStream).Type, binary: String, args: [String],
-                                  stdin: String, extraEnv: [String: String] = [:]) async throws -> String {
-        let output = try await ProcessRunner.run(binary: binary, arguments: args, input: stdin,
-                                                  environment: toolEnvironment(adding: extraEnv),
-                                                  answered: stream.isAnswered)
-        guard output.status == 0 else { throw FailureDetail.error(output: stream.plain(output), input: stdin) }
-        guard let text = stream.answer(in: output.stdout) else { throw TranslatorError.empty }
-        return try cleaned(text)
-    }
-
-    private static func runProcess(binary: String, args: [String], stdin: String?,
-                                   directory: URL? = nil) async throws -> String {
-        let output = try await ProcessRunner.run(binary: binary, arguments: args, input: stdin,
-                                                  environment: toolEnvironment(), directory: directory)
-        if output.status != 0 { throw FailureDetail.error(output: output, input: stdin) }
-        return output.stdout
     }
 
     // MARK: - Binary resolution

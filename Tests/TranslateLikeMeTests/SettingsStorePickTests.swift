@@ -4,6 +4,40 @@ import XCTest
 
 @MainActor
 final class SettingsStorePickTests: XCTestCase {
+    func testSavedAliasGetsItsOwnPickerTag() {
+        let savedProvider = Settings.provider, savedPick = Settings.harnessPick(for: .anthropic)
+        defer {
+            Settings.setHarnessPick(savedPick, for: .anthropic)
+            Settings.provider = savedProvider
+        }
+        let catalog = #"{"catalog":{"config":{"models":[{"id":"claude-current","short_name":"Opus"}]}}}"#
+        withConfigDir("CLAUDE_CONFIG_DIR", file: "cache/model-catalog/fixture-cc.json", contents: catalog) {
+            Settings.provider = .anthropic
+            let store = SettingsStore(refreshCatalog: { _ in })
+            store.pick.model = "opus"
+            XCTAssertEqual(store.modelOptions.map(\.id), ["claude-current", "opus"])
+            store.pick.model = "claude-current"
+            XCTAssertEqual(store.modelOptions.map(\.id), ["claude-current"])
+        }
+    }
+
+    func testUnknownEffortStaysVisibleAndCanBeCleared() {
+        let savedProvider = Settings.provider, savedPick = Settings.harnessPick(for: .antigravity)
+        defer {
+            Settings.setHarnessPick(savedPick, for: .antigravity)
+            Settings.provider = savedProvider
+        }
+        Settings.provider = .antigravity
+        let store = SettingsStore(refreshCatalog: { _ in })
+        store.pick = .init(model: "synthetic-unlisted", effort: "low")
+        XCTAssertNil(store.resolution.efforts)
+        XCTAssertTrue(store.showsEffortPicker)
+        XCTAssertEqual(store.displayedEffort, "low")
+        store.displayedEffort = nil
+        XCTAssertNil(Settings.harnessPick(for: .antigravity).effort)
+        XCTAssertFalse(store.showsEffortPicker)
+    }
+
     // grok-4.5 lists no xhigh (real ~/.grok/models_cache.json, 2026-09-23).
     private let grokCache = """
     {"models": {
@@ -14,7 +48,7 @@ final class SettingsStorePickTests: XCTestCase {
     }}
     """
 
-    func testModelChangeResetsAnEffortTheModelDoesNotAccept() {
+    func testModelChangePreservesPreferenceButSuppressesIncompatibleEffort() {
         let savedProvider = Settings.provider
         defer {
             Settings.setHarnessPick(.init(), for: .grok)
@@ -30,15 +64,18 @@ final class SettingsStorePickTests: XCTestCase {
             XCTAssertEqual(Settings.harnessPick(for: .grok), .init(model: "grok-4.7", effort: "xhigh"))
 
             store.pick.model = "grok-4.5"
-            XCTAssertNil(store.pick.effort)
+            XCTAssertEqual(store.pick.effort, "xhigh")
+            XCTAssertNil(store.resolution.choice.effort)
             XCTAssertEqual(store.effortOptions.map(\.id), ["high", "low"])
-            XCTAssertEqual(Settings.harnessPick(for: .grok), .init(model: "grok-4.5", effort: nil))
+            XCTAssertEqual(Settings.harnessPick(for: .grok), .init(model: "grok-4.5", effort: "xhigh"))
+            store.pick.model = "grok-4.7"
+            XCTAssertEqual(store.resolution.choice.effort, "xhigh")
         }
     }
 
-    // agy prints no default model, so Default hides the Effort picker and an
-    // effort picked with a model goes with it.
-    func testDefaultModelDropsAnEffortItsPickerHides() {
+    // agy prints no default model, so Default hides the Effort picker and
+    // suppresses the flag while retaining the preference for an explicit model.
+    func testAntigravityDefaultSuppressesEffortWithoutErasingPreference() {
         let savedProvider = Settings.provider, savedModels = Settings.antigravityModels
         defer {
             Settings.setHarnessPick(.init(), for: .antigravity)
@@ -55,7 +92,8 @@ final class SettingsStorePickTests: XCTestCase {
 
         store.pick.model = nil
         XCTAssertEqual(store.effortOptions, [])
-        XCTAssertEqual(Settings.harnessPick(for: .antigravity), .init())
+        XCTAssertEqual(Settings.harnessPick(for: .antigravity), .init(effort: "high"))
+        XCTAssertNil(store.resolution.choice.effort)
     }
 
     func testReadinessProbeUpdatesAnAlreadyOpenModelList() async throws {

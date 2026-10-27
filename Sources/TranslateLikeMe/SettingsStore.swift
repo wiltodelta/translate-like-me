@@ -118,13 +118,43 @@ final class SettingsStore {
         provider = recommended
     }
 
-    // The model "Default" runs: the CLI config default, else the CLI's own.
-    var defaultModel: String? { configured.model ?? catalog.defaultModel }
+    var resolution: HarnessResolution {
+        HarnessResolution.resolve(picked: pick, configured: configured, catalog: catalog,
+                                  requiresModelForEffort: provider == .antigravity)
+    }
 
-    // The efforts the model in use accepts; empty when that model takes none or
-    // is not known, so the Effort picker is hidden rather than guessed.
+    var defaultModel: String? {
+        HarnessResolution.resolve(picked: .init(), configured: configured, catalog: catalog).model
+    }
+
+    var defaultEffort: String? {
+        HarnessResolution.resolve(picked: .init(model: pick.model), configured: configured, catalog: catalog,
+                                  requiresModelForEffort: provider == .antigravity).choice.effort
+    }
+
+    var displayedEffort: String? {
+        get { resolution.choice.effort == nil ? nil : pick.effort }
+        set { pick.effort = newValue }
+    }
+
+    // Known options only. Unknown support can still show a preserved effort,
+    // but never invents other values for the picker.
     var effortOptions: [HarnessEffort] {
-        catalog.efforts(for: pick.model ?? defaultModel) ?? []
+        resolution.efforts ?? []
+    }
+
+    var showsEffortPicker: Bool {
+        !effortOptions.isEmpty || (resolution.efforts == nil && resolution.choice.effort != nil)
+    }
+
+    // A saved alias can resolve in the catalog without being an exact picker
+    // tag. Keep it selectable, including when the catalog is unavailable.
+    var modelOptions: [HarnessModel] {
+        var options = catalog.models
+        if let picked = pick.model, !options.contains(where: { $0.id == picked }) {
+            options.append(HarnessModel(id: picked, name: picked, efforts: catalog.efforts(for: picked)))
+        }
+        return options
     }
 
     private func loadPick() {
@@ -138,14 +168,9 @@ final class SettingsStore {
 
     private func pickChanged() {
         guard !loadingPick else { return }
-        // A model change can leave an effort the new model does not accept, or a
-        // model whose efforts are unknown, which hides the Effort picker (Default
-        // on agy); the reset re-enters didSet, which saves.
-        if let effort = pick.effort,
-           !(catalog.efforts(for: pick.model ?? defaultModel)?.contains { $0.id == effort } ?? false) {
-            pick.effort = nil
-            return
-        }
+        // Keep the preference even when a refreshed catalog cannot accept it.
+        // The shared resolution suppresses incompatible launch flags without
+        // rewriting a user's settings during a temporary cache failure.
         Settings.setHarnessPick(pick, for: provider)
     }
 

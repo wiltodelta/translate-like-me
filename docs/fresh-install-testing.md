@@ -32,7 +32,7 @@ used. Temporary hosts, homes, canaries, servers and preferences are cleaned up.
 | Recommendation seed and explicit engine choice | Real launch seed, persisted settings, `SettingsStore` automatic selection and manual override in a disposable host | Engine health is injected; no vendor service is contacted |
 | Empty settings and missing tools | Launch migrations, settings defaults, all configured engine probes and translation errors through real binary discovery | No GUI onboarding or physical keys |
 | Signed-out tools | Real subprocess/status handling with synthetic CLI executables in the temporary home | No vendor authentication |
-| Working tools | All configured engine probes and translation subprocess paths, including Codex output-file handling | Synthetic `Hola` output, no real model/service |
+| Working tools | All configured engine probes and translation subprocess paths, with each CLI's streaming JSON format | Synthetic `Hola` output, no real model/service |
 | Empty model cache | Real `DictationEngine` preparation with downloads disabled | No first download or Core ML compilation |
 | Denied microphone, retry and release | Real controller and Option gesture with injected microphone/recognizer effects | No TCC prompt, device, global monitor or ASR inference |
 | Cancellation versus empty recognition | Real controller and gesture distinguish zero recognition calls from one empty recognition call; both hide through the injected effect and leave no error or text | Does not render the indicator or establish which path the new Mac takes |

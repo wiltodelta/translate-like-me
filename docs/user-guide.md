@@ -207,6 +207,19 @@ selected in Antigravity; where none is set, the CLI's built-in default
 applies. Antigravity has no default the app can read, so its Effort picker
 appears once you pick a model.
 
+Default inherits only the settings described above. Codex profiles and custom
+providers are not inherited; Claude settings that route to another provider are
+not inherited either. When a catalog confirms that an effort is incompatible,
+the app uses the CLI default for that run and explains this in Settings. Your
+saved effort stays available if you return to a compatible model. A missing
+catalog does not erase your preference.
+
+Translation and Rewrite always share this selection. Settings also explains
+whether the CLI retains text in its local history. Codex's global instructions
+can still affect results even though its user configuration and tools are
+disabled. See [provider support](provider-support.md) for the configuration
+contract, isolation boundaries and compatibility checks.
+
 ## Privacy
 
 - Dictation recognizes speech locally. Setup downloads one speech model, a small

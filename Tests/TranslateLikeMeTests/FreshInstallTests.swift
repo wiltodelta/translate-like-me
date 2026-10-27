@@ -242,8 +242,19 @@ final class FreshInstallTests: XCTestCase {
         case .local: throw XCTSkip("The local engine has no command-line tool")
         }
         // Synthetic tools test invocation and output handling, never vendor availability.
-        let response = provider == .antigravity
-            ? #"{"event":"result","result":{"status":"SUCCESS","response":"Hola"}}"# : "Hola"
+        let response: String
+        switch provider {
+        case .anthropic:
+            response = #"{"type":"result","is_error":false,"result":"Hola"}"#
+        case .openai:
+            response = #"{"type":"item.completed","item":{"type":"agent_message","text":"Hola"}}"#
+                + "\n" + #"{"type":"turn.completed"}"#
+        case .grok:
+            response = #"{"type":"text","data":"Hola"}"# + "\n" + #"{"type":"end"}"#
+        case .antigravity:
+            response = #"{"event":"result","result":{"status":"SUCCESS","response":"Hola"}}"#
+        case .local: throw XCTSkip("The local engine has no command-line tool")
+        }
         let script = """
         #!/bin/sh
         if [ "$1" = auth ] || [ "$1" = login ] || [ "$1" = models ]; then
@@ -251,13 +262,6 @@ final class FreshInstallTests: XCTestCase {
             exit \(signedIn || provider == .grok ? 0 : 1)
         fi
         cat >/dev/null
-        if [ "$1" = exec ]; then
-            while [ "$#" -gt 0 ]; do
-                if [ "$1" = -o ]; then shift; printf 'Hola\\n' > "$1"; exit 0; fi
-                shift
-            done
-            exit 2
-        fi
         printf '%s\\n' '\(response)'
         """
         try script.write(to: tool, atomically: true, encoding: .utf8)

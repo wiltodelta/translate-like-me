@@ -14,7 +14,7 @@ Each CLI writes its answer well before the process exits:
 
 `ProcessRunner.run(answered:)` returns as soon as the stream holds a complete
 answer; the child then exits on its own, or the translation deadline kills its
-process group. Failures still wait for the exit status, and `runStream` hands
+process group. Failures still wait for the exit status, and `CLIInvocation.run` hands
 `FailureDetail` the text the plain output carried: claude's `result` text, and
 codex's `error` events as the `ERROR:` lines plain mode wrote to stderr (grok
 already repeats its error on stderr).

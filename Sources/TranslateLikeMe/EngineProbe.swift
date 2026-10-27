@@ -44,8 +44,8 @@ enum EngineProbe {
         if let health = EngineHealth(readiness) { return health }
         let health: EngineHealth
         do {
-            _ = try await Translator.translate(sample, pair: samplePair, provider: provider)
-            health = .working
+            let response = try await Translator.translate(sample, pair: samplePair, provider: provider)
+            health = translationHealth(response)
         } catch {
             health = EngineHealth(error)
         }
@@ -53,6 +53,19 @@ enum EngineProbe {
         // every engine, so release it before the next engine is checked.
         if !provider.usesCLI { await LocalEngine.shared.releaseIfIdle(reason: "check") }
         return health
+    }
+
+    // A bounded smoke check, not a model quality score. Strip only punctuation:
+    // an echoed greeting, an answer or a CLI notice must not count as working.
+    static func translationHealth(_ response: String) -> EngineHealth {
+        let greeting = response.trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
+            .lowercased()
+        guard greeting == "hola" else {
+            return .failed(String(localized: """
+                The engine responded, but the test translation was incorrect. Choose another model and try again.
+                """))
+        }
+        return .working
     }
 }
 

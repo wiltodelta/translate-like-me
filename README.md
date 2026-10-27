@@ -115,6 +115,10 @@ Local translation works offline after the model download. CLI engines use the
 account you are signed in to, subject to the provider's plan limits and terms.
 You can keep the CLI's default model and effort settings.
 
+Translation and Rewrite share the selected engine. Settings explains CLI history
+retention; supported defaults and isolation limits are described in the
+[provider support guide](docs/provider-support.md).
+
 <details>
 <summary>Engine options and local model requirements</summary>
 

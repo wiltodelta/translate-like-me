@@ -2861,60 +2861,118 @@
         }
       }
     },
-    "Default uses the model and effort from your Claude Code settings." : {
+    "Default reads the model and effort in your Claude Code settings. Custom providers are not inherited." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "„Standard“ verwendet Modell und Aufwand aus deinen Einstellungen für Claude Code."
+            "value" : "Standard liest Modell und Denkaufwand aus deinen Claude Code-Einstellungen. Eigene Anbieter werden nicht übernommen."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "«Predeterminado» usa el modelo y el esfuerzo de tus ajustes de Claude Code."
+            "value" : "Por defecto se leen el modelo y el razonamiento de los ajustes de Claude Code. No se heredan proveedores personalizados."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "« Par défaut » utilise le modèle et l’effort de vos réglages Claude Code."
+            "value" : "Par défaut, le modèle et la réflexion proviennent des réglages de Claude Code. Les fournisseurs personnalisés ne sont pas repris."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Predefinito usa il modello e l'impegno delle tue impostazioni di Claude Code."
+            "value" : "Il valore predefinito legge modello e ragionamento dalle impostazioni di Claude Code. I provider personalizzati non vengono ereditati."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "「デフォルト」では、Claude Codeの設定にあるモデルと推論レベルを使用します。"
+            "value" : "デフォルトではClaude Code設定のモデルと推論レベルを読み取ります。カスタムプロバイダーは引き継ぎません。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "기본값은 Claude Code 설정의 모델과 노력 수준을 사용합니다."
+            "value" : "기본값은 Claude Code 설정의 모델과 추론 수준을 읽습니다. 사용자 지정 공급자는 상속되지 않습니다."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“Padrão” usa o modelo e o esforço dos seus ajustes do Claude Code."
+            "value" : "O padrão lê o modelo e o raciocínio dos ajustes do Claude Code. Provedores personalizados não são herdados."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Вариант «По умолчанию» берет модель и уровень усилий из настроек Claude Code."
+            "value" : "По умолчанию используются модель и уровень рассуждений из настроек Claude Code. Сторонние провайдеры не наследуются."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“默认”使用你的 Claude Code 设置中的模型和推理强度。"
+            "value" : "默认读取Claude Code设置中的模型和推理级别，不继承自定义提供商。"
+          }
+        }
+      }
+    },
+    "Default reads the top-level model and effort in your Codex config. Profiles and custom providers are not inherited." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standard liest Modell und Denkaufwand aus der obersten Ebene deiner Codex-Konfiguration. Profile und eigene Anbieter werden nicht übernommen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por defecto se leen el modelo y el razonamiento del nivel principal de la configuración de Codex. No se heredan perfiles ni proveedores personalizados."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Par défaut, le modèle et la réflexion proviennent du niveau principal de la configuration Codex. Les profils et fournisseurs personnalisés ne sont pas repris."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il valore predefinito legge modello e ragionamento dal livello principale della configurazione di Codex. Profili e provider personalizzati non vengono ereditati."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "デフォルトではCodex設定のトップレベルのモデルと推論レベルを読み取ります。プロファイルとカスタムプロバイダーは引き継ぎません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기본값은 Codex 구성 최상위의 모델과 추론 수준을 읽습니다. 프로필과 사용자 지정 공급자는 상속되지 않습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O padrão lê o modelo e o raciocínio do nível principal da configuração do Codex. Perfis e provedores personalizados não são herdados."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "По умолчанию используются модель и уровень рассуждений из основных настроек Codex. Профили и сторонние провайдеры не наследуются."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "默认读取Codex配置顶层的模型和推理级别，不继承配置文件或自定义提供商。"
           }
         }
       }
@@ -2973,64 +3031,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "“默认”使用你的 Grok Build 配置中的模型和推理强度。"
-          }
-        }
-      }
-    },
-    "Default uses the model and reasoning effort from your Codex config." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "„Standard“ verwendet Modell und Denkaufwand aus deiner Konfiguration für Codex."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "«Predeterminado» usa el modelo y el esfuerzo de razonamiento de tu configuración de Codex."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "« Par défaut » utilise le modèle et l’effort de raisonnement de votre configuration Codex."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Predefinito usa il modello e l'impegno di ragionamento della tua configurazione di Codex."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "「デフォルト」では、Codexの設定ファイルにあるモデルと推論レベルを使用します。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "기본값은 Codex 구성의 모델과 추론 노력 수준을 사용합니다."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "“Padrão” usa o modelo e o esforço de raciocínio da sua configuração do Codex."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Вариант «По умолчанию» берет модель и уровень рассуждений из конфигурации Codex."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "“默认”使用你的 Codex 配置中的模型和推理强度。"
           }
         }
       }
@@ -5245,6 +5245,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "通用"
+          }
+        }
+      }
+    },
+    "Global Codex instructions may still affect the result." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Globale Codex-Anweisungen können das Ergebnis weiterhin beeinflussen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las instrucciones globales de Codex aún pueden afectar al resultado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les instructions globales de Codex peuvent encore influencer le résultat."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le istruzioni globali di Codex possono ancora influire sul risultato."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codexのグローバル指示が結果に影響する場合があります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex 전역 지침이 결과에 영향을 줄 수 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As instruções globais do Codex ainda podem afetar o resultado."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Глобальные инструкции Codex могут влиять на результат."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex全局指令仍可能影响结果。"
           }
         }
       }
@@ -11316,6 +11374,122 @@
         }
       }
     },
+    "The CLI catalog does not report effort support for this model." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der CLI-Katalog enthält keine Angaben zum unterstützten Denkaufwand dieses Modells."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El catálogo del CLI no indica si este modelo admite niveles de razonamiento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le catalogue du CLI n’indique pas si ce modèle prend en charge le niveau de réflexion."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il catalogo del CLI non indica il supporto del livello di ragionamento per questo modello."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CLIカタログに、このモデルの推論レベルの対応情報がありません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CLI 카탈로그에 이 모델의 추론 수준 지원 정보가 없습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O catálogo da CLI não informa se este modelo oferece suporte ao nível de raciocínio."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Каталог CLI не сообщает о поддержке уровня рассуждений для этой модели."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CLI目录未提供此模型对推理级别的支持信息。"
+          }
+        }
+      }
+    },
+    "The CLI response format was not recognized. Update the command-line tool and try again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das CLI-Antwortformat wurde nicht erkannt. Aktualisiere das Befehlszeilenprogramm und versuche es erneut."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se reconoció el formato de respuesta del CLI. Actualiza la herramienta de línea de comandos e inténtalo de nuevo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le format de réponse du CLI n’a pas été reconnu. Mettez à jour l’outil en ligne de commande et réessayez."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il formato della risposta del CLI non è stato riconosciuto. Aggiorna lo strumento a riga di comando e riprova."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CLIの応答形式を認識できませんでした。コマンドラインツールを更新して、もう一度お試しください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CLI 응답 형식을 인식하지 못했습니다. 명령줄 도구를 업데이트한 후 다시 시도하세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O formato da resposta da CLI não foi reconhecido. Atualize a ferramenta de linha de comando e tente novamente."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось распознать формат ответа CLI. Обновите инструмент командной строки и повторите попытку."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法识别CLI响应格式。请更新命令行工具后重试。"
+          }
+        }
+      }
+    },
     "The download was incomplete or damaged. Download it again." : {
       "localizations" : {
         "de" : {
@@ -11370,6 +11544,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "下载不完整或已损坏。请重新下载。"
+          }
+        }
+      }
+    },
+    "The engine responded, but the test translation was incorrect. Choose another model and try again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Engine hat geantwortet, aber die Testübersetzung war falsch. Wähle ein anderes Modell und versuche es erneut."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El motor respondió, pero la traducción de prueba fue incorrecta. Elige otro modelo e inténtalo de nuevo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le moteur a répondu, mais la traduction de test était incorrecte. Choisissez un autre modèle et réessayez."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il motore ha risposto, ma la traduzione di prova era errata. Scegli un altro modello e riprova."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "エンジンは応答しましたが、テスト翻訳が正しくありませんでした。別のモデルを選んで、もう一度お試しください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "엔진이 응답했지만 테스트 번역이 올바르지 않았습니다. 다른 모델을 선택한 후 다시 시도하세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O mecanismo respondeu, mas a tradução de teste estava incorreta. Escolha outro modelo e tente novamente."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Движок ответил, но тестовый перевод оказался неверным. Выберите другую модель и повторите попытку."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "引擎已响应，但测试翻译不正确。请选择其他模型后重试。"
           }
         }
       }
@@ -11776,6 +12008,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "最准确，写作风格和改写同样出色。需下载约 7 GB，需要 16 GB 内存。"
+          }
+        }
+      }
+    },
+    "The saved effort is unavailable for this model. The CLI default will be used." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der gespeicherte Denkaufwand ist für dieses Modell nicht verfügbar. Die CLI verwendet ihren Standardwert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El nivel de razonamiento guardado no está disponible para este modelo. Se usará el valor predeterminado del CLI."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le niveau de réflexion enregistré n’est pas disponible pour ce modèle. La valeur par défaut du CLI sera utilisée."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il livello di ragionamento salvato non è disponibile per questo modello. Verrà usato il valore predefinito del CLI."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存された推論レベルはこのモデルでは利用できません。CLIのデフォルトを使用します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "저장된 추론 수준은 이 모델에서 사용할 수 없습니다. CLI 기본값을 사용합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O nível de raciocínio salvo não está disponível para este modelo. Será usado o padrão da CLI."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сохранённый уровень рассуждений недоступен для этой модели. Будет использовано значение CLI по умолчанию."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存的推理级别不适用于此模型。将使用CLI默认值。"
           }
         }
       }
@@ -12299,6 +12589,180 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "翻译"
+          }
+        }
+      }
+    },
+    "Translation and Rewrite use this engine. Antigravity saves text in its history." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Übersetzen und Umschreiben verwenden diese Engine. Antigravity speichert Text im Verlauf."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La traducción y la reescritura usan este motor. Antigravity guarda el texto en su historial."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La traduction et la réécriture utilisent ce moteur. Antigravity enregistre le texte dans son historique."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La traduzione e la riscrittura usano questo motore. Antigravity salva il testo nella cronologia."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻訳と書き直しはこのエンジンを使用します。Antigravityはテキストを履歴に保存します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "번역과 다시 쓰기는 이 엔진을 사용합니다. Antigravity가 텍스트를 기록에 저장합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tradução e a reescrita usam este mecanismo. O Antigravity salva o texto no histórico."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перевод и переписывание используют этот движок. Antigravity сохраняет текст в своей истории."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻译和改写使用此引擎。Antigravity会将文本保存到历史记录中。"
+          }
+        }
+      }
+    },
+    "Translation and Rewrite use this engine. Grok Build may save text in its history." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Übersetzen und Umschreiben verwenden diese Engine. Grok Build speichert Text möglicherweise im Verlauf."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La traducción y la reescritura usan este motor. Grok Build puede guardar el texto en su historial."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La traduction et la réécriture utilisent ce moteur. Grok Build peut enregistrer le texte dans son historique."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La traduzione e la riscrittura usano questo motore. Grok Build potrebbe salvare il testo nella cronologia."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻訳と書き直しはこのエンジンを使用します。Grok Buildはテキストを履歴に保存する場合があります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "번역과 다시 쓰기는 이 엔진을 사용합니다. Grok Build가 텍스트를 기록에 저장할 수 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tradução e a reescrita usam este mecanismo. O Grok Build pode salvar o texto no histórico."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перевод и переписывание используют этот движок. Grok Build может сохранять текст в своей истории."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻译和改写使用此引擎。Grok Build可能会将文本保存到历史记录中。"
+          }
+        }
+      }
+    },
+    "Translation and Rewrite use this engine. Session history is disabled." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Übersetzen und Umschreiben verwenden diese Engine. Der Sitzungsverlauf ist deaktiviert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La traducción y la reescritura usan este motor. El historial de sesiones está desactivado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La traduction et la réécriture utilisent ce moteur. L’historique des sessions est désactivé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La traduzione e la riscrittura usano questo motore. La cronologia delle sessioni è disattivata."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻訳と書き直しはこのエンジンを使用します。セッション履歴は無効です。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "번역과 다시 쓰기는 이 엔진을 사용합니다. 세션 기록은 비활성화되어 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tradução e a reescrita usam este mecanismo. O histórico de sessões está desativado."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перевод и переписывание используют этот движок. История сеансов отключена."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻译和改写使用此引擎。会话历史记录已停用。"
           }
         }
       }

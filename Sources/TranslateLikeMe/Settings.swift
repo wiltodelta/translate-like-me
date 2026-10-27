@@ -26,6 +26,18 @@ enum Provider: String, CaseIterable {
 
     var usesCLI: Bool { self != .local }
 
+    var historySummary: String {
+        switch self {
+        case .anthropic, .openai:
+            String(localized: "Translation and Rewrite use this engine. Session history is disabled.")
+        case .grok:
+            String(localized: "Translation and Rewrite use this engine. Grok Build may save text in its history.")
+        case .antigravity:
+            String(localized: "Translation and Rewrite use this engine. Antigravity saves text in its history.")
+        case .local: ""
+        }
+    }
+
     var cliBinaryName: String {
         switch self {
         case .anthropic: return "claude"
@@ -39,8 +51,13 @@ enum Provider: String, CaseIterable {
     // How "Default" picks the model, for Settings copy (HarnessDefaults).
     var modelSummary: String {
         switch self {
-        case .anthropic: return String(localized: "Default uses the model and effort from your Claude Code settings.")
-        case .openai: return String(localized: "Default uses the model and reasoning effort from your Codex config.")
+        case .anthropic: return String(localized: """
+            Default reads the model and effort in your Claude Code settings. Custom providers are not inherited.
+            """)
+        case .openai: return String(localized: """
+            Default reads the top-level model and effort in your Codex config. \
+            Profiles and custom providers are not inherited.
+            """)
         case .grok: return String(localized: "Default uses the model and effort from your Grok Build config.")
         case .antigravity: return String(localized: "Default uses the model selected in Antigravity.")
         case .local: return ""
@@ -79,7 +96,7 @@ enum Provider: String, CaseIterable {
     // status checks alike. grok (1.0.41, measured 2026-09-22) otherwise imports
     // ~/.claude and ~/.cursor rules, CLAUDE.md, skills, MCP servers and hooks,
     // injects memory and workflows, and may self-update mid-run; with the other
-    // runGrok flags in place, switching these off cut input tokens from ~17k to
+    // GrokAdapter flags in place, switching these off cut input tokens from ~17k to
     // ~5.7k and latency from ~7s to ~3.4s.
     var cliEnvironment: [String: String] {
         guard self == .grok else { return [:] }

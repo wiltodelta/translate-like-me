@@ -1,0 +1,190 @@
+{
+  "cliHelp": {
+    "agy": true,
+    "claude": true,
+    "codex": true,
+    "grok": true
+  },
+  "codexGlobalInstructions": {
+    "loopbackEndpoint": true,
+    "projectDocMaxBytesZeroStillIncludesGlobalInstructions": true,
+    "realCredentialsUsed": false,
+    "syntheticHome": true
+  },
+  "freshInstall": {
+    "networkDenied": true,
+    "realAccountsUsed": false,
+    "realHomeDenied": true,
+    "scenariosPassed": 8
+  },
+  "liveEvaluation": "docs/evaluations/provider-baseline.json",
+  "maintain": {
+    "exitCode": 0,
+    "failures": 0,
+    "signedDevelopmentBundle": true,
+    "testsExecuted": 363,
+    "testsSkipped": 18
+  },
+  "nativeUI": {
+    "coverage": "English: all engines, incompatible effort and unknown effort, both appearances. German: Codex, Antigravity, incompatible effort, unknown effort and reset to Default, both appearances.",
+    "developmentPreferencesRestoredAndCompared": true,
+    "images": [
+      {
+        "height": 760,
+        "language": "en",
+        "path": "screenshots/providers/en/provider-anthropic-dark.png",
+        "width": 1080
+      },
+      {
+        "height": 760,
+        "language": "en",
+        "path": "screenshots/providers/en/provider-anthropic.png",
+        "width": 1080
+      },
+      {
+        "height": 656,
+        "language": "en",
+        "path": "screenshots/providers/en/provider-antigravity-dark.png",
+        "width": 1080
+      },
+      {
+        "height": 656,
+        "language": "en",
+        "path": "screenshots/providers/en/provider-antigravity.png",
+        "width": 1080
+      },
+      {
+        "height": 760,
+        "language": "en",
+        "path": "screenshots/providers/en/provider-grok-dark.png",
+        "width": 1080
+      },
+      {
+        "height": 760,
+        "language": "en",
+        "path": "screenshots/providers/en/provider-grok.png",
+        "width": 1080
+      },
+      {
+        "height": 800,
+        "language": "en",
+        "path": "screenshots/providers/en/provider-incompatible-effort-dark.png",
+        "width": 1080
+      },
+      {
+        "height": 800,
+        "language": "en",
+        "path": "screenshots/providers/en/provider-incompatible-effort.png",
+        "width": 1080
+      },
+      {
+        "height": 840,
+        "language": "en",
+        "path": "screenshots/providers/en/provider-local-dark.png",
+        "width": 1080
+      },
+      {
+        "height": 840,
+        "language": "en",
+        "path": "screenshots/providers/en/provider-local.png",
+        "width": 1080
+      },
+      {
+        "height": 800,
+        "language": "en",
+        "path": "screenshots/providers/en/provider-openai-dark.png",
+        "width": 1080
+      },
+      {
+        "height": 800,
+        "language": "en",
+        "path": "screenshots/providers/en/provider-openai.png",
+        "width": 1080
+      },
+      {
+        "height": 800,
+        "language": "en",
+        "path": "screenshots/providers/en/provider-unknown-effort-dark.png",
+        "width": 1080
+      },
+      {
+        "height": 800,
+        "language": "en",
+        "path": "screenshots/providers/en/provider-unknown-effort.png",
+        "width": 1080
+      },
+      {
+        "height": 712,
+        "language": "de",
+        "path": "screenshots/providers/de/provider-antigravity-dark.png",
+        "width": 1080
+      },
+      {
+        "height": 712,
+        "language": "de",
+        "path": "screenshots/providers/de/provider-antigravity.png",
+        "width": 1080
+      },
+      {
+        "height": 884,
+        "language": "de",
+        "path": "screenshots/providers/de/provider-incompatible-effort-dark.png",
+        "width": 1080
+      },
+      {
+        "height": 884,
+        "language": "de",
+        "path": "screenshots/providers/de/provider-incompatible-effort.png",
+        "width": 1080
+      },
+      {
+        "height": 856,
+        "language": "de",
+        "path": "screenshots/providers/de/provider-openai-dark.png",
+        "width": 1080
+      },
+      {
+        "height": 856,
+        "language": "de",
+        "path": "screenshots/providers/de/provider-openai.png",
+        "width": 1080
+      },
+      {
+        "height": 884,
+        "language": "de",
+        "path": "screenshots/providers/de/provider-unknown-effort-dark.png",
+        "width": 1080
+      },
+      {
+        "height": 884,
+        "language": "de",
+        "path": "screenshots/providers/de/provider-unknown-effort-default-dark.png",
+        "width": 1080
+      },
+      {
+        "height": 884,
+        "language": "de",
+        "path": "screenshots/providers/de/provider-unknown-effort-default.png",
+        "width": 1080
+      },
+      {
+        "height": 884,
+        "language": "de",
+        "path": "screenshots/providers/de/provider-unknown-effort.png",
+        "width": 1080
+      }
+    ],
+    "limits": "This is focused Settings verification, not a full accessibility or whole-app audit.",
+    "reviewed": true,
+    "savedAliasVisibleViaAX": true,
+    "systemAppearanceRestoredAndReadBack": true,
+    "unknownEffortResetViaAX": true
+  },
+  "negativeChecks": [
+    "Original default-model effort regression failed before the fix.",
+    "Original missing-Claude-catalog effort regression failed before the fix.",
+    "Subprocess argument, malformed-output, quota, readiness and preserved-preference mutants failed.",
+    "Saved-alias, unknown-effort visibility and zero-exit error-event mutants failed.",
+    "Merged-stderr semantic-path mutant failed the synthetic output check."
+  ]
+}
