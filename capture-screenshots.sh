@@ -556,8 +556,16 @@ DOMAIN=com.wiltodelta.translatelikeme.dev
 defaults export "$DOMAIN" "$WORK/defaults.plist"
 
 BACKDROP_PID=""
+# Keep what a failed run saw (the screen, the app's windows, its AX geometry)
+# before the app quits; diagnose from that folder rather than a second run.
+save_evidence() {
+    [ -n "$PID" ] || return 0
+    uv run -q "${MACAUDIT:-$HOME/Documents/GitHub/claude-config/skills/ui-audit-macos/scripts/macaudit.py}" \
+        evidence --pid "$PID" --out "${TMPDIR:-/tmp}/translate-like-me-capture-failures" --label capture >/dev/null || true
+}
 cleanup() {
     local status=$? restore_failed=0
+    [ "$status" = 0 ] || save_evidence
     if [ -n "$PID" ]; then
         kill "$PID" 2>/dev/null || true
         for _ in $(seq 1 50); do
