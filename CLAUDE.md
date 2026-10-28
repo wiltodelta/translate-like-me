@@ -63,9 +63,10 @@ preparation, preview, approval and live verification.
   light and dark, flipping the system to Dark Mode and back, and needs
   Accessibility and Screen Recording for the terminal and a Mac left alone.
 - Check a change with the `CAPTURE_*_ONLY` mode it reaches (listed at the top
-  of the script); the full run is for a release. A failed capture saves the
-  screen, the app's windows and AX geometry under
-  `$TMPDIR/translate-like-me-capture-failures/`: diagnose from that, not a rerun.
+  of the script); the full run is only for a screen without a mode or the
+  script's shared steps. A failed capture saves the screen, the app's
+  windows and AX geometry under `$TMPDIR/translate-like-me-capture-failures/`:
+  diagnose from that, not a rerun.
 - The capture uses ScreenCaptureKit, which composites only the app and an
   opaque backdrop, excluding unrelated windows, alerts and the Dock. A closed
   or resized target fails the capture; Settings activation settles before the

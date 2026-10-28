@@ -15,11 +15,14 @@ import Sparkle
 /// chooses it or checks by hand.
 @MainActor
 @Observable
-final class Updater: NSObject, SPUStandardUserDriverDelegate {
+final class Updater: NSObject, SPUUpdaterDelegate, SPUStandardUserDriverDelegate {
     static let shared = Updater()
 
     /// The version a scheduled check found and the user has not acted on yet.
     private(set) var pendingVersion: String?
+
+    /// Set just before Sparkle quits the app to relaunch the installed update.
+    private(set) var relaunchingForUpdate = false
 
     @ObservationIgnored private var controller: SPUStandardUpdaterController!
 
@@ -27,7 +30,7 @@ final class Updater: NSObject, SPUStandardUserDriverDelegate {
 
     override private init() {
         super.init()
-        controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil,
+        controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: self,
                                                   userDriverDelegate: self)
     }
 
@@ -48,6 +51,12 @@ final class Updater: NSObject, SPUStandardUserDriverDelegate {
     func checkForUpdates() {
         NSApp.activate()
         controller.checkForUpdates(nil)
+    }
+
+    // MARK: - SPUUpdaterDelegate
+
+    nonisolated func updaterWillRelaunchApplication(_ updater: SPUUpdater) {
+        MainActor.assumeIsolated { relaunchingForUpdate = true }
     }
 
     // MARK: - SPUStandardUserDriverDelegate
