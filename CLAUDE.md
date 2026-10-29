@@ -30,6 +30,11 @@ Victor's personal website (`wiltodelta/wiltodelta-app`, page
 Keep those paths and section alternatives in step with `releaseSource` in the
 site's `src/data/project-catalog.json`.
 
+Website copy highlights only the main use cases and benefits; follow the site's
+`docs/product-updates.md`, "Visitor copy selection". Routine interface conveniences
+belong in documentation or release notes, and refreshing screenshots does not
+require expanding the description.
+
 At every release, compare the candidate with the previous published release
 for icon, screenshot and visitor-facing description changes. Prepare the
 website changes that apply, then propose their live publication before closing
