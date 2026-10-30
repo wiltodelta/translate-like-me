@@ -12,7 +12,7 @@ enum TranslatorError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notSignedIn(let provider):
-            // The status menu's own wording, so the popup and the menu give one fix.
+            // The same wording onboarding uses, so both give one fix.
             return provider.notSignedInHint
         case .binaryNotFound(let name):
             return String(localized: """
@@ -78,7 +78,7 @@ enum Translator {
         } catch TranslatorError.failed(let message) where SignInDetector.matches(message) {
             // A signed-out CLI answers with its own instructions (grok: "Error: Not
             // signed in. To authenticate without a browser, run: grok login
-            // --device-code ... XAI_API_KEY ..."). Say what the menu says instead
+            // --device-code ... XAI_API_KEY ..."). Say what onboarding says instead
             // (UX audit 2026-09-28, UX-T03).
             throw TranslatorError.notSignedIn(provider)
         }

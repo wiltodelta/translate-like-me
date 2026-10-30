@@ -74,8 +74,6 @@ preparation, preview, approval and live verification.
   script's shared steps. A failed capture saves the screen, the app's
   windows and AX geometry under `$TMPDIR/translate-like-me-capture-failures/`:
   diagnose from that, not a rerun.
-- Captures launch with `-dictationPreview settings`, which never loads the
-  speech model, so the menu's Dictation row reads "Preparing…" by design.
 - The capture uses ScreenCaptureKit, which composites only the app and an
   opaque backdrop, excluding unrelated windows, alerts and the Dock. A closed
   or resized target fails the capture; Settings activation settles before the

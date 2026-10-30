@@ -2,7 +2,7 @@ import XCTest
 @testable import TranslateLikeMe
 
 // UX audit 2026-09-28 (UX-T03): a signed-out CLI's own instructions are replaced by
-// the status menu's one-line fix.
+// the shared notSignedInHint (popup and onboarding).
 final class SignInDetectorTests: XCTestCase {
     func testRecognizesSignedOutCLIs() {
         let grok = """

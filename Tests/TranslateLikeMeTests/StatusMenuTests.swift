@@ -15,8 +15,8 @@ final class StatusMenuTests: XCTestCase {
         for (key, value) in zip(keys, saved) { UserDefaults.standard.set(value, forKey: key) }
     }
 
-    // Status names features, and the feature sections follow the order they
-    // chain in: dictate, rewrite, translate.
+    // No status rows; the feature sections follow the order they chain in:
+    // dictate, rewrite, translate.
     func testSectionsFollowTheFeatureOrderAndRewriteAlwaysHasOne() {
         _ = NSApplication.shared
         Settings.languagePairs = [LanguagePair(first: "en", second: "ru", shortcut: nil)]
@@ -26,12 +26,8 @@ final class StatusMenuTests: XCTestCase {
         menu.rebuild()
         let items = menu.menu.items
         XCTAssertEqual(items.filter(\.isSectionHeader).map(\.title),
-                       ["Status", "Dictate at cursor", "Rewrite selection", "Translate selection"])
-        let status = rows(after: "Status", in: items)
-        // The Accessibility row's title depends on this process's grant.
-        XCTAssertEqual(status.map(\.title).prefix(2), ["Dictation", "Translation"])
-        XCTAssertEqual(status.count, 3)
-        XCTAssertEqual(status.first?.subtitle, "Off")
+                       ["Dictate at cursor", "Rewrite selection", "Translate selection"])
+        XCTAssertEqual(items.first?.title, "Dictate at cursor")
         XCTAssertEqual(rows(after: "Dictate at cursor", in: items).map(\.title), ["Set Up Dictation…"])
         XCTAssertEqual(rows(after: "Rewrite selection", in: items).map(\.title), ["Add a Rewrite Preset…"])
 

@@ -1,22 +1,15 @@
 import AppKit
-import ApplicationServices
 
 // The status item's menu. The HIG's menu bar extras guidance is "display a menu -
 // not a popover - when people click your menu bar extra", so both clicks open this
 // standard NSMenu, which the system draws with its own material, appearance and
 // accessibility. It is rebuilt each time it opens, so it always reflects Settings,
-// and it keeps the same set of items in every state (status rows change their text,
-// they never disappear). The engine check runs off the main thread and updates its
-// row in place while the menu is open.
+// and it keeps the same sections in every state. It carries no model, engine or
+// permission status (user decision 2026-10-30): problems surface in the popup,
+// onboarding and Settings.
 @MainActor
 final class StatusMenu: NSObject, NSMenuDelegate {
     let menu = NSMenu()
-
-    // The last check, tagged with the engine it was made for, so a result for
-    // the previous engine is never shown after switching in Settings.
-    private var engineStatus: (engine: Provider, readiness: EngineStatus.Readiness)?
-    private var engineCheck: Task<Void, Never>?
-    private weak var engineItem: NSMenuItem?
 
     private let results: LastResults
     private let dictation: () -> DictationController
@@ -38,28 +31,15 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         rebuild()
-        refreshEngine()
     }
 
     func rebuild() {
         menu.removeAllItems()
 
-        // One status row per thing setup prepares (onboarding's models and
-        // permissions), titled by the feature it serves.
-        let dictation = dictation()
-        menu.addItem(.sectionHeader(title: String(localized: "Status")))
-        menu.addItem(dictationStatusItem(dictation))
-        let engine = item(String(localized: "Translation"), action: #selector(openEngineSettings))
-        engineItem = engine
-        applyEngineStatus(to: engine)
-        menu.addItem(engine)
-        menu.addItem(accessibilityItem())
-
         // The features in the order they chain, as the README and onboarding
         // tell them: dictate, polish the notes, translate the message.
-        menu.addItem(.separator())
         menu.addItem(.sectionHeader(title: String(localized: "Dictate at cursor")))
-        menu.addItem(dictateItem(dictation))
+        menu.addItem(dictateItem(dictation()))
 
         menu.addItem(.separator())
         menu.addItem(.sectionHeader(title: String(localized: "Rewrite selection")))
@@ -102,82 +82,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         return item
     }
 
-    // MARK: - Status
-
-    private func refreshEngine() {
-        engineCheck?.cancel()
-        let engine = Settings.provider
-        engineCheck = Task {
-            let result = await EngineStatus.check(provider: engine)
-            guard !Task.isCancelled else { return }
-            engineStatus = (engine, result)
-            if let engineItem { applyEngineStatus(to: engineItem) }
-        }
-    }
-
-    // The subtitle carries the engine and its state or, when something is wrong,
-    // the fix. The row stays enabled (full-contrast text) and opens the
-    // Translation pane, where the engine is chosen; Rewrite runs on it too.
-    private func applyEngineStatus(to item: NSMenuItem) {
-        let provider = Settings.provider
-        let symbol: String
-        let detail: String
-        let readiness = engineStatus?.engine == provider ? engineStatus?.readiness : nil
-        switch readiness {
-        case .ready:
-            symbol = "checkmark.circle"
-            detail = Self.status(provider.name, EngineStatus.readyText)
-        case .notLoggedIn:
-            symbol = "exclamationmark.triangle"
-            detail = provider.notSignedInHint
-        case .notInstalled:
-            symbol = "exclamationmark.triangle"
-            detail = provider.notInstalledHint
-        case .failed(let message):
-            symbol = "exclamationmark.triangle"
-            detail = message
-        case .none:
-            symbol = "circle.dotted"
-            detail = Self.status(provider.name, EngineStatus.checkingText)
-        }
-        item.subtitle = detail
-        item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
-        showsImage(item)
-    }
-
-    // A ready or pending row names what serves the feature; a problem row's
-    // sentence already does.
-    private static func status(_ name: String, _ state: String) -> String {
-        String(localized: "\(name) · \(state)",
-               comment: "Menu status subtitle: an engine or model name, then its state, such as Ready")
-    }
-
-    // Opens the Dictation pane, where dictation is turned on, its model chosen
-    // and a failed setup retried.
-    private func dictationStatusItem(_ dictation: DictationController) -> NSMenuItem {
-        let item = self.item(String(localized: "Dictation"), action: #selector(openDictationSettings))
-        let model = dictation.model.title
-        let (symbol, subtitle): (String, String) = if !dictation.enabled {
-            ("minus.circle", String(localized: "Off", comment: "Dictation status in the menu"))
-        } else {
-            switch dictation.phase {
-            case .failed:
-                ("exclamationmark.triangle", dictation.error ?? String(localized: "Dictation is not ready."))
-            // Enabled but not loaded yet: launch restores it right away.
-            case .disabled, .preparing: ("circle.dotted", Self.status(model, String(localized: "Preparing…")))
-            default: ("checkmark.circle", Self.status(model, EngineStatus.readyText))
-            }
-        }
-        item.subtitle = subtitle
-        item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
-        showsImage(item)
-        return item
-    }
-
     // macOS 27 hides menu item images unless an item asks for them (NSMenuItem
-    // .preferredImageVisibility). These symbols carry state (ready, warning, update
-    // found), and Settings… keeps its system gear, so a hidden image left a warning
-    // with no sign and a group with one icon (HIG Menus: all or none in a group).
+    // .preferredImageVisibility). The updates symbol carries state (update found),
+    // and Settings… keeps its system gear, so a hidden image left a group with one
+    // icon (HIG Menus: all or none in a group).
     // Set through the Objective-C runtime: the property exists from the macOS 27 SDK
     // on, and CI still builds with an older one. 1 is NSMenuItemImageVisibilityVisible
     // (AppKit NSMenuItem.h); on earlier systems the item has no such property and
@@ -185,21 +93,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private func showsImage(_ item: NSMenuItem) {
         guard item.responds(to: NSSelectorFromString("setPreferredImageVisibility:")) else { return }
         item.setValue(1, forKey: "preferredImageVisibility")
-    }
-
-    // Enabled only while access is missing: it is the way to grant it.
-    private func accessibilityItem() -> NSMenuItem {
-        let trusted = AXIsProcessTrusted()
-        let item = self.item(trusted ? String(localized: "Accessibility", comment: "The macOS permission")
-                                : String(localized: "Allow Accessibility Access…"),
-                             action: #selector(requestAccessibility))
-        item.subtitle = trusted ? String(localized: "Allowed", comment: "Accessibility permission status")
-            : String(localized: "Needed to copy and replace the selection")
-        item.image = NSImage(systemSymbolName: trusted ? "checkmark.circle" : "exclamationmark.triangle",
-                             accessibilityDescription: nil)
-        item.isEnabled = !trusted
-        showsImage(item)
-        return item
     }
 
     // MARK: - Commands
@@ -252,8 +145,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     // Dictation starts only from its hold key, so once set up the row is a
-    // dimmed reminder of that key (Status tells whether the model is ready);
-    // the other states offer the next step.
+    // dimmed reminder of that key; the other states offer the next step.
     private func dictateItem(_ dictation: DictationController) -> NSMenuItem {
         if dictation.isActive {
             return item(String(localized: "Cancel Dictation"), action: #selector(cancelDictation))
@@ -297,8 +189,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         copyResult(text)
     }
 
-    @objc private func requestAccessibility() { SelectionService.promptForAccessibility() }
-
     @objc private func openSettings() {
         NotificationCenter.default.post(name: .openSettings, object: nil)
     }
@@ -313,10 +203,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     @objc private func openRewriteSettings() {
         NotificationCenter.default.post(name: .openSettings, object: SettingsPane.rewrite)
-    }
-
-    @objc private func openEngineSettings() {
-        NotificationCenter.default.post(name: .openSettings, object: SettingsPane.translation)
     }
 
     @objc private func checkForUpdates() { Updater.shared.checkForUpdates() }

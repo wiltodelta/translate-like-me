@@ -64,7 +64,7 @@ enum Provider: String, CaseIterable {
         }
     }
 
-    // How to sign in to the CLI, for the status menu's hint (verified against
+    // How to sign in to the CLI, for the sign-in hint (verified against
     // each CLI's --help, 2026-09-23). agy has no login command: it signs in when
     // started without arguments (agy 1.4.2).
     var loginCommand: String {
@@ -77,14 +77,14 @@ enum Provider: String, CaseIterable {
         }
     }
 
-    // The one sentence for a signed-out CLI, shared by the status menu row and the
+    // The one sentence for a signed-out CLI, shared by onboarding and the
     // translation popup so the two always give the same fix.
     var notSignedInHint: String {
         String(localized: "Not signed in to \(name). Run \(loginCommand) in Terminal.",
                comment: "The first placeholder is a command-line tool (Claude Code), the second a command to type")
     }
 
-    // The status menu row's and onboarding's sentence for a missing CLI, or a
+    // The popup's and onboarding's sentence for a missing CLI, or a
     // local model not downloaded yet.
     var notInstalledHint: String {
         guard usesCLI else { return LocalModelError.notDownloaded(Settings.localModel).localizedDescription }

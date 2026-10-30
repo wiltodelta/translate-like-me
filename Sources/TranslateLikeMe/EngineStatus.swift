@@ -1,18 +1,13 @@
 import Foundation
 
-// Proactively checks whether the currently selected engine is ready to translate,
-// so the status menu can warn about a missing CLI or a signed-out account BEFORE the
-// user hits the shortcut, instead of only surfacing it as an error afterwards.
+// Checks whether an engine is ready to translate: a missing CLI, a signed-out
+// account or an undownloaded local model. EngineProbe builds on it for onboarding.
 //
 // The checks are cheap: a filesystem lookup for the CLI, and `claude auth status`
 // / `codex login status` (each ~0.1-0.2s) / `grok models` (~0.9s) / `agy models`
 // (~3s). Run off the main thread.
 enum EngineStatus {
-    // The status words the menu and onboarding share.
     static var readyText: String { String(localized: "Ready", comment: "Engine or dictation status") }
-    static var checkingText: String {
-        String(localized: "Checking…", comment: "Engine status while it is being checked")
-    }
 
     enum Readiness: Equatable {
         case ready
@@ -23,7 +18,7 @@ enum EngineStatus {
 
     // The engine chosen in Settings by default; onboarding checks each one. The
     // local model is ready once its download is verified (LocalModelFiles).
-    static func check(provider: Provider = Settings.provider) async -> Readiness {
+    static func check(provider: Provider) async -> Readiness {
         guard provider.usesCLI else {
             let model = Settings.localModel
             return localReadiness(model: model, installed: LocalModelFiles.live.isInstalled(model),

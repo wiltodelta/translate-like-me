@@ -78,13 +78,13 @@ available. Copying is explicit and does not run the engine again.
 
 - Select text in any app, then press a pair's shortcut (the first pair you add
   starts on **⌥⌘F**) to replace it with the translation.
-- Click the menu-bar icon for the menu. **Status** shows what setup prepared:
-  Dictation (its model, or Off), Translation (the engine, which Rewrite also
-  uses) and Accessibility. Clicking the Dictation or Translation row opens its
-  settings. Then come the features in the order they chain: **Dictate at
-  cursor** (the hold key, or the next setup step), **Rewrite selection** with
-  one item per preset, and **Translate selection** with one item per language
-  pair, each with its shortcut. Settings, updates and Quit follow.
+- Click the menu-bar icon for the menu. It lists the features in the order
+  they chain: **Dictate at cursor** (the hold key, or the next setup step),
+  **Rewrite selection** with one item per preset, and **Translate selection**
+  with one item per language pair, each with its shortcut. Copy Last Result,
+  Settings, updates and Quit follow. The menu shows no model, engine or
+  permission status: a problem appears when you use the feature, and Settings
+  shows each engine's and model's state.
 - Select notes, then press a preset's shortcut to replace them with a finished
   message. New profiles start with an Improve Text preset; with no presets, the
   menu offers **Add a Rewrite Preset…**, which opens Settings > Rewrite.

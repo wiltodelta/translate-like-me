@@ -12,11 +12,10 @@ Read before editing this domain.
 
 - `AppDelegate` owns an `NSStatusItem` whose `menu` is `StatusMenu`, a standard
   `NSMenu` for both clicks. It is rebuilt on every open
-  (`menuNeedsUpdate`), keeps the same items in every state (status rows change
-  text, never disappear). Status mirrors what onboarding prepares, one row per
-  feature (Dictation, Translation, Accessibility), and the feature sections
-  follow their chain: Dictate at cursor, Rewrite selection, Translate selection
-  (user decision 2026-10-30). The menu uses the standard `terminate(_:)` selector so
+  (`menuNeedsUpdate`) and keeps the same sections in every state: Dictate at
+  cursor, Rewrite selection, Translate selection, in the order the features
+  chain. It shows no model, engine or Accessibility status (user decision
+  2026-10-30); problems surface in the popup, onboarding and Settings. The menu uses the standard `terminate(_:)` selector so
   macOS 26 supplies Quit's icon. Settings is an `NSTabViewController` in toolbar
   style (`SettingsTabViewController.makeWindow`, panes General, Dictation,
   Translation and Rewrite, window title follows the pane, last pane restored unless a
@@ -52,7 +51,7 @@ Read before editing this domain.
   (`appearsActive = true`), and a capped body fades at the bottom when more
   text is below. Its opaque `windowBackgroundColor` backing keeps text readable
   over arbitrary desktop colors and Liquid Glass settings. macOS 27 hides `NSMenuItem.image` unless `preferredImageVisibility
-  = .visible`; the status rows and the updates item set it (`StatusMenu.showsImage`).
+  = .visible`; the updates and Copy Last Result items set it (`StatusMenu.showsImage`).
 - `Languages.all` derives languages from `Locale.availableIdentifiers`,
   each with its English `name` for the
   engine's prompt and a `displayName` in the interface language
@@ -247,7 +246,7 @@ Read before editing this domain.
   with `EngineStatus` publishing `.harnessModelsChanged` on the main actor
   after recording a probe's catalog. `SettingsStore` subscribes for its lifetime
   and reloads only the currently selected provider, including probes started
-  by the status menu or onboarding; a late answer cannot replace another
+  by onboarding or Settings; a late answer cannot replace another
   provider's catalog. The settings probe is injectable in unit tests.
   Antigravity's catalog has
   one line per model and effort (`gemini-3.8-flash-low`) grouped into a model

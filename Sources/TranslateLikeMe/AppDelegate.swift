@@ -176,7 +176,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func ensureAccessibilityPermission() {
         // Triggers the system Accessibility prompt when not yet trusted. Kept
         // non-blocking: a modal here would stall app launch (and the status item)
-        // until dismissed. The status menu surfaces the same need.
+        // until dismissed. Onboarding asks for it as well.
         SelectionService.promptForAccessibility()
     }
 }
