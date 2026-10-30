@@ -300,6 +300,71 @@
         }
       }
     },
+    "%@ · %@" : {
+      "comment" : "Menu status subtitle: an engine or model name, then its state, such as Ready",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
     "%@: %@" : {
       "localizations" : {
         "de" : {
@@ -761,6 +826,122 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "添加语言对…"
+          }
+        }
+      }
+    },
+    "Add a Rewrite Preset…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Umschreib-Preset hinzufügen …"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir un preajuste de reescritura…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter un préréglage de réécriture…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aggiungi un preset di riscrittura…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書き直しプリセットを追加…"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다시 쓰기 프리셋 추가…"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adicionar Predefinição de Reescrita…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Добавить пресет переписывания…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加改写预设…"
+          }
+        }
+      }
+    },
+    "Add a Rewrite preset in Settings to turn selected notes into a message." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Füge in den Einstellungen ein Umschreib-Preset hinzu, um ausgewählte Notizen in eine Nachricht zu verwandeln."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añade un preajuste de reescritura en Ajustes para convertir las notas seleccionadas en un mensaje."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajoutez un préréglage de réécriture dans les réglages pour transformer les notes sélectionnées en message."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aggiungi un preset di riscrittura nelle Impostazioni per trasformare le note selezionate in un messaggio."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選択したメモをメッセージに仕上げるには、設定で書き直しプリセットを追加してください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "선택한 메모를 메시지로 다듬으려면 설정에서 다시 쓰기 프리셋을 추가하세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adicione uma predefinição de reescrita nos Ajustes para transformar as anotações selecionadas em uma mensagem."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Добавьте пресет переписывания в настройках, чтобы превращать выделенные заметки в сообщение."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在设置中添加改写预设，即可将所选笔记整理成消息。"
           }
         }
       }
@@ -3210,118 +3391,176 @@
         }
       }
     },
-    "Dictate and translate" : {
+    "Dictate at cursor" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Diktieren und übersetzen"
+            "value" : "An der Einfügemarke diktieren"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dicta y traduce"
+            "value" : "Dictar en el cursor"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dictez et traduisez"
+            "value" : "Dicter au curseur"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Detta e traduci"
+            "value" : "Detta nel punto del cursore"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "音声入力と翻訳"
+            "value" : "カーソル位置に音声入力"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "받아쓰기와 번역"
+            "value" : "커서 위치에 받아쓰기"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dite e traduza"
+            "value" : "Ditar no Cursor"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Диктуйте и переводите"
+            "value" : "Диктовать в поле ввода"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "听写与翻译"
+            "value" : "在光标处听写"
           }
         }
       }
     },
-    "Dictate into text fields. Translate selected passages." : {
+    "Dictate into text fields. Rewrite rough notes and translate selected passages." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Diktiere in Textfelder. Übersetze ausgewählte Passagen."
+            "value" : "Diktiere in Textfelder. Schreibe grobe Notizen um und übersetze ausgewählte Passagen."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dicta en campos de texto. Traduce fragmentos seleccionados."
+            "value" : "Dicta en campos de texto. Reescribe notas sueltas y traduce fragmentos seleccionados."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dictez dans les champs de texte. Traduisez les passages sélectionnés."
+            "value" : "Dictez dans les champs de texte. Réécrivez vos notes brutes et traduisez les passages sélectionnés."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Detta nei campi di testo. Traduci i brani selezionati."
+            "value" : "Detta nei campi di testo. Riscrivi appunti grezzi e traduci i brani selezionati."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "テキスト欄に音声で入力。選択した文章を翻訳。"
+            "value" : "テキスト欄に音声で入力。下書きのメモを書き直し、選択した文章を翻訳。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "텍스트 입력란에 받아쓰고 선택한 구절을 번역하세요."
+            "value" : "텍스트 입력란에 받아쓰고, 거친 메모를 다시 쓰고, 선택한 구절을 번역하세요."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dite em campos de texto. Traduza trechos selecionados."
+            "value" : "Dite em campos de texto. Reescreva anotações soltas e traduza trechos selecionados."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Диктуйте в поля ввода. Переводите выделенные фрагменты."
+            "value" : "Диктуйте в поля ввода. Переписывайте черновые заметки и переводите выделенные фрагменты."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在文本框中听写，翻译所选段落。"
+            "value" : "在文本框中听写，改写草稿笔记，翻译所选段落。"
+          }
+        }
+      }
+    },
+    "Dictate, rewrite and translate" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diktieren, umschreiben und übersetzen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dicta, reescribe y traduce"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dictez, réécrivez et traduisez"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detta, riscrivi e traduci"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音声入力、書き直し、翻訳"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "받아쓰기, 다시 쓰기, 번역"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dite, reescreva e traduza"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Диктуйте, переписывайте и переводите"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "听写、改写与翻译"
           }
         }
       }
@@ -3381,64 +3620,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "听写"
-          }
-        }
-      }
-    },
-    "Dictation Settings…" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Diktiereinstellungen …"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ajustes de dictado…"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Réglages de la dictée…"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Impostazioni dettatura…"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "音声入力設定…"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "받아쓰기 설정…"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ajustes de Ditado…"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Настройки диктовки…"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "听写设置…"
           }
         }
       }
@@ -5308,7 +5489,7 @@
       }
     },
     "Hold %@ to dictate" : {
-      "comment" : "Menu subtitle; the placeholder is a key, such as Right Option",
+      "comment" : "Menu item; the placeholder is a key, such as Right Option",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -7234,6 +7415,65 @@
         }
       }
     },
+    "Off" : {
+      "comment" : "Dictation status in the menu",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desactivado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactivée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disattivata"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オフ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "끔"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desativado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выключена"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已关闭"
+          }
+        }
+      }
+    },
     "Open Settings" : {
       "localizations" : {
         "de" : {
@@ -7694,64 +7934,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "准备失败"
-          }
-        }
-      }
-    },
-    "Preparing Dictation…" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Diktieren wird vorbereitet …"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Preparando dictado…"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Préparation de la dictée…"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Preparazione dettatura…"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "音声入力を準備中…"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "받아쓰기 준비 중…"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Preparando Ditado…"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Подготовка диктовки…"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在准备听写…"
           }
         }
       }
@@ -9153,6 +9335,64 @@
         }
       }
     },
+    "Rewrite notes" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notizen umschreiben"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reescribe notas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réécrivez vos notes"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Riscrivi appunti"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "メモを書き直す"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "메모 다시 쓰기"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reescreva anotações"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Переписывайте заметки"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "改写笔记"
+          }
+        }
+      }
+    },
     "Rewrite selection" : {
       "localizations" : {
         "de" : {
@@ -9509,6 +9749,64 @@
         }
       }
     },
+    "Select rough notes and press your shortcut to replace them with a finished message in the same language." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle grobe Notizen aus und drücke dein Tastenkürzel, um sie durch eine fertige Nachricht in derselben Sprache zu ersetzen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selecciona notas sueltas y pulsa tu atajo para sustituirlas por un mensaje terminado en el mismo idioma."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sélectionnez des notes brutes et appuyez sur votre raccourci pour les remplacer par un message abouti dans la même langue."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seleziona appunti grezzi e premi la scorciatoia per sostituirli con un messaggio finito nella stessa lingua."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下書きのメモを選択してショートカットを押すと、同じ言語の完成したメッセージに置き換わります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "거친 메모를 선택하고 단축키를 누르면 같은 언어로 완성된 메시지로 바뀝니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selecione anotações soltas e pressione seu atalho para substituí-las por uma mensagem pronta no mesmo idioma."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выделите черновые заметки и нажмите сочетание клавиш, чтобы заменить их готовым сообщением на том же языке."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选中草稿笔记并按下快捷键，即可将其替换为同一语言的完整消息。"
+          }
+        }
+      }
+    },
     "Select rough notes in any app, for example dictated, and press a preset's shortcut to replace them with a clear, finished message in the same language, in the preset's style. Every fact is kept, and questions stay questions for the recipient. Select a received message together with your notes to reply to it. To send the message in another language, translate it with a pair's shortcut afterwards. Uses the translation engine." : {
       "localizations" : {
         "de" : {
@@ -9857,6 +10155,64 @@
         }
       }
     },
+    "Set Rewrite Shortcut…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Umschreib-Tastenkürzel festlegen…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configurar Atajo de Reescritura…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Définir le raccourci de réécriture…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Imposta Scorciatoia di Riscrittura…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書き直しショートカットを設定…"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다시 쓰기 단축키 설정…"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Definir Atalho de Reescrita…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Назначить сочетание для переписывания…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置改写快捷键…"
+          }
+        }
+      }
+    },
     "Set Translation Shortcut…" : {
       "localizations" : {
         "de" : {
@@ -9969,6 +10325,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "设置听写…"
+          }
+        }
+      }
+    },
+    "Set a Rewrite shortcut in Settings to turn selected notes into a message." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lege in den Einstellungen ein Tastenkürzel zum Umschreiben fest, um ausgewählte Notizen in eine Nachricht zu verwandeln."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configura un atajo de reescritura en Ajustes para convertir las notas seleccionadas en un mensaje."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Définissez un raccourci de réécriture dans les réglages pour transformer les notes sélectionnées en message."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Imposta una scorciatoia di riscrittura nelle Impostazioni per trasformare le note selezionate in un messaggio."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選択したメモをメッセージに仕上げるには、設定で書き直しのショートカットを指定してください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "선택한 메모를 메시지로 다듬으려면 설정에서 다시 쓰기 단축키를 지정하세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Defina um atalho de reescrita nos Ajustes para transformar as anotações selecionadas em uma mensagem."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Назначьте сочетание клавиш для переписывания в настройках, чтобы превращать выделенные заметки в сообщение."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在设置中指定改写快捷键，即可将所选笔记整理成消息。"
           }
         }
       }

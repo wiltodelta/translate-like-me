@@ -153,7 +153,8 @@ struct OnboardingView: View {
 
     private var usage: some View {
         Group {
-            heading("Dictate and translate", detail: "Dictate into text fields. Translate selected passages.")
+            heading("Dictate, rewrite and translate",
+                    detail: "Dictate into text fields. Rewrite rough notes and translate selected passages.")
             VStack(spacing: 28) {
                 if let shortcut = store.dictationShortcut {
                     instruction("mic", title: "Dictate", shortcut: Shortcut.display(shortcut),
@@ -161,11 +162,24 @@ struct OnboardingView: View {
                                     Place the cursor in a text field. Hold your dictation key, speak, then release it.
                                     """)
                 } else {
-                    VStack(alignment: .leading, spacing: 9) {
-                        instruction("mic", title: "Dictate", shortcut: nil,
-                                    detail: "Set a dictation shortcut in Settings to dictate into text fields.")
-                        Button("Set Dictation Shortcut…") { openSettings(.dictation) }
-                    }
+                    setup("mic", title: "Dictate",
+                          detail: "Set a dictation shortcut in Settings to dictate into text fields.",
+                          action: "Set Dictation Shortcut…", pane: .dictation)
+                }
+                if let shortcut = store.rewritePresets.lazy.compactMap(\.shortcut).first {
+                    instruction("text.bubble", title: "Rewrite notes", shortcut: Shortcut.display(shortcut),
+                                detail: """
+                                    Select rough notes and press your shortcut to replace them with a finished \
+                                    message in the same language.
+                                    """)
+                } else if store.rewritePresets.isEmpty {
+                    setup("text.bubble", title: "Rewrite notes",
+                          detail: "Add a Rewrite preset in Settings to turn selected notes into a message.",
+                          action: "Add a Rewrite Preset…", pane: .rewrite)
+                } else {
+                    setup("text.bubble", title: "Rewrite notes",
+                          detail: "Set a Rewrite shortcut in Settings to turn selected notes into a message.",
+                          action: "Set Rewrite Shortcut…", pane: .rewrite)
                 }
                 if let pair = store.pairs.first(where: { $0.isComplete && $0.shortcut != nil })
                     ?? store.pairs.first(where: \.isComplete) {
@@ -176,11 +190,9 @@ struct OnboardingView: View {
                                         translation from the result window.
                                         """)
                     } else {
-                        VStack(alignment: .leading, spacing: 9) {
-                            instruction("character.bubble", title: "Translate", shortcut: nil,
-                                        detail: "Set a translation shortcut in Settings to translate selected text.")
-                            Button("Set Translation Shortcut…") { openSettings(.general) }
-                        }
+                        setup("character.bubble", title: "Translate",
+                              detail: "Set a translation shortcut in Settings to translate selected text.",
+                              action: "Set Translation Shortcut…", pane: .general)
                     }
                 } else {
                     VStack(alignment: .leading, spacing: 9) {
@@ -236,6 +248,15 @@ struct OnboardingView: View {
                 }
             }
         }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // A feature whose shortcut or item is missing, with the button that sets it up.
+    private func setup(_ symbol: String, title: LocalizedStringKey, detail: LocalizedStringKey,
+                       action: LocalizedStringKey, pane: SettingsPane) -> some View {
+        VStack(alignment: .leading, spacing: 9) {
+            instruction(symbol, title: title, shortcut: nil, detail: detail)
+            Button(action) { openSettings(pane) }
+        }
     }
 
     private func instruction(_ symbol: String, title: LocalizedStringKey, shortcut: String?,

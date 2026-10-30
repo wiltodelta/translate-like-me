@@ -56,6 +56,8 @@ preparation, preview, approval and live verification.
   Do not glob old build bundles: stale FluidAudio output can remain after removal.
   MLX looks for `mlx.metallib` only beside the executable, not in
   `Contents/Resources`: call `MLXKernels.use()` before any MLX model loads.
+  After an Xcode update, `build.sh` and `swift test` fail with "missing Metal
+  Toolchain" until `xcodebuild -downloadComponent MetalToolchain` runs.
 - In subprocess tests, use explicit `@Sendable` task closures, a precomputed deadline and the concrete test type: the dynamic `Self`
   form failed Swift 6.3.3's region-based isolation checker.
 - Give a closure property of a `@MainActor` type a `@MainActor` function type:
@@ -72,6 +74,8 @@ preparation, preview, approval and live verification.
   script's shared steps. A failed capture saves the screen, the app's
   windows and AX geometry under `$TMPDIR/translate-like-me-capture-failures/`:
   diagnose from that, not a rerun.
+- Captures launch with `-dictationPreview settings`, which never loads the
+  speech model, so the menu's Dictation row reads "Preparing…" by design.
 - The capture uses ScreenCaptureKit, which composites only the app and an
   opaque backdrop, excluding unrelated windows, alerts and the Dock. A closed
   or resized target fails the capture; Settings activation settles before the

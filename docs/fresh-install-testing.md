@@ -154,7 +154,7 @@ compare the installed release with the candidate build separately.
 3. Continue after both grants, wait for dictation readiness, then check the final
    usage screen's actual shortcuts and Settings route. Its final button alone
    marks completion. Relaunch and verify onboarding stays closed.
-4. Dictate and translate synthetic text in a disposable editor. Check the Copy
+4. Dictate, rewrite and translate synthetic text in a disposable editor. Check the Copy
    fallback. Repeat with unavailable network, failed model preparation and retry
    without touching the working account. Compare the existing-user path and
    preserve explicit model/provider/shortcut choices.

@@ -19,11 +19,17 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private weak var engineItem: NSMenuItem?
 
     private let results: LastResults
+    private let dictation: () -> DictationController
+    // Read lazily: touching Updater starts Sparkle, which alerts without an app bundle.
+    private let pendingUpdate: () -> String?
     private let copyResult: (String) -> Void
 
-    init(results: LastResults = .shared,
+    init(results: LastResults = .shared, dictation: @escaping () -> DictationController = { .shared },
+         pendingUpdate: @escaping () -> String? = { Updater.shared.pendingVersion },
          copyResult: @escaping (String) -> Void = { SelectionService.copyToClipboard($0) }) {
         self.results = results
+        self.dictation = dictation
+        self.pendingUpdate = pendingUpdate
         self.copyResult = copyResult
         super.init()
         menu.delegate = self
@@ -35,33 +41,33 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         refreshEngine()
     }
 
-    private func rebuild() {
+    func rebuild() {
         menu.removeAllItems()
 
+        // One status row per thing setup prepares (onboarding's models and
+        // permissions), titled by the feature it serves.
+        let dictation = dictation()
         menu.addItem(.sectionHeader(title: String(localized: "Status")))
-        let engine = item("", action: #selector(openEngineSettings))
+        menu.addItem(dictationStatusItem(dictation))
+        let engine = item(String(localized: "Translation"), action: #selector(openEngineSettings))
         engineItem = engine
         applyEngineStatus(to: engine)
         menu.addItem(engine)
         menu.addItem(accessibilityItem())
 
+        // The features in the order they chain, as the README and onboarding
+        // tell them: dictate, polish the notes, translate the message.
         menu.addItem(.separator())
-        let dictation = DictationController.shared
-        let title = !dictation.enabled ? String(localized: "Set Up Dictation…")
-            : dictation.isActive ? String(localized: "Cancel Dictation") : String(localized: "Dictation Settings…")
-        let dictate = item(title, action: #selector(dictationAction))
-        switch dictation.phase {
-        case .preparing:
-            dictate.title = String(localized: "Preparing Dictation…")
-            dictate.isEnabled = false
-        case .failed: dictate.title = String(localized: "Finish Dictation Setup…")
-        default: break
+        menu.addItem(.sectionHeader(title: String(localized: "Dictate at cursor")))
+        menu.addItem(dictateItem(dictation))
+
+        menu.addItem(.separator())
+        menu.addItem(.sectionHeader(title: String(localized: "Rewrite selection")))
+        let presets = Settings.rewritePresets
+        for preset in presets { menu.addItem(rewriteItem(preset)) }
+        if presets.isEmpty {
+            menu.addItem(item(String(localized: "Add a Rewrite Preset…"), action: #selector(openRewriteSettings)))
         }
-        if dictation.enabled, let shortcut = Settings.dictationShortcut {
-            dictate.subtitle = String(localized: "Hold \(Shortcut.display(shortcut)) to dictate",
-                                      comment: "Menu subtitle; the placeholder is a key, such as Right Option")
-        }
-        menu.addItem(dictate)
 
         // The app's key action: one item per language pair, showing its shortcut.
         menu.addItem(.separator())
@@ -73,14 +79,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         }
         if pairs.isEmpty {
             menu.addItem(item(String(localized: "Add a Language Pair…"), action: #selector(openLanguageSettings)))
-        }
-
-        // Rewrite is off until a preset is added in Settings, and so is its section.
-        let presets = Settings.rewritePresets
-        if !presets.isEmpty {
-            menu.addItem(.separator())
-            menu.addItem(.sectionHeader(title: String(localized: "Rewrite selection")))
-            for preset in presets { menu.addItem(rewriteItem(preset)) }
         }
 
         menu.addItem(.separator())
@@ -117,9 +115,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         }
     }
 
-    // The subtitle carries the state and, when something is wrong, the fix. The
-    // row stays enabled (full-contrast text) and opens the Translation pane,
-    // where the engine is chosen.
+    // The subtitle carries the engine and its state or, when something is wrong,
+    // the fix. The row stays enabled (full-contrast text) and opens the
+    // Translation pane, where the engine is chosen; Rewrite runs on it too.
     private func applyEngineStatus(to item: NSMenuItem) {
         let provider = Settings.provider
         let symbol: String
@@ -128,7 +126,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         switch readiness {
         case .ready:
             symbol = "checkmark.circle"
-            detail = EngineStatus.readyText
+            detail = Self.status(provider.name, EngineStatus.readyText)
         case .notLoggedIn:
             symbol = "exclamationmark.triangle"
             detail = provider.notSignedInHint
@@ -140,12 +138,40 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             detail = message
         case .none:
             symbol = "circle.dotted"
-            detail = EngineStatus.checkingText
+            detail = Self.status(provider.name, EngineStatus.checkingText)
         }
-        item.title = provider.name
         item.subtitle = detail
         item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
         showsImage(item)
+    }
+
+    // A ready or pending row names what serves the feature; a problem row's
+    // sentence already does.
+    private static func status(_ name: String, _ state: String) -> String {
+        String(localized: "\(name) · \(state)",
+               comment: "Menu status subtitle: an engine or model name, then its state, such as Ready")
+    }
+
+    // Opens the Dictation pane, where dictation is turned on, its model chosen
+    // and a failed setup retried.
+    private func dictationStatusItem(_ dictation: DictationController) -> NSMenuItem {
+        let item = self.item(String(localized: "Dictation"), action: #selector(openDictationSettings))
+        let model = dictation.model.title
+        let (symbol, subtitle): (String, String) = if !dictation.enabled {
+            ("minus.circle", String(localized: "Off", comment: "Dictation status in the menu"))
+        } else {
+            switch dictation.phase {
+            case .failed:
+                ("exclamationmark.triangle", dictation.error ?? String(localized: "Dictation is not ready."))
+            // Enabled but not loaded yet: launch restores it right away.
+            case .disabled, .preparing: ("circle.dotted", Self.status(model, String(localized: "Preparing…")))
+            default: ("checkmark.circle", Self.status(model, EngineStatus.readyText))
+            }
+        }
+        item.subtitle = subtitle
+        item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        showsImage(item)
+        return item
     }
 
     // macOS 27 hides menu item images unless an item asks for them (NSMenuItem
@@ -225,12 +251,28 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         TranslationController.shared.run(pair: pair)
     }
 
-    @objc private func dictationAction() {
-        let controller = DictationController.shared
-        if controller.isActive { controller.cancel() } else {
-            NotificationCenter.default.post(name: .openSettings, object: SettingsPane.dictation)
+    // Dictation starts only from its hold key, so once set up the row is a
+    // dimmed reminder of that key (Status tells whether the model is ready);
+    // the other states offer the next step.
+    private func dictateItem(_ dictation: DictationController) -> NSMenuItem {
+        if dictation.isActive {
+            return item(String(localized: "Cancel Dictation"), action: #selector(cancelDictation))
         }
+        let shortcut = Settings.dictationShortcut
+        if dictation.enabled, dictation.phase != .failed, let shortcut {
+            let hint = item(String(localized: "Hold \(Shortcut.display(shortcut)) to dictate",
+                                   comment: "Menu item; the placeholder is a key, such as Right Option"),
+                            action: #selector(openDictationSettings))
+            hint.isEnabled = false
+            return hint
+        }
+        let title = !dictation.enabled ? String(localized: "Set Up Dictation…")
+            : dictation.phase == .failed ? String(localized: "Finish Dictation Setup…")
+            : String(localized: "Set Dictation Shortcut…")
+        return item(title, action: #selector(openDictationSettings))
     }
+
+    @objc private func cancelDictation() { dictation().cancel() }
 
     // Always show all three actions so availability never changes their order.
     func lastResultsItem() -> NSMenuItem {
@@ -265,6 +307,14 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         NotificationCenter.default.post(name: .openSettings, object: SettingsPane.general)
     }
 
+    @objc private func openDictationSettings() {
+        NotificationCenter.default.post(name: .openSettings, object: SettingsPane.dictation)
+    }
+
+    @objc private func openRewriteSettings() {
+        NotificationCenter.default.post(name: .openSettings, object: SettingsPane.rewrite)
+    }
+
     @objc private func openEngineSettings() {
         NotificationCenter.default.post(name: .openSettings, object: SettingsPane.translation)
     }
@@ -274,7 +324,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     // Also the gentle reminder for an update a scheduled check found (Updater):
     // the title changes rather than a window taking focus.
     private func updatesItem() -> NSMenuItem {
-        let pending = Updater.shared.pendingVersion
+        let pending = pendingUpdate()
         let title = pending == nil ? String(localized: "Check for Updates…") : String(localized: "Install Update…")
         let updates = item(title, action: #selector(checkForUpdates))
         updates.subtitle = pending.map { String(localized: "Version \($0) is available") }

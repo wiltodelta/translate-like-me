@@ -20,7 +20,7 @@ menu bar, ready when you need it.
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="screenshots/menu-dark.png">
-    <img src="screenshots/menu.png" alt="Translate Like Me menu with translation and Rewrite shortcuts and access to the last results" width="299" height="526">
+    <img src="screenshots/menu.png" alt="Translate Like Me menu with dictation, Rewrite and translation status and shortcuts, and access to the last results" width="346" height="574">
   </picture>
 </p>
 

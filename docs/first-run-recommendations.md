@@ -18,10 +18,11 @@ historical design references, not the implementation or runtime verification.
    Accessibility has its own action and is refreshed on return. Both grants
    are needed before enabling/preparing dictation and advancing to usage. The configured
    microphone must resolve to an available input; the saved choice is preserved.
-3. Usage explains the assigned dictation/translation shortcuts, Copy fallback and
-   the menu-bar route to Settings. An unassigned shortcut shows setup guidance
-   and opens the appropriate Settings pane; missing languages have their own
-   setup route. Only the final usage action marks setup complete.
+3. Usage explains the assigned dictation, Rewrite and translation shortcuts
+   (the seeded Improve Text preset included), Copy fallback and the menu-bar
+   route to Settings. An unassigned shortcut shows setup guidance and opens the
+   appropriate Settings pane; missing languages and a removed preset have their
+   own setup route. Only the final usage action marks setup complete.
 
 Closing or pausing cancels pending work, drains it before retry, and keeps partial
 files. It never writes completion. Reopening rechecks/reuses cached assets;

@@ -13,7 +13,10 @@ Read before editing this domain.
 - `AppDelegate` owns an `NSStatusItem` whose `menu` is `StatusMenu`, a standard
   `NSMenu` for both clicks. It is rebuilt on every open
   (`menuNeedsUpdate`), keeps the same items in every state (status rows change
-  text, never disappear), and uses the standard `terminate(_:)` selector so
+  text, never disappear). Status mirrors what onboarding prepares, one row per
+  feature (Dictation, Translation, Accessibility), and the feature sections
+  follow their chain: Dictate at cursor, Rewrite selection, Translate selection
+  (user decision 2026-10-30). The menu uses the standard `terminate(_:)` selector so
   macOS 26 supplies Quit's icon. Settings is an `NSTabViewController` in toolbar
   style (`SettingsTabViewController.makeWindow`, panes General, Dictation,
   Translation and Rewrite, window title follows the pane, last pane restored unless a
@@ -23,7 +26,8 @@ Read before editing this domain.
   map them to their visual position so reordering preserves the saved pane.
   Native pane-identity tests inject synthetic General content: constructing
   `GeneralSettingsView` starts Sparkle, whose missing XCTest bundle configuration
-  can show a modal alert during later async tests.
+  can show a modal alert during later async tests. For the same reason `StatusMenu` reads the
+  pending update through its injected `pendingUpdate`; a menu test passes one.
   Tab identifiers must be strings: toolbar mode sends `isEqualToString:` to
   this untyped property. Explicit pane selection persists even when already selected.
   The standard app-menu Settings command and ⌘, call
@@ -111,7 +115,8 @@ Read before editing this domain.
   (`RewriteSettingsView.binding(for:)`), never by index through
   `ForEach($array)`, which crashed after a removal.
   The menu
-  adds a Rewrite selection section only while a preset exists. `TranslationController.rewrite(preset:)` shares the copy, engine and
+  always shows a Rewrite selection section, with "Add a Rewrite Preset…" when
+  no preset exists. `TranslationController.rewrite(preset:)` shares the copy, engine and
   paste flow with `run(pair:)` (`perform`). `Rewrite.systemPrompt` keeps the
   notes' language even beside a received message in another, keeps questions
   for the recipient, drops filler and superseded self-corrections, treats the
@@ -137,9 +142,11 @@ Read before editing this domain.
   readiness, and revoked permissions block completion. The local engine is
   seeded only for fresh profiles; explicit choices remain authoritative.
   Microphone consent follows Continue; Accessibility opens on its own action,
-  never at fresh launch. Dictation activates only after both grants. No Rewrite
-  controls appear. The final screen uses actual shortcuts or offers setup in the
-  matching Settings pane when unassigned. Failed preparation marks the model and
+  never at fresh launch. Dictation activates only after both grants. The final
+  screen lists Dictate, Rewrite and Translate with their actual shortcuts, or
+  offers setup in the matching Settings pane when one is unassigned or no
+  preset exists (user decision 2026-10-30: the seeded Improve Text preset must
+  not stay undiscovered). Failed preparation marks the model and
   shows primary error text with a warning symbol. Prominent actions share
   primaryActionTint, the system selection backing, with PrimaryActionColors
   choosing black or white text for contrast on bright and dark accents.

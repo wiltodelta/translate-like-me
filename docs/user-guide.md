@@ -34,9 +34,9 @@ First run has three screens:
    then opens the Accessibility pane. Enable the app there and return. Existing
    grants are detected; denied microphone access leads to System Settings. After
    both grants, dictation is enabled and prepared before continuing.
-3. **Dictate and translate** explains the actual assigned shortcuts and the Copy
-   fallback. If a shortcut is unassigned, its setup button opens the matching
-   Settings pane. Start Using Translate Like Me finishes setup. Models, languages and
+3. **Dictate, rewrite and translate** explains the actual assigned shortcuts,
+   the Rewrite preset included, and the Copy fallback. If a shortcut or preset is
+   missing, its setup button opens the matching Settings pane. Start Using Translate Like Me finishes setup. Models, languages and
    other settings can be changed from the app's menu-bar icon.
 
 The initial engine is local. Explicit engine and model choices from an existing
@@ -78,12 +78,16 @@ available. Copying is explicit and does not run the engine again.
 
 - Select text in any app, then press a pair's shortcut (the first pair you add
   starts on **⌥⌘F**) to replace it with the translation.
-- Click the menu-bar icon for the menu: engine and Accessibility status, a
-  **Translate selection** section with one item per language pair and its
-  shortcut, Settings, updates, and Quit. Clicking the engine row opens its settings.
-- Select notes, then press a preset's shortcut (add one under Settings >
-  Rewrite) to replace them with a finished message. The menu then also lists
-  a **Rewrite selection** section with one item per preset.
+- Click the menu-bar icon for the menu. **Status** shows what setup prepared:
+  Dictation (its model, or Off), Translation (the engine, which Rewrite also
+  uses) and Accessibility. Clicking the Dictation or Translation row opens its
+  settings. Then come the features in the order they chain: **Dictate at
+  cursor** (the hold key, or the next setup step), **Rewrite selection** with
+  one item per preset, and **Translate selection** with one item per language
+  pair, each with its shortcut. Settings, updates and Quit follow.
+- Select notes, then press a preset's shortcut to replace them with a finished
+  message. New profiles start with an Improve Text preset; with no presets, the
+  menu offers **Add a Rewrite Preset…**, which opens Settings > Rewrite.
 - Open Settings with ⌘, when the app is active, or reopen the app to bring Settings back.
 - During translation and Rewrite, a small panel at the bottom of the screen
   shows **Translating…** or **Rewriting…**. Its cross button cancels the operation.
