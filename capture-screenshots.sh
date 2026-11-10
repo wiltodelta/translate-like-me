@@ -28,6 +28,15 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Default to a disposable VM. --host is only for host diagnostics agreed with Victor.
+AUDIT="${MACAUDIT:-$HOME/Documents/GitHub/claude-config/skills/ui-audit-macos/scripts/macaudit.py}"
+if [[ "${1:-}" == --host ]]; then
+    shift
+    uv run -q "$AUDIT" scope --allow-host
+else
+    uv run -q "$AUDIT" scope
+fi
+
 APP_DIR="Translate Like Me Dev.app"
 EXECUTABLE="$PWD/$APP_DIR/Contents/MacOS/TranslateLikeMe"
 LANGUAGE="${CAPTURE_LANGUAGE:-}"

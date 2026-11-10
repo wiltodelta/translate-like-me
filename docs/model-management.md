@@ -54,14 +54,17 @@ For a focused render, combine `CAPTURE_MODELS_ONLY=1`,
 and `CAPTURE_APPEARANCE=current`. This skips unchanged dismissal and confirmation
 routes and leaves the system appearance alone.
 
-Run the existing capture recipe with the Mac unlocked:
+Run the existing capture recipe in a separate, unlocked macOS VM:
 
 ```bash
-CAPTURE_MODELS_ONLY=1 CAPTURE_OUT=/tmp/tlm-models-captures ./capture-screenshots.sh
+task_capture_out="$(mktemp -d /tmp/tlm-models-captures.XXXXXX)"
+CAPTURE_MODELS_ONLY=1 CAPTURE_OUT="$task_capture_out" ./capture-screenshots.sh
 ```
 
-Wrap desktop driving with the shared capture notice as described in
-`~/Documents/GitHub/claude-config/docs/macos-capture.md`. The recipe opens both
+Follow `~/Documents/GitHub/claude-config/docs/macos-vm-testing.md` for the
+guest identity and toolchain. Guest runs require no keyboard and mouse notice.
+The capture notice applies only to explicitly agreed host diagnostics (`--host`).
+The recipe opens both
 real entry points, captures both themes at the fixed window widths, then
 closes and reopens each sheet through Accessibility. It verifies Done, Escape,
 Return and cancellation of removal when a downloaded model is present. Pass

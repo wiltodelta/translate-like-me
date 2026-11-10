@@ -175,6 +175,8 @@ Examples: [Codex, English](../screenshots/providers/en/provider-openai.png),
 This is focused Settings verification, not a full accessibility audit.
 
 Use `CAPTURE_PROVIDERS_ONLY=1 CAPTURE_OUT=<temporary directory>` with the existing
-`capture-screenshots.sh` through the shared native-capture notice wrapper.
+`capture-screenshots.sh` inside a separate macOS VM. The script refuses a physical
+Mac by default. Use the shared native-capture notice wrapper only for explicitly
+agreed host diagnostics, with `--host` passed to the script.
 `CAPTURE_LANGUAGE=de` selects German, and `CAPTURE_PROVIDER_LIST='openai antigravity'`
 limits the ordinary engine states while retaining the effort regression states.

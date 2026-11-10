@@ -68,7 +68,8 @@ preparation, preview, approval and live verification.
 - UI, Accessibility, CGEvent and Sparkle require native verification. Render UI
   changes with `./capture-screenshots.sh`; it also regenerates `screenshots/`,
   light and dark, flipping the system to Dark Mode and back, and needs
-  Accessibility and Screen Recording for the terminal and a Mac left alone.
+  Accessibility and Screen Recording inside the separate macOS VM. The script
+  refuses the host unless `--host` is explicitly selected for agreed diagnostics.
 - Check a change with the `CAPTURE_*_ONLY` mode it reaches (listed at the top
   of the script); the full run is only for a screen without a mode or the
   script's shared steps. A failed capture saves the screen, the app's

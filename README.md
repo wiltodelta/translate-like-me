@@ -179,7 +179,9 @@ ask for Accessibility again after rebuilding.
 
 Run `bash maintain.sh` for lint, tests, and bundle assembly.
 `./capture-screenshots.sh` regenerates both sets of screenshots; it requires
-Accessibility, Screen Recording, and an unlocked Mac left alone during capture.
+Accessibility and Screen Recording in a separate macOS VM. It refuses a physical
+Mac by default. Use `./capture-screenshots.sh --host` only for explicitly agreed
+host diagnostics.
 
 [User guide](docs/user-guide.md) ·
 [Build and release](docs/build-and-release.md) ·
