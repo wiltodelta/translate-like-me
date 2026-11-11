@@ -8,8 +8,9 @@ the [user guide](user-guide.md). This file carries the engineering procedures.
 
 The app manifest uses SwiftPM tools 6.2 and Swift 6 language mode, with macOS 15
 support. MLX Swift 0.32.3 requires a Swift 6.3 compiler (Xcode 26.6 or later).
-The explicit swift-collections 1.6.0 constraint keeps tokenizer dependencies
-compatible with CI's Swift 6.3.3; 1.7 requires Swift 6.4.
+Collections 1.7 supports Swift 6.2.4+ through its versioned
+`Package@swift-6.2.swift`; MLX sets the app's higher compiler floor.
+CI selects the newest installed Xcode in [the build workflow](../.github/workflows/build.yml).
 `build.sh` includes the WhisperKit, Whisper and Silero license notices. Parakeet
 and its FluidAudio dependency are no longer included in the app.
 Qwen runs through MLX Audio Swift and MLX Swift. CMake builds the pinned MLX
@@ -17,6 +18,10 @@ Metal kernels (`scripts/build-mlx-metallib.sh`), using the app's macOS minimum;
 `build.sh` embeds them before signing. Kernel build output is keyed by source
 revision, SDK and deployment target. The build also copies materialized resource
 bundles from the current SwiftPM graph and packages resolved upstream notices.
+The build also uses `swift-stdlib-tool` to embed required Swift backdeployment
+libraries in `Contents/Frameworks`, signs them before the app, and runs
+`scripts/check-swift-runtime.sh` to reject a missing or invalidly signed runtime.
+This includes the Span compatibility library needed on macOS 15 by Collections 1.7.
 Unused graph targets need not produce bundles; stale bundles outside the graph
 must stay out of the app. CMake is required locally and installed in CI.
 

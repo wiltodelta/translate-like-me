@@ -119,7 +119,9 @@ Compute-policy findings and the reproducible synthetic benchmark:
   `DictationInputObserver` forwards topology and selected-device property events
   to the capture queue, unregisters on shutdown and ignores unchanged snapshots.
   Re-prepare an absent idle input when hardware returns. Drain rechecks the route
-  and running state rather than trusting notification delivery. Details and
+  and rejects an unexpected stop rather than trusting notification delivery.
+  Release during startup records its intentional stop so the queued drain can
+  still finalize captured audio. Details and
   hardware coverage: `docs/dictation-device-compatibility.md`.
   The I/O unit's current device is the engine's aggregate, not the input;
   compare the input resolved at build. Re-prepare after

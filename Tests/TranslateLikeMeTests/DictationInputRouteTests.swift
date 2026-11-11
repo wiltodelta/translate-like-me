@@ -100,6 +100,32 @@ final class DictationInputRouteTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: request.url.path))
     }
 
+    func testReleaseDuringStartupStillDrainsTheRecordedAudio() async throws {
+        let request = DictationCaptureRequest()
+        let scenario = RouteScenario(started: { _ in request.end() })
+        let worker = scenario.worker()
+        defer { worker.shutdown() }
+        worker.start(request) { _ in XCTFail("Releasing during startup must preserve recorded audio") }
+        let url = try await worker.stop(request).value
+        let file = try AVAudioFile(forReading: url)
+        XCTAssertEqual(file.length, 160)
+        XCTAssertNil(request.failure)
+    }
+
+    func testReleaseDuringStartupDoesNotHideAnUnexpectedEngineStop() async {
+        let request = DictationCaptureRequest()
+        let scenario = RouteScenario(stopAfterDelivery: true, started: { _ in request.end() })
+        let worker = scenario.worker()
+        defer { worker.shutdown() }
+        worker.start(request) { _ in }
+        do {
+            _ = try await worker.stop(request).value
+            XCTFail("Only the worker's intentional release stop may drain a stopped engine")
+        } catch {
+            XCTAssertNotNil(request.failure)
+        }
+    }
+
     func testNativeRateAndChannelMatrixThroughTheActualCaptureFileAndLoader() async throws {
         for rate in [8_000.0, 16_000, 24_000, 44_100, 48_000, 96_000, 192_000] {
             for channels: UInt32 in [1, 2, 3, 8] {

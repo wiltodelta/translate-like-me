@@ -70,8 +70,9 @@ using the app's macOS 15 minimum. Kernel output is keyed by source revision,
 SDK and minimum version. The app embeds the kernels, current materialized SDK
 resource bundles and upstream license notices before Developer ID signing.
 Old FluidAudio resource bundles in a reused build directory stay out of the app.
-MLX Swift requires Swift 6.3; swift-collections 1.6.0 keeps tokenizer dependencies
-compatible with CI's Swift 6.3.3. The app's Swift language mode remains 6.
+MLX Swift requires Swift 6.3. Collections 1.7 supports Swift 6.2.4+ through
+its versioned manifest. The app's Swift language mode remains 6;
+[the build procedure](build-and-release.md) covers Swift runtime packaging.
 
 After assembling the development app:
 

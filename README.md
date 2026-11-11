@@ -14,6 +14,7 @@ menu bar, ready when you need it.
 [Download for macOS](https://github.com/wiltodelta/translate-like-me/releases/latest)
 · [Website](https://wiltodelta.com/projects/translate-like-me/)
 · [User guide](docs/user-guide.md)
+· by [Victor Kuznetsov](https://wiltodelta.com/)
 
 [![Build](https://github.com/wiltodelta/translate-like-me/actions/workflows/build.yml/badge.svg)](https://github.com/wiltodelta/translate-like-me/actions/workflows/build.yml)
 

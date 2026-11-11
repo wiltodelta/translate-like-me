@@ -124,7 +124,10 @@ Bluetooth microphone is much less accurate than from the Mac's built-in one.
 A tip in the dictation indicator was built and then removed at their request. After nonzero audio, a changed route fails
 rather than joining microphones or accepting a partial recording. Release and
 cancellation forbid another start. Drain rechecks the current route and engine
-running state even if a notification has not yet arrived. These are deliberate
+running state even if a notification has not yet arrived. If release arrives
+inside engine startup, the worker stops the microphone immediately and records
+that intentional stop so drain can still finalize the captured WAV. A graph that
+was already stopped before release remains an error. These are deliberate
 failures instead of successful recognition of an invalid recording; uninterrupted
 hot switching during an utterance is not promised.
 

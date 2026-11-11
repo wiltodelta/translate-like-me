@@ -49,8 +49,11 @@ preparation, preview, approval and live verification.
 ## Code quality
 
 - The app manifest uses SwiftPM tools 6.2; MLX Swift requires Swift 6.3.
-  CI's Swift 6.3.3 supports it. Keep swift-collections at 1.6.0, since 1.7
-  requires Swift 6.4. Swift 6 language mode and macOS 15 remain unchanged.
+  Collections 1.7 supports Swift 6.2.4+ through `Package@swift-6.2.swift`.
+  CI selects the newest installed Xcode in `.github/workflows/build.yml`.
+  Swift 6 language mode and macOS 15 remain unchanged.
+  `build.sh` embeds and signs required Swift backdeployment libraries, then
+  `scripts/check-swift-runtime.sh` verifies the bundle is complete.
 - `build.sh` builds MLX's Metal kernels with CMake, embeds the current graph's
   materialized SDK resource bundles and packages upstream license notices.
   Do not glob old build bundles: stale FluidAudio output can remain after removal.

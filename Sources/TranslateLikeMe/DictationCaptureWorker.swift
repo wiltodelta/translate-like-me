@@ -76,6 +76,7 @@ final class DictationCaptureWorker: @unchecked Sendable {
     private var preferredInput: String?
     private var captureEnded: (@Sendable (Bool) -> Void)?
     private var startupRestarts = 0
+    private var stoppedForRelease = false
 
     init(mute: DictationOutputMute = DictationOutputMute(),
          resolveInput: @escaping @Sendable (String?) -> DictationInputRoute? = { DictationInputRoute.resolve($0) },
@@ -120,6 +121,7 @@ final class DictationCaptureWorker: @unchecked Sendable {
             current = request
             captureEnded = ended
             startupRestarts = 0
+            stoppedForRelease = false
             begin(request)
         }
     }
@@ -188,7 +190,10 @@ final class DictationCaptureWorker: @unchecked Sendable {
         queue.asyncAfter(deadline: .now() + firstBufferLimit) { [weak self] in self?.checkFirstBuffer(generation) }
         // Release/cancel stays nonblocking even during a slow hardware start.
         // Drain any captured frames on stop, but stop the microphone immediately.
-        if !request.isActive { stopCapture() }
+        if !request.isActive, engine.isRunning {
+            stoppedForRelease = true
+            stopCapture()
+        }
         let duration = started.duration(to: .now)
         let milliseconds = Double(duration.components.seconds) * 1_000 +
             Double(duration.components.attoseconds) / 1e15
@@ -202,7 +207,7 @@ final class DictationCaptureWorker: @unchecked Sendable {
                     do {
                         if let error = request.failure { throw error }
                         guard current === request, let capture else { throw DictationError.microphone }
-                        guard engine?.isRunning == true, !isStale else {
+                        guard engine?.isRunning == true || stoppedForRelease, !isStale else {
                             request.fail(DictationError.microphone)
                             stopCapture()
                             throw DictationError.microphone

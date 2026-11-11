@@ -38,6 +38,10 @@ ditto "$BIN_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
 rm -rf "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices" \
     "$APP/Contents/Frameworks/Sparkle.framework/XPCServices"
 install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/$BIN"
+# SwiftPM does not embed backdeployment libraries when assembling an app by hand.
+xcrun swift-stdlib-tool --copy --scan-executable "$APP/Contents/MacOS/$BIN" \
+    --scan-folder "$APP/Contents/Frameworks" --platform macosx \
+    --destination "$APP/Contents/Frameworks"
 # Sparkle is MIT licensed, which asks for its notice to ship with it.
 cp ".build/artifacts/sparkle/Sparkle/LICENSE" "$APP/Contents/Resources/Sparkle LICENSE.txt"
 # Local speech runtime and models retain their upstream MIT notices.
@@ -168,11 +172,16 @@ else
 fi
 # Inside out, in the order Sparkle's docs give: its helpers, the framework, then
 # the app (no --deep, which would re-sign the helpers without their options).
+for LIBRARY in "$APP/Contents/Frameworks/"*.dylib; do
+    [[ -f "$LIBRARY" ]] || continue
+    "${SIGN[@]}" "$LIBRARY"
+done
 SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
 "${SIGN[@]}" "$SPARKLE/Versions/B/Autoupdate"
 "${SIGN[@]}" "$SPARKLE/Versions/B/Updater.app"
 "${SIGN[@]}" "$SPARKLE"
 "${SIGN[@]}" --entitlements Resources/Entitlements.plist "$APP"
+bash scripts/check-swift-runtime.sh "$APP"
 
 echo "Done: $PWD/$APP"
 echo "Launch with: open \"$PWD/$APP\""
