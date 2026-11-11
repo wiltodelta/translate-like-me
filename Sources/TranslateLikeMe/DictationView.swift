@@ -21,7 +21,7 @@ struct DictationSetupSections: View {
 
     var body: some View {
         DictationControlsSection(store: store, dictation: dictation, introductory: introductory)
-        DictationModelSection(dictation: dictation)
+        DictationModelSection(store: store, dictation: dictation)
     }
 }
 
@@ -97,6 +97,7 @@ private struct DictationMicrophonePicker: View {
 }
 
 private struct DictationModelSection: View {
+    let store: SettingsStore
     let dictation: DictationController
     @State private var managingModels = false
     private let downloads = DictationModelDownloads.shared
@@ -112,6 +113,7 @@ private struct DictationModelSection: View {
             Text(dictation.model.summary)
                 .foregroundStyle(Color.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
+            DictationLanguageCoverage(store: store, dictation: dictation)
             HStack {
                 VStack(alignment: .leading, spacing: 6) {
                     if !dictation.enabled || dictation.phase == .disabled {
@@ -156,6 +158,32 @@ private struct DictationModelSection: View {
                 download: { downloads.download($0, controller: dictation) }, cancel: { downloads.cancel() },
                 remove: { downloads.remove($0, controller: dictation) })
                 .onAppear { downloads.refresh() }
+        }
+    }
+}
+
+// Names pair languages the selected speech model cannot recognize, and offers
+// the model that recognizes more of them.
+private struct DictationLanguageCoverage: View {
+    let store: SettingsStore
+    let dictation: DictationController
+
+    var body: some View {
+        let languages = DictationLanguagePreference.identifiers(in: store.pairs)
+        let missing = dictation.model.unsupported(languages)
+        if !missing.isEmpty {
+            let names = missing.map(Languages.displayName(for:)).formatted(.list(type: .and))
+            Label {
+                Text("This model does not recognize speech in: \(names).")
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            let better = DictationModel.covering(languages, preferring: dictation.model)
+            if better != dictation.model {
+                Button("Use \(better.title)") { dictation.selectModel(better) }
+                    .disabled(dictation.isActive)
+            }
         }
     }
 }

@@ -114,7 +114,9 @@ immediately.
   the microphone (**System default** follows macOS; a chosen microphone that is
   disconnected falls back to the system input until it returns), and select
   Whisper large-v3-turbo or Qwen3-ASR 1.7B (8-bit, 30 languages). Fresh profiles select
-  Turbo through 16 GB of memory and Qwen above 16 GB. Removed Small and
+  Turbo through 16 GB of memory and Qwen above 16 GB, unless your languages need
+  Whisper. When the selected model cannot recognize one of your pair languages,
+  the pane names it and offers the model that can. Removed Small and
   Large v3 preferences fall back to Turbo. Model
   preparation starts automatically while enabled. Downloaded models stay cached;
   switching is unavailable during recording or recognition.

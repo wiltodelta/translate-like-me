@@ -136,6 +136,7 @@ final class DictationLanguageAuditTests: XCTestCase {
             let data = try Data(contentsOf: root.appendingPathComponent("config.json"))
             let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
             let names = try XCTUnwrap(object["support_languages"] as? [String])
+            XCTAssertEqual(names, DictationModel.qwenLanguages)
             native = Set(names)
             offered = native
             covered = Set(identifiers.flatMap {

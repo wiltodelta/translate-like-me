@@ -1,7 +1,8 @@
 # Minimal dictation plan
 
 > Current catalog: Whisper large-v3-turbo and Qwen3-ASR only. Fresh profiles select
-> Turbo through 16 GiB of memory and Qwen above 16 GiB. Existing valid choices
+> Turbo through 16 GiB of memory and Qwen above 16 GiB, unless the other model
+> recognizes more of the suggested pair's languages. Existing valid choices
 > are preserved; saved Small and Large v3 values resolve to Turbo. Earlier
 > four-model catalog and recommendation descriptions below are historical.
 

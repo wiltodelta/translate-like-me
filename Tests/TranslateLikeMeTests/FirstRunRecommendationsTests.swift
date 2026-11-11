@@ -123,6 +123,15 @@ final class FirstRunRecommendationsTests: XCTestCase {
         }
     }
 
+    func testSpeechModelFollowsPairLanguagesBeforeMemory() {
+        for memory: UInt64 in [8, 32] {
+            withSuite { defaults in
+                FirstRunRecommendations.apply(in: defaults, suggestions: ["am", "en"], physicalMemory: memory << 30)
+                XCTAssertEqual(defaults.string(forKey: "dictationModel"), DictationModel.turbo.rawValue)
+            }
+        }
+    }
+
     func testLocalOfferRequiresMeasuredLanguagesMemoryAndSelectedModelStorage() {
         for memory: UInt64 in [8, 16, 24, 32] {
             let model: LocalModel = memory <= 16 ? .gemma4E2B : .gemma4Model12B

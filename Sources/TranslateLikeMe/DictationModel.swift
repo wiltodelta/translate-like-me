@@ -1,4 +1,5 @@
 import Foundation
+import WhisperKit
 
 // Local multilingual speech models with pinned weights and tokenizer assets.
 enum DictationModel: String, CaseIterable, Identifiable, Sendable {
@@ -44,5 +45,36 @@ enum DictationModel: String, CaseIterable, Identifiable, Sendable {
                         "tokenizer_config.json": "844b642c73a91359722f47b35705f7174686df33d252695d8572cf9ac03a6389"
                       ])
         }
+    }
+
+    // Qwen's list is `support_languages` in the pinned config; Whisper's is its
+    // tokenizer's language tokens. DictationLanguageAuditTests checks both against
+    // the downloaded files.
+    static let qwenLanguages = [
+        "Chinese", "English", "Cantonese", "Arabic", "German", "French", "Spanish", "Portuguese", "Indonesian",
+        "Italian", "Korean", "Russian", "Thai", "Vietnamese", "Japanese", "Turkish", "Hindi", "Malay", "Dutch",
+        "Swedish", "Danish", "Finnish", "Polish", "Czech", "Filipino", "Persian", "Greek", "Romanian", "Hungarian",
+        "Macedonian"
+    ]
+
+    private func recognizes(_ identifier: String) -> Bool {
+        let preference = DictationLanguagePreference(identifiers: [identifier])
+        return switch self {
+        case .turbo: !preference.resolvedCodes(supported: Constants.languageCodes).isEmpty
+        case .qwen3ASR: !preference.resolvedNames(supported: Self.qwenLanguages).isEmpty
+        }
+    }
+
+    // Configured languages the model cannot recognize, in their given order, without repeats.
+    func unsupported(_ identifiers: [String]) -> [String] {
+        var seen = Set<String>()
+        return identifiers.filter { seen.insert($0).inserted && !recognizes($0) }
+    }
+
+    // Prefer the given model; switch only when another recognizes more of the languages.
+    static func covering(_ identifiers: [String], preferring preferred: DictationModel) -> DictationModel {
+        // min(by:) keeps the first of equals, so the preferred model wins ties.
+        let missing = Dictionary(uniqueKeysWithValues: allCases.map { ($0, $0.unsupported(identifiers).count) })
+        return ([preferred] + allCases).min { missing[$0]! < missing[$1]! }!
     }
 }

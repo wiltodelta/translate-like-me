@@ -29,7 +29,11 @@ Compute-policy findings and the reproducible synthetic benchmark:
 
 - `DictationModel` lists Whisper large-v3-turbo (the upstream model name, including its version)
   and Qwen3-ASR 1.7B 8-bit (30 languages). Fresh profiles select Turbo through
-  16 GiB and Qwen above 16 GiB; existing valid choices remain authoritative.
+  16 GiB and Qwen above 16 GiB, unless `DictationModel.covering` finds the other
+  model recognizes more of the suggested pair; existing valid choices remain
+  authoritative. The Speech model section names pair languages the selected
+  model cannot recognize and offers the better-covering model; Qwen's static
+  inventory must match its pinned `support_languages` (audit test).
   `DictationLanguagePreference` snapshots languages from complete translation
   pairs on every transcription. Canonicalize configured and native language codes
   through Foundation before resolving the active model inventory; return its native

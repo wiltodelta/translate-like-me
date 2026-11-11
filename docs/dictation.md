@@ -1,7 +1,8 @@
 # Local dictation
 
 > Current catalog: Whisper large-v3-turbo and Qwen3-ASR only. Fresh profiles select
-> Turbo through 16 GiB of memory and Qwen above 16 GiB. Existing valid choices
+> Turbo through 16 GiB of memory and Qwen above 16 GiB, unless the other model
+> recognizes more of the suggested pair's languages. Existing valid choices
 > are preserved; saved Small and Large v3 values resolve to Turbo. Earlier
 > four-model catalog and recommendation descriptions below are historical.
 
@@ -33,8 +34,13 @@ WhisperKit 1.1.1 runs Whisper large-v3-turbo; MLX Audio Swift 0.1.6 runs Qwen.
 (`openai_whisper-large-v3-v20240930_626MB`) and Qwen3-ASR 1.7B 8-bit for 30 languages.
 Turbo downloads about 627 MB, excluding tokenizer and shared speech-detector
 assets. Qwen downloads about 2.5 GB, including its tokenizer inputs.
-Fresh profiles choose Turbo through 16 GiB of memory and Qwen above 16 GiB;
-existing valid choices remain unchanged. Saved Small and Large v3 choices resolve
+Fresh profiles choose Turbo through 16 GiB of memory and Qwen above 16 GiB,
+unless the other model recognizes more of the suggested pair's languages
+(`DictationModel.covering`); existing valid choices remain unchanged. The
+Speech model section names pair languages the selected model cannot recognize
+and offers the model that recognizes more of them. Qwen's inventory is its
+pinned `support_languages`, Whisper's is WhisperKit's `Constants.languageCodes`;
+`DictationLanguageAuditTests` checks both against the downloaded files. Saved Small and Large v3 choices resolve
 to Turbo. Whisper large-v3-turbo has four decoder layers and 32 encoder layers. Recognition uses automatic language
 detection, without a Russian/English allowlist, and transcription rather than
 translation. This is an initial integrated configuration, not a claim of model

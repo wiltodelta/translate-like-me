@@ -73,6 +73,11 @@ preparation, preview, approval and live verification.
   light and dark, flipping the system to Dark Mode and back, and needs
   Accessibility and Screen Recording inside the separate macOS VM. The script
   refuses the host unless `--host` is explicitly selected for agreed diagnostics.
+  The script builds in place, which a stock Cua guest (Command Line Tools only)
+  cannot do: there, transfer the host-built bundle, launch it with the script's
+  argument-domain fixtures, reopen it to open Settings, and capture with
+  helpers compiled on the host. The guest's Cua Spacesd must be allowed to
+  control System Events before an appearance flip.
 - Check a change with the `CAPTURE_*_ONLY` mode it reaches (listed at the top
   of the script); the full run is only for a screen without a mode or the
   script's shared steps. A failed capture saves the screen, the app's

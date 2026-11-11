@@ -41,6 +41,9 @@ and macOS consent. Rewrite does not appear in onboarding.
 | Above 16 GiB | Gemma 4 12B | Qwen3-ASR |
 
 These are Victor's explicit choices, accepting E2B's measured quality limitations.
+Dictation follows the suggested pair's languages first: when the memory tier's
+model cannot recognize one that the other model can (Amharic on Qwen3-ASR), the
+other model is seeded (`DictationModel.covering`).
 Gemma 4 12B replaced TranslateGemma 12B above 16 GiB on 2026-10-23, after it
 passed more of 23 cases and answered faster with its draft model
 ([local model candidates](local-model-candidates.md)).

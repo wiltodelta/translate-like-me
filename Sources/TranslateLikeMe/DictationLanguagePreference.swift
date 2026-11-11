@@ -5,8 +5,10 @@ import Foundation
 struct DictationLanguagePreference: Sendable {
     static let logWeight = log(Float(4))
 
-    static var configuredIdentifiers: [String] {
-        Settings.languagePairs.filter(\.isComplete).flatMap { [$0.first, $0.second] }
+    static var configuredIdentifiers: [String] { identifiers(in: Settings.languagePairs) }
+
+    static func identifiers(in pairs: [LanguagePair]) -> [String] {
+        pairs.filter(\.isComplete).flatMap { [$0.first, $0.second] }
     }
     let codes: Set<String>
     private let hasUnresolvedIdentifiers: Bool
