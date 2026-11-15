@@ -19,13 +19,14 @@ actor DictationEngine: DictationRecognizing {
     private let directory: URL?
     private let waitForFiles: @Sendable () async -> Void
     private let availableStorage: @Sendable (URL) throws -> Int64
-    private let languageIdentifiers: @Sendable () -> [String]
+    private let languageIdentifiers: @Sendable () async -> [String]
     private let loadAudio: @Sendable (URL) throws -> [Float]
     private let destinationContext: @Sendable () -> String
+    private let vocabulary: @Sendable () -> DictationVocabulary
 
     init(directory: URL? = nil, waitForFiles: @escaping @Sendable () async -> Void = {},
-         languageIdentifiers: @escaping @Sendable () -> [String] = {
-             DictationLanguagePreference.configuredIdentifiers
+         languageIdentifiers: @escaping @Sendable () async -> [String] = {
+             await DictationLanguagePreference.resolveConfiguredIdentifiers()
          },
          loadAudio: @escaping @Sendable (URL) throws -> [Float] = { try DictationAudioLoader.load($0) },
          availableStorage: @escaping @Sendable (URL) throws -> Int64 = { url in
@@ -33,13 +34,15 @@ actor DictationEngine: DictationRecognizing {
              guard let bytes = attributes[.systemFreeSize] as? NSNumber else { throw CocoaError(.fileReadUnknown) }
              return bytes.int64Value
          },
-         destinationContext: @escaping @Sendable () -> String = { "" }) {
+         destinationContext: @escaping @Sendable () -> String = { "" },
+         vocabulary: @escaping @Sendable () -> DictationVocabulary = { .empty }) {
         self.directory = directory
         self.waitForFiles = waitForFiles
         self.languageIdentifiers = languageIdentifiers
         self.availableStorage = availableStorage
         self.loadAudio = loadAudio
         self.destinationContext = destinationContext
+        self.vocabulary = vocabulary
     }
 
     private var kit: WhisperKit?
@@ -191,6 +194,7 @@ actor DictationEngine: DictationRecognizing {
             recognitionLog.notice("Dictation decoding skipped: silent or empty audio")
             return ""
         }
+        let activeVocabulary = vocabulary()
         let contextTask = qwen != nil ? Task.detached { [destinationContext] in destinationContext() } : nil
         defer { contextTask?.cancel() }
         let normalized = DictationAudioGain.normalize(samples, peak: metrics.peak)
@@ -209,30 +213,38 @@ actor DictationEngine: DictationRecognizing {
         // Provide a trailing quiet tail after checking the complete clip for speech.
         samples += Array(repeating: 0, count: 8_000)
         try Task.checkCancellation()
-        return try await recognize(samples, contextTask: contextTask)
+        return try await recognize(samples, contextTask: contextTask, vocabulary: activeVocabulary)
     }
 
-    private func recognize(_ samples: [Float], contextTask: Task<String, Never>?) async throws -> String {
-        let preference = DictationLanguagePreference(identifiers: languageIdentifiers())
+    private func recognize(_ samples: [Float], contextTask: Task<String, Never>?,
+                           vocabulary: DictationVocabulary) async throws -> String {
+        let preference = DictationLanguagePreference(identifiers: await languageIdentifiers())
+        let cleaned: String
         if let qwen {
             let context = await contextTask?.value ?? ""
-            recognitionLog.notice("Dictation Qwen decoding started: contextual=\(!context.isEmpty)")
-            let raw = try await qwen.transcribe(samples, preference: preference, context: context)
+            let hasContext = !context.isEmpty || !vocabulary.glossaryPrompt.isEmpty
+            recognitionLog.notice("Dictation Qwen decoding started: contextual=\(hasContext)")
+            let raw = try await qwen.transcribe(samples, preference: preference,
+                                                context: context, vocabulary: vocabulary)
             try Task.checkCancellation()
-            return Self.cleanedTranscript(raw)
+            cleaned = Self.cleanedTranscript(raw)
+        } else {
+            guard let kit else { throw DictationError.notReady }
+            let decoder = (kit.textDecoder as? DictationWhisperLanguage)?.base ?? (kit.textDecoder as? TextDecoder)
+            guard let decoder else { throw DictationError.notReady }
+            kit.textDecoder = DictationWhisperLanguage(base: decoder, preference: preference)
+            let promptTokens = vocabulary.whisperPromptTokens(using: kit.tokenizer)
+            // Timestamp tokens let Whisper resume at the last complete segment,
+            // rather than dropping words across fixed 30-second window boundaries.
+            let options = DecodingOptions(task: .transcribe, language: nil, detectLanguage: true,
+                                          skipSpecialTokens: true, promptTokens: promptTokens)
+            recognitionLog.notice("Dictation Whisper decoding started: glossary=\(promptTokens != nil)")
+            let results = try await kit.transcribe(audioArray: samples, decodeOptions: options)
+            try Task.checkCancellation()
+            cleaned = Self.transcript(from: results)
         }
-        guard let kit else { throw DictationError.notReady }
-        let decoder = (kit.textDecoder as? DictationWhisperLanguage)?.base ?? (kit.textDecoder as? TextDecoder)
-        guard let decoder else { throw DictationError.notReady }
-        kit.textDecoder = DictationWhisperLanguage(base: decoder, preference: preference)
-        // Timestamp tokens let Whisper resume at the last complete segment,
-        // rather than dropping words across fixed 30-second window boundaries.
-        let options = DecodingOptions(task: .transcribe, language: nil, detectLanguage: true,
-                                      skipSpecialTokens: true)
-        recognitionLog.notice("Dictation Whisper decoding started")
-        let results = try await kit.transcribe(audioArray: samples, decodeOptions: options)
-        try Task.checkCancellation()
-        return Self.transcript(from: results)
+        return cleaned.isEmpty ? "" : vocabulary.applyReplacements(to: cleaned)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     static func transcript(from results: [TranscriptionResult]) -> String {

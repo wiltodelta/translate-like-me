@@ -35,7 +35,7 @@ final class DictationLanguageAuditTests: XCTestCase {
             let reads = OSAllocatedUnfairLock(initialState: 0)
             let engine = DictationEngine(directory: cache, languageIdentifiers: {
                 reads.withLock { $0 += 1 }
-                return DictationLanguagePreference.configuredIdentifiers
+                return await MainActor.run { DictationLanguagePreference.configuredIdentifiers }
             })
             try await engine.prepare(model: model, download: false) { _ in }
             XCTAssertEqual(reads.withLock { $0 }, 0)

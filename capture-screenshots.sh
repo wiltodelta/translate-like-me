@@ -103,7 +103,9 @@ for app in NSWorkspace.shared.runningApplications where app.bundleURL?.standardi
     guard app.isTerminated else { fatalError("The development app did not quit") }
 }
 SWIFT
-./build.sh >"$WORK/build.log" 2>&1 || { cat "$WORK/build.log"; exit 1; }
+if [ "${CAPTURE_SKIP_BUILD:-0}" != 1 ]; then
+    ./build.sh >"$WORK/build.log" 2>&1 || { cat "$WORK/build.log"; exit 1; }
+fi
 
 # --- Helper: window lookup and backdrop ------------------------------------------
 
@@ -492,6 +494,7 @@ launch() {
     local arguments=(-settingsSelectedPane "$1" -provider "${3:-anthropic}" -localModel "${CAPTURE_LOCAL_MODEL:-translategemma-12b}"
         -dictationEnabled "$dictation_enabled" -dictationModel "$speech_model" -didCompleteFirstRun "$completed_first_run"
         -dictationShortcut '<7b226b6579436f6465223a36312c226d6f64696669657273223a323034387d>'
+        -dictationVocabulary "${CAPTURE_VOCABULARY:-}"
         -languagePairs "<$(printf '%s' "$pairs_json" | xxd -p | tr -d '\n')>"
         -rewritePresets "<$(printf '%s' "$SAMPLE_PRESETS" | xxd -p | tr -d '\n')>")
     if [ "${CAPTURE_ONBOARDING_ONLY:-0}" = 1 ]; then
@@ -913,10 +916,37 @@ capture_providers() {
     capture_window "$(localized Translation)" "provider-unknown-effort-default$2"
 }
 
+capture_vocabulary() {
+    CURRENT_DARK="$1"
+    appearance "set dark mode to $1" >/dev/null
+    sleep 2
+    local title frame SX SY SW SH
+    title=$(localized Dictation)
+    CAPTURE_VOCABULARY="" launch 3 settings local
+    open_menu
+    capture_settings "$title" "dictation$2"
+    helper press-id "$PID" edit-vocabulary
+    sleep 1
+    frame=$(helper front-window "$PID")
+    read -r SX SY SW SH <<<"$frame"
+    capture_active_frame "vocabulary-sheet$2" "$SX" "$SY" "$SW" "$SH"
+    helper dismiss-id "$PID" vocabulary-done
+    helper press-id "$PID" edit-vocabulary
+    sleep 0.5
+    ax 'set frontmost to true' >/dev/null
+    helper key "$PID" 53
+    sleep 0.5
+    helper expect-id-absent "$PID" vocabulary-done
+    CAPTURE_VOCABULARY=$'Qwen3-ASR, WhisperKit, Claude Code\nkube control -> kubectl' launch 3 settings local
+    open_menu
+    capture_settings "$title" "dictation-populated$2"
+}
+
 capture_all() {
     if [ "${CAPTURE_PROVIDERS_ONLY:-0}" = 1 ]; then capture_providers "$1" "$2"; return; fi
     if [ "${CAPTURE_ACTIVITY_ONLY:-0}" = 1 ]; then capture_activity "$1" "$2"; return; fi
     if [ "${CAPTURE_MODELS_ONLY:-0}" = 1 ]; then capture_models "$1" "$2"; return; fi
+    if [ "${CAPTURE_VOCABULARY_ONLY:-0}" = 1 ]; then capture_vocabulary "$1" "$2"; return; fi
     if [ "${CAPTURE_ONBOARDING_ONLY:-0}" = 1 ]; then capture_onboarding "$1" "$2"; return; fi
     if [ "${CAPTURE_RESULTS_ONLY:-0}" = 1 ]; then capture_results "$1" "$2"; return; fi
     appearance "set dark mode to $1" >/dev/null

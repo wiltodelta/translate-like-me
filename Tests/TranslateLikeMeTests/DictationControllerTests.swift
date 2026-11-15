@@ -353,118 +353,54 @@ extension DictationControllerTests {
         controller.systemDidWake()
         XCTAssertTrue(recorder.warmUps.isEmpty)
     }
-}
 
-@MainActor
-final class ControlledDictationEngine: DictationRecognizing {
-    var loaded = false
-    var transcript = ""
-    var recognitionError: DictationError?
-    var blockNextPreparation = false
-    var failNextPreparation = false
-    var preparations: [Bool] = []
-    var models: [DictationModel] = []
-    private(set) var loadedModel: DictationModel?
-    var transcribed: [URL] = []
-    private var pending: CheckedContinuation<Void, Never>?
-    private var preparationObserver: CheckedContinuation<Void, Never>?
-    private var unloadObserver: CheckedContinuation<Void, Never>?
-    private var unloaded = false
+    func testEvictedModelBeginsReloadingDuringSpeechAndUnwindsOnCancel() async {
+        let engine = ControlledDictationEngine()
+        engine.transcript = "Ready before release."
+        let recorder = ControlledDictationRecorder()
+        recorder.isListening = false
+        let controller = makeController(engine: engine, recorder: recorder)
+        controller.restore()
+        await controller.operation?.value
+        controller.releaseForMemoryPressure()
+        await engine.waitForUnload()
+        XCTAssertFalse(engine.loaded)
 
-    func prepare(model: DictationModel, download: Bool, progress: @escaping @Sendable (Double) -> Void) async throws {
-        loaded = false
-        preparations.append(download)
-        models.append(model)
-        if blockNextPreparation {
-            blockNextPreparation = false
-            await withCheckedContinuation { pending = $0
-                preparationObserver?.resume()
-                preparationObserver = nil
-            }
+        engine.blockNextPreparation = true
+        controller.shortcutPressed()
+        XCTAssertEqual(controller.phase, .starting)
+        XCTAssertEqual(engine.preparations, [true], "Wait for real microphone signal before reloading")
+        recorder.isListening = true
+        let startedReload = await engine.waitForPreparation(timeout: .milliseconds(600))
+        XCTAssertTrue(startedReload, "Evicted model must start reloading during speech")
+        guard startedReload else {
+            controller.cancel()
+            return
         }
-        try Task.checkCancellation()
-        if failNextPreparation {
-            failNextPreparation = false
-            throw DictationError.notReady
+        XCTAssertEqual(controller.phase, .recording, "Reload runs in parallel while the user is still speaking")
+        XCTAssertEqual(engine.preparations, [true, false])
+        engine.finishPreparation()
+        controller.shortcutReleased()
+        await controller.operation?.value
+        XCTAssertEqual(engine.preparations, [true, false], "Already-warmed model skips a duplicate post-release reload")
+        XCTAssertEqual(engine.transcribed, [recorder.audio])
+
+        controller.releaseForMemoryPressure()
+        await engine.waitForUnload()
+        engine.blockNextPreparation = true
+        controller.shortcutPressed()
+        let startedSecond = await engine.waitForPreparation(timeout: .milliseconds(600))
+        XCTAssertTrue(startedSecond)
+        guard startedSecond else {
+            controller.cancel()
+            return
         }
-        loaded = true
-        loadedModel = model
+        XCTAssertEqual(controller.phase, .recording)
+        controller.setEnabled(false)
+        XCTAssertEqual(controller.phase, .disabled)
+        engine.finishPreparation()
+        await engine.waitForUnload()
+        XCTAssertFalse(engine.loaded)
+        XCTAssertEqual(engine.transcribed.count, 1)
     }
-
-    func transcribe(_ audio: URL) async throws -> String {
-        XCTAssertTrue(loaded)
-        transcribed.append(audio)
-        if let recognitionError { throw recognitionError }
-        return transcript
-    }
-
-    func unload() async {
-        loaded = false
-        loadedModel = nil
-        unloaded = true
-        unloadObserver?.resume()
-        unloadObserver = nil
-    }
-
-    func waitForUnload() async {
-        if !unloaded { await withCheckedContinuation { unloadObserver = $0 } }
-    }
-
-    func waitForPreparation() async {
-        if pending == nil { await withCheckedContinuation { preparationObserver = $0 } }
-    }
-
-    func finishPreparation() {
-        pending?.resume()
-        pending = nil
-    }
-}
-
-@MainActor
-final class ControlledDictationRecorder: DictationRecording {
-    var onEnd: ((Bool) -> Void)?
-    let level = 0.5
-    var isListening = true
-    var trailingQuiet: TimeInterval = 0
-    let audio = URL(fileURLWithPath: "/synthetic-dictation.wav")
-    var permissions = 0
-    var permitted = true
-    var warmUps: [Bool] = []
-    var inputs: [String?] = []
-    var starts = 0
-    var stops = 0
-    var hasAudio = false
-    var startError: DictationError?
-    var blockDrain = false
-    private var drain: CheckedContinuation<URL, Error>?
-    private var drainObserver: CheckedContinuation<Void, Never>?
-
-    func requestPermission() async -> Bool { permissions += 1; return permitted }
-    func useInput(_ uid: String?) { inputs.append(uid) }
-    func warmUp(rebuild: Bool) { warmUps.append(rebuild) }
-    func coolDown() {}
-    func start() throws {
-        starts += 1
-        hasAudio = true
-        if let startError { throw startError }
-    }
-    func stop() throws -> Task<URL, Error> {
-        stops += 1
-        return Task {
-            if blockDrain {
-                return try await withCheckedThrowingContinuation { continuation in
-                    drain = continuation
-                    drainObserver?.resume()
-                    drainObserver = nil
-                }
-            }
-            return audio
-        }
-    }
-    func waitForDrain() async {
-        if drain == nil { await withCheckedContinuation { drainObserver = $0 } }
-    }
-    func finishDrain() { drain?.resume(returning: audio); drain = nil }
-    func discard() { hasAudio = false }
-    func shutdown() { discard() }
 }

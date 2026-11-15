@@ -42,7 +42,7 @@ and macOS consent. Rewrite does not appear in onboarding.
 
 These are Victor's explicit choices, accepting E2B's measured quality limitations.
 Dictation follows the suggested pair's languages first (including a single-language
-incomplete pair via `DictationLanguagePreference.coverageIdentifiers`, such as
+incomplete pair via `DictationLanguagePreference.identifiers`, such as
 Ukrainian seeding Turbo above 16 GiB): when the memory tier's
 model cannot recognize one that the other model can (Amharic on Qwen3-ASR), the
 other model is seeded (`DictationModel.covering`).

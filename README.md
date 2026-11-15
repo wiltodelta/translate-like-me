@@ -53,12 +53,14 @@ transcript at your cursor. Languages are detected automatically. Speech
 recognition runs locally on your Mac and works offline after setup.
 
 Dictate a quick reply as it is, or get a longer thought down without worrying
-about wording. When it needs editing, select the transcript and use **Rewrite**.
+about wording. Add custom names, technical terms, or `spoken -> written`
+replacements in **Vocabulary** so both speech models spell them your way. When a
+draft needs editing, select the transcript and use **Rewrite**.
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="screenshots/dictation-dark.png">
-    <img src="screenshots/dictation.png" alt="Local dictation enabled with the Right Option hold key and the Whisper speech model" width="540" height="563">
+    <img src="screenshots/dictation.png" alt="Local dictation enabled with the Right Option hold key, Whisper speech model, and custom vocabulary" width="540" height="740">
   </picture>
 </p>
 

@@ -77,6 +77,13 @@ final class SettingsStore {
         }
     }
 
+    var dictationVocabulary: String {
+        didSet {
+            guard dictationVocabulary != oldValue else { return }
+            Settings.dictationVocabulary = dictationVocabulary
+        }
+    }
+
     init(refreshCatalog: @escaping (Provider) async -> Void = { await EngineStatus.refreshModels(for: $0) },
          localConfigurationChanged: @escaping () -> Void = {}) {
         self.localConfigurationChanged = localConfigurationChanged
@@ -85,6 +92,7 @@ final class SettingsStore {
         localModel = Settings.localModel
         pairs = Settings.languagePairs
         rewritePresets = Settings.rewritePresets
+        dictationVocabulary = Settings.dictationVocabulary
         modelChanges = NotificationCenter.default.publisher(for: .harnessModelsChanged)
             .sink { [weak self] notification in
                 // EngineStatus publishes only on the main actor.

@@ -167,6 +167,7 @@ enum Settings {
         static let languagePairs = "languagePairs"
         // capture-screenshots.sh overrides this key by name too.
         static let rewritePresets = "rewritePresets"
+        static let dictationVocabulary = "dictationVocabulary"
         static let didCompleteFirstRun = "didCompleteFirstRun"
         static let grokDefaultModel = "grokDefaultModel"
         static let antigravityModels = "antigravityModels"
@@ -216,6 +217,11 @@ enum Settings {
             return KeyCombo(keyCode: 61, modifiers: Int(optionKey))
         }
         set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "dictationShortcut") }
+    }
+
+    static var dictationVocabulary: String {
+        get { defaults.string(forKey: Key.dictationVocabulary) ?? "" }
+        set { defaults.set(newValue, forKey: Key.dictationVocabulary) }
     }
 
     // The language pairs, each with its own optional shortcut, stored as JSON.

@@ -89,6 +89,10 @@ checkout's caches intact.
   newly available model in Translation and Manage Models.
   `CAPTURE_RESULTS_ONLY=1 CAPTURE_OUT=<dir> ./capture-screenshots.sh` checks
   the recovery submenu's empty, partial and full states.
+  `CAPTURE_VOCABULARY_ONLY=1 CAPTURE_OUT=<dir> ./capture-screenshots.sh` checks
+  Dictation's empty and populated Vocabulary section, the Edit Vocabulary sheet
+  and its Done and Escape dismissals; `CAPTURE_SKIP_BUILD=1` reuses an already
+  built bundle.
 - **CRITICAL:** `swift build` alone updates only the SwiftPM build directory; it
   does NOT refresh the binary inside the assembled `.app`. Always run `./build.sh`
   before installing or testing the bundle, otherwise you run a stale binary.

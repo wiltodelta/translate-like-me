@@ -65,11 +65,11 @@ available. Copying is explicit and does not run the engine again.
   gesture does not cancel recording. There is no tap-to-toggle mode or menu
   command to start recording. Recording is bounded to five minutes. The menu
   offers **Copy Last Result > Dictation** to recover the latest transcript.
-  Languages in your configured translation pairs receive a preference during
-  automatic speech recognition. You can still dictate in another supported
-  language. With no translation pairs, or if a pair language is unsupported by
-  the selected speech model, detection uses the full language set without a
-  preference.
+  Languages in your configured translation pairs, including single-language rows,
+  receive a preference during automatic speech recognition; when no pair languages
+  are configured, your Mac's preferred languages and enabled keyboard layouts are
+  used instead. Supported languages in mixed pairs keep their preference, and you
+  can still dictate in any other language supported by the selected speech model.
   The microphone is ready between holds without recording, so capture
   and the Listening indicator start about 60 ms after the press on the built-in
   microphone; Bluetooth headsets can take longer. While you hold the key, the app
@@ -119,7 +119,9 @@ immediately.
   the pane names it and offers the model that can. Removed Small and
   Large v3 preferences fall back to Turbo. Model
   preparation starts automatically while enabled. Downloaded models stay cached;
-  switching is unavailable during recording or recognition.
+  switching is unavailable during recording or recognition. **Edit Vocabulary…**
+  lets you list custom names or technical terms (separated by commas or new lines)
+  and `spoken -> written` phrase replacements shared by all speech models.
 
 - **Languages** (General): up to three pairs, and none is fine too (the menu
   then offers to add one). Each row has the two languages,

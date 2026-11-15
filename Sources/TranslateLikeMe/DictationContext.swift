@@ -26,9 +26,31 @@ struct DictationDestinationSnapshot: Sendable, Equatable {
 enum DictationContext {
     static let beforeCaretLimit = 180
     static let afterCaretLimit = 60
+    private static let vocabularyPrefix = "Vocabulary: "
 
     static func live() -> String {
         summary(destination: SelectionTarget.dictationSnapshot())
+    }
+
+    static func sanitized(_ text: String) -> String {
+        // Remove angle brackets unconditionally so nested or truncated text can
+        // never form Qwen chat-template or ASR control tokens (`<|...|>` / `<asr_text>`).
+        String(text.filter { $0 != "<" && $0 != ">" })
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+    }
+
+    static func combined(vocabulary: DictationVocabulary = .empty, destination: String, limit: Int = 360) -> String {
+        let glossary = vocabulary.glossaryPrompt
+        let safeDestination = String(destination.filter { $0 != "<" && $0 != ">" })
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !glossary.isEmpty else { return capped(safeDestination, limit: limit) }
+        let header = vocabularyPrefix + glossary
+        guard !safeDestination.isEmpty else { return String(header.prefix(limit)) }
+        let remaining = limit - header.count - 1
+        guard remaining > 0 else { return String(header.prefix(limit)) }
+        return header + "\n" + capped(safeDestination, limit: remaining)
     }
 
     static func summary(destination: DictationDestinationSnapshot) -> String {
@@ -47,19 +69,27 @@ enum DictationContext {
         return capped(sections.joined(separator: "\n"))
     }
 
-    static func chunkContext(base: String, previousChunks: [String]) -> String {
-        guard !previousChunks.isEmpty else { return base }
-        var recent: [String] = []
-        var count = 0
-        for chunk in previousChunks.reversed() where !chunk.isEmpty {
-            recent.append(chunk)
-            count += chunk.count + 1
-            if count >= 160 { break }
+    static func chunkContext(base: String, vocabulary: DictationVocabulary = .empty,
+                             previousChunks: [String]) -> String {
+        let body: String
+        if previousChunks.isEmpty {
+            body = base
+        } else {
+            var recent: [String] = []
+            var count = 0
+            for chunk in previousChunks.reversed() where !chunk.isEmpty {
+                recent.append(chunk)
+                count += chunk.count + 1
+                if count >= 160 { break }
+            }
+            let tail = cleaned(DictationTextSpacing.joinChunks(recent.reversed()), limit: 140, keepTail: true)
+            if tail.isEmpty || base.hasSuffix(tail) {
+                body = base
+            } else {
+                body = base.isEmpty ? tail : base + "\n" + tail
+            }
         }
-        let tail = cleaned(DictationTextSpacing.joinChunks(recent.reversed()), limit: 140, keepTail: true)
-        guard !tail.isEmpty else { return base }
-        guard !base.isEmpty else { return tail }
-        return base.hasSuffix(tail) ? base : capped(base + "\n" + tail)
+        return combined(vocabulary: vocabulary, destination: body)
     }
 
     // `selection` uses UTF-16 code units, matching Accessibility's CFRange contract.
@@ -93,17 +123,12 @@ enum DictationContext {
     }
 
     private static func capped(_ text: String, limit: Int = 360) -> String {
-        text.count <= limit ? text : String(text.suffix(limit))
+        text.count > limit ? String(text.suffix(limit)) : text
     }
 
     private static func cleaned(_ text: String?, limit: Int, keepTail: Bool) -> String {
         guard let text else { return "" }
-        // Remove angle brackets unconditionally so nested or truncated editor text
-        // can never form Qwen chat-template or ASR control tokens (`<|...|>` / `<asr_text>`).
-        let sanitized = String(text.filter { $0 != "<" && $0 != ">" })
-        let compact = sanitized.components(separatedBy: .whitespacesAndNewlines)
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
+        let compact = sanitized(text)
         guard compact.count > limit else { return compact }
         return keepTail ? String(compact.suffix(limit)) : String(compact.prefix(limit))
     }
@@ -140,7 +165,7 @@ enum DictationTextSpacing {
         return next.isLetter || next.isNumber
     }
 
-    private static func isScriptWithoutWordSpaces(_ character: Character) -> Bool {
+    static func isScriptWithoutWordSpaces(_ character: Character) -> Bool {
         character.unicodeScalars.contains { scalar in
             switch scalar.value {
             case 0x3000...0x30FF, 0x3400...0x4DBF, 0x4E00...0x9FFF,

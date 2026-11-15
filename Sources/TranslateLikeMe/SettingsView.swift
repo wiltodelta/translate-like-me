@@ -407,13 +407,15 @@ private struct LanguagePicker: View, Equatable {
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool { lhs.label == rhs.label && lhs.code == rhs.code }
 }
 
-// A pair's or Rewrite preset's writing style in a sheet; edits apply as typed,
-// like the rest of Settings. HIG (Sheets): a sheet for a focused task, dismissed
-// with Done.
-private struct StyleEditor: View {
+// A pair's writing style, Rewrite preset style, or dictation vocabulary in a
+// sheet; edits apply as typed, like the rest of Settings. HIG (Sheets): a sheet
+// for a focused task, dismissed with Done.
+struct StyleEditor: View {
     let title: LocalizedStringKey
     @Binding var style: String
     let hint: LocalizedStringKey
+    var starterTemplate: String? = Self.template
+    var doneIdentifier = "style-editor-done"
     @Environment(\.dismiss) private var dismiss
 
     // A simple, neutral starter so the box isn't empty. Intentionally generic -
@@ -442,8 +444,8 @@ private struct StyleEditor: View {
                 .foregroundStyle(Color.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
-                if style.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Button("Insert Starter Template") { style = Self.template }
+                if let starterTemplate, style.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Button("Insert Starter Template") { style = starterTemplate }
                 }
                 Spacer()
                 Button { dismiss() } label: {
@@ -451,6 +453,7 @@ private struct StyleEditor: View {
                 }
                     .keyboardShortcut(.defaultAction)
                     .primaryActionTint()
+                    .accessibilityIdentifier(doneIdentifier)
             }
         }
         .padding(20)

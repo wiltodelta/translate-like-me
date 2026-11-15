@@ -104,7 +104,8 @@ Read before editing this domain.
   <n>"), an optional shortcut and a writing style. The shared RemoveButton confirms
   removal in RemovalConfirmation before deleting a pair or preset and its saved
   shortcut/style. Deletion runs after the sheet dismisses to preserve row bindings. StyleEditor
-  names its text area with the localized pair/preset title. A preset never translates:
+  names its text area with the localized pair, preset or vocabulary title (`starterTemplate:
+  nil` and `doneIdentifier: "vocabulary-done"` for Dictation > Vocabulary). A preset never translates:
   the message stays in the notes' language and a pair's shortcut translates it
   afterwards. Presets are told apart by purpose; never bind a language into
   a preset.

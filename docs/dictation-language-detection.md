@@ -296,14 +296,14 @@ made.
 
 ## Implementation and validation
 
-`DictationEngine` snapshots the languages from all complete translation pairs at
-recognition time (`DictationLanguagePreference.identifiers`), while first-run model
-selection and Settings warnings include partial single-language rows through
-`DictationLanguagePreference.coverageIdentifiers`. `DictationLanguagePreference`
+`DictationEngine` snapshots all non-empty languages from configured translation
+pairs at recognition time (`DictationLanguagePreference.identifiers`, including
+partial single-language rows) and falls back to
+`Languages.systemSuggestions` when no pair language is configured. `DictationLanguagePreference`
 normalizes region/script variants
-to spoken-language codes, deduplicates them and resolves the whole set against
-the active engine. No pairs, an unresolved identifier or an unsupported candidate
-preserves unrestricted detection. Nothing persists a last detected language.
+to spoken-language codes, deduplicates them and resolves the supported subset against
+the active engine's inventory; malformed or all-unsupported identifiers preserve
+unrestricted detection. Nothing persists a last detected language.
 
 Both engines add `DictationLanguagePreference.logWeight` (`log(4)`) to preferred
 language logits at language selection, matching the lowest weight that reached

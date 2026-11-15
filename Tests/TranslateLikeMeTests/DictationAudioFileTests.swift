@@ -84,7 +84,7 @@ final class DictationAudioFileTests: XCTestCase {
         try capture.finish()
     }
 
-    func testRelayMarksFirstNonzeroIOCycleOnlyForTheAttachedHold() throws {
+    func testRelayStreamsSinkCyclesOnlyForAttachedHoldAndFlushesShortHold() throws {
         let url = temporaryFile()
         defer { try? FileManager.default.removeItem(at: url) }
         let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
@@ -92,16 +92,44 @@ final class DictationAudioFileTests: XCTestCase {
         let relay = DictationTapRelay()
         let silence = try buffer(format: format, frames: 512, value: 0)
         let sound = try buffer(format: format, frames: 512, value: 0.01)
-        relay.hear(sound.audioBufferList)
+        relay.receive(nil, frames: 512, audio: sound.audioBufferList)
         XCTAssertFalse(capture.isDeliveringAudio, "No hold attached")
         relay.attach(capture) { _ in }
-        relay.hear(silence.audioBufferList)
-        XCTAssertFalse(capture.isDeliveringAudio, "Start-up zeros are not audio yet")
-        relay.hear(sound.audioBufferList)
-        XCTAssertTrue(capture.isDeliveringAudio)
-        relay.detach()
+        relay.receive(nil, frames: 512, audio: silence.audioBufferList)
+        XCTAssertTrue(capture.isDeliveringAudio, "Muted or cold-start zero buffers still prove the graph runs")
+        XCTAssertFalse(capture.isListening, "Start-up zeros do not show Listening before sound or 1 s")
+        for _ in 0..<250 {
+            relay.receive(nil, frames: 512, audio: sound.audioBufferList)
+        }
+        XCTAssertTrue(capture.isListening)
+        XCTAssertTrue(capture.hasSignal)
+        relay.detach(flush: true)
+        relay.receive(nil, frames: 512, audio: sound.audioBufferList)
         try capture.finish()
-        XCTAssertEqual(try AVAudioFile(forReading: url).length, 0, "The sink only signals; the tap writes")
+        XCTAssertEqual(try AVAudioFile(forReading: url).length, 251 * 512,
+                       "Flushing the sink preserves every queued cycle without writing post-detach cycles")
+    }
+
+    func testTrailingQuietAccumulatesSub100msSinkCyclesSoStopClosuresDoNotSetFakeFloor() throws {
+        let url = temporaryFile()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
+        let capture = try DictationAudioFile(url: url, format: format)
+        let startupSilence = try buffer(format: format, frames: 4_800, value: 0)
+        let vowel = try buffer(format: format, frames: 512, value: 0.25)
+        let closure = try buffer(format: format, frames: 512, value: 0)
+        let room = try buffer(format: format, frames: 512, value: 0.004)
+        XCTAssertNil(capture.append(startupSilence))
+        for _ in 0..<10 { XCTAssertNil(capture.append(vowel)) }
+        // Two 512-frame buffers (~21 ms stop closure) surrounded by vowel frames inside
+        // the next 100 ms window must not set a zero room floor or trigger trailingQuiet.
+        XCTAssertNil(capture.append(closure))
+        XCTAssertNil(capture.append(closure))
+        for _ in 0..<8 { XCTAssertNil(capture.append(vowel)) }
+        XCTAssertEqual(capture.trailingQuiet, 0)
+        for _ in 0..<10 { XCTAssertNil(capture.append(room)) }
+        XCTAssertGreaterThanOrEqual(capture.trailingQuiet, 0.1)
+        try capture.finish()
     }
 
     func testDurationLimitFinalizesOnlyOnceWithoutWaitingOnAClock() throws {
@@ -167,11 +195,11 @@ final class DictationAudioFileTests: XCTestCase {
         let chunk = try buffer(format: format, frames: 160, value: 0.25)
         let relay = DictationTapRelay()
         let sink = try DictationAudioFile(url: url, format: format)
-        relay.deliver(chunk)
+        relay.receive(nil, frames: 160, audio: chunk.audioBufferList)
         relay.attach(sink, ended: { _ in })
-        relay.deliver(chunk)
-        relay.detach()
-        relay.deliver(chunk)
+        relay.receive(nil, frames: 160, audio: chunk.audioBufferList)
+        relay.detach(flush: true)
+        relay.receive(nil, frames: 160, audio: chunk.audioBufferList)
         try sink.finish()
         XCTAssertEqual(try AVAudioFile(forReading: url).length, 160)
     }
@@ -197,9 +225,15 @@ final class DictationAudioFileTests: XCTestCase {
         let relay = DictationTapRelay()
         relay.attach(sink, ended: { _ in })
         let chunk = try buffer(format: format, frames: 160, value: 0.5)
-        relay.deliver(chunk, at: AVAudioTime(sampleTime: 0, atRate: 16_000))
-        relay.deliver(chunk, at: AVAudioTime(sampleTime: 320, atRate: 16_000))
-        relay.detach()
+        var firstStamp = AudioTimeStamp()
+        firstStamp.mFlags = .sampleTimeValid
+        firstStamp.mSampleTime = 0
+        var secondStamp = AudioTimeStamp()
+        secondStamp.mFlags = .sampleTimeValid
+        secondStamp.mSampleTime = 320
+        relay.receive(&firstStamp, frames: 160, audio: chunk.audioBufferList)
+        relay.receive(&secondStamp, frames: 160, audio: chunk.audioBufferList)
+        relay.detach(flush: true)
         try sink.finish()
         XCTAssertEqual(sink.diagnostics.missingFrames, 160)
         XCTAssertEqual(sink.diagnostics.untimedBuffers, 0)

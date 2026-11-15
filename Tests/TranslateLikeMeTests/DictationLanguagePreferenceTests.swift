@@ -14,7 +14,7 @@ final class DictationLanguagePreferenceTests: XCTestCase {
     }
 
     @MainActor
-    func testConfiguredPairsAreReadAgainAndIncompletePairsAreIgnored() throws {
+    func testConfiguredPairsIncludeIncompleteRowsAndEmptyPairsFallBackToSystemSuggestions() throws {
         let defaults = UserDefaults.standard
         let saved = defaults.volatileDomain(forName: UserDefaults.argumentDomain)
         defer { defaults.setVolatileDomain(saved, forName: UserDefaults.argumentDomain) }
@@ -24,10 +24,19 @@ final class DictationLanguagePreferenceTests: XCTestCase {
         var domain = saved
         domain["languagePairs"] = try JSONEncoder().encode(pairs)
         defaults.setVolatileDomain(domain, forName: UserDefaults.argumentDomain)
-        XCTAssertEqual(Set(DictationLanguagePreference.configuredIdentifiers), ["ru", "en", "pt-BR", "pt-PT"])
+        XCTAssertEqual(Set(DictationLanguagePreference.configuredIdentifiers), ["ru", "en", "pt-BR", "pt-PT", "de"])
+        XCTAssertEqual(DictationLanguagePreference.identifiers(
+            in: [LanguagePair(first: "uk", second: "", shortcut: nil)],
+            fallbackSuggestions: ["en", "fr"]
+        ), ["uk"])
+        XCTAssertEqual(DictationLanguagePreference.identifiers(
+            in: [],
+            fallbackSuggestions: ["en", "ru"]
+        ), ["en", "ru"])
         domain["languagePairs"] = try JSONEncoder().encode([LanguagePair]())
         defaults.setVolatileDomain(domain, forName: UserDefaults.argumentDomain)
-        XCTAssertTrue(DictationLanguagePreference.configuredIdentifiers.isEmpty)
+        XCTAssertEqual(DictationLanguagePreference.configuredIdentifiers,
+                       Languages.systemSuggestions.filter { !$0.isEmpty })
     }
 
     func testEveryWhisperLanguageCodeRoundTripsThroughItsNativeInventory() {
@@ -48,15 +57,18 @@ final class DictationLanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(preference.resolvedNames(supported: ["Filipino", "English"]), ["Filipino", "English"])
     }
 
-    func testNoPairsAndUnsupportedLanguagesPreserveUnrestrictedDetection() {
+    func testMixedPairsResolveSupportedSubsetWhileUnresolvedAndAllUnsupportedStayUnrestricted() {
         XCTAssertTrue(DictationLanguagePreference(identifiers: []).resolvedCodes(supported: ["en", "ru"]).isEmpty)
-        let preference = DictationLanguagePreference(identifiers: ["ru", "uk"])
-        XCTAssertTrue(preference.resolvedCodes(supported: ["ru", "en"]).isEmpty)
-        XCTAssertTrue(preference.resolvedNames(supported: ["Russian", "English"]).isEmpty)
+        let mixed = DictationLanguagePreference(identifiers: ["ru", "uk"])
+        XCTAssertEqual(mixed.resolvedCodes(supported: ["ru", "en"]), ["ru"])
+        XCTAssertEqual(mixed.resolvedNames(supported: ["Russian", "English"]), ["Russian"])
+        XCTAssertEqual(mixed.resolvedCodes(supported: ["ru", "uk", "en"]), ["ru", "uk"])
+        let unsupportedOnly = DictationLanguagePreference(identifiers: ["uk"])
+        XCTAssertTrue(unsupportedOnly.resolvedCodes(supported: ["ru", "en"]).isEmpty)
+        XCTAssertTrue(unsupportedOnly.resolvedNames(supported: ["Russian", "English"]).isEmpty)
         let malformed = DictationLanguagePreference(identifiers: ["en", ""])
         XCTAssertTrue(malformed.resolvedCodes(supported: ["en"]).isEmpty)
         XCTAssertTrue(malformed.resolvedNames(supported: ["English"]).isEmpty)
-        XCTAssertEqual(preference.resolvedCodes(supported: ["ru", "uk", "en"]), ["ru", "uk"])
     }
 
     func testLanguagePrefixBiasEndsBeforeTextAndDoesNotAssumeSingleTokenNames() {

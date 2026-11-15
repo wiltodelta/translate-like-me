@@ -12,7 +12,7 @@ enum FirstRunRecommendations {
         guard defaults.object(forKey: marker) == nil else { return }
         let keys = ["didCompleteFirstRun", "languagePairs", "rewritePresets", "languageA", "languageB",
                     "replaceKeyCode", "replaceModifiers", "style", "provider", "localModel", "dictationModel",
-                    "dictationEnabled", "dictationShortcut", "dictationMicrophone"]
+                    "dictationEnabled", "dictationShortcut", "dictationMicrophone", "dictationVocabulary"]
             + Provider.allCases.flatMap { ["harnessModel.\($0.rawValue)", "harnessEffort.\($0.rawValue)"] }
         // Launch fixtures must never persist their argument-domain configuration.
         let arguments = defaults.volatileDomain(forName: UserDefaults.argumentDomain)
@@ -24,7 +24,7 @@ enum FirstRunRecommendations {
         let pairs = suggestions.isEmpty ? [] : [Languages.newPair(after: [], suggestions: suggestions)]
         Settings.storePairs(pairs, in: defaults)
         defaults.set(localModel(physicalMemory: physicalMemory).rawValue, forKey: "localModel")
-        let languages = DictationLanguagePreference.coverageIdentifiers(in: pairs)
+        let languages = DictationLanguagePreference.identifiers(in: pairs)
         defaults.set(dictationModel(physicalMemory: physicalMemory, languages: languages).rawValue,
                      forKey: "dictationModel")
         Settings.storeRecommendedProvider(.local, in: defaults)

@@ -29,6 +29,7 @@ let package = Package(
                            .product(name: "WhisperKit", package: "argmax-oss-swift"),
                            .product(name: "MLXAudioSTT", package: "mlx-audio-swift"),
                            .product(name: "MLX", package: "mlx-swift"),
+                           .product(name: "MLXNN", package: "mlx-swift"),
                            .product(name: "MLXLLM", package: "mlx-swift-lm"),
                            .product(name: "MLXVLM", package: "mlx-swift-lm"),
                            .product(name: "MLXLMCommon", package: "mlx-swift-lm")],

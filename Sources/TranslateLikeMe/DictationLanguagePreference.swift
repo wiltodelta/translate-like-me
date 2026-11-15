@@ -1,20 +1,26 @@
 import Foundation
 
 // A bounded preference, not a language lock or a calibrated confidence threshold.
-// Resolve against the active engine's inventory; never silently drop an unsupported language.
+// Resolve the supported subset against the active engine's inventory so mixed pairs
+// still prioritize supported languages while malformed identifiers stay unrestricted.
 struct DictationLanguagePreference: Sendable {
     static let logWeight = log(Float(4))
 
-    static var configuredIdentifiers: [String] { identifiers(in: Settings.languagePairs) }
-
-    static func identifiers(in pairs: [LanguagePair]) -> [String] {
-        pairs.filter(\.isComplete).flatMap { [$0.first, $0.second] }
+    @MainActor
+    static var configuredIdentifiers: [String] {
+        identifiers(in: Settings.languagePairs, fallbackSuggestions: Languages.systemSuggestions)
     }
 
-    // Model selection and Settings warnings include partial single-language rows,
-    // while incomplete rows do not bias live decoding until both sides are chosen.
-    static func coverageIdentifiers(in pairs: [LanguagePair]) -> [String] {
-        pairs.flatMap { [$0.first, $0.second] }.filter { !$0.isEmpty }
+    static func resolveConfiguredIdentifiers() async -> [String] {
+        let configured = identifiers(in: Settings.languagePairs)
+        if !configured.isEmpty { return configured }
+        return await MainActor.run { Languages.systemSuggestions.filter { !$0.isEmpty } }
+    }
+
+    static func identifiers(in pairs: [LanguagePair],
+                            fallbackSuggestions: @autoclosure () -> [String] = []) -> [String] {
+        let configured = pairs.flatMap { [$0.first, $0.second] }.filter { !$0.isEmpty }
+        return configured.isEmpty ? fallbackSuggestions().filter { !$0.isEmpty } : configured
     }
     let codes: Set<String>
     private let hasUnresolvedIdentifiers: Bool
@@ -31,7 +37,7 @@ struct DictationLanguagePreference: Sendable {
         let native = codes.compactMap { code in
             inventory.first { Self.languageCode($0) == code }
         }
-        return native.count == codes.count ? Set(native) : []
+        return Set(native)
     }
 
     // Foundation's registry handles aliases such as tl/fil, jw/jv, iw/he and no/nb.
@@ -45,10 +51,9 @@ struct DictationLanguagePreference: Sendable {
         guard !hasUnresolvedIdentifiers else { return [] }
         let english = Locale(identifier: "en")
         let names = codes.compactMap { english.localizedString(forLanguageCode: $0) }
-        guard names.count == codes.count else { return [] }
         let inventory = Dictionary(supported.map { ($0.lowercased(), $0) }, uniquingKeysWith: { first, _ in first })
         let resolved = names.compactMap { inventory[$0.lowercased()] }
-        return resolved.count == codes.count ? Set(resolved) : []
+        return Set(resolved)
     }
 }
 

@@ -5,6 +5,7 @@ import Foundation
 struct DictationAudioMetrics {
     struct Measurement {
         let level: Double
+        let energy: Double
         let hasSignal: Bool
         let valid: Bool
     }
@@ -30,7 +31,7 @@ struct DictationAudioMetrics {
     mutating func observe(_ buffer: AVAudioPCMBuffer, at time: AVAudioTime?) -> Measurement {
         guard Int(buffer.format.channelCount) == energy.count,
               let channels = buffer.floatChannelData else {
-            return Measurement(level: 0, hasSignal: false, valid: false)
+            return Measurement(level: 0, energy: 0, hasSignal: false, valid: false)
         }
         let oldInvalid = invalidSamples
         var bufferEnergy: Double = 0
@@ -40,9 +41,14 @@ struct DictationAudioMetrics {
         }
         frames += Int64(buffer.frameLength)
         observeTime(time, frames: Int64(buffer.frameLength))
-        let mean = bufferEnergy / Double(max(1, Int(buffer.frameLength) * energy.count))
-        let level = min(1, max(0, (10 * log10(max(mean, 1e-12)) + 60) / 60))
-        return Measurement(level: level, hasSignal: bufferEnergy > 0, valid: invalidSamples == oldInvalid)
+        let level = Self.normalizedLevel(energy: bufferEnergy, samples: Int(buffer.frameLength) * energy.count)
+        return Measurement(level: level, energy: bufferEnergy,
+                           hasSignal: bufferEnergy > 0, valid: invalidSamples == oldInvalid)
+    }
+
+    static func normalizedLevel(energy: Double, samples: Int) -> Double {
+        let mean = energy / Double(max(1, samples))
+        return min(1, max(0, (10 * log10(max(mean, 1e-12)) + 60) / 60))
     }
 
     private mutating func observe(_ samples: UnsafeBufferPointer<Float>, channel: Int) -> Double {

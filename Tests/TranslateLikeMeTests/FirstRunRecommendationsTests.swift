@@ -176,14 +176,13 @@ final class FirstRunRecommendationsTests: XCTestCase {
         }
     }
 
-    func testSingleNonQwenLanguageSelectsTurboOnLargeMemoryMacWithoutBiasingIncompletePair() throws {
+    func testSingleNonQwenLanguageSelectsTurboOnLargeMemoryMacAndRetainsMonolingualPreference() throws {
         try withSuite { defaults in
             FirstRunRecommendations.apply(in: defaults, suggestions: ["uk"], physicalMemory: 32 << 30)
             let pairs = try XCTUnwrap(Settings.storedPairs(in: defaults))
             XCTAssertEqual(pairs.count, 1)
             XCTAssertFalse(pairs[0].isComplete)
-            XCTAssertEqual(DictationLanguagePreference.coverageIdentifiers(in: pairs), ["uk"])
-            XCTAssertTrue(DictationLanguagePreference.identifiers(in: pairs).isEmpty)
+            XCTAssertEqual(DictationLanguagePreference.identifiers(in: pairs), ["uk"])
             XCTAssertEqual(defaults.string(forKey: "dictationModel"), DictationModel.turbo.rawValue)
         }
     }

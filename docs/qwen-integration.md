@@ -43,11 +43,13 @@ unverified derived file as a downloaded asset.
 Qwen owns its MLX model and array operations in a separate actor. The existing
 speech gate and padded mono 16 kHz samples feed that actor. Language detection
 is automatic. When ephemeral destination context (`SelectionTarget.dictationSnapshot`,
-with `<` and `>` stripped so editor text cannot form chat/ASR control tokens) or preceding
-chunk text within the same recording is available, `DictationQwen` first inspects the
-unconditioned header (`DictationQwenDecoding.HeaderOutcome`): `.noSpeech` returns `""`,
+with `<` and `>` stripped so editor text cannot form chat/ASR control tokens), custom
+vocabulary (`DictationVocabulary`, pinned at the front as `Vocabulary: ...`), or preceding
+chunk text within the same recording is available, `DictationQwen` computes `getAudioFeatures`
+once per chunk and shares those audio embeddings across both steps: it first inspects the
+unconditioned header (`DictationQwenDecoding.HeaderOutcome`: `.noSpeech` returns `""`,
 `.language` decodes with that spoken language locked and sanitized context in `system`, and
-`.fallback` decodes without context. Nothing retains transcripts across utterances.
+`.fallback` decodes without context). Nothing retains transcripts across utterances.
 The SDK's low-energy chunker splits long recordings around 30 seconds, with fresh
 decoder caches per chunk and `DictationTextSpacing.joinChunks` preserving script spacing.
 Earlier context-biasing notes: [local model candidates](local-model-candidates.md).

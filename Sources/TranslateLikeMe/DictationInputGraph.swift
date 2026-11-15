@@ -15,6 +15,7 @@ protocol DictationInputGraph: AnyObject {
 
 final class AVDictationInputGraph: DictationInputGraph {
     private let engine = AVAudioEngine()
+    private var sinkNode: AVAudioSinkNode?
     private var observer: NSObjectProtocol?
     var format: AVAudioFormat { engine.inputNode.outputFormat(forBus: 0) }
     var isRunning: Bool { engine.isRunning }
@@ -24,21 +25,20 @@ final class AVDictationInputGraph: DictationInputGraph {
         let input = engine.inputNode
         if let device, !followsSystem { try Self.bind(input, to: device) }
         guard Self.isUsable(format) else { throw DictationError.microphone }
-        // nil follows the current hardware format; a stale explicit format can
-        // raise an Objective-C exception while Bluetooth switches profiles.
-        input.installTap(onBus: 0, bufferSize: 1_024, format: nil) { @Sendable buffer, time in
-            relay.deliver(buffer, at: time)
-        }
-        guard Self.isUsable(format) else {
-            input.removeTap(onBus: 0)
-            throw DictationError.microphone
-        }
-        let sink = AVAudioSinkNode { @Sendable _, _, audio in
-            relay.hear(audio)
+        let sink = AVAudioSinkNode { @Sendable timestamp, frames, audio in
+            relay.receive(timestamp, frames: frames, audio: audio)
             return noErr
         }
+        sinkNode = sink
         engine.attach(sink)
+        // nil follows the current hardware format; a stale explicit format can
+        // raise an Objective-C exception while Bluetooth switches profiles.
         engine.connect(input, to: sink, format: nil)
+        guard Self.isUsable(format) else {
+            engine.detach(sink)
+            sinkNode = nil
+            throw DictationError.microphone
+        }
         observer = NotificationCenter.default.addObserver(
             forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil
         ) { _ in changed() }
@@ -50,7 +50,10 @@ final class AVDictationInputGraph: DictationInputGraph {
     func shutdown() {
         if let observer { NotificationCenter.default.removeObserver(observer); self.observer = nil }
         engine.stop()
-        engine.inputNode.removeTap(onBus: 0)
+        if let sinkNode {
+            engine.detach(sinkNode)
+            self.sinkNode = nil
+        }
     }
 
     // Binds the input before its format is read or a tap installed.

@@ -1,50 +1,59 @@
 import AVFoundation
 import CoreAudio
 import Foundation
-import os
 import Synchronization
+import os
 
 private let captureLog = Logger.app("dictation")
 
-// The prepared engine's tap stays installed between holds. It forwards audio
-// only while a hold's sink is attached, so a prepared idle engine writes nothing.
+// The prepared engine's sink node stays connected between holds. Its ring
+// buffer is allocated once per graph and read via an unretained atomic pointer
+// so real-time Core Audio callbacks never lock or touch ARC.
 final class DictationTapRelay: @unchecked Sendable {
-    private let lock = NSLock()
-    // Lets the real-time sink skip the lock once the hold has heard audio.
-    private let listening = Atomic(false)
-    private var sink: DictationAudioFile?
-    private var ended: (@Sendable (Bool) -> Void)?
+    private struct Storage {
+        var active: DictationSinkStream?
+        var retired: [DictationSinkStream] = []
+    }
+
+    private let state = OSAllocatedUnfairLock(initialState: Storage())
+    private let activePointer = Atomic<UnsafeMutableRawPointer?>(nil)
+
+    @discardableResult
+    func prepare(format: AVAudioFormat) -> DictationSinkStream? {
+        if let existing = state.withLock({ storage -> DictationSinkStream? in
+            guard let active = storage.active,
+                  active.channels == Int(format.channelCount),
+                  active.rate == format.sampleRate else { return nil }
+            return active
+        }) {
+            return existing
+        }
+        guard let created = DictationSinkStream(format: format) else { return nil }
+        return state.withLock { storage in
+            if let active = storage.active {
+                if active.channels == created.channels, active.rate == created.rate { return active }
+                storage.retired.append(active)
+            }
+            storage.active = created
+            activePointer.store(Unmanaged.passUnretained(created).toOpaque(), ordering: .releasing)
+            return created
+        }
+    }
 
     func attach(_ sink: DictationAudioFile, ended: @escaping @Sendable (Bool) -> Void) {
-        lock.withLock { (self.sink, self.ended) = (sink, ended) }
-        listening.store(true, ordering: .relaxed)
+        prepare(format: sink.format)?.attach(sink, ended: ended)
     }
 
-    func detach() {
-        listening.store(false, ordering: .relaxed)
-        lock.withLock { (sink, ended) = (nil, nil) }
+    func detach(flush: Bool = false) {
+        let active = state.withLock(\.active)
+        active?.detach(flush: flush)
     }
 
-    // The tap delivers 100 ms buffers; the sink sees each 512-frame I/O cycle,
-    // so the first nonzero sample shows Listening about 100 ms sooner.
-    func hear(_ audio: UnsafePointer<AudioBufferList>) {
-        guard listening.load(ordering: .relaxed), let sink = lock.withLock({ self.sink }) else { return }
-        if !sink.hasSignal {
-            let buffers = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: audio))
-            let sound = buffers.contains { buffer in
-                guard let data = buffer.mData?.assumingMemoryBound(to: Float.self) else { return false }
-                let count = Int(buffer.mDataByteSize) / MemoryLayout<Float>.size
-                return UnsafeBufferPointer(start: data, count: count).contains { $0 != 0 }
-            }
-            guard sound else { return }
-            sink.markSignal()
-        }
-        listening.store(false, ordering: .relaxed)
-    }
-
-    func deliver(_ buffer: AVAudioPCMBuffer, at time: AVAudioTime? = nil) {
-        let (sink, ended) = lock.withLock { (self.sink, self.ended) }
-        if let sink, let success = sink.append(buffer, at: time) { ended?(success) }
+    func receive(_ timestamp: UnsafePointer<AudioTimeStamp>?, frames: AVAudioFrameCount,
+                 audio: UnsafePointer<AudioBufferList>) {
+        guard let raw = activePointer.load(ordering: .acquiring) else { return }
+        Unmanaged<DictationSinkStream>.fromOpaque(raw).takeUnretainedValue()
+            .enqueue(timestamp, frames: frames, audio: audio)
     }
 }
 
@@ -243,7 +252,7 @@ final class DictationCaptureWorker: @unchecked Sendable {
     }
 
     private func discardCurrent() {
-        stopCapture()
+        stopCapture(flush: false)
         try? capture?.finish()
         capture = nil
         if let current { try? FileManager.default.removeItem(at: current.url) }
@@ -251,10 +260,10 @@ final class DictationCaptureWorker: @unchecked Sendable {
         captureEnded = nil
     }
 
-    private func stopCapture() {
-        relay.detach()
+    private func stopCapture(flush: Bool = true) {
         // Stopping also releases what `prepare()` allocated; spare an idle graph.
         if engine?.isRunning == true { engine?.stop() }
+        relay.detach(flush: flush)
         mute.release()
     }
 
@@ -289,6 +298,7 @@ final class DictationCaptureWorker: @unchecked Sendable {
             self?.queue.async { [weak self] in self?.configurationChanged(generation) }
         }
         let format = engine.format
+        relay.prepare(format: format)
         let selection = preferredInput == nil ? "system" : route.uid == preferredInput ? "chosen" : "fallback"
         captureLog.notice("""
             Dictation input prepared: transport=\(audioDeviceTransport(device), privacy: .public) \

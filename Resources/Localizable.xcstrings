@@ -2742,6 +2742,122 @@
         }
       }
     },
+    "Custom names, technical terms, and spoken shortcuts used by all speech models." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigene Namen, Fachbegriffe und gesprochene Kürzel für alle Sprachmodelle."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nombres propios, términos técnicos y atajos hablados que usan todos los modelos de voz."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noms propres, termes techniques et raccourcis vocaux utilisés par tous les modèles vocaux."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nomi propri, termini tecnici e abbreviazioni vocali usati da tutti i modelli vocali."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "すべての音声モデルで使用される固有名詞、専門用語、音声ショートカットです。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모든 음성 모델에서 사용하는 고유 명사, 전문 용어 및 음성 단축어입니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nomes próprios, termos técnicos e atalhos falados usados por todos os modelos de fala."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Имена, термины и голосовые сокращения для всех речевых моделей."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "供所有语音模型使用的专有名词、技术术语和口述快捷短语。"
+          }
+        }
+      }
+    },
+    "Custom vocabulary" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigenes Vokabular"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vocabulario personalizado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vocabulaire personnalisé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vocabolario personalizzato"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カスタム語彙"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사용자 지정 단어장"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vocabulário personalizado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Личный словарь"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自定义词汇表"
+          }
+        }
+      }
+    },
     "Default" : {
       "comment" : "Picker item for the CLI's own default model or effort",
       "localizations" : {
@@ -4194,6 +4310,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "编辑风格…"
+          }
+        }
+      }
+    },
+    "Edit Vocabulary…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vokabular bearbeiten …"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Editar vocabulario…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modifier le vocabulaire…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modifica vocabolario…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "語彙を編集…"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "단어장 편집…"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Editar Vocabulário…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Изменить словарь…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑词汇表…"
           }
         }
       }
@@ -6064,6 +6238,64 @@
         }
       }
     },
+    "List names or technical terms separated by commas or new lines. Write spoken -> written on its own line to replace a spoken phrase automatically." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Namen oder Fachbegriffe durch Kommas oder Zeilenumbrüche trennen. Schreiben Sie gesprochen -> geschrieben in eine eigene Zeile, um gesprochene Ausdrücke automatisch zu ersetzen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escriba nombres o términos técnicos separados por comas o saltos de línea. Escriba dicho -> escrito en su propia línea para reemplazar una frase automáticamente."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indiquez des noms ou des termes techniques séparés par des virgules ou des retours à la ligne. Écrivez prononcé -> écrit sur sa propre ligne pour remplacer automatiquement une expression."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elenca nomi o termini tecnici separati da virgole o nuove righe. Scrivi parlato -> scritto su una riga dedicata per sostituire automaticamente una frase pronunciata."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "固有名詞や専門用語をカンマまたは改行で区切って入力します。音声フレーズを自動で置換するには、1行に 発話 -> 表記 と記述してください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "고유 명사나 전문 용어를 쉼표 또는 줄바꿈으로 구분해 입력하세요. 말한 표현을 자동으로 바꾸려면 한 줄에 발음 -> 표기 형식으로 작성하세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liste nomes ou termos técnicos separados por vírgulas ou novas linhas. Escreva falado -> escrito em uma linha própria para substituir uma expressão falada automaticamente."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перечислите имена и термины через запятую или с новой строки. Напишите устно -> письменно на отдельной строке для автоматической замены произнесенной фразы."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用逗号或换行分隔专有名词与技术术语。单独一行写成 口述 -> 书面，即可自动替换对应的口述短语。"
+          }
+        }
+      }
+    },
     "Listening…" : {
       "localizations" : {
         "de" : {
@@ -6815,6 +7047,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "下一步"
+          }
+        }
+      }
+    },
+    "No custom words or replacements" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine eigenen Wörter oder Ersetzungen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin palabras ni reemplazos personalizados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun mot ni remplacement personnalisé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessuna parola o sostituzione personalizzata"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カスタム語彙や置換ルールはありません"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사용자 지정 단어나 대치 항목 없음"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem palavras ou substituições personalizadas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нет своих слов или замен"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无自定义词汇或替换项"
           }
         }
       }
@@ -13458,6 +13748,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "版本 %@ 现已可用"
+          }
+        }
+      }
+    },
+    "Vocabulary" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vokabular"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vocabulario"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vocabulaire"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vocabolario"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "語彙"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사용자 단어장"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vocabulário"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Словарь"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "词汇表"
           }
         }
       }

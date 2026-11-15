@@ -74,11 +74,14 @@ preparation, preview, approval and live verification.
   light and dark, flipping the system to Dark Mode and back, and needs
   Accessibility and Screen Recording inside the separate macOS VM. The script
   refuses the host unless `--host` is explicitly selected for agreed diagnostics.
-  The script builds in place, which a stock Cua guest (Command Line Tools only)
-  cannot do: there, transfer the host-built bundle, launch it with the script's
-  argument-domain fixtures, reopen it to open Settings, and capture with
-  helpers compiled on the host. The guest's Cua Spacesd must be allowed to
-  control System Events before an appearance flip.
+  The script builds in place unless `CAPTURE_SKIP_BUILD=1` is set. In a stock
+  Cua guest (Command Line Tools only), set `lume set <vm> --display 2880x1800`
+  and select `1440x900` HiDPI (`2.0x`), transfer the host-built bundle and
+  host-compiled helper, wrap the backdrop window in an `LSUIElement` `.app`
+  launched via `open -n` (`SCRunningApplication` omits raw Mach-O children of
+  `cua-spacesd`), reopen the app via `open` to show Settings, and flip system
+  appearance via SkyLight `SLSSetAppearanceThemeLegacy` when `cua-spacesd` lacks
+  System Events Automation permission.
 - Check a change with the `CAPTURE_*_ONLY` mode it reaches (listed at the top
   of the script); the full run is only for a screen without a mode or the
   script's shared steps. A failed capture saves the screen, the app's

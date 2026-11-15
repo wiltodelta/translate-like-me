@@ -40,10 +40,14 @@ The shipped path already captured from about 55 ms; the tap's 100 ms buffer,
 plus the 50 ms meter poll, delayed Listening to about 0.2 s. Every mode read
 process input-running zero before each hold.
 
-Implemented: the prepared engine also connects its input to an
-`AVAudioSinkNode` that only marks the hold's sink once a nonzero sample
-arrives (`DictationTapRelay.hear`, lock-free flag in `DictationAudioFile`); the
-tap still writes the recording, and its first write marks the sink too. The
+Implemented: the prepared engine connects its input directly to an
+`AVAudioSinkNode` without an `installTap` (`DictationTapRelay.receive`, feeding a
+pre-allocated lock-free SPSC `DictationSinkStream` in 512-frame / ~10.67 ms cycles
+and flushing synchronously on stop so short holds never lose frames in an unwritten
+100 ms tap buffer), while `DictationAudioFile` accumulates 100 ms energy windows so
+stop-consonant closures cannot set a false room floor. Historical note: the initial
+October 22 milestone below connected `AVAudioSinkNode` only to signal first nonzero
+audio (`DictationTapRelay.hear`) while `installTap` still wrote 4,800-frame buffers. The
 controller polls every 10 ms until Listening, then reads the level every 50 ms;
 after the first audio the sink callback skips the relay lock. The exact production worker sources, compiled
 into the same kind of signed probe with the output mute disabled through the

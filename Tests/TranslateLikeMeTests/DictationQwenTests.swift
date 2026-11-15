@@ -1,5 +1,8 @@
 import CryptoKit
 import Foundation
+@preconcurrency import MLX
+@preconcurrency import MLXAudioSTT
+@preconcurrency import MLXNN
 @preconcurrency import WhisperKit
 import XCTest
 @testable import TranslateLikeMe
@@ -88,5 +91,44 @@ final class DictationQwenTests: XCTestCase {
             _ = try await engine.prepareModels(model: .qwen3ASR, in: base, download: false) { _ in }
             XCTFail("A partial snapshot must fail offline")
         } catch DictationError.notReady {}
+    }
+
+    func testCachedAudioFeaturesMatchFullModelForwardOnSyntheticQwenGraph() throws {
+        try DictationQwenTestSupport.configure()
+        let config = Qwen3ASRConfig(
+            audioConfig: Qwen3AudioEncoderConfig(
+                numMelBins: 16, encoderLayers: 1, encoderAttentionHeads: 2,
+                encoderFfnDim: 32, dModel: 16, maxSourcePositions: 64,
+                nWindow: 8, outputDim: 16, nWindowInfer: 16,
+                convChunksize: 16, downsampleHiddenSize: 8
+            ),
+            textConfig: Qwen3TextConfig(
+                vocabSize: 64, hiddenSize: 16, intermediateSize: 32,
+                numHiddenLayers: 1, numAttentionHeads: 2, numKeyValueHeads: 2, headDim: 8
+            ),
+            audioTokenId: 60, audioStartTokenId: 58, audioEndTokenId: 59,
+            supportLanguages: ["English", "Russian"]
+        )
+        let model = Qwen3ASRModel(config)
+        let embed = try XCTUnwrap(DictationQwen.textEmbedding(of: model))
+        let samples = MLXArray((0..<16_000).map { Float(sin(Double($0) * 0.05) * 0.2) })
+        let raw = model.preprocessAudio(samples)
+        let prompt = MLXArray([Int32(1), 58] + Array(repeating: Int32(60), count: raw.2) + [59, 2])
+            .expandedDimensions(axis: 0)
+
+        let baselineLogits = model(inputIds: prompt, inputFeatures: raw.0,
+                                   featureAttentionMask: raw.1, cache: model.makeCache())[0, -1, 0...]
+        let cachedFeatures = model.getAudioFeatures(raw.0, featureAttentionMask: raw.1)
+        let merged = DictationQwen.mergedAudioEmbeddings(model, prompt: prompt,
+                                                         audioFeatures: cachedFeatures, embed: embed)
+        let cachedLogits = model(inputIds: prompt, inputEmbeddings: merged,
+                                 cache: model.makeCache())[0, -1, 0...]
+        eval(baselineLogits, cachedLogits)
+        let baselineValues = baselineLogits.asArray(Float.self)
+        let cachedValues = cachedLogits.asArray(Float.self)
+        XCTAssertEqual(baselineValues.count, 64)
+        for (lhs, rhs) in zip(baselineValues, cachedValues) {
+            XCTAssertEqual(lhs, rhs, accuracy: 1e-4)
+        }
     }
 }

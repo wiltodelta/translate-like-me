@@ -6,24 +6,42 @@ import os
 // NSLock serializes the non-real-time tap's writes with meter reads and close.
 // The tap never enters the main actor. Closing rejects late audio callbacks.
 final class DictationAudioFile: @unchecked Sendable {
+    final class Flags: Sendable {
+        let heard = Atomic(false)
+        let signal = Atomic(false)
+        let listening = Atomic(false)
+
+        func reset() {
+            heard.store(false, ordering: .relaxed)
+            signal.store(false, ordering: .relaxed)
+            listening.store(false, ordering: .relaxed)
+        }
+        func markDelivered() { heard.store(true, ordering: .relaxed) }
+        func markSignal() {
+            signal.store(true, ordering: .relaxed)
+            heard.store(true, ordering: .relaxed)
+            listening.store(true, ordering: .relaxed)
+        }
+    }
+
     let format: AVAudioFormat
+    let flags = Flags()
+    private var streamFlags: Flags?
     private let lock = NSLock()
     private var file: AVAudioFile?
     private let frameLimit: AVAudioFramePosition
+    private let trackWindowFrames: AVAudioFramePosition
     private var frames: AVAudioFramePosition = 0
     private var meter: Double = 0
-    // Release-tail inputs: the quietest and loudest buffers, and the quiet run at the end.
+    // Release-tail inputs: the quietest and loudest 100 ms windows, and the quiet run at the end.
     private var floor = Double.infinity
     private var peak: Double = 0
     private var quietFrames: AVAudioFramePosition = 0
+    private var pendingTrackEnergy: Double = 0
+    private var pendingTrackFrames: AVAudioFramePosition = 0
     private var ended = false
     private var failure: Error?
     private var metrics: DictationAudioMetrics
-    // Set by the first write or, sooner, the real-time sink, without the write
-    // lock, which file I/O can hold.
-    private let heard = Atomic(false)
-    private let signal = Atomic(false)
-    private let listening = Atomic(false)
 
     init(url: URL, format: AVAudioFormat, maximumDuration: TimeInterval = 300) throws {
         guard format.sampleRate > 0, format.channelCount > 0,
@@ -32,6 +50,7 @@ final class DictationAudioFile: @unchecked Sendable {
         self.format = format
         metrics = DictationAudioMetrics(rate: format.sampleRate, channels: Int(format.channelCount))
         frameLimit = AVAudioFramePosition(format.sampleRate * maximumDuration)
+        trackWindowFrames = max(1, AVAudioFramePosition((format.sampleRate * 0.1).rounded()))
         var settings = format.settings
         settings[AVLinearPCMIsNonInterleaved] = false // WAV stores interleaved samples; processing buffers do not.
         file = try AVAudioFile(forWriting: url, settings: settings,
@@ -40,16 +59,44 @@ final class DictationAudioFile: @unchecked Sendable {
 
     var level: Double { lock.withLock { meter } }
     var diagnostics: DictationAudioMetrics { lock.withLock { metrics } }
-    var isDeliveringAudio: Bool { heard.load(ordering: .relaxed) }
-    var hasSignal: Bool { signal.load(ordering: .relaxed) }
+    var isDeliveringAudio: Bool {
+        flags.heard.load(ordering: .relaxed)
+            || lock.withLock { streamFlags }?.heard.load(ordering: .relaxed) == true
+    }
+    var hasSignal: Bool {
+        flags.signal.load(ordering: .relaxed)
+            || lock.withLock { streamFlags }?.signal.load(ordering: .relaxed) == true
+    }
     // A cold AirPods microphone sent about 0.5 s of exact zeros first, and speech
     // in that time was lost (2026-10-25). A hardware-muted input never sends more
     // than zeros, so a second of them also counts as listening.
-    var isListening: Bool { listening.load(ordering: .relaxed) }
-    func markSignal() {
-        signal.store(true, ordering: .relaxed)
-        heard.store(true, ordering: .relaxed)
-        listening.store(true, ordering: .relaxed)
+    var isListening: Bool {
+        flags.listening.load(ordering: .relaxed)
+            || lock.withLock { streamFlags }?.listening.load(ordering: .relaxed) == true
+    }
+
+    func attachStreamFlags(_ active: Flags) {
+        lock.withLock { streamFlags = active }
+    }
+
+    func detachStreamFlags() {
+        lock.withLock {
+            if streamFlags?.heard.load(ordering: .relaxed) == true { flags.markDelivered() }
+            if streamFlags?.signal.load(ordering: .relaxed) == true { flags.markSignal() }
+            if streamFlags?.listening.load(ordering: .relaxed) == true {
+                flags.listening.store(true, ordering: .relaxed)
+            }
+            streamFlags = nil
+        }
+    }
+
+    func failFormat() -> Bool {
+        lock.withLock {
+            guard !ended else { return false }
+            failure = DictationError.microphone
+            ended = true
+            return true
+        }
     }
 
     // nil means continue; a terminal success/failure is reported exactly once.
@@ -80,13 +127,24 @@ final class DictationAudioFile: @unchecked Sendable {
             }
             let count = AVAudioFramePosition(buffer.frameLength)
             frames += count
-            heard.store(true, ordering: .relaxed)
-            if measurement.hasSignal { signal.store(true, ordering: .relaxed) }
-            if measurement.hasSignal || frames >= AVAudioFramePosition(format.sampleRate) {
-                listening.store(true, ordering: .relaxed)
+            flags.markDelivered()
+            if measurement.hasSignal {
+                flags.markSignal()
+            } else if frames >= AVAudioFramePosition(format.sampleRate) {
+                flags.listening.store(true, ordering: .relaxed)
             }
             meter = measurement.level
-            track(meter, frames: count)
+            pendingTrackEnergy += measurement.energy
+            pendingTrackFrames += count
+            if pendingTrackFrames >= trackWindowFrames {
+                let windowLevel = DictationAudioMetrics.normalizedLevel(
+                    energy: pendingTrackEnergy,
+                    samples: Int(pendingTrackFrames) * Int(format.channelCount)
+                )
+                track(windowLevel, frames: pendingTrackFrames)
+                pendingTrackEnergy = 0
+                pendingTrackFrames = 0
+            }
             if frames >= frameLimit {
                 ended = true
                 return true

@@ -34,13 +34,13 @@ Compute-policy findings and the reproducible synthetic benchmark:
   authoritative. The Speech model section names pair languages the selected
   model cannot recognize and offers the better-covering model; Qwen's static
   inventory must match its pinned `support_languages` (audit test).
-  `DictationLanguagePreference.coverageIdentifiers` includes partial single-language
-  rows for model recommendations and Settings warnings, while `identifiers` snapshots
-  only complete translation pairs on every transcription. Canonicalize configured and native language codes
-  through Foundation before resolving the active model inventory; return its native
-  spelling. Both runtimes apply the same finite logit
+  `DictationLanguagePreference.identifiers` includes partial single-language
+  rows for model recommendations, Settings warnings and recognition, falling back to
+  `Languages.systemSuggestions` when no pair language is configured. Canonicalize
+  configured and native language codes through Foundation before resolving the active
+  model inventory; return the supported subset in its native spelling while keeping
+  malformed or all-unsupported identifiers unrestricted. Both runtimes apply the same finite logit
   preference during language selection only, never a language or script ban.
-  No pairs or any unsupported candidate preserves unrestricted detection.
   WhisperKit's separate language pass needs its sampler adapter; text logits
   filters do not reach it. Qwen matches prefixes with its active tokenizer and
   stops applying the preference before text. Native MLX sampling tests need Metal
@@ -67,12 +67,17 @@ Compute-policy findings and the reproducible synthetic benchmark:
   current token; loading ends with a one-second silent warm-up. Use the SDK's low-energy 30-second
   chunks and fresh decoder caches, joined through `DictationTextSpacing.joinChunks`
   so CJK and Thai chunks do not gain ASCII spaces; reaching the token/repetition backstop reports
-  an error, never a partial transcript. When destination or preceding-chunk context is
-  present, Qwen runs a two-step decode on `PreprocessedAudio`: detect `DictationQwenDecoding.HeaderOutcome`
+  an error, never a partial transcript. When destination, vocabulary or preceding-chunk context is
+  present, Qwen runs a two-step decode on `PreprocessedAudio` sharing one `audioTower`
+  (`getAudioFeatures`) pass per chunk: detect `DictationQwenDecoding.HeaderOutcome`
   without context first (`.noSpeech` returns `""`, `.language` locks the spoken language with
-  `DictationContext.cleaned` `<`/`>`-stripped context in `system`, and `.fallback` decodes
-  without context so chunks are never dropped); never feed window/app metadata into Whisper's
-  `promptTokens`. `DictationContext.live()` reads only the current destination snapshot
+  `DictationContext.sanitized` `<`/`>`-stripped context in `system`, and `.fallback` decodes
+  without context so chunks are never dropped); `DictationContext.combined` pins any user
+  `Vocabulary:` header ahead of destination and chunk tails so `capped` never truncates user
+  terms. `DictationVocabulary` feeds user terms into Qwen's `Vocabulary:` header and Whisper's
+  `DecodingOptions.promptTokens` (`< specialTokenBegin`, capped at 64 tokens; never feed window/app
+  metadata into `promptTokens`), and applies `spoken -> written` / `spoken → written` rules in one
+  longest-match word-boundary/CJK-aware pass after ASR on both models. `DictationContext.live()` reads only the current destination snapshot
   concurrently with speech detection and retains no user text across utterances; only
   `DictationContext.chunkContext` carries preceding
   chunks within one `>30 s` recording. Installation and offline checks:
@@ -107,7 +112,11 @@ Compute-policy findings and the reproducible synthetic benchmark:
   a new request cannot take a model being unloaded. Await any queued release
   before preparing the next session. Enqueue capture on press; the press reads
   no AX target;
-  `DictationCaptureWorker` serializes all engine access and teardown off the UI.
+  `DictationCaptureWorker` serializes all engine access and teardown off the UI,
+  capturing 512-frame (`~10.67 ms`) `AVAudioSinkNode` cycles through a pre-allocated
+  lock-free SPSC ring buffer (`DictationSinkStream`) and accumulating 100 ms energy
+  windows in `DictationAudioFile` so stop-consonant closures cannot set a false room
+  floor; stopping flushes pending sink cycles synchronously before closing the WAV.
   The request lock guards state only, never hardware startup. The worker checks
   activity before startup and stops the engine after startup if release arrived
   meanwhile, so release and cancellation never wait on the hardware-start lock.
@@ -116,7 +125,10 @@ Compute-policy findings and the reproducible synthetic benchmark:
   Flush capture cleanup synchronously at application termination, before exiting.
   Startup findings, the raw prepared input and the rejected idle-ducking cache:
   `docs/dictation-startup.md`.
-  Reload the model only after release, while retaining the drained audio.
+  Once `recorder.isListening` transitions a hold to `.recording`, `DictationController`
+  starts reloading an evicted model asynchronously (`download: false`) in parallel
+  with speech, cancelling and awaiting its unwind if the hold is cancelled or fails,
+  and still draining the WAV before awaiting model readiness on release.
   Interrupted initial preparation retries after the old task unwinds, never
   reports ready with missing assets, and does not restart during termination.
   Do not reintroduce timed

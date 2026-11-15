@@ -51,6 +51,7 @@ final class DictationController {
     @ObservationIgnored private(set) var operation: Task<Void, Never>?
     @ObservationIgnored private var pressureSource: DispatchSourceMemoryPressure?
     @ObservationIgnored private var modelRelease: Task<Void, Never>?
+    @ObservationIgnored private var modelWarmup: Task<Void, Error>?
     @ObservationIgnored private var releaseOnCompletion = false
     @ObservationIgnored private var meter: Timer?
     @ObservationIgnored private(set) var tail: Task<Void, Never>?
@@ -84,8 +85,11 @@ final class DictationController {
 
     private convenience init() {
         self.init(enabled: Settings.dictationEnabled, model: Settings.dictationModel,
-                  engine: DictationEngine(waitForFiles: { await DictationModelDownloads.shared.waitUntilIdle() },
-                                          destinationContext: { DictationContext.live() }),
+                  engine: DictationEngine(
+                      waitForFiles: { await DictationModelDownloads.shared.waitUntilIdle() },
+                      destinationContext: { DictationContext.live() },
+                      vocabulary: { DictationVocabulary.cached(for: Settings.dictationVocabulary) }
+                  ),
                   recorder: DictationRecorder(),
                   interaction: .live, results: .shared, releaseTail: Self.liveReleaseTail,
                   microphone: Settings.dictationMicrophone)
@@ -224,6 +228,7 @@ final class DictationController {
                         self.interaction.showCapture()
                         let elapsed = Int(started.duration(to: .now) / .milliseconds(1))
                         dictationLog.notice("Dictation first audio \(elapsed, privacy: .public) ms after press")
+                        self.startModelWarmup(id)
                         self.meterLevel(id)
                     } else if started.duration(to: .now) > dictationStartupLimit {
                         self.fail(DictationError.microphone.localizedDescription, id: id)
@@ -249,9 +254,9 @@ final class DictationController {
                 defer { complete(id) }
                 do {
                     let audio = try await drain.value
-                    try Task.checkCancellation()
+                    guard session.accepts(id, in: .recognizing), !Task.isCancelled else { return }
                     dictationLog.notice("Dictation recording drained; recognition queued")
-                    try await prepareEngine(id, download: false)
+                    try await awaitPreparedEngine(id)
                     guard session.accepts(id, in: .recognizing), !Task.isCancelled else { return }
                     dictationLog.notice("Dictation recognition started")
                     let text = try await engine.transcribe(audio)
@@ -287,10 +292,12 @@ final class DictationController {
         endCapture()
         if operation == nil { releaseModelIfNeeded() }
     }
+}
 
+extension DictationController {
     private func prepareEngine(_ id: UUID, download: Bool = true) async throws {
-        // An earlier pressure notification may have queued a release before this
-        // recording began. Finish it before taking a model for the new session.
+        // An earlier cancelled warmup or pressure notification may still be
+        // unwinding before this session takes or reloads a model.
         await modelRelease?.value
         modelRelease = nil
         try Task.checkCancellation()
@@ -347,6 +354,7 @@ final class DictationController {
     }
 
     private func endCapture() {
+        cancelModelWarmup()
         tail?.cancel()
         tail = nil
         meter?.invalidate()
@@ -361,9 +369,39 @@ final class DictationController {
     private func releaseModelIfNeeded() {
         guard !enabled || releaseOnCompletion else { return }
         releaseOnCompletion = false
-        guard modelRelease == nil else { return }
         let engine = engine
-        modelRelease = Task { await engine.unload() }
+        let previous = modelRelease
+        modelRelease = Task {
+            await previous?.value
+            await engine.unload()
+        }
+    }
+
+    private func startModelWarmup(_ id: UUID) {
+        guard modelWarmup == nil else { return }
+        modelWarmup = Task { [self] in
+            try await prepareEngine(id, download: false)
+        }
+    }
+
+    private func awaitPreparedEngine(_ id: UUID) async throws {
+        if let warmup = modelWarmup {
+            try await warmup.value
+            if modelWarmup == warmup { modelWarmup = nil }
+        } else {
+            try await prepareEngine(id, download: false)
+        }
+    }
+
+    private func cancelModelWarmup() {
+        guard let warmup = modelWarmup else { return }
+        modelWarmup = nil
+        warmup.cancel()
+        let previous = modelRelease
+        modelRelease = Task {
+            await previous?.value
+            _ = await warmup.result
+        }
     }
 }
 
@@ -403,8 +441,8 @@ extension DictationController {
         let id = session.id
         tail = Task { [self] in
             var waited = Duration.zero
-            // The tap delivers 100 ms buffers about 100 ms late, so 200 ms after release
-            // the recording reaches past the release; 300 ms of quiet ends a last word.
+            // Quiet duration updates in 100 ms energy windows, so waiting 200 ms ensures at
+            // least one post-release window was measured; 300 ms of quiet ends a last word.
             while waited < releaseTail, waited < .milliseconds(200) || recorder.trailingQuiet < 0.3 {
                 let step = min(Self.tailStep, releaseTail - waited)
                 try? await sleep(step)
@@ -418,7 +456,6 @@ extension DictationController {
 
     private static let tailStep = Duration.milliseconds(50)
 
-    // The level changes once per 100 ms tap buffer.
     private func meterLevel(_ id: UUID) {
         meter?.invalidate()
         meter = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in

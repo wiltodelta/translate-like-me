@@ -2,12 +2,13 @@ import AppKit
 import SwiftUI
 
 struct DictationSettingsView: View {
-    let store: SettingsStore
+    @Bindable var store: SettingsStore
     @State private var dictation = DictationController.shared
 
     var body: some View {
         Form {
             DictationSetupSections(store: store, dictation: dictation)
+            DictationVocabularySection(vocabulary: $store.dictationVocabulary)
         }
         .settingsPane()
     }
@@ -162,6 +163,43 @@ private struct DictationModelSection: View {
     }
 }
 
+private struct DictationVocabularySection: View {
+    @Binding var vocabulary: String
+    @State private var editingVocabulary = false
+
+    var body: some View {
+        Section {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                let summary = DictationVocabulary.cached(for: vocabulary).summary
+                (summary.isEmpty ? Text("No custom words or replacements") : Text(summary))
+                    .foregroundStyle(Color.secondaryText)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Button("Edit Vocabulary…") { editingVocabulary = true }
+                    .accessibilityIdentifier("edit-vocabulary")
+            }
+        } header: {
+            Text("Vocabulary")
+        } footer: {
+            Text("Custom names, technical terms, and spoken shortcuts used by all speech models.")
+                .foregroundStyle(Color.secondaryText)
+        }
+        .sheet(isPresented: $editingVocabulary) {
+            StyleEditor(
+                title: "Custom vocabulary",
+                style: $vocabulary,
+                hint: """
+                    List names or technical terms separated by commas or new lines. Write spoken -> written on its own \
+                    line to replace a spoken phrase automatically.
+                    """,
+                starterTemplate: nil,
+                doneIdentifier: "vocabulary-done"
+            )
+        }
+    }
+}
+
 // Names pair languages the selected speech model cannot recognize, and offers
 // the model that recognizes more of them.
 private struct DictationLanguageCoverage: View {
@@ -169,7 +207,7 @@ private struct DictationLanguageCoverage: View {
     let dictation: DictationController
 
     var body: some View {
-        let languages = DictationLanguagePreference.coverageIdentifiers(in: store.pairs)
+        let languages = DictationLanguagePreference.identifiers(in: store.pairs)
         let missing = dictation.model.unsupported(languages)
         if !missing.isEmpty {
             let names = missing.map(Languages.displayName(for:)).formatted(.list(type: .and))

@@ -124,7 +124,14 @@ Engine for both the audio encoder and text decoder.
 Whisper mel stays CPU/GPU. Silero stays CPU-only.
 A loaded model stays ready; memory-pressure notifications or disabling dictation
 release it after active work completes. Press enqueues microphone initialization;
-after release, drained audio stays available while a model reload finishes.
+once the microphone delivers audio (`recorder.isListening`), an evicted model begins
+reloading in parallel with speech (`download: false`), and after release, drained
+audio is finalized before awaiting model readiness or recognition. `DictationVocabulary`
+(`Settings.dictationVocabulary`, edited via **Edit Vocabulary…** in Settings > Dictation)
+passes custom terms to Qwen's pinned `Vocabulary:` prompt header and Whisper's
+`DecodingOptions.promptTokens` (`< specialTokenBegin`, up to 64 tokens) and applies
+`spoken -> written` / `spoken → written` phrase replacements in a single longest-match
+pass after recognition on both models.
 Interrupted first preparation restarts after the cancelled task unwinds. The
 controller stays preparing until assets are ready; termination suppresses that retry.
 Timed two-minute eviction was removed
