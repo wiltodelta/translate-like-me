@@ -58,13 +58,15 @@ AirPods and USB inputs were not measured with the sink.
 The tail kept recording a full second after every release. It now ends once
 the recording has been quiet for 300 ms and at least 200 ms have passed since
 release (the tap's buffers arrive about 100 ms late), capped at the same
-second. Quiet means a 100 ms buffer within 9 dB of the hold's quietest buffer,
-and the hold must have a buffer at least 15 dB under its loudest; without that
-contrast (a silent room, or speech with no pause) the tail runs in full. The
+second. Quiet means a 100 ms buffer within 9 dB of a room floor at or below
+-39 dBFS (`0.35` normalized), and that floor must sit at least 15 dB under the
+hold's loudest buffer; without both conditions (a silent room, or continuous
+speech whose unvoiced consonants stay above -39 dBFS) the tail runs in full. The
 first buffer never sets the floor, since it can carry start-up zeros. A last
 word still being spoken keeps the buffers loud, so the tail continues.
 
-This was verified by unit tests with injected levels and sleeps only. The
+This is verified by unit tests with injected levels and sleeps and by the
+streamed 48 kHz synthetic end-to-end check (`scripts/check-dictation-e2e.py`). The
 thresholds have not been checked against real speech in different rooms; each
 release logs `Dictation release tail N ms` to check them on real dictations.
 

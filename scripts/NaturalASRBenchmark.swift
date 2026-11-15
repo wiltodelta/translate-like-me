@@ -32,7 +32,8 @@ struct NaturalASRBenchmark {
                 let started = ContinuousClock.now
                 var samples = try AudioProcessor.loadAudioAsFloatArray(fromPath: cases[index].file)
                 cases[index].audioSeconds = Double(samples.count) / 16_000
-                cases[index].speech = try samples.contains { abs($0) > 0.00001 } && detector.containsSpeech(samples)
+                cases[index].speech = try samples.contains { abs($0) > 0.00001 }
+                    && detector.speechBounds(in: samples) != nil
                 if samples.count < 16_000 { samples += Array(repeating: 0, count: 16_000 - samples.count) }
                 samples += Array(repeating: 0, count: 8_000)
                 let format = AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1)!

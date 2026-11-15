@@ -34,8 +34,9 @@ Compute-policy findings and the reproducible synthetic benchmark:
   authoritative. The Speech model section names pair languages the selected
   model cannot recognize and offers the better-covering model; Qwen's static
   inventory must match its pinned `support_languages` (audit test).
-  `DictationLanguagePreference` snapshots languages from complete translation
-  pairs on every transcription. Canonicalize configured and native language codes
+  `DictationLanguagePreference.coverageIdentifiers` includes partial single-language
+  rows for model recommendations and Settings warnings, while `identifiers` snapshots
+  only complete translation pairs on every transcription. Canonicalize configured and native language codes
   through Foundation before resolving the active model inventory; return its native
   spelling. Both runtimes apply the same finite logit
   preference during language selection only, never a language or script ban.
@@ -64,8 +65,17 @@ Compute-policy findings and the reproducible synthetic benchmark:
   and synchronizes GPU work before returning. Past the language prefix
   (`DictationLanguagePrefix.reach`) it queues the next step before reading the
   current token; loading ends with a one-second silent warm-up. Use the SDK's low-energy 30-second
-  chunks and fresh decoder caches; reaching the token/repetition backstop reports
-  an error, never a partial transcript. Installation and offline checks:
+  chunks and fresh decoder caches, joined through `DictationTextSpacing.joinChunks`
+  so CJK and Thai chunks do not gain ASCII spaces; reaching the token/repetition backstop reports
+  an error, never a partial transcript. When destination or preceding-chunk context is
+  present, Qwen runs a two-step decode on `PreprocessedAudio`: detect `DictationQwenDecoding.HeaderOutcome`
+  without context first (`.noSpeech` returns `""`, `.language` locks the spoken language with
+  `DictationContext.cleaned` `<`/`>`-stripped context in `system`, and `.fallback` decodes
+  without context so chunks are never dropped); never feed window/app metadata into Whisper's
+  `promptTokens`. `DictationContext.live()` reads only the current destination snapshot
+  concurrently with speech detection and retains no user text across utterances; only
+  `DictationContext.chunkContext` carries preceding
+  chunks within one `>30 s` recording. Installation and offline checks:
   `docs/qwen-integration.md`.
   Model and tokenizer revisions
   are pinned. `ModelSnapshot` checks every required Core ML component and
@@ -78,7 +88,11 @@ Compute-policy findings and the reproducible synthetic benchmark:
   Load only verified local files and suppress SDK transcript logging.
   Validate Whisper tokenizer hashes explicitly; the SDK's literal
   file-pattern cache check only understands directories. Ordinary reload disables
-  downloading. Silero checks speech presence without cutting the original clip;
+  downloading. `DictationAudioGain.normalize` applies bounded gain (`<= 16x`, target
+  `0.30` peak) to quiet captures (`0.003..<0.15` peak) before VAD and recognition while
+  leaving near-zero noise floors and normal inputs untouched. Silero (`speechBounds`)
+  checks speech presence and trims outer silence only when excess dead air reaches at
+  least 1 s outside 400 ms collars, keeping internal pauses intact;
   its recurrent state resets per recording. SDK 1.1.1 hardcodes `noSpeechProb`
   to zero, so it cannot substitute for this gate. Keep the quiet tail for short
   words and timestamp decoding for complete long-clip boundaries. Check free
@@ -166,7 +180,12 @@ Compute-policy findings and the reproducible synthetic benchmark:
   same way (`architecture.md`); do not reintroduce field-level AX or window
   targets. `SelectionTarget.destination`
   is AX's focused process, else the frontmost app; only a secure text field or
-  no process at all retains the result.
+  no process at all retains the result. `SelectionTarget.dictationSnapshot` (250 ms total
+  budget) and `dictationTarget` set `AXUIElementSetMessagingTimeout` (up to 200 ms) on every
+  returned child `AXUIElement`, fail closed on secure or timed-out elements, query ranged text
+  before `kAXValueAttribute` fallback (only when `kAXNumberOfCharactersAttribute` is `0...32,768`),
+  and format leading spaces in `PasteDelivery.insert` via `DictationTextSpacing.formatForInsertion`
+  without logging any UI text or titles.
 - `PasteDelivery` follows the shared contract in `architecture.md`
   (`SelectionWorkflow`); `insert` snapshots the clipboard just before writing. TransientType keeps clipboard managers from
   reading it. Cancellation still restores. Diagnostics log the destination
@@ -178,7 +197,8 @@ Compute-policy findings and the reproducible synthetic benchmark:
   after a tail of up to one second that catches a last word spoken while letting go
   (`DictationController.liveReleaseTail`; the output stays muted through it); it
   ends early after 300 ms of quiet, never before 200 ms, and runs in full when the
-  hold has no quiet buffer 15 dB under its loudest (`docs/dictation-latency.md`),
+  hold has no room floor at or below -39 dBFS (`0.35` normalized) sitting at least
+  15 dB under its loudest (`docs/dictation-latency.md`),
   other input during the hold cancels. No toggle, menu-start path or dedicated cancellation key.
   Escape is not registered for dictation. Keep the hold monitor alive on press
   or its release will be lost. `OptionKeyGesture` observes local/global NSEvent events.

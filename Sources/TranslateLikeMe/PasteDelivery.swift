@@ -13,7 +13,14 @@ protocol PasteAccess: Sendable {
     // The process that may receive the text now, or nil: no focused process, a
     // secure text field, or a translation whose context changed.
     func destination() -> pid_t?
+    func dictationTarget() -> (pid: pid_t, beforeCaret: Character?)?
     func paste(_ text: String, to pid: pid_t, ifUnchangedSince mark: Int) -> PromisedPaste?
+}
+
+extension PasteAccess {
+    func dictationTarget() -> (pid: pid_t, beforeCaret: Character?)? {
+        destination().map { ($0, nil) }
+    }
 }
 
 // Translation, Rewrite and dictation all insert text this way. The destination's
@@ -33,8 +40,13 @@ struct PasteDelivery<Access: PasteAccess>: Sendable {
     // Dictation: the clipboard is snapshotted just before writing.
     func insert(_ text: String) async throws -> Bool {
         try Task.checkCancellation()
+        guard let target = access.dictationTarget() else { return false }
+        try Task.checkCancellation()
+        let spaced = DictationTextSpacing.formatForInsertion(text, beforeCaret: target.beforeCaret)
         let mark = access.changeCount
-        return try await deliver(text, restoring: access.snapshot(), ifUnchangedSince: mark)
+        let snapshot = access.snapshot()
+        try Task.checkCancellation()
+        return try await deliver(spaced, to: target.pid, restoring: snapshot, ifUnchangedSince: mark)
     }
 
     // Pastes once into the current destination, then restores `original` unless
@@ -46,6 +58,11 @@ struct PasteDelivery<Access: PasteAccess>: Sendable {
         try Task.checkCancellation()
         guard let pid = access.destination() else { return false }
         try Task.checkCancellation()
+        return try await deliver(text, to: pid, restoring: original, ifUnchangedSince: mark)
+    }
+
+    private func deliver(_ text: String, to pid: pid_t, restoring original: Access.Snapshot,
+                         ifUnchangedSince mark: Int) async throws -> Bool {
         guard let paste = access.paste(text, to: pid, ifUnchangedSince: mark) else {
             deliveryLog.notice("Paste skipped: the clipboard changed before writing")
             return false

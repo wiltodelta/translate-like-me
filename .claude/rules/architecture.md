@@ -162,7 +162,9 @@ Read before editing this domain.
   700 ms, and an unread paste (a read-only field) is shown with Copy after 3 s,
   never retried. `PasteAccess.destination()`, asked just before writing, is
   `SelectionTarget.destination`, the focused process unless a secure field
-  holds focus; translation also requires it to be the original process, with
+  holds focus (dictation's `PasteAccess.dictationTarget()` also reads an optional
+  preceding character for spacing without gating delivery on AX text); translation
+  also requires it to be the original process, with
   no intervening typing, click or app activation (`SelectionActivity`). The
   live adapters share the pasteboard through `LivePasteAccess`. No AX element,
   range or value is compared: those checks failed in Chrome, Claude and Slack.

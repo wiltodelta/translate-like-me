@@ -70,8 +70,12 @@ explicitly so it does not become a hidden first-use network dependency.
 
 Preparation also downloads one small, pinned Silero v6.2.1 Core ML speech detector
 from [FluidInference's conversion](https://huggingface.co/FluidInference/silero-vad-coreml/tree/b419383c55c110e2c9271fa6ee0ea83d03c70d96).
-It checks whether a clip contains speech before the recognizer sees it. The original
-clip stays intact, with no trimming at voice boundaries. The detector runs on
+Before speech detection, `DictationAudioGain.normalize` applies bounded gain (`<= 16x`,
+target `0.30` peak) to quiet captures (`0.003..<0.15` peak) while leaving near-zero
+floors and normal inputs untouched. Silero (`DictationSpeechDetector.speechBounds`)
+checks whether the clip contains speech and trims outer dead air only when excess
+silence reaches at least 1 s outside 400 ms speech collars, leaving internal pauses
+intact. The detector runs on
 CPU and its state resets for every recording. Failures propagate as errors,
 rather than silently becoming an empty result.
 

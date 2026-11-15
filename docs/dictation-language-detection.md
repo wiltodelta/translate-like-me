@@ -16,14 +16,13 @@ clarified that similar short-phrase language mistakes occur with other models
 and that Qwen remains their preferred model. Model replacement is not the
 requested remedy.
 
-`DictationQwen` currently calls `buildPrompt(numAudioTokens:)` with no context
-or language. The model generates its own language prefix, which
-`DictationQwenDecoding.transcript` strips from the result. Whisper also uses
-automatic detection. The initial investigation preserved every model language.
+At the time of the report (`fcdaf97`), `DictationQwen` called `buildPrompt(numAudioTokens:)`
+with no context or language. The model generated its own language prefix, which
+`DictationQwenDecoding.transcript` stripped from the result, and Whisper also used
+unconditioned automatic detection. The initial investigation preserved every model language.
 The user subsequently proposed deriving a smaller candidate set from translation
 pairs and requested research covering every offered model. The cross-model
-proposal below supersedes the earlier assumption that only unrestricted
-detection should be investigated. No runtime restriction has been implemented.
+proposal and shipped implementation below supersede that initial baseline.
 
 ## Synthetic investigation
 
@@ -298,16 +297,36 @@ made.
 ## Implementation and validation
 
 `DictationEngine` snapshots the languages from all complete translation pairs at
-recognition time. `DictationLanguagePreference` normalizes region/script variants
+recognition time (`DictationLanguagePreference.identifiers`), while first-run model
+selection and Settings warnings include partial single-language rows through
+`DictationLanguagePreference.coverageIdentifiers`. `DictationLanguagePreference`
+normalizes region/script variants
 to spoken-language codes, deduplicates them and resolves the whole set against
 the active engine. No pairs, an unresolved identifier or an unsupported candidate
 preserves unrestricted detection. Nothing persists a last detected language.
 
-Both engines add `log(4)` to preferred language logits at language selection.
+Both engines add `DictationLanguagePreference.logWeight` (`log(4)`) to preferred
+language logits at language selection, matching the lowest weight that reached
+the `33/36` plateau above while allowing a nearby outside language to win.
 This is a finite heuristic weight, not a calibrated confidence threshold; a
-strong outside-language candidate can still win. The policy applies to each
-recording, with no separate language setting, new download or second ASR pass.
-The recording and delivery paths are unchanged.
+strong outside-language candidate can still win. On Qwen, when ephemeral destination
+or preceding-chunk context is available, language detection runs on the unconditioned
+prompt first (`DictationQwenDecoding.HeaderOutcome`: `.noSpeech`, `.language`, `.fallback`)
+so window titles or code in another language cannot skew the spoken language header,
+and transcript decoding then locks that detected language with `<`/`>`-stripped context.
+
+A paired release-mode comparison (`swift test -c release`, APFS-cloned Qwen cache,
+alternating decode order at `loadavg 4.00` and `20%` GPU utilization) compared
+context-free decoding against two-step destination-contextual decoding across 44
+synthetic cases (22 short multilingual/quiet/adversarial-context clips, 18
+onset-cropped Russian stress clips, 3 gain-amplified noise clips, and 1 39.85 s
+two-chunk Russian clip) under both unrestricted and Russian/English-preferred modes:
+exact matches rose from `17/22` to `18/22` on short clips (recovering French
+`La session est prête.` over `La cession` and shifting Russian `Кометы Пуш.` to
+`Коммиты и пуш.`) and from `6/18` to `7/18` on cropped clips (recovering 100 ms-cropped
+`Делай.`), with zero empty transcripts across all 40 speech clips, `3/3` empty outputs
+on gain-amplified noise, median short-clip latency moving from `271-273 ms` to
+`339-342 ms`, and the 39.85 s two-chunk clip moving from `3.78-4.03 s` to `3.92-4.27 s`.
 
 Whisper uses `DictationWhisperLanguage`, a forwarding `TextDecoding` and
 `WhisperMLModel` adapter. It replaces only the language sampler, delegates text

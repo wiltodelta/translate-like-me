@@ -68,6 +68,26 @@ final class DictationTests: XCTestCase {
         XCTAssertEqual(state.clipboard, "original clipboard")
     }
 
+    func testDeliveryInsertsLeadingSpaceAfterSentencePunctuationButNotAfterOpeningDelimiter() async throws {
+        let sentenceAccess = FakePasteAccess()
+        sentenceAccess.state.withLock {
+            $0.beforeCaret = "."
+            $0.readDelay = .milliseconds(50)
+        }
+        let delivered = try await PasteDelivery(access: sentenceAccess, pause: { sentenceAccess.advance($0) })
+            .insert("Продолжай.")
+        XCTAssertTrue(delivered)
+        XCTAssertEqual(sentenceAccess.state.withLock { $0.pastes.map(\.text) }, [" Продолжай."])
+
+        let parenAccess = FakePasteAccess()
+        parenAccess.state.withLock {
+            $0.beforeCaret = "("
+            $0.readDelay = .milliseconds(50)
+        }
+        _ = try await PasteDelivery(access: parenAccess, pause: { parenAccess.advance($0) }).insert("Продолжай")
+        XCTAssertEqual(parenAccess.state.withLock { $0.pastes.map(\.text) }, ["Продолжай"])
+    }
+
     func testDestinationIsTheFocusWhenTextIsReadyNotWhenRecordingStarted() async throws {
         let access = FakePasteAccess()
         access.state.withLock { $0.destination = 77 }

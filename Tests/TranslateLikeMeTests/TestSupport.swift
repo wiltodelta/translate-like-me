@@ -26,6 +26,7 @@ extension XCTestCase {
 struct FakePasteAccess: SelectionAccess {
     struct State {
         var destination: pid_t? = 41
+        var beforeCaret: Character?
         var clipboard = "original clipboard"
         var count = 0
         var selection = "selection"
@@ -61,6 +62,9 @@ struct FakePasteAccess: SelectionAccess {
     func destination() -> pid_t? {
         if state.withLock({ $0.cancelOnDestination }) { withUnsafeCurrentTask { $0?.cancel() } }
         return state.withLock { $0.destination }
+    }
+    func dictationTarget() -> (pid: pid_t, beforeCaret: Character?)? {
+        destination().map { ($0, state.withLock { $0.beforeCaret }) }
     }
     func copySelection() -> CopiedSelection {
         state.withLock {

@@ -169,7 +169,7 @@ private struct DictationLanguageCoverage: View {
     let dictation: DictationController
 
     var body: some View {
-        let languages = DictationLanguagePreference.identifiers(in: store.pairs)
+        let languages = DictationLanguagePreference.coverageIdentifiers(in: store.pairs)
         let missing = dictation.model.unsupported(languages)
         if !missing.isEmpty {
             let names = missing.map(Languages.displayName(for:)).formatted(.list(type: .and))

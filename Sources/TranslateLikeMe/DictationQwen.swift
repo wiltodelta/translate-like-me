@@ -49,7 +49,8 @@ actor DictationQwen {
         Memory.clearCache()
     }
 
-    func transcribe(_ samples: [Float], preference: DictationLanguagePreference) throws -> String {
+    func transcribe(_ samples: [Float], preference: DictationLanguagePreference,
+                    context: String = "") throws -> String {
         guard let model, let tokenizer = model.tokenizer else { throw DictationError.notReady }
         let endTokens = Set(["<|im_end|>", "<|endoftext|>"].compactMap { tokenizer.convertTokenToId($0) })
         guard endTokens.count == 2 else { throw DictationError.notReady }
@@ -66,24 +67,80 @@ actor DictationQwen {
         let chunks = splitAudioIntoChunks(MLXArray(samples), sampleRate: 16_000, chunkDuration: 30)
         for (audio, _) in chunks {
             try Task.checkCancellation()
+            let chunkContext = DictationContext.chunkContext(base: context, previousChunks: transcripts)
             do {
-                let tokens = try Self.decode(model, audio: audio, prefix: languagePrefix, endTokens: endTokens)
-                transcripts.append(DictationQwenDecoding.transcript(tokenizer.decode(tokens: tokens)))
+                let text = try Self.decodeChunk(model, audio: audio, prefix: languagePrefix,
+                                                context: chunkContext, endTokens: endTokens)
+                if !text.isEmpty { transcripts.append(text) }
             } catch let failure as DictationQwenDecoding.Failure {
                 Logger.app("dictation").error("Qwen decoding stopped: \(String(describing: failure), privacy: .public)")
                 throw DictationError.recognitionLimit
             }
         }
         try Task.checkCancellation()
-        return transcripts.joined(separator: " ")
+        return DictationTextSpacing.joinChunks(transcripts)
+    }
+
+    private struct PreprocessedAudio {
+        let features: MLXArray
+        let mask: MLXArray
+        let count: Int
+    }
+
+    // Contextual prompts bias Qwen's language token toward the prompt's script if
+    // `language` is unset. Detect the spoken language without context first, then
+    // decode the transcript with that language locked and destination context set.
+    private static func decodeChunk(_ model: Qwen3ASRModel, audio: MLXArray, prefix: DictationLanguagePrefix,
+                                    context: String, endTokens: Set<Int>) throws -> String {
+        guard let tokenizer = model.tokenizer else { throw DictationError.notReady }
+        let raw = model.preprocessAudio(audio)
+        let preprocessed = PreprocessedAudio(features: raw.0, mask: raw.1, count: raw.2)
+        var prompt = model.buildPrompt(numAudioTokens: preprocessed.count)
+        var activePrefix = prefix
+        if !context.isEmpty {
+            switch try Self.detectLanguage(model, audio: preprocessed, prefix: prefix, endTokens: endTokens) {
+            case .noSpeech:
+                return ""
+            case .language(let detected):
+                prompt = model.buildPrompt(numAudioTokens: preprocessed.count, context: context, language: detected)
+                activePrefix = DictationLanguagePrefix(start: [], preferred: [])
+            case .fallback:
+                break
+            }
+        }
+        let tokens = try Self.decodePrompt(model, audio: preprocessed, prompt: prompt,
+                                           prefix: activePrefix, endTokens: endTokens)
+        return DictationQwenDecoding.transcript(tokenizer.decode(tokens: tokens))
+    }
+
+    private static func detectLanguage(_ model: Qwen3ASRModel, audio: PreprocessedAudio,
+                                       prefix: DictationLanguagePrefix,
+                                       endTokens: Set<Int>) throws -> DictationQwenDecoding.HeaderOutcome {
+        guard let tokenizer = model.tokenizer else { throw DictationError.notReady }
+        let prompt = model.buildPrompt(numAudioTokens: audio.count)
+        let asrTextToken = tokenizer.convertTokenToId("<asr_text>")
+        let forward = makeForward(model, prompt: prompt, audio: audio)
+        var header: [Int] = []
+        for _ in 0..<12 {
+            try Task.checkCancellation()
+            let logits = forward(stepInput(header.last))
+            let value = Self.nextToken(logits: logits, generated: header, prefix: prefix).item(Int.self)
+            if endTokens.contains(value) { break }
+            header.append(value)
+            if let asrTextToken, value != asrTextToken { continue }
+            let decoded = tokenizer.decode(tokens: header)
+            if decoded.contains("<asr_text>") {
+                return DictationQwenDecoding.headerOutcome(decoded, supported: model.config.supportLanguages)
+            }
+        }
+        return .fallback
     }
 
     // Greedy decoding of one chunk with a fresh decoder cache.
-    private static func decode(_ model: Qwen3ASRModel, audio: MLXArray, prefix: DictationLanguagePrefix,
-                               endTokens: Set<Int>) throws -> [Int] {
-        let (features, mask, count) = model.preprocessAudio(audio)
-        let prompt = model.buildPrompt(numAudioTokens: count)
-        let cache = model.makeCache()
+    private static func decodePrompt(_ model: Qwen3ASRModel, audio: PreprocessedAudio,
+                                     prompt: MLXArray, prefix: DictationLanguagePrefix,
+                                     endTokens: Set<Int>) throws -> [Int] {
+        let forward = makeForward(model, prompt: prompt, audio: audio)
         let reach = prefix.reach
         var generated: [Int] = []
         var ahead: MLXArray?
@@ -92,9 +149,7 @@ actor DictationQwen {
             if let ahead {
                 token = ahead
             } else {
-                let logits = previous.map {
-                    model(inputIds: MLXArray([Int32($0)]).expandedDimensions(axis: 0), cache: cache)
-                } ?? model(inputIds: prompt, inputFeatures: features, featureAttentionMask: mask, cache: cache)
+                let logits = forward(stepInput(previous))
                 token = Self.nextToken(logits: logits, generated: generated, prefix: prefix)
             }
             // Once no language preference can apply, queue the following
@@ -102,7 +157,7 @@ actor DictationQwen {
             // on phrases of 30+ tokens, identical tokens (docs/dictation-latency.md).
             ahead = nil
             if generated.count + 1 >= reach {
-                let following = model(inputIds: token.reshaped(1, 1).asType(.int32), cache: cache)[0, -1, 0...]
+                let following = forward(token.reshaped(1, 1).asType(.int32))[0, -1, 0...]
                     .argMax(axis: -1)
                 asyncEval(following)
                 ahead = following
@@ -111,6 +166,20 @@ actor DictationQwen {
             generated.append(value)
             return value
         }
+    }
+
+    private static func makeForward(_ model: Qwen3ASRModel, prompt: MLXArray,
+                                    audio: PreprocessedAudio) -> (MLXArray?) -> MLXArray {
+        let cache = model.makeCache()
+        return { nextInput in
+            if let nextInput { return model(inputIds: nextInput, cache: cache) }
+            return model(inputIds: prompt, inputFeatures: audio.features,
+                         featureAttentionMask: audio.mask, cache: cache)
+        }
+    }
+
+    private static func stepInput(_ previous: Int?) -> MLXArray? {
+        previous.map { MLXArray([Int32($0)]).expandedDimensions(axis: 0) }
     }
 
     // Lazy, so the caller decides when the GPU result is read.

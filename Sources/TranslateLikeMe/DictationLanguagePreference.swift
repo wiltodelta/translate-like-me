@@ -10,6 +10,12 @@ struct DictationLanguagePreference: Sendable {
     static func identifiers(in pairs: [LanguagePair]) -> [String] {
         pairs.filter(\.isComplete).flatMap { [$0.first, $0.second] }
     }
+
+    // Model selection and Settings warnings include partial single-language rows,
+    // while incomplete rows do not bias live decoding until both sides are chosen.
+    static func coverageIdentifiers(in pairs: [LanguagePair]) -> [String] {
+        pairs.flatMap { [$0.first, $0.second] }.filter { !$0.isEmpty }
+    }
     let codes: Set<String>
     private let hasUnresolvedIdentifiers: Bool
 

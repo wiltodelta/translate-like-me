@@ -99,20 +99,22 @@ final class DictationAudioFile: @unchecked Sendable {
     // was quiet enough below the loudest to tell speech from the room.
     var trailingQuiet: TimeInterval {
         lock.withLock {
-            guard peak - floor >= Self.contrast else { return 0 }
+            guard floor <= Self.maximumFloor, peak - floor >= Self.contrast else { return 0 }
             return Double(quietFrames) / format.sampleRate
         }
     }
 
-    // Levels run 0...1 over 60 dB: quiet is within 9 dB of the floor, which
-    // must sit at least 15 dB under the peak. The first buffer can hold the
-    // microphone's start-up silence, so it never sets the floor.
+    // Levels run 0...1 over 60 dB: quiet is within 9 dB of a room floor at or
+    // below -39 dBFS, which must sit at least 15 dB under the peak. Mid-speech
+    // consonants above -39 dBFS cannot set the floor and clip word endings, and
+    // the first buffer never sets it because it can hold start-up silence.
     private static let margin = 0.15
     private static let contrast = 0.25
+    private static let maximumFloor = 0.35
 
     private func track(_ level: Double, frames count: AVAudioFramePosition) {
         peak = max(peak, level)
-        if frames > count, level < floor {
+        if frames > count, level <= Self.maximumFloor, level < floor {
             // A lower floor starts the run again: earlier buffers were judged against a louder one.
             floor = level
             quietFrames = count

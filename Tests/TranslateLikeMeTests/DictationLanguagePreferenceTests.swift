@@ -78,6 +78,8 @@ final class DictationLanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(biased.tokens.last, 1)
         let outside = try await sample([5, 0, -1, -20], preferred: [1, 2])
         XCTAssertEqual(outside.tokens.last, 0)
+        let closeOutside = try await sample([2.0, 0, -1, -20], preferred: [1, 2])
+        XCTAssertEqual(closeOutside.tokens.last, 0)
         let switched = try await sample([0, -0.8, -0.2, -20], preferred: [1, 2])
         XCTAssertEqual(switched.tokens.last, 2)
     }
@@ -98,6 +100,8 @@ final class DictationLanguagePreferenceTests: XCTestCase {
             XCTAssertEqual(select(logits, [9, 1], prefix), 0)
             let strong = MLXArray([Float(5), 0, -1, -20]).reshaped([1, 1, 4])
             XCTAssertEqual(select(strong, [9], prefix), 0)
+            let closeOutside = MLXArray([Float(2.0), 0, -1, -20]).reshaped([1, 1, 4])
+            XCTAssertEqual(select(closeOutside, [9], prefix), 0)
         }
         // Decoding runs ahead from the reach on, so no preference may apply there.
         let prefix = DictationLanguagePrefix(start: [9], preferred: [[9, 1], [9, 2, 5]])

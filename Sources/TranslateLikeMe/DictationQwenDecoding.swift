@@ -4,6 +4,11 @@ import Foundation
 // inference before the controller permits another session or runtime unload.
 enum DictationQwenDecoding {
     enum Failure: Error, Equatable { case tokenLimit(Int), repetition(Int) }
+    enum HeaderOutcome: Equatable {
+        case language(String)
+        case noSpeech
+        case fallback
+    }
 
     static func decode(endTokens: Set<Int>, maximumTokens: Int = 1024,
                        next: (Int?) throws -> Int) throws -> [Int] {
@@ -21,8 +26,25 @@ enum DictationQwenDecoding {
     }
 
     static func transcript(_ source: String) -> String {
+        if let header = splitHeader(source) { return header.body }
+        return source.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    static func headerOutcome(_ source: String, supported: [String]) -> HeaderOutcome {
+        guard let header = splitHeader(source), !header.language.isEmpty else { return .fallback }
+        if header.language.caseInsensitiveCompare("None") == .orderedSame { return .noSpeech }
+        if let match = supported.first(where: { $0.caseInsensitiveCompare(header.language) == .orderedSame }) {
+            return .language(match)
+        }
+        return .fallback
+    }
+
+    private static func splitHeader(_ source: String) -> (language: String, body: String)? {
         let text = source.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard text.hasPrefix("language "), let marker = text.range(of: "<asr_text>") else { return text }
-        return String(text[marker.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard text.hasPrefix("language "), let marker = text.range(of: "<asr_text>") else { return nil }
+        let start = text.index(text.startIndex, offsetBy: "language ".count)
+        let language = text[start..<marker.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines)
+        let body = text[marker.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
+        return (language, body)
     }
 }

@@ -21,6 +21,7 @@ actor DictationEngine: DictationRecognizing {
     private let availableStorage: @Sendable (URL) throws -> Int64
     private let languageIdentifiers: @Sendable () -> [String]
     private let loadAudio: @Sendable (URL) throws -> [Float]
+    private let destinationContext: @Sendable () -> String
 
     init(directory: URL? = nil, waitForFiles: @escaping @Sendable () async -> Void = {},
          languageIdentifiers: @escaping @Sendable () -> [String] = {
@@ -28,15 +29,17 @@ actor DictationEngine: DictationRecognizing {
          },
          loadAudio: @escaping @Sendable (URL) throws -> [Float] = { try DictationAudioLoader.load($0) },
          availableStorage: @escaping @Sendable (URL) throws -> Int64 = { url in
-        let attributes = try FileManager.default.attributesOfFileSystem(forPath: url.path)
-        guard let bytes = attributes[.systemFreeSize] as? NSNumber else { throw CocoaError(.fileReadUnknown) }
-        return bytes.int64Value
-    }) {
+             let attributes = try FileManager.default.attributesOfFileSystem(forPath: url.path)
+             guard let bytes = attributes[.systemFreeSize] as? NSNumber else { throw CocoaError(.fileReadUnknown) }
+             return bytes.int64Value
+         },
+         destinationContext: @escaping @Sendable () -> String = { "" }) {
         self.directory = directory
         self.waitForFiles = waitForFiles
         self.languageIdentifiers = languageIdentifiers
         self.availableStorage = availableStorage
         self.loadAudio = loadAudio
+        self.destinationContext = destinationContext
     }
 
     private var kit: WhisperKit?
@@ -188,21 +191,35 @@ actor DictationEngine: DictationRecognizing {
             recognitionLog.notice("Dictation decoding skipped: silent or empty audio")
             return ""
         }
-        guard try speechDetector.containsSpeech(samples) else {
+        let contextTask = qwen != nil ? Task.detached { [destinationContext] in destinationContext() } : nil
+        defer { contextTask?.cancel() }
+        let normalized = DictationAudioGain.normalize(samples, peak: metrics.peak)
+        samples = normalized.samples
+        if normalized.gain > 1 {
+            let gainText = String(format: "%.2f", normalized.gain)
+            recognitionLog.notice("Dictation quiet audio normalized: gain=\(gainText, privacy: .public)")
+        }
+        guard let bounds = try speechDetector.speechBounds(in: samples) else {
             recognitionLog.notice("Dictation decoding skipped: speech detector rejected the audio")
             return ""
         }
+        if samples.count - bounds.count >= 16_000 { samples = Array(samples[bounds]) }
         if samples.count < 16_000 { samples += Array(repeating: 0, count: 16_000 - samples.count) }
         // Whisper can omit a short utterance that ends at the buffer boundary.
         // Provide a trailing quiet tail after checking the complete clip for speech.
         samples += Array(repeating: 0, count: 8_000)
         try Task.checkCancellation()
+        return try await recognize(samples, contextTask: contextTask)
+    }
+
+    private func recognize(_ samples: [Float], contextTask: Task<String, Never>?) async throws -> String {
         let preference = DictationLanguagePreference(identifiers: languageIdentifiers())
         if let qwen {
-            recognitionLog.notice("Dictation Qwen decoding started")
-            let text = try await qwen.transcribe(samples, preference: preference)
+            let context = await contextTask?.value ?? ""
+            recognitionLog.notice("Dictation Qwen decoding started: contextual=\(!context.isEmpty)")
+            let raw = try await qwen.transcribe(samples, preference: preference, context: context)
             try Task.checkCancellation()
-            return Self.cleanedTranscript(text)
+            return Self.cleanedTranscript(raw)
         }
         guard let kit else { throw DictationError.notReady }
         let decoder = (kit.textDecoder as? DictationWhisperLanguage)?.base ?? (kit.textDecoder as? TextDecoder)
@@ -219,7 +236,7 @@ actor DictationEngine: DictationRecognizing {
     }
 
     static func transcript(from results: [TranscriptionResult]) -> String {
-        cleanedTranscript(results.map(\.text).joined(separator: " "))
+        cleanedTranscript(DictationTextSpacing.joinChunks(results.map(\.text)))
     }
 
     private static func cleanedTranscript(_ source: String) -> String {

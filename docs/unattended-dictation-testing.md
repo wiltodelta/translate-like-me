@@ -26,12 +26,24 @@ The runner generates English and Russian speech with installed macOS voices,
 mixes a weaker English background into Russian speech, and adds digital silence.
 It never plays these files or opens a microphone. Full Xcode, the installed
 Samantha and Milena voices, and an already prepared development Turbo cache are
-required by default. `--model small` or `--model largeV3` selects the corresponding
-prepared Whisper cache. `--model qwen3ASR` checks the prepared Qwen cache after
+required by default. `--model qwen3ASR` checks the prepared Qwen cache after
 its installation check. Model downloading is disabled. Missing prerequisites fail the run.
 `--skip-build` reuses a test bundle containing `DictationAudioValidationTests`.
 
-Each fixture passes through the production `DictationAudioFile` sink as 48 kHz,
+To verify the full software delivery loop (`DictationController`, streaming
+`DictationAudioFile`, post-release tail, cross-process AppKit `AXUIElement`
+snapshots and child-element timeouts across `NSTextView`, `NSTextField`,
+`NSSecureTextField`, `>32k` buffers, stalled children, and unknown-length views,
+promised `NSPasteboard` delivery on an isolated named pasteboard,
+Qwen3-ASR contextual/quiet/multilingual decoding, and Whisper Turbo) without
+microphone access, audio playback, focus changes, or `NSPasteboard.general`
+mutation:
+
+```bash
+python3 scripts/check-dictation-e2e.py
+```
+
+Each fixture in `check-dictation-audio.py` passes through the production `DictationAudioFile` sink as 48 kHz,
 seven-channel, noninterleaved float PCM, then through the real audio loader,
 speech detector and selected cached recognizer. The discrete channel layout is
 explicit: the convenience format initializer does not support this channel

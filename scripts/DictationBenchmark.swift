@@ -130,7 +130,7 @@ struct DictationBenchmark {
                 let loadedAudio = seconds(started)
                 let hasSignal = samples.contains { abs($0) > 0.00001 }
                 let vadStart = ContinuousClock.now
-                let speech = try hasSignal && detector.containsSpeech(samples)
+                let speech = try hasSignal && detector.speechBounds(in: samples) != nil
                 let vadSeconds = seconds(vadStart)
                 if samples.count < 16_000 { samples += Array(repeating: 0, count: 16_000 - samples.count) }
                 samples += Array(repeating: 0, count: 8_000)

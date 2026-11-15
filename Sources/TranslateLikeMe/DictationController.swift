@@ -84,7 +84,8 @@ final class DictationController {
 
     private convenience init() {
         self.init(enabled: Settings.dictationEnabled, model: Settings.dictationModel,
-                  engine: DictationEngine(waitForFiles: { await DictationModelDownloads.shared.waitUntilIdle() }),
+                  engine: DictationEngine(waitForFiles: { await DictationModelDownloads.shared.waitUntilIdle() },
+                                          destinationContext: { DictationContext.live() }),
                   recorder: DictationRecorder(),
                   interaction: .live, results: .shared, releaseTail: Self.liveReleaseTail,
                   microphone: Settings.dictationMicrophone)

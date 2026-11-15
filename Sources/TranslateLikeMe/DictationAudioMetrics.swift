@@ -94,6 +94,10 @@ struct DictationAudioMetrics {
             "overlaps=\(overlappingFrames) untimed=\(untimedBuffers) badTimes=\(invalidTimestamps)"
     }
 
+    var peak: Float {
+        Float(peaks.max() ?? 0)
+    }
+
     func hasSignal(above threshold: Float) -> Bool {
         frames > 0 && peaks.contains { $0 > Double(threshold) }
     }

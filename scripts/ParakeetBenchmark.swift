@@ -38,7 +38,7 @@ struct ParakeetBenchmark {
                 let duration = Double(samples.count) / 16_000
                 let audioLoad = DictationBenchmark.seconds(started)
                 let vad = ContinuousClock.now
-                let speech = try samples.contains { abs($0) > 0.00001 } && detector.containsSpeech(samples)
+                let speech = try samples.contains { abs($0) > 0.00001 } && detector.speechBounds(in: samples) != nil
                 let vadTime = DictationBenchmark.seconds(vad)
                 if samples.count < 16_000 { samples += Array(repeating: 0, count: 16_000 - samples.count) }
                 samples += Array(repeating: 0, count: 8_000)

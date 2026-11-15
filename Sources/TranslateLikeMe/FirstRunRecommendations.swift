@@ -24,7 +24,7 @@ enum FirstRunRecommendations {
         let pairs = suggestions.isEmpty ? [] : [Languages.newPair(after: [], suggestions: suggestions)]
         Settings.storePairs(pairs, in: defaults)
         defaults.set(localModel(physicalMemory: physicalMemory).rawValue, forKey: "localModel")
-        let languages = DictationLanguagePreference.identifiers(in: pairs)
+        let languages = DictationLanguagePreference.coverageIdentifiers(in: pairs)
         defaults.set(dictationModel(physicalMemory: physicalMemory, languages: languages).rawValue,
                      forKey: "dictationModel")
         Settings.storeRecommendedProvider(.local, in: defaults)

@@ -65,6 +65,25 @@ final class DictationAudioFileTests: XCTestCase {
         try capture.finish()
     }
 
+    func testTrailingQuietRejectsMidSpeechConsonantsAsRoomFloor() throws {
+        let url = temporaryFile()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1))
+        let capture = try DictationAudioFile(url: url, format: format)
+        let vowel = try buffer(format: format, frames: 1_600, value: 0.5)
+        let consonant = try buffer(format: format, frames: 1_600, value: 0.02)
+        let murmured = try buffer(format: format, frames: 1_600, value: 0.025)
+        let room = try buffer(format: format, frames: 1_600, value: 0.002)
+        XCTAssertNil(capture.append(vowel))
+        XCTAssertNil(capture.append(consonant))
+        XCTAssertNil(capture.append(murmured))
+        XCTAssertNil(capture.append(murmured))
+        XCTAssertEqual(capture.trailingQuiet, 0, "Unvoiced consonants above -39 dBFS must not set a fake room floor")
+        XCTAssertNil(capture.append(room))
+        XCTAssertEqual(capture.trailingQuiet, 0.1, accuracy: 0.001)
+        try capture.finish()
+    }
+
     func testRelayMarksFirstNonzeroIOCycleOnlyForTheAttachedHold() throws {
         let url = temporaryFile()
         defer { try? FileManager.default.removeItem(at: url) }
