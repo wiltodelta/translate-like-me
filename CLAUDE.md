@@ -35,14 +35,15 @@ Website copy highlights only the main use cases and benefits; follow the site's
 belong in documentation or release notes, and refreshing screenshots does not
 require expanding the description.
 
-At every release, compare the candidate with the previous published release
-for icon, screenshot and visitor-facing description changes. Prepare the
-website changes that apply, then propose their live publication before closing
-the release task; a local rebuild alone does not settle that decision. Reuse
-existing deployment approval when it covers these changes; otherwise ask once
-with the concrete icon, screenshot and copy changes. If none apply, no website
-deployment proposal is needed. The icon has a separate retained source in the
-website: `build:products` does not update it. Follow the site's
+The site deploys a published release's screenshots, `website-content.json`
+and README section by itself within three hours. At every release, compare the
+candidate with the previous published release for icon and catalog copy
+changes, which live in the website's own sources: prepare those that apply,
+then propose their live publication before closing the release task, reusing
+existing deployment approval when it covers them; otherwise ask once with the
+concrete changes. If none apply, no website deployment proposal is needed. The
+icon has a separate retained source in the website: `build:products` does not
+update it. Follow the site's
 `docs/product-updates.md`, "What product repositories owe the site", for asset
 preparation, preview, approval and live verification.
 
