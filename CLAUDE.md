@@ -36,7 +36,7 @@ belong in documentation or release notes, and refreshing screenshots does not
 require expanding the description.
 
 The site deploys a published release's screenshots, `website-content.json`
-and README section by itself within three hours. At every release, compare the
+and README section by itself on its next scheduled refresh. At every release, compare the
 candidate with the previous published release for icon and catalog copy
 changes, which live in the website's own sources: prepare those that apply,
 then propose their live publication before closing the release task, reusing
