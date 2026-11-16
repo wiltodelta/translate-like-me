@@ -219,12 +219,13 @@ enum DictationInsertion {
                                                    language: NLLanguage?,
                                                    lexicalTag: (String, NLLanguage) -> NLTag?) -> Bool {
         guard let language, nameAwareLanguages.contains(language) else { return false }
+        if language == .german && germanCommonLowercase.contains(token.lowercased()) {
+            return false
+        }
         let tag = lexicalTag(text, language)
         if language == .german {
-            if let tag, tag != .otherWord {
-                return !germanLowercaseClasses.contains(tag)
-            }
-            return !germanCommonLowercase.contains(token.lowercased())
+            guard let tag, tag != .otherWord else { return true }
+            return !germanLowercaseClasses.contains(tag)
         }
         return tag == .personalName || tag == .placeName || tag == .organizationName
     }

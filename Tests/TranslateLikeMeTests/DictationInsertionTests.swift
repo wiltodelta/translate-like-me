@@ -107,16 +107,17 @@ final class DictationInsertionTests: XCTestCase {
             DictationInsertion.format("Heute passt es.", context: context, languageIdentifiers: ["de", "en"]),
             "heute passt es."
         )
-        // Simulate missing on-demand German LinguisticData assets (.otherWord / nil) through format.
-        for missingTag: NLTag? in [.otherWord, nil] {
+        // Without on-demand German LinguisticData assets, macOS NLTagger's orthographic
+        // fallback tags every capitalized German word as .noun (or .otherWord / nil).
+        for missingAssetTag: NLTag? in [.noun, .otherWord, nil] {
             XCTAssertEqual(
                 DictationInsertion.format("Schnell erledigt.", context: context,
-                                          languageIdentifiers: ["de", "en"]) { _, _ in missingTag },
+                                          languageIdentifiers: ["de", "en"]) { _, _ in missingAssetTag },
                 "schnell erledigt."
             )
             XCTAssertEqual(
                 DictationInsertion.format("Haus und Garten.", context: context,
-                                          languageIdentifiers: ["de", "en"]) { _, _ in missingTag },
+                                          languageIdentifiers: ["de", "en"]) { _, _ in missingAssetTag },
                 "Haus und Garten."
             )
         }

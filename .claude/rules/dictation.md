@@ -220,8 +220,9 @@ Compute-policy findings and the reproducible synthetic benchmark:
   and format mid-sentence casing, trailing auto-periods, and spaces around the caret in
   `PasteDelivery.insert` via `DictationInsertion.format` without logging any UI text or titles
   (non-English `NLTagger` `LinguisticData` assets are on-demand and absent on fresh Macs and CI
-  runners, so when `NLTagger` returns `nil` or `.otherWord` for German, lowercasing falls back to
-  `germanCommonLowercase` and keeps unrecognized German words capitalized).
+  runners, where `NLTagger`'s orthographic fallback tags every capitalized German word as `.noun`,
+  so German lowercasing checks `germanCommonLowercase` before `NLTagger` and keeps unrecognized
+  German words capitalized).
 - `PasteDelivery` follows the shared contract in `architecture.md`
   (`SelectionWorkflow`); `insert` snapshots the clipboard just before writing. TransientType keeps clipboard managers from
   reading it. Cancellation still restores. Diagnostics log the destination
