@@ -523,16 +523,18 @@ substitutions on 1-3 syllable utterances (`да`, `нет`, `делай`, `ок`
    session (single fused prompt prefill when context is present, shared unconditioned prefix
    otherwise) and measures case-folded word-start
    log-probability (`caseVariantStartTokens`, summing uppercase and lowercase word-initial BPE
-   paths so Cyrillic splits like `Д` + `а` versus single-token `да` are not penalized). If the
+   paths, with Turkic `İ`/`ı` locale folding, so splits like Cyrillic `Д` + `а` versus `да` or
+   Turkish `İ` versus `i` are not penalized). If the
    primary transcript has alphanumeric characters and `confidence >= -0.12`, decoding returns
    immediately with no challenger pass. Otherwise `ShortChunkRescorer` rewinds `KVCacheSimple`
    to `baseOffset` and decodes the runner-up preferred language without re-running `audioTower`
    or prompt prefill. `DictationQwenDecoding.selectShortCandidate` keeps the acoustic winner on
    phonetic cognates and IT loanwords (`arePhoneticCognates` via Latin/diacritic-stripped
    skeletons, preserving Russian `Коммит.`, `Пуш.`, `Ладно.`, `Стоп.`), applies a bounded
-   `±0.04` script tie-breaker from surrounding editor text only (ignoring line 0's app/window
-   header and any `Vocabulary:` line), and switches only when the challenger is alphanumeric,
-   has `confidence >= -0.90`, and beats the primary by more than `0.05`.
+   `±0.04` script tie-breaker across Latin, Cyrillic, Greek, Arabic, Hebrew, Devanagari, Thai,
+   Kana, Hangul, and Han (including CJK Extensions B-I) from surrounding editor text only
+   (ignoring line 0's app/window header and any `Vocabulary:` line), and switches only when the
+   challenger is alphanumeric, has `confidence >= -0.90`, and beats the primary by more than `0.05`.
 
 Release-mode verification ran both `DictationEngine` paths across a 144-clip local validation corpus (108 single-voice hold, onset-cropped, context-switched, noise, boundary-pause, normal-length and third-language control clips plus 36 multi-voice colloquial short Russian/English clips across six macOS voices) under `["ru", "en"]`:
 

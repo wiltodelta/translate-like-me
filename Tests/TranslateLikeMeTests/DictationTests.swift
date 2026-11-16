@@ -85,7 +85,7 @@ final class DictationTests: XCTestCase {
             $0.readDelay = .milliseconds(50)
         }
         _ = try await PasteDelivery(access: parenAccess, pause: { parenAccess.advance($0) }).insert("Продолжай")
-        XCTAssertEqual(parenAccess.state.withLock { $0.pastes.map(\.text) }, ["Продолжай"])
+        XCTAssertEqual(parenAccess.state.withLock { $0.pastes.map(\.text) }, ["продолжай"])
     }
 
     func testDestinationIsTheFocusWhenTextIsReadyNotWhenRecordingStarted() async throws {

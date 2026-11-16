@@ -46,9 +46,13 @@ struct DictationAudioMetrics {
                            hasSignal: bufferEnergy > 0, valid: invalidSamples == oldInvalid)
     }
 
-    static func normalizedLevel(energy: Double, samples: Int) -> Double {
+    static func decibels(energy: Double, samples: Int, floor: Double = -84) -> Double {
         let mean = energy / Double(max(1, samples))
-        return min(1, max(0, (10 * log10(max(mean, 1e-12)) + 60) / 60))
+        return max(floor, 10 * log10(max(mean, 1e-12)))
+    }
+
+    static func normalizedLevel(energy: Double, samples: Int) -> Double {
+        min(1, max(0, (decibels(energy: energy, samples: samples, floor: -60) + 60) / 60))
     }
 
     private mutating func observe(_ samples: UnsafeBufferPointer<Float>, channel: Int) -> Double {

@@ -108,4 +108,60 @@ final class DictationVocabularyTests: XCTestCase {
                        "Destination text starting with Vocabulary: must not be mistaken for a pinned glossary")
         XCTAssertTrue(withoutGlossary.hasSuffix("Next."))
     }
+
+    func testVocabularyHandlesArabicFullwidthSeparatorsTurkicCasefoldingAndUnspacedScripts() {
+        let vocabulary = DictationVocabulary("""
+            القاهرة، الرياض؛ دبي；東京
+            İstanbul
+            istanbul -> İstanbul
+            ışık -> Işık Hızı
+            ໂຄລດ -> Claude
+            ក្លូដ -> Claude
+            """)
+        XCTAssertEqual(vocabulary.terms, ["القاهرة", "الرياض", "دبي", "東京", "İstanbul", "Işık Hızı", "Claude"])
+        XCTAssertEqual(vocabulary.applyReplacements(to: "İstanbul ve ışık, ayrıca istanbul ile Işık."),
+                       "İstanbul ve Işık Hızı, ayrıca İstanbul ile Işık Hızı.")
+        XCTAssertEqual(vocabulary.applyReplacements(to: "ໃຊ້ໂຄລດມື້ນີ້"), "ໃຊ້Claudeມື້ນີ້")
+        XCTAssertEqual(vocabulary.applyReplacements(to: "ប្រើក្លូដថ្ងៃនេះ"), "ប្រើClaudeថ្ងៃនេះ")
+    }
+
+    func testFuzzyVocabularyMatchesCompoundsHomophonesCrossScriptInflectionsAndPreservesCommonProse() {
+        let vocabulary = DictationVocabulary("""
+            Antigravity, WhisperKit, Qwen3-ASR, Claude Code, Wiltodelta
+            Veedma, Veryfi, Rota, Bari
+            foo -> bar
+            """)
+        XCTAssertEqual(
+            vocabulary.applyReplacements(to: "Open Anti-Gravity, Whisper Kit, Wesperkit, WhisperKid, and Quent 3 ASR."),
+            "Open Antigravity, WhisperKit, WhisperKit, WhisperKit, and Qwen3-ASR."
+        )
+        XCTAssertEqual(
+            vocabulary.applyReplacements(to: "Run Cloud Code for Wilta Delta and will to delta, not a cold kid."),
+            "Run Claude Code for Wiltodelta and Wiltodelta, not a cold kid."
+        )
+        XCTAssertEqual(
+            vocabulary.applyReplacements(
+                to: "Check ROTA, in Vigma, and the Verify ticket; please verify la rueda rota."
+            ),
+            "Check Rota, in Veedma, and the Veryfi ticket; please verify la rueda rota."
+        )
+        XCTAssertEqual(
+            vocabulary.applyReplacements(to: "Verify the build and foo Vigma."),
+            "Verify the build and bar Veedma."
+        )
+        XCTAssertEqual(
+            vocabulary.applyReplacements(
+                to: "Вилтадельта, велта дельта, у Видмы, с Видмой, про верифей, в Висперкит и Клод Код."
+            ),
+            "Wiltodelta, Wiltodelta, у Veedma, с Veedma, про Veryfi, в WhisperKit и Claude Code."
+        )
+        XCTAssertEqual(
+            vocabulary.applyReplacements(to: "今日はクロードコードとアンチグラビティとウィスパーキットを使う。"),
+            "今日はClaude CodeとAntigravityとWhisperKitを使う。"
+        )
+        XCTAssertEqual(
+            vocabulary.applyReplacements(to: "클로드 코드를 사용합니다."),
+            "Claude Code를 사용합니다."
+        )
+    }
 }

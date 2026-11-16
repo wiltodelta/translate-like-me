@@ -88,11 +88,12 @@ enum SelectionTarget {
     }
 
     static func dictationTarget(pid: pid_t? = focusedPID,
-                                budget: Duration = snapshotBudget) -> (pid: pid_t, beforeCaret: Character?)? {
+                                budget: Duration = snapshotBudget) -> DictationInsertionTarget? {
         let deadline = ContinuousClock.now.advanced(by: budget)
         guard let resolved = resolveDestination(pid: pid, deadline: deadline) else { return nil }
-        let before = resolved.verifiedFocused.flatMap { characterBeforeCaret(in: $0, deadline: deadline) }
-        return (resolved.pid, before)
+        let context = resolved.verifiedFocused.map { insertionContext(in: $0, deadline: deadline) }
+            ?? DictationInsertionContext()
+        return DictationInsertionTarget(pid: resolved.pid, context: context)
     }
 
     private static func resolveDestination(
@@ -127,32 +128,63 @@ enum SelectionTarget {
         guard let window else { return nil }
         return attribute(window, kAXTitleAttribute, deadline: deadline) as? String
     }
+}
 
-    private static func characterBeforeCaret(in focused: AXUIElement,
-                                             deadline: ContinuousClock.Instant) -> Character? {
-        guard let selection = selectedRange(in: focused, deadline: deadline),
-              selection.length == 0, selection.location > 0 else { return nil }
-        switch rangedSliceBefore(caret: selection.location, in: focused, deadline: deadline) {
-        case .slice(let text):
-            return text.last
-        case .aborted:
-            return nil
-        case .unsupported:
-            let count = attribute(focused, kAXNumberOfCharactersAttribute, deadline: deadline) as? Int
-            guard let value = boundedValue(in: focused, knownCount: count, deadline: deadline) else { return nil }
-            return DictationContext.characterBeforeCaret(in: value, selection: selection)
-        }
-    }
-
-    private enum RangedQuery {
+private extension SelectionTarget {
+    enum RangedQuery {
         case slice(String)
         case unsupported
         case aborted
     }
 
-    private static func rangedSliceBefore(caret: Int, in element: AXUIElement,
-                                          deadline: ContinuousClock.Instant) -> RangedQuery {
-        let firstSpan = min(16, caret)
+    static func insertionContext(in focused: AXUIElement,
+                                 deadline: ContinuousClock.Instant) -> DictationInsertionContext {
+        guard let selection = selectedRange(in: focused, deadline: deadline), selection.length == 0 else {
+            return DictationInsertionContext()
+        }
+        let limit = DictationInsertionContext.sliceLimit
+        let count = attribute(focused, kAXNumberOfCharactersAttribute, deadline: deadline) as? Int
+        let before: String
+        if selection.location == 0 {
+            before = ""
+        } else {
+            switch rangedSliceBefore(caret: selection.location, limit: limit, in: focused, deadline: deadline) {
+            case .slice(let text): before = text
+            case .aborted: return DictationInsertionContext()
+            case .unsupported: return fallbackInsertionContext(in: focused, selection: selection,
+                                                               knownCount: count, deadline: deadline)
+            }
+        }
+        let after = rangedSliceAfter(caret: selection.location, limit: limit, knownCount: count,
+                                     in: focused, deadline: deadline)
+        let complete = selection.location <= before.utf16.count || before.contains(where: \.isNewline)
+        switch after {
+        case .slice(let afterText):
+            return DictationInsertionContext(beforeSlice: before, afterSlice: afterText,
+                                             hasCompleteLinePrefix: complete)
+        case .aborted:
+            return DictationInsertionContext()
+        case .unsupported:
+            let fallback = fallbackInsertionContext(in: focused, selection: selection,
+                                                    knownCount: count, deadline: deadline)
+            if fallback.beforeSlice != nil || before.isEmpty { return fallback }
+            return DictationInsertionContext(beforeSlice: before, afterSlice: nil, hasCompleteLinePrefix: complete)
+        }
+    }
+
+    static func fallbackInsertionContext(in focused: AXUIElement, selection: NSRange, knownCount: Int?,
+                                         deadline: ContinuousClock.Instant) -> DictationInsertionContext {
+        guard let value = boundedValue(in: focused, knownCount: knownCount, deadline: deadline) else {
+            return selection.location == 0
+                ? DictationInsertionContext(beforeSlice: "", afterSlice: nil, hasCompleteLinePrefix: true)
+                : DictationInsertionContext()
+        }
+        return DictationContext.insertionContext(in: value, selection: selection)
+    }
+
+    static func rangedSliceBefore(caret: Int, limit: Int, in element: AXUIElement,
+                                  deadline: ContinuousClock.Instant) -> RangedQuery {
+        let firstSpan = min(limit, caret)
         let (first, firstError) = string(in: element, range: CFRange(location: caret - firstSpan, length: firstSpan),
                                          deadline: deadline)
         if let first, !first.isEmpty { return .slice(first) }
@@ -160,11 +192,29 @@ enum SelectionTarget {
             return firstError == .cannotComplete ? .aborted : .unsupported
         }
         guard caret > firstSpan else { return .unsupported }
-        let secondSpan = min(17, caret)
+        let secondSpan = min(limit + 1, caret)
         let (second, secondError) = string(
             in: element, range: CFRange(location: caret - secondSpan, length: secondSpan), deadline: deadline
         )
         if let second, !second.isEmpty { return .slice(second) }
+        return secondError == .cannotComplete ? .aborted : .unsupported
+    }
+
+    static func rangedSliceAfter(caret: Int, limit: Int, knownCount: Int?, in element: AXUIElement,
+                                 deadline: ContinuousClock.Instant) -> RangedQuery {
+        let remaining = knownCount.map { max(0, $0 - caret) }
+        if remaining == 0 { return .slice("") }
+        let span = min(limit, remaining ?? limit)
+        let (first, firstError) = string(in: element, range: CFRange(location: caret, length: span), deadline: deadline)
+        if let first, !first.isEmpty || remaining == nil { return .slice(first) }
+        if isRangeUnsupportedOrTimedOut(firstError) {
+            return firstError == .cannotComplete ? .aborted : .unsupported
+        }
+        guard let remaining, remaining > span else { return .unsupported }
+        let (second, secondError) = string(
+            in: element, range: CFRange(location: caret, length: span + 1), deadline: deadline
+        )
+        if let second { return .slice(second) }
         return secondError == .cannotComplete ? .aborted : .unsupported
     }
 
@@ -243,30 +293,24 @@ enum SelectionTarget {
 
     private static func surroundingSlice(in element: AXUIElement, selection: NSRange,
                                          knownCount: Int?, deadline: ContinuousClock.Instant) -> RangedQuery {
-        let beforeStart = max(0, selection.location - DictationContext.beforeCaretLimit)
-        let beforeLength = selection.location - beforeStart
         var before: String?
-        if beforeLength > 0 {
-            let (text, error) = string(
-                in: element, range: CFRange(location: beforeStart, length: beforeLength), deadline: deadline
-            )
-            if error == .cannotComplete { return .aborted }
-            if isRangeUnsupportedOrTimedOut(error) { return .unsupported }
-            before = text
-        }
-        var after: String?
-        let (afterStart, overflow) = selection.location.addingReportingOverflow(selection.length)
-        if !overflow {
-            let requestedAfter = knownCount.map { min(DictationContext.afterCaretLimit, max(0, $0 - afterStart)) }
-                ?? DictationContext.afterCaretLimit
-            if requestedAfter > 0 {
-                let (text, error) = string(
-                    in: element, range: CFRange(location: afterStart, length: requestedAfter), deadline: deadline
-                )
-                if error == .cannotComplete { return .aborted }
-                if before == nil, isRangeUnsupportedOrTimedOut(error) { return .unsupported }
-                after = text
+        if selection.location > 0 {
+            switch rangedSliceBefore(caret: selection.location, limit: DictationContext.beforeCaretLimit,
+                                     in: element, deadline: deadline) {
+            case .slice(let text): before = text
+            case .aborted: return .aborted
+            case .unsupported: return .unsupported
             }
+        }
+        let afterQuery = surroundingAfterSlice(selection: selection, knownCount: knownCount,
+                                               in: element, deadline: deadline)
+        let after: String?
+        switch afterQuery {
+        case .slice(let text): after = text.isEmpty ? nil : text
+        case .aborted: return .aborted
+        case .unsupported:
+            if before == nil { return .unsupported }
+            after = nil
         }
         guard before != nil || after != nil else {
             return knownCount == 0 ? .slice("") : .unsupported
@@ -274,6 +318,14 @@ enum SelectionTarget {
         let combined = [before, after].compactMap { $0 }.joined(separator: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return .slice(combined)
+    }
+
+    private static func surroundingAfterSlice(selection: NSRange, knownCount: Int?, in element: AXUIElement,
+                                              deadline: ContinuousClock.Instant) -> RangedQuery {
+        let (afterStart, overflow) = selection.location.addingReportingOverflow(selection.length)
+        guard !overflow else { return .slice("") }
+        return rangedSliceAfter(caret: afterStart, limit: DictationContext.afterCaretLimit,
+                                knownCount: knownCount, in: element, deadline: deadline)
     }
 
     private static func attribute(_ element: AXUIElement, _ key: String,
@@ -366,5 +418,5 @@ struct LiveSelectionAccess: SelectionAccess, LivePasteAccess {
 struct LiveDictationAccess: LivePasteAccess {
     let pasteKey: CGKeyCode
     func destination() -> pid_t? { SelectionTarget.destination }
-    func dictationTarget() -> (pid: pid_t, beforeCaret: Character?)? { SelectionTarget.dictationTarget() }
+    func dictationTarget() -> DictationInsertionTarget? { SelectionTarget.dictationTarget() }
 }

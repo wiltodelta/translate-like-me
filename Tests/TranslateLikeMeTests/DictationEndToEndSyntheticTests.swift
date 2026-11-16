@@ -97,12 +97,10 @@ final class DictationEndToEndSyntheticTests: XCTestCase {
         XCTAssertLessThan(state.recorder.capturedFrames, state.recorder.lastTotalFrames,
                           "Tail should stop on quiet floor before the end of the 650 ms room-floor pad")
 
-        try helper.configure(mode: "textfield", title: "Terminal", text: "Текущая (")
+        try helper.configure(mode: "textfield@9", title: "Terminal", text: "Текущая ()")
         try await state.dictate(wav: "sessiya_quiet010.wav")
         let fieldText = try helper.readBuffer()
-        XCTAssertTrue(fieldText.hasPrefix("Текущая ("), "Corrupted prefix in: \(fieldText)")
-        XCTAssertFalse(fieldText.hasPrefix("Текущая ( "), "Must not insert space after '(' in: \(fieldText)")
-        XCTAssertTrue(fieldText.localizedCaseInsensitiveContains("сессия"), "Missing сессия in: \(fieldText)")
+        XCTAssertEqual(fieldText, "Текущая (сессия)", "Expected lowercased unpunctuated insertion in: \(fieldText)")
 
         try await verifyQwenMultilingualAndSecure(state: state, helper: helper, board: board)
         try await verifyBoundaryAndGainNoiseZeroEcho(root: root, engine: state.engine, helper: helper)
@@ -125,11 +123,10 @@ final class DictationEndToEndSyntheticTests: XCTestCase {
         XCTAssertTrue(german.localizedCaseInsensitiveContains("commit"), "Missing Commit in: \(german)")
         XCTAssertTrue(german.localizedCaseInsensitiveContains("push"), "Missing Push in: \(german)")
 
-        try helper.configure(mode: "textview", title: "Notes", text: "準備完了。")
+        try helper.configure(mode: "textview@5", title: "Notes", text: "準備完了（）")
         try await state.dictate(wav: "sessiya_ja.wav")
         let japanese = try helper.readBuffer()
-        XCTAssertFalse(japanese.hasPrefix("準備完了。 "), "Must not insert ASCII space after CJK period: \(japanese)")
-        XCTAssertTrue(japanese.contains("セッション"), "Missing セッション in: \(japanese)")
+        XCTAssertEqual(japanese, "準備完了（セッションを開始します）", "Unexpected CJK parenthetical insertion: \(japanese)")
 
         let markBeforeSecure = board.changeCount
         try helper.configure(mode: "secure", title: "Password", text: "secret123")
@@ -146,11 +143,10 @@ final class DictationEndToEndSyntheticTests: XCTestCase {
         let state = E2EHarness(root: root, model: model, helper: helper, board: board)
         defer { state.controller.shutdown() }
         await state.prepare()
-        try helper.configure(mode: "textview", title: "Notes", text: "Готово.")
+        try helper.configure(mode: "textview@8", title: "Notes", text: "Готово, дальше.")
         try await state.dictate(wav: "prodolzhay_padded.wav")
         let text = try helper.readBuffer()
-        XCTAssertTrue(text.hasPrefix("Готово. "), "Missing leading space on \(model) delivery: \(text)")
-        XCTAssertTrue(text.localizedCaseInsensitiveContains("продолжай"), "Unexpected \(model) output: \(text)")
+        XCTAssertEqual(text, "Готово, продолжай дальше.", "Unexpected \(model) mid-sentence delivery: \(text)")
         XCTAssertEqual(board.string(forType: .string), "user original clipboard")
         try await verifyBoundaryAndGainNoiseZeroEcho(root: root, engine: state.engine, helper: helper,
                                                      softLeadToken: softLeadToken)
@@ -250,7 +246,7 @@ private struct NamedBoardDictationAccess: PasteAccess, @unchecked Sendable {
         SelectionService.restore(snapshot, ifUnchangedSince: mark, on: board)
     }
     func destination() -> pid_t? { SelectionTarget.dictationTarget(pid: pid)?.pid }
-    func dictationTarget() -> (pid: pid_t, beforeCaret: Character?)? {
+    func dictationTarget() -> DictationInsertionTarget? {
         SelectionTarget.dictationTarget(pid: pid)
     }
     func paste(_ text: String, to pid: pid_t, ifUnchangedSince mark: Int) -> PromisedPaste? {

@@ -79,14 +79,17 @@ enum DictationQwenDecoding {
 
     // Sum uppercase and lowercase word-initial BPE paths (e.g. Cyrillic `Д`+`а` vs `да`)
     // so arbitrary utterance-initial capitalization does not penalize short-word confidence.
-    static func caseVariantStartTokens(for text: String, greedyFirstToken: Int,
+    static func caseVariantStartTokens(for text: String, language: String = "", greedyFirstToken: Int,
                                        encode: (String) -> [Int]) -> Set<Int> {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let first = trimmed.first else { return [greedyFirstToken] }
         let rest = String(trimmed.dropFirst())
-        let variants = Set([String(first).lowercased() + rest,
-                            String(first).uppercased() + rest,
-                            trimmed.lowercased()])
+        let useTurkic = language.caseInsensitiveCompare("Turkish") == .orderedSame
+            || first == "İ" || first == "ı"
+        let locale = useTurkic ? DictationVocabulary.turkicLocale : Locale(identifier: "en_US_POSIX")
+        let variants = Set([String(first).lowercased(with: locale) + rest,
+                            String(first).uppercased(with: locale) + rest,
+                            trimmed.lowercased(with: locale)])
         var ids: Set<Int> = [greedyFirstToken]
         for variant in variants {
             if let token = encode(variant).first { ids.insert(token) }
@@ -101,14 +104,13 @@ enum DictationQwenDecoding {
         if leftKey == rightKey { return true }
         guard min(leftKey.count, rightKey.count) >= 3,
               abs(leftKey.count - rightKey.count) <= 1 else { return false }
-        return withinSingleEdit(Array(leftKey), Array(rightKey))
+        return VocabularyPhonetics.editDistance(leftKey, rightKey, limit: 1) != nil
     }
 
     private static func phoneticSkeleton(_ source: String) -> String {
-        let latin = source.applyingTransform(.toLatin, reverse: false)?
-            .applyingTransform(.stripDiacritics, reverse: false) ?? source
+        let latin = VocabularyPhonetics.asciiLatinLowercased(source)
         var mapped: [Character] = []
-        for ch in latin.lowercased() where ch >= "a" && ch <= "z" {
+        for ch in latin where ch >= "a" && ch <= "z" {
             if ch == "c" || ch == "q" {
                 mapped.append("k")
             } else if ch == "w" {
@@ -126,27 +128,12 @@ enum DictationQwenDecoding {
         return String(collapsed)
     }
 
-    private static func withinSingleEdit(_ lhs: [Character], _ rhs: [Character]) -> Bool {
-        var costs = Array(0...rhs.count)
-        for (row, leftChar) in lhs.enumerated() {
-            var previous = costs[0]
-            costs[0] = row + 1
-            for (col, rightChar) in rhs.enumerated() {
-                let saved = costs[col + 1]
-                let step = leftChar == rightChar ? 0 : 1
-                costs[col + 1] = min(costs[col + 1] + 1, costs[col] + 1, previous + step)
-                previous = saved
-            }
-        }
-        return costs[rhs.count] <= 1
-    }
-
     static func hasAlphanumeric(_ text: String) -> Bool {
         text.rangeOfCharacter(from: .alphanumerics) != nil
     }
 
     private enum ScriptFamily: Equatable {
-        case latin, cyrillic, greek, arabic, hebrew, han, kana, hangul, devanagari
+        case latin, cyrillic, greek, arabic, hebrew, han, kana, hangul, devanagari, thai
     }
 
     private static func contextScriptAdjustment(primaryText: String, challengerText: String,
@@ -176,18 +163,22 @@ enum DictationQwenDecoding {
         return best.key
     }
 
+    private static let scriptRanges: [(ClosedRange<UInt32>, ScriptFamily)] = [
+        (0x0041...0x024F, .latin), (0x1E00...0x1EFF, .latin), (0x2C60...0x2C7F, .latin),
+        (0xA720...0xA7FF, .latin), (0xAB30...0xAB6F, .latin),
+        (0x0400...0x052F, .cyrillic), (0x2DE0...0x2DFF, .cyrillic), (0xA640...0xA69F, .cyrillic),
+        (0x0370...0x03FF, .greek), (0x1F00...0x1FFF, .greek),
+        (0x0590...0x05FF, .hebrew),
+        (0x0600...0x06FF, .arabic), (0x0750...0x077F, .arabic), (0x08A0...0x08FF, .arabic),
+        (0xFB50...0xFDFF, .arabic), (0xFE70...0xFEFF, .arabic),
+        (0x0900...0x097F, .devanagari),
+        (0x0E00...0x0E7F, .thai),
+        (0x3040...0x30FF, .kana), (0x31F0...0x31FF, .kana), (0xFF66...0xFF9F, .kana),
+        (0x1100...0x11FF, .hangul), (0x3130...0x318F, .hangul), (0xAC00...0xD7AF, .hangul),
+        (0x3400...0x4DBF, .han), (0x4E00...0x9FFF, .han), (0xF900...0xFAFF, .han), (0x20000...0x323AF, .han)
+    ]
+
     private static func scriptFamily(of value: UInt32) -> ScriptFamily? {
-        switch value {
-        case 0x0041...0x024F, 0x1E00...0x1EFF: .latin
-        case 0x0400...0x052F: .cyrillic
-        case 0x0370...0x03FF: .greek
-        case 0x0600...0x06FF: .arabic
-        case 0x0590...0x05FF: .hebrew
-        case 0x0900...0x097F: .devanagari
-        case 0x3040...0x30FF: .kana
-        case 0xAC00...0xD7AF: .hangul
-        case 0x4E00...0x9FFF, 0x3400...0x4DBF: .han
-        default: nil
-        }
+        scriptRanges.first { $0.0.contains(value) }?.1
     }
 }

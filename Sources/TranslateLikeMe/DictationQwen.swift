@@ -393,7 +393,7 @@ private struct ShortChunkRescorer {
         let tokens = try continueCandidate(after: firstToken, session: session)
         let text = DictationQwenDecoding.transcript(tokenizer.decode(tokens: tokens))
         guard let confidencePair else { return .init(language: language, text: text, confidence: 0) }
-        let confidence = wordStartConfidence(text: text, firstToken: firstToken,
+        let confidence = wordStartConfidence(text: text, language: language, firstToken: firstToken,
                                              logits: confidencePair.logits, lse: confidencePair.lse.item(Float.self))
         return .init(language: language, text: text, confidence: confidence)
     }
@@ -405,9 +405,12 @@ private struct ShortChunkRescorer {
         }
     }
 
-    private func wordStartConfidence(text: String, firstToken: Int, logits: MLXArray, lse: Float) -> Float {
+    private func wordStartConfidence(text: String, language: String, firstToken: Int,
+                                     logits: MLXArray, lse: Float) -> Float {
         guard let tokenizer = model.tokenizer else { return -99 }
-        let orderedIds = DictationQwenDecoding.caseVariantStartTokens(for: text, greedyFirstToken: firstToken) {
+        let orderedIds = DictationQwenDecoding.caseVariantStartTokens(
+            for: text, language: language, greedyFirstToken: firstToken
+        ) {
             tokenizer.encode(text: $0)
         }.sorted()
         let picked = logits[MLXArray(orderedIds.map(Int32.init))].asArray(Float.self)

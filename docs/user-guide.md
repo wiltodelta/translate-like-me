@@ -100,7 +100,9 @@ available. Copying is explicit and does not run the engine again.
   newer clipboard contents are preserved.
 - Insertion counts as done when the app reads the pasted text. If it does not
   within 3 seconds (a read-only field, for example), the result appears in the
-  same popup and your clipboard is restored. Dictation uses the same paste.
+  same popup and your clipboard is restored. Dictation uses the same paste,
+  matching spaces, capitalization, and trailing periods to the text around your
+  cursor when Accessibility exposes it.
 - If something goes wrong (no text selected, or the translation fails), that same
   popup shows the message instead.
 
@@ -121,8 +123,8 @@ immediately.
   Model preparation starts automatically while enabled. Downloaded models stay
   cached; switching is unavailable during recording or recognition. **Edit
   Vocabulary…** lets you list custom names or technical terms (passed as hints
-  to Qwen3-ASR and Whisper) and `spoken -> written` phrase replacements shared
-  by all speech models.
+  to Qwen3-ASR and Whisper, and matched phonetically after recognition across
+  all speech models) and `spoken -> written` phrase replacements.
 
 - **Languages** (General): up to three pairs, and none is fine too (the menu
   then offers to add one). Each row has the two languages,

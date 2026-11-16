@@ -202,17 +202,43 @@ final class DictationQwenTests: XCTestCase {
             ),
             primary
         )
+        let thaiChallenger = Candidate(language: "Thai", text: "ใช่", confidence: -0.27)
+        XCTAssertEqual(
+            DictationQwenDecoding.selectShortCandidate(
+                primary: primary, challenger: thaiChallenger, context: "Notes\nสวัสดีครับวันนี้"
+            ),
+            thaiChallenger
+        )
+        let cantoneseExtB = Candidate(language: "Cantonese", text: "𠮶個", confidence: -0.27)
+        XCTAssertEqual(
+            DictationQwenDecoding.selectShortCandidate(
+                primary: primary, challenger: cantoneseExtB, context: "Notes\n𠮶𡃁𠺢早晨"
+            ),
+            cantoneseExtB
+        )
     }
 
     func testCaseVariantStartTokensUnifyCapitalizedAndLowercaseWordInitialPaths() {
         let table: [String: [Int]] = [
             "Да.": [24_110, 999],
-            "да.": [39_490, 13]
+            "да.": [39_490, 13],
+            "İstanbul": [501],
+            "istanbul": [502],
+            "Işık": [601],
+            "ışık": [602]
         ]
         let tokens = DictationQwenDecoding.caseVariantStartTokens(for: "Да.", greedyFirstToken: 24_110) { text in
             table[text] ?? []
         }
         XCTAssertEqual(tokens, [24_110, 39_490])
+        let turkicUpper = DictationQwenDecoding.caseVariantStartTokens(
+            for: "İstanbul", language: "Turkish", greedyFirstToken: 501
+        ) { table[$0] ?? [] }
+        XCTAssertEqual(turkicUpper, [501, 502])
+        let turkicLower = DictationQwenDecoding.caseVariantStartTokens(
+            for: "ışık", language: "Turkish", greedyFirstToken: 602
+        ) { table[$0] ?? [] }
+        XCTAssertEqual(turkicLower, [601, 602])
         XCTAssertEqual(
             DictationQwenDecoding.caseVariantStartTokens(for: "   ", greedyFirstToken: 7) { _ in [99] },
             [7]

@@ -79,7 +79,7 @@ Compute-policy findings and the reproducible synthetic benchmark:
   (`DictationLanguagePrefix.reach`) it queues the next step before reading the
   current token; loading ends with a one-second silent warm-up. Use the SDK's low-energy 30-second
   chunks and fresh decoder caches, joined through `DictationTextSpacing.joinChunks`
-  so CJK and Thai chunks do not gain ASCII spaces; reaching the token/repetition backstop reports
+  so unspaced scripts (CJK, Thai, Lao, Tibetan, Myanmar and Khmer) do not gain ASCII spaces; reaching the token/repetition backstop reports
   an error, never a partial transcript. When destination, vocabulary or preceding-chunk context is
   present, Qwen runs a two-step decode on `PreprocessedAudio` sharing one `audioTower`
   (`getAudioFeatures`) pass per chunk: detect `DictationQwenDecoding.HeaderOutcome`
@@ -88,13 +88,16 @@ Compute-policy findings and the reproducible synthetic benchmark:
   without context so chunks are never dropped); on single-chunk short utterances with `>= 2`
   preferred languages and a runner-up within `8.0` logits, `ShortChunkRescorer` reuses those
   `audioFeatures` and rewinds `KVCacheSimple` when the primary candidate is non-alphanumeric or
-  uncertain (`< -0.12` case-folded word-start log-prob), keeping acoustic winners on phonetic
+  uncertain (`< -0.12` case-folded word-start log-prob, Turkic `İ`/`ı`-aware), keeping acoustic winners on phonetic
   cognates/loanwords (`arePhoneticCognates`). `DictationContext.combined` pins any user
   `Vocabulary:` header ahead of destination and chunk tails so `capped` never truncates user
-  terms. `DictationVocabulary` feeds user terms into Qwen's `Vocabulary:` header and Whisper's
+  terms. `DictationVocabulary` splits terms on `,`/`，`/`、`/`،`/`;`/`；`/`؛`, feeds user terms into Qwen's `Vocabulary:` header and Whisper's
   `DecodingOptions.promptTokens` (`< specialTokenBegin`, capped at 64 tokens; never feed window/app
-  metadata into `promptTokens`), and applies `spoken -> written` / `spoken → written` rules in one
-  longest-match word-boundary/CJK-aware pass after ASR on all three models. `DictationContext.live()` reads only the current destination snapshot
+  metadata into `promptTokens`), applies explicit `spoken -> written` / `spoken → written` rules in one
+  longest-match word-boundary, Turkic-casefolding and unspaced-script-aware pass, and then runs
+  `DictationVocabularyFuzzy` across unlocked segments to normalize split/hyphenated compounds,
+  same-script phonetic near-misses, and cross-script transliterations/inflections (preserving Korean
+  particles and common lowercase words) on all three models. `DictationContext.live()` reads only the current destination snapshot
   concurrently with speech detection and retains no user text across utterances; only
   `DictationContext.chunkContext` carries preceding
   chunks within one `>30 s` recording. Installation and offline checks:
@@ -215,8 +218,8 @@ Compute-policy findings and the reproducible synthetic benchmark:
   budget) and `dictationTarget` set `AXUIElementSetMessagingTimeout` (up to 200 ms) on every
   returned child `AXUIElement`, fail closed on secure or timed-out elements, query ranged text
   before `kAXValueAttribute` fallback (only when `kAXNumberOfCharactersAttribute` is `0...32,768`),
-  and format leading spaces in `PasteDelivery.insert` via `DictationTextSpacing.formatForInsertion`
-  without logging any UI text or titles.
+  and format mid-sentence casing, trailing auto-periods, and spaces around the caret in
+  `PasteDelivery.insert` via `DictationInsertion.format` without logging any UI text or titles.
 - `PasteDelivery` follows the shared contract in `architecture.md`
   (`SelectionWorkflow`); `insert` snapshots the clipboard just before writing. TransientType keeps clipboard managers from
   reading it. Cancellation still restores. Diagnostics log the destination
@@ -228,7 +231,8 @@ Compute-policy findings and the reproducible synthetic benchmark:
   after a tail of up to one second that catches a last word spoken while letting go
   (`DictationController.liveReleaseTail`; the output stays muted through it); it
   ends early after 300 ms of quiet, never before 200 ms, and runs in full when the
-  hold has no room floor at or below -39 dBFS (`0.35` normalized) sitting at least
+  hold has no room floor at or below -39 dBFS (tracked in unclamped dBFS down to
+  -84 dBFS while ignoring pre-signal cold-start zeros) sitting at least
   15 dB under its loudest (`docs/dictation-latency.md`),
   other input during the hold cancels. No toggle, menu-start path or dedicated cancellation key.
   Escape is not registered for dictation. Keep the hold monitor alive on press

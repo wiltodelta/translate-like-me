@@ -33,9 +33,9 @@ final class DictationAudioFile: @unchecked Sendable {
     private let trackWindowFrames: AVAudioFramePosition
     private var frames: AVAudioFramePosition = 0
     private var meter: Double = 0
-    // Release-tail inputs: the quietest and loudest 100 ms windows, and the quiet run at the end.
+    // Release-tail inputs in dBFS: the quietest and loudest 100 ms windows, and the quiet run at the end.
     private var floor = Double.infinity
-    private var peak: Double = 0
+    private var peak = DictationAudioFile.minimumDecibels
     private var quietFrames: AVAudioFramePosition = 0
     private var pendingTrackEnergy: Double = 0
     private var pendingTrackFrames: AVAudioFramePosition = 0
@@ -134,17 +134,7 @@ final class DictationAudioFile: @unchecked Sendable {
                 flags.listening.store(true, ordering: .relaxed)
             }
             meter = measurement.level
-            pendingTrackEnergy += measurement.energy
-            pendingTrackFrames += count
-            if pendingTrackFrames >= trackWindowFrames {
-                let windowLevel = DictationAudioMetrics.normalizedLevel(
-                    energy: pendingTrackEnergy,
-                    samples: Int(pendingTrackFrames) * Int(format.channelCount)
-                )
-                track(windowLevel, frames: pendingTrackFrames)
-                pendingTrackEnergy = 0
-                pendingTrackFrames = 0
-            }
+            recordTrackWindow(energy: measurement.energy, frames: count)
             if frames >= frameLimit {
                 ended = true
                 return true
@@ -153,30 +143,48 @@ final class DictationAudioFile: @unchecked Sendable {
         }
     }
 
+    private func recordTrackWindow(energy: Double, frames count: AVAudioFramePosition) {
+        pendingTrackEnergy += energy
+        pendingTrackFrames += count
+        guard pendingTrackFrames >= trackWindowFrames else { return }
+        let windowHasSignal = pendingTrackEnergy > 0
+        let windowDecibels = DictationAudioMetrics.decibels(
+            energy: pendingTrackEnergy,
+            samples: Int(pendingTrackFrames) * Int(format.channelCount),
+            floor: Self.minimumDecibels
+        )
+        track(windowDecibels, frames: pendingTrackFrames, hasSignal: windowHasSignal)
+        pendingTrackEnergy = 0
+        pendingTrackFrames = 0
+    }
+
     // How long the recording has been quiet at its end, zero while no buffer
     // was quiet enough below the loudest to tell speech from the room.
     var trailingQuiet: TimeInterval {
         lock.withLock {
-            guard floor <= Self.maximumFloor, peak - floor >= Self.contrast else { return 0 }
+            guard floor <= Self.maximumFloorDecibels, peak - floor >= Self.contrastDecibels else { return 0 }
             return Double(quietFrames) / format.sampleRate
         }
     }
 
-    // Levels run 0...1 over 60 dB: quiet is within 9 dB of a room floor at or
-    // below -39 dBFS, which must sit at least 15 dB under the peak. Mid-speech
-    // consonants above -39 dBFS cannot set the floor and clip word endings, and
-    // the first buffer never sets it because it can hold start-up silence.
-    private static let margin = 0.15
-    private static let contrast = 0.25
-    private static let maximumFloor = 0.35
+    // Unclamped down to -84 dBFS so quiet rooms (-78...-62 dBFS) and quiet headsets
+    // still preserve speech-over-room contrast instead of collapsing into -60 dBFS.
+    // Mid-speech consonants above -39 dBFS cannot set the floor, and pre-signal
+    // digital zeros (such as AirPods cold-start buffers) are ignored.
+    private static let minimumDecibels: Double = -84
+    private static let marginDecibels: Double = 9
+    private static let contrastDecibels: Double = 15
+    private static let maximumFloorDecibels: Double = -39
 
-    private func track(_ level: Double, frames count: AVAudioFramePosition) {
-        peak = max(peak, level)
-        if frames > count, level <= Self.maximumFloor, level < floor {
+    private func track(_ decibels: Double, frames count: AVAudioFramePosition, hasSignal: Bool) {
+        guard hasSignal || peak > Self.minimumDecibels else { return }
+        peak = max(peak, decibels)
+        if frames > count, decibels <= Self.maximumFloorDecibels, decibels < floor,
+           hasSignal || !floor.isFinite {
             // A lower floor starts the run again: earlier buffers were judged against a louder one.
-            floor = level
+            floor = decibels
             quietFrames = count
-        } else if level > floor + Self.margin {
+        } else if decibels > floor + Self.marginDecibels {
             quietFrames = 0
         } else {
             quietFrames += count

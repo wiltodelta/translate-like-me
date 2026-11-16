@@ -268,4 +268,19 @@ final class LanguagesTests: XCTestCase {
         XCTAssertTrue(prompt.contains("if the input is Russian, the output is Portuguese (Brazil)"))
         XCTAssertTrue(prompt.contains("A third-language input is never translated into Portuguese (Brazil)."))
     }
+
+    func testEveryAvailableSystemLocaleAndLegacyTagResolvesAndTurkicEchoesAreDetected() {
+        for identifier in Locale.availableIdentifiers {
+            guard Locale.Components(identifier: identifier).languageComponents.languageCode != nil else { continue }
+            XCTAssertNotNil(Languages.code(forPreferred: identifier), "Unmapped system locale: \(identifier)")
+        }
+        XCTAssertEqual(Languages.code(forPreferred: "tl-PH"), "fil")
+        XCTAssertEqual(Languages.code(forPreferred: "tl"), "fil")
+        XCTAssertEqual(Languages.code(forPreferred: "pa-PK"), "pa-Arab")
+        XCTAssertEqual(Languages.code(forPreferred: "pa_Aran_PK"), "pa-Arab")
+        XCTAssertEqual(Languages.code(forPreferred: "ks"), "ks-Arab")
+        XCTAssertTrue(Translator.isEcho("İstanbul", of: "istanbul"))
+        XCTAssertTrue(Translator.isEcho("ışık", of: "Işık"))
+        XCTAssertFalse(Translator.isEcho("Merhaba", of: "Hello"))
+    }
 }

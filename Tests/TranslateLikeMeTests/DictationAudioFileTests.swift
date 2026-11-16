@@ -273,6 +273,30 @@ final class DictationAudioFileTests: XCTestCase {
         }
     }
 
+    func testTrailingQuietDetectsQuietHeadsetSpeechBelowMinus60dBFSFloorAndIgnoresColdStartZeros() throws {
+        let url = temporaryFile()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1))
+        let capture = try DictationAudioFile(url: url, format: format)
+        let coldZeros = try buffer(format: format, frames: 1_600, value: 0)
+        // Quiet headset speech (~ -46 dBFS) over a quiet room (~ -74 dBFS), where
+        // -60 dBFS meter clamping previously collapsed room contrast below 15 dB.
+        let quietSpeech = try buffer(format: format, frames: 1_600, value: 0.005)
+        let quietRoom = try buffer(format: format, frames: 1_600, value: 0.000_2)
+        for _ in 0..<5 { XCTAssertNil(capture.append(coldZeros)) }
+        XCTAssertEqual(capture.trailingQuiet, 0, "Cold-start zeros before speech must not set a floor")
+        XCTAssertNil(capture.append(quietSpeech))
+        XCTAssertNil(capture.append(quietSpeech))
+        XCTAssertEqual(capture.trailingQuiet, 0)
+        XCTAssertNil(capture.append(quietRoom))
+        XCTAssertEqual(capture.trailingQuiet, 0.1, accuracy: 0.001)
+        XCTAssertNil(capture.append(coldZeros))
+        XCTAssertEqual(capture.trailingQuiet, 0.2, accuracy: 0.001)
+        XCTAssertNil(capture.append(quietRoom))
+        XCTAssertEqual(capture.trailingQuiet, 0.3, accuracy: 0.001)
+        try capture.finish()
+    }
+
     private func temporaryFile() -> URL {
         FileManager.default.temporaryDirectory.appendingPathComponent("tlm-audio-test-\(UUID().uuidString).wav")
     }

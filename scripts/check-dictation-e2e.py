@@ -138,17 +138,21 @@ AX_HELPER_SWIFT = textwrap.dedent(
             textView = nil
             textField = nil
             noCountView = nil
-            switch mode {
+            let parts = mode.split(separator: "@", maxSplits: 1)
+            let kind = String(parts[0])
+            let customCaret = parts.count == 2 ? Int(parts[1]) : nil
+            switch kind {
             case "textfield", "secure":
                 let rect = NSRect(x: 0, y: 0, width: 560, height: 32)
-                let field = mode == "secure" ? NSSecureTextField(frame: rect) : NSTextField(frame: rect)
+                let field = kind == "secure" ? NSSecureTextField(frame: rect) : NSTextField(frame: rect)
                 field.isEditable = true
                 field.isSelectable = true
                 field.stringValue = text
                 window.contentView = field
                 _ = window.makeFirstResponder(field)
                 if let editor = field.currentEditor() as? NSTextView {
-                    editor.selectedRange = NSRange(location: editor.string.utf16.count, length: 0)
+                    let location = min(customCaret ?? editor.string.utf16.count, editor.string.utf16.count)
+                    editor.selectedRange = NSRange(location: location, length: 0)
                 }
                 textField = field
             case "large":
@@ -166,7 +170,8 @@ AX_HELPER_SWIFT = textwrap.dedent(
                 _ = window.makeFirstResponder(custom)
                 noCountView = custom
             default:
-                installTextView(text, caretOffset: text.utf16.count)
+                let location = min(customCaret ?? text.utf16.count, text.utf16.count)
+                installTextView(text, caretOffset: location)
             }
         }
 

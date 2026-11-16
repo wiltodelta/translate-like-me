@@ -128,13 +128,16 @@ enum Languages {
     // default ("sr" is Cyrillic).
     static func code(forPreferred identifier: String) -> String? {
         let tag = identifier.replacingOccurrences(of: "_", with: "-")
-        return longestListedPrefix(of: tag)
-            ?? longestListedPrefix(of: Locale.Language(identifier: tag).maximalIdentifier)
-            ?? longestListedPrefix(of: tag, usingLegacyDefaults: true)
+        if let direct = longestListedPrefix(of: tag) { return direct }
+        let canonical = Locale.canonicalLanguageIdentifier(from: tag)
+        if canonical != tag, let canonicalMatch = longestListedPrefix(of: canonical) { return canonicalMatch }
+        return longestListedPrefix(of: Locale.Language(identifier: canonical).maximalIdentifier)
+            ?? longestListedPrefix(of: canonical, usingLegacyDefaults: true)
     }
 
     private static func longestListedPrefix(of tag: String, usingLegacyDefaults: Bool = false) -> String? {
-        let parts = tag.split(separator: "-")
+        // Nastaliq (`Aran`) is folded into `Arab` in `all` (`pa-Arab`, `ks-Arab`).
+        let parts = tag.split(separator: "-").map { $0 == "Aran" ? "Arab" : String($0) }
         for count in stride(from: parts.count, through: 1, by: -1) {
             // Infer script from the region before falling back to legacy zh/pt defaults.
             let code = parts.prefix(count).joined(separator: "-")

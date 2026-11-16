@@ -63,8 +63,9 @@ struct FakePasteAccess: SelectionAccess {
         if state.withLock({ $0.cancelOnDestination }) { withUnsafeCurrentTask { $0?.cancel() } }
         return state.withLock { $0.destination }
     }
-    func dictationTarget() -> (pid: pid_t, beforeCaret: Character?)? {
-        destination().map { ($0, state.withLock { $0.beforeCaret }) }
+    func dictationTarget() -> DictationInsertionTarget? {
+        let context = DictationInsertionContext(beforeCaret: state.withLock { $0.beforeCaret })
+        return destination().map { DictationInsertionTarget(pid: $0, context: context) }
     }
     func copySelection() -> CopiedSelection {
         state.withLock {

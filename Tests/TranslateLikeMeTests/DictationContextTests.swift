@@ -104,6 +104,11 @@ final class DictationContextTests: XCTestCase {
         XCTAssertEqual(DictationTextSpacing.joinChunks(["今日は。", "明日も。"]), "今日は。明日も。")
         XCTAssertEqual(DictationTextSpacing.joinChunks(["First.", "Второе."]), "First. Второе.")
         XCTAssertEqual(DictationTextSpacing.joinChunks(["안녕하세요.", "반갑습니다."]), "안녕하세요. 반갑습니다.")
+        XCTAssertEqual(DictationTextSpacing.joinChunks(["ສະບາຍດີ", "ມື້ນີ້"]), "ສະບາຍດີມື້ນີ້")
+        XCTAssertEqual(DictationTextSpacing.joinChunks(["សួស្តី", "ថ្ងៃនេះ"]), "សួស្តីថ្ងៃនេះ")
+        XCTAssertEqual(DictationTextSpacing.joinChunks(["မင်္ဂလာပါ", "ဒီနေ့"]), "မင်္ဂလာပါဒီနေ့")
+        XCTAssertEqual(DictationTextSpacing.joinChunks(["བཀྲ་ཤིས་", "བདེ་ལེགས།"]), "བཀྲ་ཤིས་བདེ་ལེགས།")
+        XCTAssertEqual(DictationTextSpacing.joinChunks(["ﾃｽﾄ", "ｶﾅ"]), "ﾃｽﾄｶﾅ")
     }
 
     func testQwenHeaderOutcomeDistinguishesSupportedLanguageNoSpeechAndFallback() {

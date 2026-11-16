@@ -13,13 +13,13 @@ protocol PasteAccess: Sendable {
     // The process that may receive the text now, or nil: no focused process, a
     // secure text field, or a translation whose context changed.
     func destination() -> pid_t?
-    func dictationTarget() -> (pid: pid_t, beforeCaret: Character?)?
+    func dictationTarget() -> DictationInsertionTarget?
     func paste(_ text: String, to pid: pid_t, ifUnchangedSince mark: Int) -> PromisedPaste?
 }
 
 extension PasteAccess {
-    func dictationTarget() -> (pid: pid_t, beforeCaret: Character?)? {
-        destination().map { ($0, nil) }
+    func dictationTarget() -> DictationInsertionTarget? {
+        destination().map { DictationInsertionTarget(pid: $0) }
     }
 }
 
@@ -38,15 +38,18 @@ struct PasteDelivery<Access: PasteAccess>: Sendable {
     var pause: @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) }
 
     // Dictation: the clipboard is snapshotted just before writing.
-    func insert(_ text: String) async throws -> Bool {
+    func insert(_ text: String, vocabulary: DictationVocabulary = .empty,
+                languageIdentifiers: [String] = []) async throws -> Bool {
         try Task.checkCancellation()
         guard let target = access.dictationTarget() else { return false }
         try Task.checkCancellation()
-        let spaced = DictationTextSpacing.formatForInsertion(text, beforeCaret: target.beforeCaret)
+        let formatted = DictationInsertion.format(text, context: target.context,
+                                                  vocabulary: vocabulary,
+                                                  languageIdentifiers: languageIdentifiers)
         let mark = access.changeCount
         let snapshot = access.snapshot()
         try Task.checkCancellation()
-        return try await deliver(spaced, to: target.pid, restoring: snapshot, ifUnchangedSince: mark)
+        return try await deliver(formatted, to: target.pid, restoring: snapshot, ifUnchangedSince: mark)
     }
 
     // Pastes once into the current destination, then restores `original` unless

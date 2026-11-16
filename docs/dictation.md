@@ -118,6 +118,12 @@ marker-only output and mixed-language text. The regressions failed before the
 filter was added. This verifies output cleanup, not why a particular recording
 caused the model to emit the annotation.
 
+At insertion time (`DictationInsertion.format`), bounded 24-unit UTF-16 slices
+before and after the caret adapt spacing, mid-sentence capitalization, and
+single-clause trailing auto-periods across scripts via Unicode scalar properties
+without touching sentence starts, outline markers, acronyms, vocabulary terms,
+proper names, or German nouns.
+
 Before preparation, the app checks the cache volume for at least 8 GB free.
 This is a conservative preparation budget, not a measured universal Core ML
 requirement. Earlier compilation on an almost-full disk terminated the process
@@ -135,9 +141,12 @@ reloading in parallel with speech (`download: false`), and after release, draine
 audio is finalized before awaiting model readiness or recognition. `DictationVocabulary`
 (`Settings.dictationVocabulary`, edited via **Edit Vocabulary…** in Settings > Dictation)
 passes custom terms to Qwen's pinned `Vocabulary:` prompt header and Whisper's
-`DecodingOptions.promptTokens` (`< specialTokenBegin`, up to 64 tokens) and applies
+`DecodingOptions.promptTokens` (`< specialTokenBegin`, up to 64 tokens), applies
 `spoken -> written` / `spoken → written` phrase replacements in a single longest-match
-pass after recognition on both models.
+pass (with Turkic `İ`/`ı` casefolding and unspaced-script matching across CJK, Thai,
+Lao, Tibetan, Myanmar, and Khmer), and normalizes split/hyphenated compounds,
+phonetic homophones, and cross-script transliterations or inflections via
+`DictationVocabularyFuzzy` across all three models.
 Interrupted first preparation restarts after the cancelled task unwinds. The
 controller stays preparing until assets are ready; termination suppresses that retry.
 Timed two-minute eviction was removed

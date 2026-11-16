@@ -11,12 +11,14 @@ struct DictationVocabulary: Sendable, Equatable {
         let written: String
         fileprivate let requiresLeadingBoundary: Bool
         fileprivate let requiresTrailingBoundary: Bool
+        fileprivate let hasTurkicDot: Bool
 
         init(spoken: String, written: String) {
             self.spoken = spoken
             self.written = written
             requiresLeadingBoundary = spoken.first.map(DictationVocabulary.requiresWordBoundary) ?? false
             requiresTrailingBoundary = spoken.last.map(DictationVocabulary.requiresWordBoundary) ?? false
+            hasTurkicDot = DictationVocabulary.containsTurkicDot(spoken)
         }
     }
 
@@ -25,12 +27,15 @@ struct DictationVocabulary: Sendable, Equatable {
     static let maxTermLength = 80
     static let maxPromptCharacters = 200
     static let maxWhisperTokens = 64
+    static let turkicLocale = Locale(identifier: "tr")
+    private static let termSeparators: Set<Character> = [",", "，", "、", "،", ";", "；", "؛"]
     private static let cache = OSAllocatedUnfairLock<(raw: String, parsed: DictationVocabulary)>(
         initialState: ("", .empty)
     )
 
     let terms: [String]
     let replacements: [Replacement]
+    let fuzzyTerms: [VocabularyFuzzyTerm]
     let summary: String
 
     static func cached(for raw: String) -> DictationVocabulary {
@@ -51,7 +56,7 @@ struct DictationVocabulary: Sendable, Equatable {
         func addTerm(_ candidate: String) -> String? {
             let clean = DictationContext.sanitized(candidate)
             guard !clean.isEmpty, clean.count <= Self.maxTermLength else { return nil }
-            let key = clean.lowercased()
+            let key = Self.caseKey(clean)
             guard seenTerms.insert(key).inserted, parsedTerms.count < Self.maxTerms else { return nil }
             parsedTerms.append(clean)
             return clean
@@ -61,7 +66,7 @@ struct DictationVocabulary: Sendable, Equatable {
             let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !line.isEmpty else { continue }
             if let pair = Self.parseReplacement(line) {
-                let spokenKey = pair.spoken.lowercased()
+                let spokenKey = Self.caseKey(pair.spoken)
                 if seenSpoken.insert(spokenKey).inserted {
                     parsedReplacements.append(pair)
                     summaryEntries.append("\(pair.spoken) → \(pair.written)")
@@ -75,15 +80,21 @@ struct DictationVocabulary: Sendable, Equatable {
         }
 
         terms = parsedTerms
-        replacements = parsedReplacements.enumerated()
+        fuzzyTerms = Self.sortedLongestFirst(parsedTerms.compactMap(VocabularyFuzzyTerm.init(term:))) {
+            $0.collapsedKey.count
+        }
+        replacements = Self.sortedLongestFirst(parsedReplacements) { $0.spoken.count }
+        summary = summaryEntries.joined(separator: ", ")
+    }
+
+    private static func sortedLongestFirst<Element>(_ items: [Element], by length: (Element) -> Int) -> [Element] {
+        items.enumerated()
             .sorted { lhs, rhs in
-                if lhs.element.spoken.count != rhs.element.spoken.count {
-                    return lhs.element.spoken.count > rhs.element.spoken.count
-                }
-                return lhs.offset < rhs.offset
+                let leftLength = length(lhs.element)
+                let rightLength = length(rhs.element)
+                return leftLength != rightLength ? leftLength > rightLength : lhs.offset < rhs.offset
             }
             .map(\.element)
-        summary = summaryEntries.joined(separator: ", ")
     }
 
     var isEmpty: Bool { terms.isEmpty && replacements.isEmpty }
@@ -116,37 +127,65 @@ struct DictationVocabulary: Sendable, Equatable {
     }
 
     func applyReplacements(to text: String) -> String {
-        guard !replacements.isEmpty, !text.isEmpty else { return text }
+        guard !isEmpty, !text.isEmpty else { return text }
+        guard !replacements.isEmpty else {
+            return DictationVocabularyFuzzy.apply(terms: fuzzyTerms, to: text)
+        }
         let nsText = text as NSString
         let allRequireLeadingBoundary = replacements.allSatisfy(\.requiresLeadingBoundary)
         var output = ""
         output.reserveCapacity(text.count)
+        var unlockedStart = text.startIndex
         var index = text.startIndex
         var utf16Offset = 0
+        func flushUnlocked(upTo end: String.Index) {
+            guard unlockedStart < end else { return }
+            let segment = String(text[unlockedStart..<end])
+            if fuzzyTerms.isEmpty {
+                output.append(segment)
+            } else {
+                let midSentence = DictationInsertion.continuesSentence(
+                    in: DictationInsertionContext(beforeSlice: output)
+                )
+                output.append(DictationVocabularyFuzzy.apply(
+                    terms: fuzzyTerms, to: segment, startsMidSentence: midSentence
+                ))
+            }
+        }
         while index < text.endIndex {
             let previousWasWord = index > text.startIndex && Self.isWordCharacter(text[text.index(before: index)])
             if !(previousWasWord && allRequireLeadingBoundary),
                let matched = matchAt(index, utf16Offset: utf16Offset, previousWasWord: previousWasWord,
                                      in: text, nsText: nsText) {
+                flushUnlocked(upTo: index)
                 output.append(matched.written)
                 index = matched.upperBound
+                unlockedStart = index
                 utf16Offset = matched.nextUTF16Offset
             } else {
-                let character = text[index]
-                output.append(character)
-                utf16Offset += character.utf16.count
+                utf16Offset += text[index].utf16.count
                 index = text.index(after: index)
             }
         }
+        if unlockedStart == text.startIndex {
+            return fuzzyTerms.isEmpty ? text : DictationVocabularyFuzzy.apply(terms: fuzzyTerms, to: text)
+        }
+        flushUnlocked(upTo: text.endIndex)
         return output
     }
 
     private func matchAt(_ index: String.Index, utf16Offset: Int, previousWasWord: Bool,
                          in text: String, nsText: NSString) -> Match? {
         let searchRange = NSRange(location: utf16Offset, length: nsText.length - utf16Offset)
+        let current = text[index]
+        let currentIsTurkic = current == "İ" || current == "ı"
         for rule in replacements {
             if rule.requiresLeadingBoundary && previousWasWord { continue }
-            let found = nsText.range(of: rule.spoken, options: [.anchored, .caseInsensitive], range: searchRange)
+            var found = nsText.range(of: rule.spoken, options: [.anchored, .caseInsensitive], range: searchRange)
+            if found.location == NSNotFound, rule.hasTurkicDot || currentIsTurkic {
+                found = nsText.range(of: rule.spoken, options: [.anchored, .caseInsensitive],
+                                     range: searchRange, locale: Self.turkicLocale)
+            }
             guard found.location == utf16Offset, found.length > 0 else { continue }
             let endUTF16 = text.utf16.index(index, offsetBy: found.length)
             guard let upper = endUTF16.samePosition(in: text),
@@ -159,12 +198,20 @@ struct DictationVocabulary: Sendable, Equatable {
         return nil
     }
 
-    fileprivate static func requiresWordBoundary(_ character: Character) -> Bool {
+    static func requiresWordBoundary(_ character: Character) -> Bool {
         isWordCharacter(character) && !DictationTextSpacing.isScriptWithoutWordSpaces(character)
     }
 
-    private static func isWordCharacter(_ character: Character) -> Bool {
+    static func isWordCharacter(_ character: Character) -> Bool {
         character.isLetter || character.isNumber
+    }
+
+    static func containsTurkicDot(_ value: String) -> Bool {
+        value.contains("İ") || value.contains("ı")
+    }
+
+    static func caseKey(_ value: String) -> String {
+        containsTurkicDot(value) ? value.lowercased(with: turkicLocale) : value.lowercased()
     }
 
     private static func parseReplacement(_ line: String) -> Replacement? {
@@ -180,6 +227,6 @@ struct DictationVocabulary: Sendable, Equatable {
     }
 
     private static func splitTerms(_ line: String) -> [String] {
-        line.split { [",", "，", "、", ";"].contains($0) }.map(String.init)
+        line.split(whereSeparator: termSeparators.contains).map(String.init)
     }
 }

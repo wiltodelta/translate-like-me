@@ -61,10 +61,13 @@ enum Translator {
     }
 
     static func isEcho(_ result: String, of text: String) -> Bool {
-        let normalize = { (value: String) in
-            value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let lhs = result.trimmingCharacters(in: .whitespacesAndNewlines)
+        let rhs = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if lhs.caseInsensitiveCompare(rhs) == .orderedSame { return true }
+        guard DictationVocabulary.containsTurkicDot(lhs) || DictationVocabulary.containsTurkicDot(rhs) else {
+            return false
         }
-        return normalize(result) == normalize(text)
+        return lhs.compare(rhs, options: .caseInsensitive, locale: DictationVocabulary.turkicLocale) == .orderedSame
     }
 
     // Rewrites rough notes into a finished message (Rewrite.systemPrompt).

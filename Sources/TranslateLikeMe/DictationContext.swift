@@ -105,10 +105,22 @@ enum DictationContext {
 
     // `selection` uses UTF-16 code units, matching Accessibility's CFRange contract.
     static func characterBeforeCaret(in value: String, selection: NSRange) -> Character? {
-        guard selection.length == 0, selection.location > 0,
-              let caret = scalarBoundary(at: selection.location, in: value),
-              caret > value.startIndex else { return nil }
-        return value[value.index(before: caret)]
+        insertionContext(in: value, selection: selection).beforeCaret
+    }
+
+    static func insertionContext(in value: String, selection: NSRange,
+                                 limit: Int = DictationInsertionContext.sliceLimit) -> DictationInsertionContext {
+        guard selection.length == 0, selection.location >= 0,
+              let caret = scalarBoundary(at: selection.location, in: value) else {
+            return DictationInsertionContext()
+        }
+        let beforePrefix = value[..<caret]
+        let beforeSuffix = beforePrefix.suffix(limit)
+        let beforeSlice = String(beforeSuffix)
+        let afterSlice = String(value[caret...].prefix(limit))
+        let completeLine = beforeSuffix.startIndex == value.startIndex || beforeSuffix.contains(where: \.isNewline)
+        return DictationInsertionContext(beforeSlice: beforeSlice, afterSlice: afterSlice,
+                                         hasCompleteLinePrefix: completeLine)
     }
 
     static func surroundingText(in value: String, selection: NSRange) -> String? {
@@ -146,10 +158,6 @@ enum DictationContext {
 }
 
 enum DictationTextSpacing {
-    private static let attachedPrefixes: Set<Character> = [
-        "(", "[", "{", "<", "\"", "'", "«", "“", "‘", "/", "\\", "-", "–", "—", "@", "#", "$"
-    ]
-
     static func joinChunks(_ chunks: [String]) -> String {
         var combined = ""
         for raw in chunks {
@@ -165,23 +173,17 @@ enum DictationTextSpacing {
     }
 
     static func formatForInsertion(_ text: String, beforeCaret: Character?) -> String {
-        guard let beforeCaret, let first = text.first,
-              needsLeadingSpace(after: beforeCaret, before: first) else { return text }
-        return " " + text
-    }
-
-    static func needsLeadingSpace(after previous: Character, before next: Character) -> Bool {
-        guard !previous.isWhitespace, !attachedPrefixes.contains(previous),
-              !isScriptWithoutWordSpaces(previous), !isScriptWithoutWordSpaces(next) else { return false }
-        return next.isLetter || next.isNumber
+        DictationInsertion.format(text, context: DictationInsertionContext(beforeCaret: beforeCaret))
     }
 
     static func isScriptWithoutWordSpaces(_ character: Character) -> Bool {
         character.unicodeScalars.contains { scalar in
             switch scalar.value {
-            case 0x3000...0x30FF, 0x3400...0x4DBF, 0x4E00...0x9FFF,
-                 0xF900...0xFAFF, 0xFF01...0xFF60, 0x20000...0x2CEAF,
-                 0x0E00...0x0E7F: // CJK ideographs/kana/fullwidth punctuation and Thai
+            case 0x3000...0x30FF, 0x31F0...0x31FF, 0x3400...0x4DBF, 0x4E00...0x9FFF,
+                 0xF900...0xFAFF, 0xFF01...0xFF60, 0xFF61...0xFF9F,
+                 0x20000...0x2CEAF, 0x30000...0x323AF, // CJK ideographs, kana, halfwidth/fullwidth forms
+                 0x0E00...0x0EFF, 0x0F00...0x0FFF,     // Thai, Lao, Tibetan
+                 0x1000...0x109F, 0x1780...0x17FF, 0x19E0...0x19FF: // Myanmar, Khmer
                 return true
             default:
                 return false
