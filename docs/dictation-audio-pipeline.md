@@ -41,8 +41,8 @@ flowchart TD
     B --> C[Native Float32 tap and first-signal sink]
     C --> D[Locked native-rate multichannel WAV]
     D --> E[Stable channel selection and finite 16 kHz conversion]
-    E --> F[Silero speech-presence gate]
-    F --> G[Minimum length and quiet tail]
+    E --> F[Silero speech gate and collar bounds]
+    F --> G[Engine trim, 1 s floor and Whisper tail]
     G --> H{Selected recognizer}
     H --> I[Qwen features, language prefix, greedy decoding]
     H --> J[Whisper features, language detection, timestamp decoding]
@@ -58,9 +58,9 @@ flowchart TD
 | Startup and stop | Worker serializes operations, bounds pre-signal restarts, rejects interruptions after signal, drains before recognition | A PCM buffer or first nonzero sample is not proof of stable Bluetooth readiness |
 | Native PCM | `DictationAudioFile` writes Float32 at the tap rate/channel count, preserves channel samples, rejects late writes | Before this candidate it ignored sample times and accepted nonfinite samples |
 | Mono and rate conversion | `DictationAudioLoader`, stable channel chosen by non-DC energy, high-quality finite AVAudioConverter drain | The original SDK behavior is retained only as a benchmark baseline |
-| Speech gate | Silero state resets per clip, scans until speech is found and returns a Boolean | It neither denoises nor repairs speech; it does not trim or rewrite the input |
-| Model input | Both receive mono 16 kHz, at least one second, with 0.5 s trailing silence | Synthetic correctness does not establish real-input quality |
-| Qwen | Fresh decoder cache per chunk, language preference only before transcript text, bounded greedy decoding | Previous error merged repeated-token and total-token limits |
+| Speech gate | Silero state resets per clip, scans all 256 ms windows, and returns active speech samples plus 400 ms outer collar bounds | It neither denoises nor repairs speech |
+| Model input | Both receive mono 16 kHz of at least one second; Qwen trims outer dead air around speech without a trailing boundary tail, while Whisper trims >= 1 s excess silence and appends 0.5 s trailing silence | Synthetic correctness does not establish real-input quality |
+| Qwen | Fresh decoder cache per chunk, language preference (with short-clip `language None` margin preservation and shared-prefix candidate rescoring) before delivery, bounded greedy decoding | Previous error merged repeated-token and total-token limits |
 | Whisper | Verified pinned assets, explicit speech task and timestamp decoding | A completed decode can still substitute words |
 | Delivery | Text cleanup and paste follow recognition; logs verify clipboard consumption | This stage cannot repair recognition errors; successful paste is not accuracy |
 

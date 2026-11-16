@@ -203,36 +203,43 @@ actor DictationEngine: DictationRecognizing {
             let gainText = String(format: "%.2f", normalized.gain)
             recognitionLog.notice("Dictation quiet audio normalized: gain=\(gainText, privacy: .public)")
         }
-        guard let bounds = try speechDetector.speechBounds(in: samples) else {
+        guard let speech = try speechDetector.detectSpeech(in: samples) else {
             recognitionLog.notice("Dictation decoding skipped: speech detector rejected the audio")
             return ""
         }
-        if samples.count - bounds.count >= 16_000 { samples = Array(samples[bounds]) }
+        let isShort = speech.activeSamples <= DictationLanguagePreference.shortSpeechSamples
+        if qwen != nil || samples.count - speech.bounds.count >= 16_000 {
+            samples = Array(samples[speech.bounds])
+        }
         if samples.count < 16_000 { samples += Array(repeating: 0, count: 16_000 - samples.count) }
         // Whisper can omit a short utterance that ends at the buffer boundary.
         // Provide a trailing quiet tail after checking the complete clip for speech.
-        samples += Array(repeating: 0, count: 8_000)
+        if qwen == nil { samples += Array(repeating: 0, count: 8_000) }
         try Task.checkCancellation()
-        return try await recognize(samples, contextTask: contextTask, vocabulary: activeVocabulary)
+        return try await recognize(samples, isShortUtterance: isShort,
+                                   contextTask: contextTask, vocabulary: activeVocabulary)
     }
 
-    private func recognize(_ samples: [Float], contextTask: Task<String, Never>?,
+    private func recognize(_ samples: [Float], isShortUtterance: Bool, contextTask: Task<String, Never>?,
                            vocabulary: DictationVocabulary) async throws -> String {
         let preference = DictationLanguagePreference(identifiers: await languageIdentifiers())
         let cleaned: String
         if let qwen {
             let context = await contextTask?.value ?? ""
             let hasContext = !context.isEmpty || !vocabulary.glossaryPrompt.isEmpty
-            recognitionLog.notice("Dictation Qwen decoding started: contextual=\(hasContext)")
-            let raw = try await qwen.transcribe(samples, preference: preference,
-                                                context: context, vocabulary: vocabulary)
+            recognitionLog.notice(
+                "Dictation Qwen decoding started: contextual=\(hasContext), short=\(isShortUtterance)"
+            )
+            let raw = try await qwen.transcribe(samples, preference: preference, context: context,
+                                                vocabulary: vocabulary, isShortUtterance: isShortUtterance)
             try Task.checkCancellation()
             cleaned = Self.cleanedTranscript(raw)
         } else {
             guard let kit else { throw DictationError.notReady }
             let decoder = (kit.textDecoder as? DictationWhisperLanguage)?.base ?? (kit.textDecoder as? TextDecoder)
             guard let decoder else { throw DictationError.notReady }
-            kit.textDecoder = DictationWhisperLanguage(base: decoder, preference: preference)
+            kit.textDecoder = DictationWhisperLanguage(base: decoder, preference: preference,
+                                                       isShortUtterance: isShortUtterance)
             let promptTokens = vocabulary.whisperPromptTokens(using: kit.tokenizer)
             // Timestamp tokens let Whisper resume at the last complete segment,
             // rather than dropping words across fixed 30-second window boundaries.
@@ -260,7 +267,7 @@ actor DictationEngine: DictationRecognizing {
             text = String(text.dropLast(silence.count)).trimmingCharacters(in: .whitespacesAndNewlines)
         }
         // Non-speech can decode to punctuation alone. Never insert that noise.
-        return text.rangeOfCharacter(from: .alphanumerics) == nil ? "" : text
+        return DictationQwenDecoding.hasAlphanumeric(text) ? text : ""
     }
 
     func unload() async {

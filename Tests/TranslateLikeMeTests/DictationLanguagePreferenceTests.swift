@@ -97,12 +97,7 @@ final class DictationLanguagePreferenceTests: XCTestCase {
     }
 
     func testQwenModifiesVocabularyAxisAndStopsBiasingAfterLanguagePrefix() throws {
-        do {
-            try DictationQwenTestSupport.configure()
-        } catch let error as CocoaError where error.code == .fileNoSuchFile &&
-            ProcessInfo.processInfo.environment["TLM_QWEN_METALLIB"] == nil {
-            throw XCTSkip("Build the dev app or set TLM_QWEN_METALLIB to run native MLX sampling")
-        }
+        try configureQwenOrSkip()
         Device.withDefaultDevice(.cpu) {
             let prefix = DictationLanguagePrefix(start: [9], preferred: [[9, 1], [9, 2]])
             // The real decoder returns batch x sequence x vocabulary, not a vocabulary vector.
@@ -124,18 +119,123 @@ final class DictationLanguagePreferenceTests: XCTestCase {
         }
     }
 
+    func testShortWhisperWeightSuppressesModerateOutsideEscapeWhilePreservingStrongOutsideSpeech() async throws {
+        let moderateOutside: [Float] = [2.4, 0, -0.5, -20]
+        let normalResult = try await sample(moderateOutside, preferred: [1, 2])
+        XCTAssertEqual(normalResult.tokens.last, 0)
+        let shortResult = try await sample(moderateOutside, preferred: [1, 2],
+                                           logWeight: DictationLanguagePreference.shortWhisperLogWeight)
+        XCTAssertEqual(shortResult.tokens.last, 1)
+        let strongOutside = try await sample([3.3, 0, -0.5, -20], preferred: [1, 2],
+                                             logWeight: DictationLanguagePreference.shortWhisperLogWeight)
+        XCTAssertEqual(strongOutside.tokens.last, 0)
+    }
+
+    func testShortQwenWeightSuppressesOutsideLanguageAndPreservesNoSpeechMargin() throws {
+        try configureQwenOrSkip()
+        let shortPrefix = DictationLanguagePrefix(
+            start: [9], preferred: [[9, 1], [9, 2]], noSpeech: [9, 3],
+            logWeight: DictationLanguagePreference.shortQwenLogWeight
+        )
+        XCTAssertEqual(shortPrefix.noSpeechBoost, log(Float(16)), accuracy: 1e-5)
+        Device.withDefaultDevice(.cpu) {
+            let moderateOutside = MLXArray([Float(3.0), 0, -0.5, -5.0]).reshaped([1, 1, 4])
+            XCTAssertEqual(select(moderateOutside, [9], shortPrefix), 1)
+            let strongOutside = MLXArray([Float(5.0), 0, -0.5, -5.0]).reshaped([1, 1, 4])
+            XCTAssertEqual(select(strongOutside, [9], shortPrefix), 0)
+            // Keep `language None` margin relative to preferred languages at exact `log(4)`.
+            let noiseWins = MLXArray([Float(0), 0, -0.5, 1.6]).reshaped([1, 1, 4])
+            XCTAssertEqual(select(noiseWins, [9], shortPrefix), 3)
+            let speechWins = MLXArray([Float(0), 0, -0.5, 1.2]).reshaped([1, 1, 4])
+            XCTAssertEqual(select(speechWins, [9], shortPrefix), 1)
+            let emptyPreferred = DictationLanguagePrefix(
+                start: [9], preferred: [], noSpeech: [9, 3],
+                logWeight: DictationLanguagePreference.shortQwenLogWeight
+            )
+            XCTAssertEqual(emptyPreferred.noSpeechBoost, 0)
+            XCTAssertEqual(emptyPreferred.reach, 0)
+            XCTAssertEqual(select(MLXArray([Float(0), -0.5, -0.7, -0.2]).reshaped([1, 1, 4]), [9], emptyPreferred), 0)
+        }
+        let multiTokenNoSpeech = DictationLanguagePrefix(
+            start: [9], preferred: [[9, 1]], noSpeech: [9, 3, 4],
+            logWeight: DictationLanguagePreference.shortQwenLogWeight
+        )
+        XCTAssertEqual(multiTokenNoSpeech.reach, 3)
+        XCTAssertEqual(multiTokenNoSpeech.noSpeechToken(after: [9, 3]), 4)
+        XCTAssertNil(multiTokenNoSpeech.noSpeechToken(after: [9, 3, 4]))
+    }
+
+    func testSpeechDetectorMeasuresActiveSamplesAndCollarBounds() async throws {
+        let cache = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/com.wiltodelta.translatelikeme.dev/Dictation")
+        let engine = DictationEngine(directory: cache)
+        let detectorRoot: URL
+        do {
+            detectorRoot = try await engine.prepareSpeechDetector(in: cache, download: false) { _ in }
+        } catch {
+            throw XCTSkip("Prepare local dev dictation models to run offline Silero span checks")
+        }
+        let detector = try DictationSpeechDetector(
+            directory: detectorRoot.appendingPathComponent(DictationEngine.detectorModel)
+        )
+        XCTAssertNil(try detector.detectSpeech(in: []))
+        let scratch = FileManager.default.temporaryDirectory.appendingPathComponent("tlm-vad-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: scratch) }
+
+        let shortClip = try synthesize("Да.", voice: "Milena", into: scratch.appendingPathComponent("da.aiff"))
+        let paddedShort = Array(repeating: Float(0), count: 24_000) + shortClip
+            + Array(repeating: Float(0), count: 24_000)
+        let shortSpan = try XCTUnwrap(detector.detectSpeech(in: paddedShort))
+        XCTAssertGreaterThan(shortSpan.activeSamples, 0)
+        XCTAssertLessThanOrEqual(shortSpan.activeSamples, DictationLanguagePreference.shortSpeechSamples)
+        XCTAssertGreaterThanOrEqual(shortSpan.bounds.lowerBound, 12_000)
+        XCTAssertLessThanOrEqual(shortSpan.bounds.upperBound, paddedShort.count - 12_000)
+        XCTAssertEqual(shortSpan.bounds, try detector.speechBounds(in: paddedShort))
+
+        let firstWord = try synthesize("Сессия.", voice: "Milena", into: scratch.appendingPathComponent("first.aiff"))
+        let nextURL = scratch.appendingPathComponent("next.aiff")
+        let secondWord = try synthesize("Продолжай.", voice: "Milena", into: nextURL)
+        let paused = firstWord + Array(repeating: Float(0), count: 12_800) + secondWord
+        let pausedSpan = try XCTUnwrap(detector.detectSpeech(in: paused))
+        XCTAssertGreaterThan(pausedSpan.activeSamples, DictationLanguagePreference.shortSpeechSamples)
+        XCTAssertGreaterThan(pausedSpan.bounds.count, pausedSpan.activeSamples + 12_000)
+    }
+
+    private func synthesize(_ text: String, voice: String, into url: URL) throws -> [Float] {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/say")
+        process.arguments = ["-v", voice, "-r", "180", "-o", url.path, text]
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            throw XCTSkip("Voice \(voice) is not installed on this Mac")
+        }
+        return try DictationAudioLoader.load(url)
+    }
+
+    private func configureQwenOrSkip() throws {
+        do {
+            try DictationQwenTestSupport.configure()
+        } catch let error as CocoaError where error.code == .fileNoSuchFile &&
+            ProcessInfo.processInfo.environment["TLM_QWEN_METALLIB"] == nil {
+            throw XCTSkip("Build the dev app or set TLM_QWEN_METALLIB to run native MLX sampling")
+        }
+    }
+
     private func select(_ logits: MLXArray, _ generated: [Int], _ prefix: DictationLanguagePrefix) -> Int {
         DictationQwen.nextToken(logits: logits, generated: generated, prefix: prefix).item(Int.self)
     }
 
-    private func sample(_ values: [Float], preferred: Set<Int>) async throws -> SamplingResult {
+    private func sample(_ values: [Float], preferred: Set<Int>,
+                        logWeight: Float = DictationLanguagePreference.logWeight) async throws -> SamplingResult {
         let logits = try MLMultiArray(shape: [1, 1, NSNumber(value: values.count)], dataType: .float16)
         for (index, value) in values.enumerated() { logits[index] = NSNumber(value: value) }
         let base = GreedyTokenSampler(temperature: 0, eotToken: 3, decodingOptions: DecodingOptions())
-        let sampler = DictationWhisperLanguageSampler(base: base, preferredTokens: preferred)
+        let sampler = DictationWhisperLanguageSampler(base: base, preferredTokens: preferred, logWeight: logWeight)
         let result = await sampler.update(tokens: [], logits: logits, logProbs: [])
         for token in preferred {
-            XCTAssertEqual(logits[token].floatValue, values[token] + DictationLanguagePreference.logWeight,
+            XCTAssertEqual(logits[token].floatValue, values[token] + logWeight,
                            accuracy: 0.01, "The real sampler must receive modified logits")
         }
         return result

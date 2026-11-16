@@ -72,10 +72,12 @@ Preparation also downloads one small, pinned Silero v6.2.1 Core ML speech detect
 from [FluidInference's conversion](https://huggingface.co/FluidInference/silero-vad-coreml/tree/b419383c55c110e2c9271fa6ee0ea83d03c70d96).
 Before speech detection, `DictationAudioGain.normalize` applies bounded gain (`<= 16x`,
 target `0.30` peak) to quiet captures (`0.003..<0.15` peak) while leaving near-zero
-floors and normal inputs untouched. Silero (`DictationSpeechDetector.speechBounds`)
-checks whether the clip contains speech and trims outer dead air only when excess
-silence reaches at least 1 s outside 400 ms speech collars, leaving internal pauses
-intact. The detector runs on
+floors and normal inputs untouched. Silero (`DictationSpeechDetector.detectSpeech`)
+checks whether the clip contains speech and measures active 256 ms speech windows
+alongside outer 400 ms collar bounds, leaving internal pauses intact. Qwen trims
+outer dead air around those 400 ms speech collars on every clip and pads sub-second
+clips to 1 s without Whisper's 500 ms boundary tail; Whisper trims outer silence
+when excess dead air reaches at least 1 s outside 400 ms speech collars. The detector runs on
 CPU and its state resets for every recording. Failures propagate as errors,
 rather than silently becoming an empty result.
 
@@ -99,8 +101,8 @@ This gate addresses observed text hallucinations on synthetic noise. WhisperKit
 hardcodes `noSpeechProb` to zero, so its advertised no-speech threshold cannot
 reject these clips. Do not treat that field as a measured probability. Keep
 timestamp decoding enabled: disabling timestamps lost part of a sentence at a
-30-second window boundary in the long synthetic clip. Short clips retain the
-quiet tail, and punctuation-only results are discarded.
+30-second window boundary in the long synthetic clip. Whisper retains the quiet
+tail on short clips, and punctuation-only results are discarded on both models.
 
 Before delivery, `DictationEngine.transcript(from:)` removes trailing
 `[BLANK_AUDIO]` annotations, including repeated annotations across result chunks.

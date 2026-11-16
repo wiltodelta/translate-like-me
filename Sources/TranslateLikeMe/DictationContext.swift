@@ -92,6 +92,17 @@ enum DictationContext {
         return combined(vocabulary: vocabulary, destination: body)
     }
 
+    // Line 0 after removing any pinned `Vocabulary:` prefix is the app/window header
+    // from `summary(destination:)`; subsequent lines carry actual editor text.
+    static func editorBody(from context: String) -> String? {
+        guard !context.isEmpty else { return nil }
+        let lines = context.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && !$0.hasPrefix(vocabularyPrefix) }
+        guard lines.count >= 2 else { return nil }
+        return lines.dropFirst().joined(separator: " ")
+    }
+
     // `selection` uses UTF-16 code units, matching Accessibility's CFRange contract.
     static func characterBeforeCaret(in value: String, selection: NSRange) -> Character? {
         guard selection.length == 0, selection.location > 0,

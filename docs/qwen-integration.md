@@ -46,10 +46,17 @@ is automatic. When ephemeral destination context (`SelectionTarget.dictationSnap
 with `<` and `>` stripped so editor text cannot form chat/ASR control tokens), custom
 vocabulary (`DictationVocabulary`, pinned at the front as `Vocabulary: ...`), or preceding
 chunk text within the same recording is available, `DictationQwen` computes `getAudioFeatures`
-once per chunk and shares those audio embeddings across both steps: it first inspects the
+once per chunk and shares those audio embeddings across passes: it first inspects the
 unconditioned header (`DictationQwenDecoding.HeaderOutcome`: `.noSpeech` returns `""`,
 `.language` decodes with that spoken language locked and sanitized context in `system`, and
-`.fallback` decodes without context). Nothing retains transcripts across utterances.
+`.fallback` decodes without context). On single-chunk short utterances (`activeSamples <= 18,432`,
+`1.152 s`), `DictationQwen` raises preferred language logits to `log(64)` while lifting
+`language None` by `log(16)` so the `log(4)` non-speech margin holds; when two or more preferred
+languages are configured, the runner-up preferred language is within `8.0` logits, and the primary
+candidate is non-alphanumeric or lexically uncertain (`< -0.12` case-folded word-start log-probability),
+`ShortChunkRescorer` rewinds its `KVCacheSimple` prefix to decode the runner-up candidate without
+re-running `audioTower` or flipping phonetic cognates/loanwords ([language detection](dictation-language-detection.md)).
+Nothing retains transcripts across utterances.
 The SDK's low-energy chunker splits long recordings around 30 seconds, with fresh
 decoder caches per chunk and `DictationTextSpacing.joinChunks` preserving script spacing.
 Earlier context-biasing notes: [local model candidates](local-model-candidates.md).

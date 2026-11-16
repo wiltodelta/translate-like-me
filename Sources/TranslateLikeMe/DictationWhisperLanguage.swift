@@ -6,10 +6,12 @@ import CoreML
 final class DictationWhisperLanguage: TextDecoding, WhisperMLModel {
     let base: TextDecoder
     let preference: DictationLanguagePreference
+    let isShortUtterance: Bool
 
-    init(base: TextDecoder, preference: DictationLanguagePreference) {
+    init(base: TextDecoder, preference: DictationLanguagePreference, isShortUtterance: Bool = false) {
         self.base = base
         self.preference = preference
+        self.isShortUtterance = isShortUtterance
     }
 
     var model: MLModel? { get { base.model } set { base.model = newValue } }
@@ -57,7 +59,10 @@ final class DictationWhisperLanguage: TextDecoding, WhisperMLModel {
         } ?? [])
         let codes = preference.resolvedCodes(supported: supported)
         let tokens = Set(codes.compactMap { tokenizer?.convertTokenToId("<|\($0)|>") })
-        let sampler = DictationWhisperLanguageSampler(base: tokenSampler, preferredTokens: tokens)
+        let weight = isShortUtterance
+            ? DictationLanguagePreference.shortWhisperLogWeight
+            : DictationLanguagePreference.logWeight
+        let sampler = DictationWhisperLanguageSampler(base: tokenSampler, preferredTokens: tokens, logWeight: weight)
         return try await base.detectLanguage(from: encoderOutput, using: decoderInputs, sampler: sampler,
                                              options: options, temperature: temperature)
     }
@@ -72,10 +77,18 @@ final class DictationWhisperLanguage: TextDecoding, WhisperMLModel {
 struct DictationWhisperLanguageSampler: TokenSampling {
     let base: any TokenSampling
     let preferredTokens: Set<Int>
+    let logWeight: Float
+
+    init(base: any TokenSampling, preferredTokens: Set<Int>,
+         logWeight: Float = DictationLanguagePreference.logWeight) {
+        self.base = base
+        self.preferredTokens = preferredTokens
+        self.logWeight = logWeight
+    }
 
     func update(tokens: [Int], logits: MLMultiArray, logProbs: [Float]) async -> SamplingResult {
         for token in preferredTokens where token >= 0 && token < logits.count {
-            logits[token] = NSNumber(value: logits[token].floatValue + DictationLanguagePreference.logWeight)
+            logits[token] = NSNumber(value: logits[token].floatValue + logWeight)
         }
         return await base.update(tokens: tokens, logits: logits, logProbs: logProbs)
     }

@@ -1,7 +1,9 @@
 # Short-utterance language detection
 
-Implementation status: a shared translation-language preference applies to
-both currently offered dictation models, Whisper large-v3-turbo and Qwen3-ASR. The earlier sections retain the research
+Implementation status: a shared translation-language preference (with stronger
+short-utterance weights on `<= 1.152 s` speech and shared-prefix candidate
+rescoring on ambiguous short Qwen clips) applies to both currently offered
+dictation models, Whisper large-v3-turbo and Qwen3-ASR. The earlier sections retain the research
 history; implementation behavior and validation are recorded below. Four-model
 measurements retain Small and Large v3 as historical evaluated configurations;
 those models have since been removed from the catalog.
@@ -481,6 +483,62 @@ has neither an assembled dev app nor an explicit library path; an explicit but
 missing library fails. CI always supplies the path and must execute this test.
 A fresh local checkout can run `./build.sh` first, or provide the kernels through
 that environment variable. No model download or microphone is needed.
+
+### Short-utterance VAD, preference weights and Qwen candidate rescoring
+
+Subsequent short-phrase triage identified three coupled causes of residual wrong-language
+substitutions on 1-3 syllable utterances (`да`, `нет`, `делай`, `ок`, `ага`, `угу`):
+
+1. **Silence dilution and Whisper tail padding on Qwen (`DictationSpeechDetector`, `DictationEngine`):**
+   `DictationEngine` previously skipped `speechBounds` trimming whenever excess silence was
+   under 1 s (`16,000` samples) and appended Whisper's `8,000`-sample (`500 ms`) boundary-workaround
+   tail even when routing to Qwen, placing a `0.4-0.7 s` utterance inside `1.5-2.0 s` of mostly
+   dead air. `DictationSpeechDetector.detectSpeech` now accumulates active 256 ms Silero speech
+   samples (`activeSamples`) alongside the outer `400 ms` collar (`bounds`, keeping internal pauses
+   intact). Qwen always trims outer dead air to `speech.bounds`, pads clips shorter than `16,000`
+   samples to 1 s, and omits Whisper's `8,000`-sample tail; Whisper preserves its `>= 1 s`
+   excess-silence trim threshold and `8,000`-sample boundary tail.
+
+2. **Short-utterance third-language suppression with `language None` margin preservation (`DictationLanguagePreference`, `DictationWhisperLanguage`, `DictationQwen`):**
+   `DictationLanguagePreference.logWeight` (`log(4)`, `+1.386` logits) leaves the relative score
+   between two configured pair languages (`ru` and `en`) unchanged while allowing clipped short
+   sounds to escape to unrelated third languages (such as Chinese, Korean or Hindi within
+   `1.4-2.8` logits). When `speech.activeSamples <= DictationLanguagePreference.shortSpeechSamples`
+   (`18,432` samples = `1.152 s`, up to four 256 ms Silero speech windows) and resolved preferred
+   languages are non-empty, Whisper uses `shortWhisperLogWeight = log(20)` (`+2.996`) and
+   single-chunk Qwen uses `shortQwenLogWeight = log(64)` (`+4.159`). Because raising spoken
+   language logits alone on Qwen would shrink the gap against `language None` on room noise,
+   `DictationLanguagePrefix` simultaneously adds `noSpeechBoost = shortQwenLogWeight - logWeight`
+   (`log(16)`) to Qwen's `language None` path, keeping the `preferred - None` margin at exact
+   `log(4)`. Strong short outside utterances (`Danke.`, `你好。`, or English `Yes.` under an
+   incomplete `["ru"]` pair) exceed those finite weights and still win, while utterances above
+   `1.152 s` of active speech retain the normal `log(4)` weight.
+
+3. **Shared-prefix non-cognate rescoring on ambiguous short Qwen clips (`DictationQwen`, `DictationQwenDecoding`):**
+   On single-chunk short clips (`shortMode`) with at least two resolved preferred languages,
+   `ShortChunkRescorer` computes `model.getAudioFeatures` once and reads the unconditioned
+   step-after-`language` logits in the same GPU evaluation as header decoding. When the detected
+   preferred language leads the runner-up preferred language by at most `8.0` logits
+   (`rescoreMarginLimit`), Qwen decodes the primary candidate from a rewindable `KVCacheSimple`
+   session (single fused prompt prefill when context is present, shared unconditioned prefix
+   otherwise) and measures case-folded word-start
+   log-probability (`caseVariantStartTokens`, summing uppercase and lowercase word-initial BPE
+   paths so Cyrillic splits like `Д` + `а` versus single-token `да` are not penalized). If the
+   primary transcript has alphanumeric characters and `confidence >= -0.12`, decoding returns
+   immediately with no challenger pass. Otherwise `ShortChunkRescorer` rewinds `KVCacheSimple`
+   to `baseOffset` and decodes the runner-up preferred language without re-running `audioTower`
+   or prompt prefill. `DictationQwenDecoding.selectShortCandidate` keeps the acoustic winner on
+   phonetic cognates and IT loanwords (`arePhoneticCognates` via Latin/diacritic-stripped
+   skeletons, preserving Russian `Коммит.`, `Пуш.`, `Ладно.`, `Стоп.`), applies a bounded
+   `±0.04` script tie-breaker from surrounding editor text only (ignoring line 0's app/window
+   header and any `Vocabulary:` line), and switches only when the challenger is alphanumeric,
+   has `confidence >= -0.90`, and beats the primary by more than `0.05`.
+
+Release-mode verification ran both `DictationEngine` paths across a 144-clip local validation corpus (108 single-voice hold, onset-cropped, context-switched, noise, boundary-pause, normal-length and third-language control clips plus 36 multi-voice colloquial short Russian/English clips across six macOS voices) under `["ru", "en"]`:
+
+- **Qwen3-ASR 1.7B 8-bit:** Spurious third-language escapes on Russian and English clips dropped to `0/144` (eliminating Chinese `啊。` on 150 ms-cropped `да` and outside escapes on short colloquial Russian clips). Corpus 1 improved from `80/108` to `82/108` exact matches and `92/108` to `94/108` language matches (recovering 100 ms-cropped `да` from `Yeah.` to `да`/`Да.` and 150 ms-cropped `делай` under Russian context from `Hey.` to Cyrillic); Corpus 2 reached `23/36` exact and `27/36` language matches (`0/36` third-language escapes, recovering `ага` from `Ag.` while preserving phonetic loanwords `Стоп.`, `Ладно.`, `Понял.`, `Push.`, `Commit.`, `Stop.`). All three synthetic noise/click clips returned `""`, all seven short and normal third-language controls (`Danke.`, `你好。`, `Commit und Push.`, `セッションを開始します。`, `Guten Morgen...`, `今天我们测试语音输入功能。`, `La cession est prête maintenant.`), both normal-length controls, both boundary-pause controls (`Сессия. Продолжай.`, `Продолжай.`), and incomplete/unsupported pair fallbacks (`["ru"]` on English `Yes.`, `["zz", "en"]` on Chinese `你好。`) passed.
+- **Whisper Large v3 Turbo:** `shortWhisperLogWeight = log(20)` deterministically eliminated both Korean `감사합니다.` escapes on 100 ms-cropped `да`, achieved `33/36` language matches (`24/36` exact, `0/36` third-language escapes) on the 36-clip multi-voice colloquial corpus, and preserved all noise (`3/3` empty), boundary-pause, normal-length and third-language controls (leaving one stochastic temperature-fallback clip on severely 150 ms-cropped `делай`).
+- **Release-mode latency (`swift test -c release --arch arm64`, 6 interleaved rounds, contended host `vm.loadavg` `17.3 -> 104.7`, GPU utilization `42% -> 65%`):** Confident short clips (`ru_privet_hold`) measured `842.6 ms` median with `shortMode` versus `842.4 ms` without (`-56.8 ms` median paired delta, adding no extra pass when `confidence >= -0.12`). Ambiguous short clips that trigger KV-cache rewind and runner-up text decoding (`ru_aga`) measured `934.4 ms` versus `753.6 ms` under that contended load without re-running `audioTower` or prompt prefill, and utterances above `1.152 s` of active speech execute the unchanged `ChunkDecoder` path.
 
 ### Re-running the runtime check
 

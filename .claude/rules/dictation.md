@@ -39,8 +39,12 @@ Compute-policy findings and the reproducible synthetic benchmark:
   `Languages.systemSuggestions` when no pair language is configured. Canonicalize
   configured and native language codes through Foundation before resolving the active
   model inventory; return the supported subset in its native spelling while keeping
-  malformed or all-unsupported identifiers unrestricted. Both runtimes apply the same finite logit
-  preference during language selection only, never a language or script ban.
+  malformed or all-unsupported identifiers unrestricted. Both runtimes apply finite logit
+  preferences during language selection (`log(4)` normally; on short utterances with
+  `activeSamples <= DictationLanguagePreference.shortSpeechSamples` = `18_432` / `1.152 s`,
+  `shortWhisperLogWeight = log(20)` on Whisper and `shortQwenLogWeight = log(64)` with
+  `noSpeechBoost = log(16)` on Qwen `language None` so the `log(4)` non-speech margin holds),
+  never a language or script ban.
   WhisperKit's separate language pass needs its sampler adapter; text logits
   filters do not reach it. Qwen matches prefixes with its active tokenizer and
   stops applying the preference before text. Native MLX sampling tests need Metal
@@ -72,7 +76,11 @@ Compute-policy findings and the reproducible synthetic benchmark:
   (`getAudioFeatures`) pass per chunk: detect `DictationQwenDecoding.HeaderOutcome`
   without context first (`.noSpeech` returns `""`, `.language` locks the spoken language with
   `DictationContext.sanitized` `<`/`>`-stripped context in `system`, and `.fallback` decodes
-  without context so chunks are never dropped); `DictationContext.combined` pins any user
+  without context so chunks are never dropped); on single-chunk short utterances with `>= 2`
+  preferred languages and a runner-up within `8.0` logits, `ShortChunkRescorer` reuses those
+  `audioFeatures` and rewinds `KVCacheSimple` when the primary candidate is non-alphanumeric or
+  uncertain (`< -0.12` case-folded word-start log-prob), keeping acoustic winners on phonetic
+  cognates/loanwords (`arePhoneticCognates`). `DictationContext.combined` pins any user
   `Vocabulary:` header ahead of destination and chunk tails so `capped` never truncates user
   terms. `DictationVocabulary` feeds user terms into Qwen's `Vocabulary:` header and Whisper's
   `DecodingOptions.promptTokens` (`< specialTokenBegin`, capped at 64 tokens; never feed window/app
@@ -95,11 +103,13 @@ Compute-policy findings and the reproducible synthetic benchmark:
   file-pattern cache check only understands directories. Ordinary reload disables
   downloading. `DictationAudioGain.normalize` applies bounded gain (`<= 16x`, target
   `0.30` peak) to quiet captures (`0.003..<0.15` peak) before VAD and recognition while
-  leaving near-zero noise floors and normal inputs untouched. Silero (`speechBounds`)
-  checks speech presence and trims outer silence only when excess dead air reaches at
-  least 1 s outside 400 ms collars, keeping internal pauses intact;
-  its recurrent state resets per recording. SDK 1.1.1 hardcodes `noSpeechProb`
-  to zero, so it cannot substitute for this gate. Keep the quiet tail for short
+  leaving near-zero noise floors and normal inputs untouched. Silero (`detectSpeech`)
+  checks speech presence and measures active speech windows alongside `400 ms` (`bounds`)
+  collars, keeping internal pauses intact; Qwen always trims outer silence around `bounds`
+  without Whisper's `8_000`-sample tail, whereas Whisper trims outer silence when excess
+  dead air reaches `>= 1 s` outside `400 ms` collars and keeps the `8_000`-sample quiet tail;
+  Silero's recurrent state resets per recording. SDK 1.1.1 hardcodes `noSpeechProb`
+  to zero, so it cannot substitute for this gate. Keep Whisper's quiet tail for short
   words and timestamp decoding for complete long-clip boundaries. Check free
   storage before preparation, since Core ML ENOSPC can terminate outside Swift.
 - `DictationSession` checks identity and phase. A queued meter callback must not

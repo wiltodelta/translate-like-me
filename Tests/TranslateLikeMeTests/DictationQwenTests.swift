@@ -131,4 +131,91 @@ final class DictationQwenTests: XCTestCase {
             XCTAssertEqual(lhs, rhs, accuracy: 1e-4)
         }
     }
+
+    func testShortCandidateRescoreSwitchesUncertainPrimaryWithoutFlippingCognatesOrNoise() {
+        typealias Candidate = DictationQwenDecoding.ShortCandidate
+        XCTAssertFalse(DictationQwenDecoding.needsChallengerRescore(
+            primary: Candidate(language: "Russian", text: "Привет.", confidence: -0.02)
+        ))
+        XCTAssertTrue(DictationQwenDecoding.needsChallengerRescore(
+            primary: Candidate(language: "Russian", text: "...", confidence: -0.01)
+        ))
+        let uncertainPrimary = Candidate(language: "English", text: "Yeah.", confidence: -0.56)
+        let russianChallenger = Candidate(language: "Russian", text: "Да.", confidence: -0.16)
+        XCTAssertTrue(DictationQwenDecoding.needsChallengerRescore(primary: uncertainPrimary))
+        XCTAssertEqual(
+            DictationQwenDecoding.selectShortCandidate(primary: uncertainPrimary, challenger: russianChallenger),
+            russianChallenger
+        )
+        for (ruLoan, enLoan) in [("Коммит.", "Commit."), ("Пуш", "Push."), ("Ладно.", "Ladna."), ("Стоп.", "Stop.")] {
+            let primary = Candidate(language: "Russian", text: ruLoan, confidence: -0.50)
+            let challenger = Candidate(language: "English", text: enLoan, confidence: -0.03)
+            XCTAssertTrue(DictationQwenDecoding.arePhoneticCognates(ruLoan, enLoan), "\(ruLoan) vs \(enLoan)")
+            XCTAssertEqual(
+                DictationQwenDecoding.selectShortCandidate(
+                    primary: primary, challenger: challenger, context: "Terminal\ngit status && git diff"
+                ),
+                primary
+            )
+        }
+        let spoken = Candidate(language: "Russian", text: "Да.", confidence: -0.70)
+        let punctuationOnly = Candidate(language: "English", text: "...", confidence: -0.01)
+        XCTAssertEqual(DictationQwenDecoding.selectShortCandidate(primary: spoken, challenger: punctuationOnly), spoken)
+        let emptyPrimary = Candidate(language: "English", text: "", confidence: -99)
+        let rescued = Candidate(language: "Russian", text: "Нет.", confidence: -0.40)
+        let weakChallenger = Candidate(language: "Russian", text: "Нет.", confidence: -1.20)
+        XCTAssertEqual(DictationQwenDecoding.selectShortCandidate(primary: emptyPrimary, challenger: rescued), rescued)
+        XCTAssertEqual(
+            DictationQwenDecoding.selectShortCandidate(primary: emptyPrimary, challenger: weakChallenger),
+            emptyPrimary
+        )
+    }
+
+    func testShortCandidateContextScriptTieBreakerIgnoresWindowHeaderAndVocabularyLine() {
+        typealias Candidate = DictationQwenDecoding.ShortCandidate
+        let primary = Candidate(language: "English", text: "The.", confidence: -0.30)
+        let nearTie = Candidate(language: "Russian", text: "Да.", confidence: -0.27)
+        XCTAssertEqual(DictationQwenDecoding.selectShortCandidate(primary: primary, challenger: nearTie), primary)
+        XCTAssertEqual(
+            DictationQwenDecoding.selectShortCandidate(
+                primary: primary, challenger: nearTie, context: "Vocabulary: Да, Привет\nСообщения — рабочий чат"
+            ),
+            primary
+        )
+        XCTAssertEqual(
+            DictationQwenDecoding.selectShortCandidate(
+                primary: primary, challenger: nearTie,
+                context: "Сообщения — рабочий чат команды разработки\nok go"
+            ),
+            primary
+        )
+        XCTAssertEqual(
+            DictationQwenDecoding.selectShortCandidate(
+                primary: primary, challenger: nearTie, context: "Slack\nПривет, проверь сборку"
+            ),
+            nearTie
+        )
+        let slightChallengerLead = Candidate(language: "Russian", text: "Да.", confidence: -0.23)
+        XCTAssertEqual(
+            DictationQwenDecoding.selectShortCandidate(
+                primary: primary, challenger: slightChallengerLead, context: "Slack\nPlease check the build"
+            ),
+            primary
+        )
+    }
+
+    func testCaseVariantStartTokensUnifyCapitalizedAndLowercaseWordInitialPaths() {
+        let table: [String: [Int]] = [
+            "Да.": [24_110, 999],
+            "да.": [39_490, 13]
+        ]
+        let tokens = DictationQwenDecoding.caseVariantStartTokens(for: "Да.", greedyFirstToken: 24_110) { text in
+            table[text] ?? []
+        }
+        XCTAssertEqual(tokens, [24_110, 39_490])
+        XCTAssertEqual(
+            DictationQwenDecoding.caseVariantStartTokens(for: "   ", greedyFirstToken: 7) { _ in [99] },
+            [7]
+        )
+    }
 }

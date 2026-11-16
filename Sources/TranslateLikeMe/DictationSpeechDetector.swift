@@ -5,6 +5,11 @@ import Foundation
 // context samples. Locate outer speech bounds with 400 ms collars while keeping
 // internal pauses intact. Owned and called only by DictationEngine's actor.
 struct DictationSpeechDetector {
+    struct SpeechSpan: Equatable, Sendable {
+        let bounds: Range<Int>
+        let activeSamples: Int
+    }
+
     static let collarSamples = 6_400
     private let model: MLModel
 
@@ -15,6 +20,10 @@ struct DictationSpeechDetector {
     }
 
     func speechBounds(in samples: [Float]) throws -> Range<Int>? {
+        try detectSpeech(in: samples)?.bounds
+    }
+
+    func detectSpeech(in samples: [Float]) throws -> SpeechSpan? {
         guard !samples.isEmpty else { return nil }
         let audio = try MLMultiArray(shape: [1, 4160], dataType: .float32)
         var hidden = try MLMultiArray(shape: [1, 128], dataType: .float32)
@@ -26,6 +35,7 @@ struct DictationSpeechDetector {
         let values = audio.dataPointer.assumingMemoryBound(to: Float.self)
         var firstSpeech: Int?
         var lastSpeechEnd = 0
+        var activeSamples = 0
         for start in stride(from: 0, to: samples.count, by: 4096) {
             try Task.checkCancellation()
             for index in 0..<64 { values[index] = start >= 64 ? samples[start - 64 + index] : 0 }
@@ -44,12 +54,15 @@ struct DictationSpeechDetector {
             }
             if probability >= 0.5 {
                 if firstSpeech == nil { firstSpeech = start }
-                lastSpeechEnd = min(samples.count, start + 4096)
+                let windowEnd = min(samples.count, start + 4096)
+                lastSpeechEnd = windowEnd
+                activeSamples += windowEnd - start
             }
             hidden = nextHidden
             cell = nextCell
         }
         guard let firstSpeech else { return nil }
-        return max(0, firstSpeech - Self.collarSamples)..<min(samples.count, lastSpeechEnd + Self.collarSamples)
+        let bounds = max(0, firstSpeech - Self.collarSamples)..<min(samples.count, lastSpeechEnd + Self.collarSamples)
+        return SpeechSpan(bounds: bounds, activeSamples: activeSamples)
     }
 }
