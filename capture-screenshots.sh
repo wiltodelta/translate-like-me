@@ -488,7 +488,7 @@ launch() {
     if [ "${CAPTURE_ONBOARDING_ONLY:-0}" = 1 ]; then
         dictation_enabled=NO
         completed_first_run=NO
-        speech_model="${CAPTURE_DICTATION_MODEL:-qwen3ASR}"
+        speech_model="${CAPTURE_DICTATION_MODEL:-fluid-speech-pro}"
     fi
     if [ "${CAPTURE_EMPTY_PAIRS:-0}" = 1 ]; then pairs_json='[]'; fi
     local arguments=(-settingsSelectedPane "$1" -provider "${3:-anthropic}" -localModel "${CAPTURE_LOCAL_MODEL:-gemma-4-12b}"

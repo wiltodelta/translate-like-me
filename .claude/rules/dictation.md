@@ -30,10 +30,9 @@ Compute-policy findings and the reproducible synthetic benchmark:
 - `DictationModel` lists Fluid Speech Pro 8-bit (`fluid-speech-pro`, 25 European
   languages, verbatim mode), Whisper large-v3-turbo (99 languages, the upstream
   model name including its version) and Qwen3-ASR 1.7B 8-bit (30 languages), in
-  coverage tie-break order. Fresh profiles select Fluid Speech Pro through 16 GiB
-  and Qwen above 16 GiB, unless `DictationModel.covering` finds another model
-  recognizes more of the suggested pair (such as Turbo for `ja/en` at 16 GiB,
-  Fluid Speech Pro for `uk/en` above 16 GiB, or Turbo for `am/en`); existing
+  coverage tie-break order. Fresh profiles select Fluid Speech Pro across all
+  memory sizes, unless `DictationModel.covering` finds another model recognizes
+  more of the suggested pair (such as Turbo for `ja/en` or `am/en`); existing
   valid choices remain authoritative. The Speech model section names pair
   languages the selected model cannot recognize and offers the better-covering
   model; Fluid Speech Pro's `fluidSpeechCodes` and Qwen's `qwenLanguages` are
@@ -219,7 +218,10 @@ Compute-policy findings and the reproducible synthetic benchmark:
   returned child `AXUIElement`, fail closed on secure or timed-out elements, query ranged text
   before `kAXValueAttribute` fallback (only when `kAXNumberOfCharactersAttribute` is `0...32,768`),
   and format mid-sentence casing, trailing auto-periods, and spaces around the caret in
-  `PasteDelivery.insert` via `DictationInsertion.format` without logging any UI text or titles.
+  `PasteDelivery.insert` via `DictationInsertion.format` without logging any UI text or titles
+  (non-English `NLTagger` `LinguisticData` assets are on-demand and absent on fresh Macs and CI
+  runners, so when `NLTagger` returns `nil` or `.otherWord` for German, lowercasing falls back to
+  `germanCommonLowercase` and keeps unrecognized German words capitalized).
 - `PasteDelivery` follows the shared contract in `architecture.md`
   (`SelectionWorkflow`); `insert` snapshots the clipboard just before writing. TransientType keeps clipboard managers from
   reading it. Cancellation still restores. Diagnostics log the destination

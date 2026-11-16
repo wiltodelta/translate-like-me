@@ -1,11 +1,11 @@
 # Local dictation
 
 > Current catalog: Fluid Speech Pro (8-bit), Whisper large-v3-turbo, and
-> Qwen3-ASR 1.7B (8-bit). Fresh profiles select Fluid Speech Pro through 16 GiB
-> of memory and Qwen above 16 GiB, unless another model recognizes more of the
-> suggested pair's languages. Existing valid choices are preserved; absent,
-> Small, Large v3 and Parakeet Ultra values resolve to Turbo. Earlier
-> four-model catalog and recommendation descriptions below are historical.
+> Qwen3-ASR 1.7B (8-bit). Fresh profiles select Fluid Speech Pro by default across
+> all memory sizes, unless another model recognizes more of the suggested pair's
+> languages. Existing valid choices are preserved; absent, Small, Large v3 and
+> Parakeet Ultra values resolve to Turbo. Earlier four-model catalog and
+> recommendation descriptions below are historical.
 
 
 Unattended verification, its command and its physical limits:
@@ -34,11 +34,11 @@ WhisperKit 1.1.1 runs Whisper large-v3-turbo; MLX Audio Swift 0.1.7 runs Fluid
 Speech Pro and Qwen. `DictationModel` offers Fluid Speech Pro 8-bit (`751 MB`,
 25 European languages, verbatim mode), Whisper large-v3-turbo
 (`openai_whisper-large-v3-v20240930_626MB`, 99 languages) and Qwen3-ASR 1.7B
-8-bit (`2.5 GB`, 30 languages). Fresh profiles choose Fluid Speech Pro through
-16 GiB of memory and Qwen above 16 GiB, unless another model recognizes more of
-the suggested pair's languages (`DictationModel.covering`, ordering
-`[.fluidSpeechPro, .turbo, .qwen3ASR]` so non-European pairs at `<= 16 GiB`
-select Turbo rather than Qwen); existing valid choices remain unchanged. The
+8-bit (`2.5 GB`, 30 languages). Fresh profiles choose Fluid Speech Pro across
+all memory sizes, unless another model recognizes more of the suggested pair's
+languages (`DictationModel.covering`, ordering `[.fluidSpeechPro, .turbo,
+.qwen3ASR]` so non-European pairs select Turbo rather than Qwen); existing valid
+choices remain unchanged. The
 Speech model section names pair languages the selected model cannot recognize
 and offers the model that recognizes more of them. Fluid Speech Pro's inventory
 is its 25 European ISO codes (`fluidSpeechCodes`), Qwen's is its pinned

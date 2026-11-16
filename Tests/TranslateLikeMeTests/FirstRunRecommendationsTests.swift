@@ -114,25 +114,25 @@ final class FirstRunRecommendationsTests: XCTestCase {
                 XCTAssertEqual(defaults.string(forKey: "localModel"),
                                (memory <= 16 ? LocalModel.gemma4E2B : .gemma4Model12B).rawValue)
                 XCTAssertEqual(defaults.string(forKey: "dictationModel"),
-                               (memory <= 16 ? DictationModel.fluidSpeechPro : .qwen3ASR).rawValue)
-                FirstRunRecommendations.apply(in: defaults, suggestions: ["de", "en"],
+                               DictationModel.fluidSpeechPro.rawValue)
+                FirstRunRecommendations.apply(in: defaults, suggestions: ["ja", "en"],
                                               physicalMemory: (memory <= 16 ? 32 : 8) << 30)
+                XCTAssertEqual(defaults.string(forKey: "localModel"),
+                               (memory <= 16 ? LocalModel.gemma4E2B : .gemma4Model12B).rawValue)
                 XCTAssertEqual(defaults.string(forKey: "dictationModel"),
-                               (memory <= 16 ? DictationModel.fluidSpeechPro : .qwen3ASR).rawValue)
+                               DictationModel.fluidSpeechPro.rawValue)
             }
         }
     }
 
     func testSpeechModelFollowsPairLanguagesBeforeMemory() {
         for memory: UInt64 in [8, 32] {
-            withSuite { defaults in
-                FirstRunRecommendations.apply(in: defaults, suggestions: ["am", "en"], physicalMemory: memory << 30)
-                XCTAssertEqual(defaults.string(forKey: "dictationModel"), DictationModel.turbo.rawValue)
+            for suggestions in [["am", "en"], ["ja", "en"]] {
+                withSuite { defaults in
+                    FirstRunRecommendations.apply(in: defaults, suggestions: suggestions, physicalMemory: memory << 30)
+                    XCTAssertEqual(defaults.string(forKey: "dictationModel"), DictationModel.turbo.rawValue)
+                }
             }
-        }
-        withSuite { defaults in
-            FirstRunRecommendations.apply(in: defaults, suggestions: ["ja", "en"], physicalMemory: 16 << 30)
-            XCTAssertEqual(defaults.string(forKey: "dictationModel"), DictationModel.turbo.rawValue)
         }
     }
 

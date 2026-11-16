@@ -59,14 +59,29 @@ enum DictationInsertion {
         .verb, .adverb, .adjective, .pronoun, .conjunction,
         .preposition, .determiner, .particle, .interjection, .number
     ]
+    // Fallback closed-class words and common adverbs when macOS has not yet
+    // downloaded on-demand German LinguisticData assets for NLTagger.
+    private static let germanCommonLowercase: Set<String> = [
+        "und", "oder", "aber", "denn", "weil", "dass", "wenn", "ob", "wie", "wo", "was", "wer",
+        "wir", "ihr", "sie", "er", "es", "ich", "du", "man", "mir", "dir", "ihm", "uns", "euch",
+        "mein", "dein", "sein", "unser", "euer", "dies", "diese", "dieser", "dieses", "jede", "jeder",
+        "kein", "keine", "nicht", "auch", "noch", "schon", "heute", "morgen", "gestern", "jetzt",
+        "hier", "dort", "immer", "wieder", "sehr", "ganz", "fast", "nur", "bitte", "danke", "ja",
+        "nein", "schnell", "langsam", "gut", "gern", "gerne", "vielleicht", "bereits", "sofort",
+        "danach", "dabei", "damit", "dafür", "darauf", "daran", "mit", "ohne", "für", "gegen",
+        "durch", "über", "unter", "vor", "nach", "bei", "seit", "von", "zu", "aus", "in", "an",
+        "auf", "um", "ist", "sind", "war", "waren", "wird", "werden", "hat", "haben", "kann", "muss"
+    ]
 
     static func format(_ text: String, context: DictationInsertionContext,
                        vocabulary: DictationVocabulary = .empty,
-                       languageIdentifiers: [String] = []) -> String {
+                       languageIdentifiers: [String] = [],
+                       lexicalTag: (String, NLLanguage) -> NLTag? = leadingLexicalTag) -> String {
         guard !text.isEmpty else { return text }
         let continuing = continuesSentence(in: context)
         var adjusted = continuing
-            ? lowercaseLeadingWordIfSafe(text, vocabulary: vocabulary, languageIdentifiers: languageIdentifiers)
+            ? lowercaseLeadingWordIfSafe(text, vocabulary: vocabulary,
+                                         languageIdentifiers: languageIdentifiers, lexicalTag: lexicalTag)
             : text
         adjusted = stripAutoPeriodIfMidLine(adjusted, context: context, isContinuation: continuing)
         if let beforeCaret = context.beforeCaret, let first = adjusted.first,
@@ -137,7 +152,8 @@ enum DictationInsertion {
     }
 
     private static func lowercaseLeadingWordIfSafe(_ text: String, vocabulary: DictationVocabulary,
-                                                   languageIdentifiers: [String]) -> String {
+                                                   languageIdentifiers: [String],
+                                                   lexicalTag: (String, NLLanguage) -> NLTag?) -> String {
         guard let first = text.first, first.isLetter, first.isUppercase else { return text }
         let token = text.prefix { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "'" || $0 == "’" || $0 == "_" }
         if token.hasPrefix("I'") || token.hasPrefix("I’") { return text }
@@ -150,7 +166,9 @@ enum DictationInsertion {
         let configuredCodes = DictationLanguagePreference(identifiers: languageIdentifiers).codes
         let language = resolvedLanguage(for: text, configuredCodes: configuredCodes)
         if shouldPreserveLatinI(token: token, language: language, configuredCodes: configuredCodes) { return text }
-        if shouldPreserveByLexicalTag(text: text, language: language) { return text }
+        if shouldPreserveByLexicalTag(text: text, token: token, language: language, lexicalTag: lexicalTag) {
+            return text
+        }
         let locale = localeForLowercasing(first: first, language: language, configuredCodes: configuredCodes)
         return String(first).lowercased(with: locale) + text.dropFirst()
     }
@@ -190,15 +208,23 @@ enum DictationInsertion {
         return true
     }
 
-    private static func shouldPreserveByLexicalTag(text: String, language: NLLanguage?) -> Bool {
-        guard let language, nameAwareLanguages.contains(language) else { return false }
+    static func leadingLexicalTag(in text: String, language: NLLanguage) -> NLTag? {
         let tagger = NLTagger(tagSchemes: [.nameTypeOrLexicalClass])
         tagger.string = text
         tagger.setLanguage(language, range: text.startIndex..<text.endIndex)
-        let (tag, _) = tagger.tag(at: text.startIndex, unit: .word, scheme: .nameTypeOrLexicalClass)
+        return tagger.tag(at: text.startIndex, unit: .word, scheme: .nameTypeOrLexicalClass).0
+    }
+
+    private static func shouldPreserveByLexicalTag(text: String, token: Substring,
+                                                   language: NLLanguage?,
+                                                   lexicalTag: (String, NLLanguage) -> NLTag?) -> Bool {
+        guard let language, nameAwareLanguages.contains(language) else { return false }
+        let tag = lexicalTag(text, language)
         if language == .german {
-            guard let tag else { return true }
-            return !germanLowercaseClasses.contains(tag)
+            if let tag, tag != .otherWord {
+                return !germanLowercaseClasses.contains(tag)
+            }
+            return !germanCommonLowercase.contains(token.lowercased())
         }
         return tag == .personalName || tag == .placeName || tag == .organizationName
     }

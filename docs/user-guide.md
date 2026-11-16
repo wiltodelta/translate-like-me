@@ -116,8 +116,8 @@ immediately.
   disconnected falls back to the system input until it returns), and select
   Fluid Speech Pro (8-bit, 25 European languages), Whisper large-v3-turbo, or
   Qwen3-ASR 1.7B (8-bit, 30 languages). Fresh profiles select Fluid Speech Pro
-  through 16 GB of memory and Qwen above 16 GB, switching automatically when
-  another model recognizes more of your pair languages. When the selected model
+  by default, switching automatically when another model recognizes more of your
+  pair languages. When the selected model
   cannot recognize one of your pair languages, the pane names it and offers the
   model that can. Removed Small and Large v3 preferences fall back to Turbo.
   Model preparation starts automatically while enabled. Downloaded models stay

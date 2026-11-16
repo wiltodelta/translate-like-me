@@ -134,9 +134,10 @@ retention; supported defaults and isolation limits are described in the
 | Local translation | MLX, inside the app |
 
 Fresh profiles select **Gemma 4 E2B** on Macs with **8-16 GB** of memory and
-**Gemma 4 12B** above **16 GB**. Dictation selects **Fluid Speech Pro** through
-**16 GB** (or **Whisper large-v3-turbo** when your languages need broader
-coverage) and **Qwen3-ASR** above that. Existing model choices are preserved.
+**Gemma 4 12B** above **16 GB**. Dictation selects **Fluid Speech Pro** by
+default (or **Whisper large-v3-turbo** when your languages need broader
+coverage), with **Qwen3-ASR** available in Settings. Existing model choices are
+preserved.
 Gemma 4 12B can also be selected manually on a 16 GB Mac.
 The lighter model has more limitations in translation and Rewrite. See the
 [setup instructions and model comparison](docs/user-guide.md#providers).

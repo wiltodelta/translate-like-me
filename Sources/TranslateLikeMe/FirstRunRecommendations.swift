@@ -25,7 +25,7 @@ enum FirstRunRecommendations {
         Settings.storePairs(pairs, in: defaults)
         defaults.set(localModel(physicalMemory: physicalMemory).rawValue, forKey: "localModel")
         let languages = DictationLanguagePreference.identifiers(in: pairs)
-        defaults.set(dictationModel(physicalMemory: physicalMemory, languages: languages).rawValue,
+        defaults.set(DictationModel.covering(languages, preferring: .fluidSpeechPro).rawValue,
                      forKey: "dictationModel")
         Settings.storeRecommendedProvider(.local, in: defaults)
         let preset = RewritePreset(name: String(localized: "Improve Text"),
@@ -50,10 +50,6 @@ enum FirstRunRecommendations {
     // model above that, accepting the lighter model's documented quality tradeoff.
     static func localModel(physicalMemory: UInt64) -> LocalModel {
         physicalMemory <= 16 << 30 ? .gemma4E2B : .gemma4Model12B
-    }
-
-    static func dictationModel(physicalMemory: UInt64, languages: [String]) -> DictationModel {
-        DictationModel.covering(languages, preferring: physicalMemory <= 16 << 30 ? .fluidSpeechPro : .qwen3ASR)
     }
 
     // The existing quality comparison covers en/ru/de only.

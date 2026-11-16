@@ -1,4 +1,5 @@
 import Foundation
+import NaturalLanguage
 import XCTest
 @testable import TranslateLikeMe
 
@@ -106,6 +107,19 @@ final class DictationInsertionTests: XCTestCase {
             DictationInsertion.format("Heute passt es.", context: context, languageIdentifiers: ["de", "en"]),
             "heute passt es."
         )
+        // Simulate missing on-demand German LinguisticData assets (.otherWord / nil) through format.
+        for missingTag: NLTag? in [.otherWord, nil] {
+            XCTAssertEqual(
+                DictationInsertion.format("Schnell erledigt.", context: context,
+                                          languageIdentifiers: ["de", "en"]) { _, _ in missingTag },
+                "schnell erledigt."
+            )
+            XCTAssertEqual(
+                DictationInsertion.format("Haus und Garten.", context: context,
+                                          languageIdentifiers: ["de", "en"]) { _, _ in missingTag },
+                "Haus und Garten."
+            )
+        }
     }
 
     func testVocabularyAcronymsMixedCaseAndProperNamesStayCapitalized() {
@@ -113,7 +127,7 @@ final class DictationInsertionTests: XCTestCase {
         let context = DictationInsertionContext(beforeSlice: "Check ", afterSlice: "")
         for preserved in [
             "Veedma deployment.", "Claude Code session.", "CI failed again.", "GitHub actions passed.",
-            "L'Oréal campaign.", "3D preview.", "John called yesterday.", "Madrid está lejos.", "¿Cómo estás?"
+            "L'Oréal campaign.", "3D preview.", "John called yesterday.", "London looks rainy.", "¿Cómo estás?"
         ] {
             XCTAssertEqual(
                 DictationInsertion.format(preserved, context: context, vocabulary: vocabulary,
@@ -121,6 +135,13 @@ final class DictationInsertionTests: XCTestCase {
                 preserved, "Unexpectedly lowercased: \(preserved)"
             )
         }
+        XCTAssertEqual(
+            DictationInsertion.format("Madrid está lejos.", context: context, vocabulary: vocabulary,
+                                      languageIdentifiers: ["en", "es", "fr"]) { _, language in
+                language == .spanish ? .placeName : nil
+            },
+            "Madrid está lejos."
+        )
     }
 
     func testParentheticalAutoPeriodRemovalAcrossSpacedAndUnspacedScripts() {

@@ -1,10 +1,11 @@
 # Minimal dictation plan
 
-> Current catalog: Whisper large-v3-turbo and Qwen3-ASR only. Fresh profiles select
-> Turbo through 16 GiB of memory and Qwen above 16 GiB, unless the other model
-> recognizes more of the suggested pair's languages. Existing valid choices
-> are preserved; saved Small and Large v3 values resolve to Turbo. Earlier
-> four-model catalog and recommendation descriptions below are historical.
+> Current catalog: Fluid Speech Pro (8-bit), Whisper large-v3-turbo, and
+> Qwen3-ASR 1.7B (8-bit). Fresh profiles select Fluid Speech Pro by default across
+> all memory sizes, unless another model recognizes more of the suggested pair's
+> languages. Existing valid choices are preserved; absent, Small, Large v3 and
+> Parakeet Ultra values resolve to Turbo. Earlier catalog and recommendation
+> descriptions below are historical.
 
 
 Scope decisions: October 18-19, 2026. Target: Translate Like Me, macOS 15+ on Apple

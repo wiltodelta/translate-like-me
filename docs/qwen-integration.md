@@ -1,15 +1,17 @@
 # Qwen integration
 
-> Current catalog: Whisper large-v3-turbo and Qwen3-ASR only. Fresh profiles select
-> Turbo through 16 GiB of memory and Qwen above 16 GiB, unless the other model
-> recognizes more of the suggested pair's languages. Existing valid choices
-> are preserved; saved Small and Large v3 values resolve to Turbo. Earlier
-> four-model catalog and recommendation descriptions below are historical.
+> Current catalog: Fluid Speech Pro (8-bit), Whisper large-v3-turbo, and
+> Qwen3-ASR 1.7B (8-bit). Fresh profiles select Fluid Speech Pro by default across
+> all memory sizes, unless another model recognizes more of the suggested pair's
+> languages. Existing valid choices are preserved; absent, Small, Large v3 and
+> Parakeet Ultra values resolve to Turbo. Earlier two-model recommendation
+> descriptions below are historical.
 
 
-Qwen3-ASR 1.7B (8-bit) is offered alongside Whisper large-v3-turbo. Fresh profiles
-recommend Qwen above 16 GiB and Turbo on smaller Macs, unless Turbo recognizes
-more of the suggested pair's languages. Existing valid choices
+Qwen3-ASR 1.7B (8-bit) is offered alongside Fluid Speech Pro (8-bit) and Whisper
+large-v3-turbo. Fresh profiles select Fluid Speech Pro by default across all
+memory sizes, unless another model recognizes more of the suggested pair's
+languages. Existing valid choices
 remain authoritative. Removed model preferences fall back to Turbo. Changing a disabled model saves
 only its selection; enabling dictation prepares the selected model.
 

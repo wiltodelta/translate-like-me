@@ -38,19 +38,19 @@ and macOS consent. Rewrite does not appear in onboarding.
 | Mac memory | Translation | Dictation |
 |---|---|---|
 | 8-16 GiB | Gemma 4 E2B | Fluid Speech Pro (8-bit) |
-| Above 16 GiB | Gemma 4 12B | Qwen3-ASR |
+| Above 16 GiB | Gemma 4 12B | Fluid Speech Pro (8-bit) |
 
 These are Victor's explicit choices, accepting E2B's measured quality limitations.
-Dictation follows the suggested pair's languages first (including a single-language
-incomplete pair via `DictationLanguagePreference.identifiers`, such as
-Ukrainian seeding Fluid Speech Pro above 16 GiB, Japanese seeding Turbo at 16 GiB,
-and Hebrew or Amharic seeding Turbo on any Mac): when the memory tier's model
-cannot recognize one that another model can, the better-covering model is seeded
+Dictation prefers Fluid Speech Pro across all memory sizes and follows the
+suggested pair's languages first (including a single-language incomplete pair via
+`DictationLanguagePreference.identifiers`, such as Japanese, Hebrew, or Amharic
+seeding Turbo on any Mac): when Fluid Speech Pro cannot recognize one that
+another model can, the better-covering model is seeded
 (`DictationModel.covering`).
-Gemma 4 12B replaced TranslateGemma 12B above 16 GiB on 2026-10-23, and
-TranslateGemma 12B was retired from the catalog on 2026-11-15 alongside adding
-Fluid Speech Pro (8-bit) for 8-16 GiB European-language dictation
-([local model candidates](local-model-candidates.md)).
+Gemma 4 12B replaced TranslateGemma 12B above 16 GiB on 2026-10-23,
+TranslateGemma 12B was retired from the catalog on 2026-11-15, and Fluid Speech
+Pro (8-bit) became the default dictation recommendation across all memory tiers
+on 2026-11-16 ([local model candidates](local-model-candidates.md)).
 [Translation evidence](local-translation.md) covers 15 synthetic en/ru/de cases,
 three runs each: E2B mishandled direction and corrected details. Measured
 alternatives for both tiers: [local model candidates](local-model-candidates.md). Hardware alone
