@@ -11,9 +11,9 @@ support. MLX Swift 0.32.3 requires a Swift 6.3 compiler (Xcode 26.6 or later).
 Collections 1.7 supports Swift 6.2.4+ through its versioned
 `Package@swift-6.2.swift`; MLX sets the app's higher compiler floor.
 CI selects the newest installed Xcode in [the build workflow](../.github/workflows/build.yml).
-`build.sh` includes the WhisperKit, Whisper and Silero license notices. Parakeet
-and its FluidAudio dependency are no longer included in the app.
-Qwen runs through MLX Audio Swift and MLX Swift. CMake builds the pinned MLX
+`build.sh` includes the WhisperKit, Whisper, Silero, Qwen, and Fluid Speech Pro
+license notices. FluidAudio is no longer included in the app.
+Fluid Speech Pro and Qwen run through MLX Audio Swift and MLX Swift. CMake builds the pinned MLX
 Metal kernels (`scripts/build-mlx-metallib.sh`), using the app's macOS minimum;
 `build.sh` embeds them before signing. Kernel build output is keyed by source
 revision, SDK and deployment target. The build also copies materialized resource

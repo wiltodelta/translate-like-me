@@ -29,7 +29,7 @@ final class FirstRunRecommendationsTests: XCTestCase {
             XCTAssertEqual(defaults.string(forKey: "provider"), Provider.local.rawValue)
             XCTAssertTrue(defaults.bool(forKey: "automaticallySelectedProvider"))
             XCTAssertEqual(defaults.string(forKey: "localModel"), LocalModel.gemma4E2B.rawValue)
-            XCTAssertEqual(defaults.string(forKey: "dictationModel"), DictationModel.turbo.rawValue)
+            XCTAssertEqual(defaults.string(forKey: "dictationModel"), DictationModel.fluidSpeechPro.rawValue)
         }
     }
 
@@ -114,11 +114,11 @@ final class FirstRunRecommendationsTests: XCTestCase {
                 XCTAssertEqual(defaults.string(forKey: "localModel"),
                                (memory <= 16 ? LocalModel.gemma4E2B : .gemma4Model12B).rawValue)
                 XCTAssertEqual(defaults.string(forKey: "dictationModel"),
-                               (memory <= 16 ? DictationModel.turbo : .qwen3ASR).rawValue)
+                               (memory <= 16 ? DictationModel.fluidSpeechPro : .qwen3ASR).rawValue)
                 FirstRunRecommendations.apply(in: defaults, suggestions: ["de", "en"],
                                               physicalMemory: (memory <= 16 ? 32 : 8) << 30)
                 XCTAssertEqual(defaults.string(forKey: "dictationModel"),
-                               (memory <= 16 ? DictationModel.turbo : .qwen3ASR).rawValue)
+                               (memory <= 16 ? DictationModel.fluidSpeechPro : .qwen3ASR).rawValue)
             }
         }
     }
@@ -129,6 +129,10 @@ final class FirstRunRecommendationsTests: XCTestCase {
                 FirstRunRecommendations.apply(in: defaults, suggestions: ["am", "en"], physicalMemory: memory << 30)
                 XCTAssertEqual(defaults.string(forKey: "dictationModel"), DictationModel.turbo.rawValue)
             }
+        }
+        withSuite { defaults in
+            FirstRunRecommendations.apply(in: defaults, suggestions: ["ja", "en"], physicalMemory: 16 << 30)
+            XCTAssertEqual(defaults.string(forKey: "dictationModel"), DictationModel.turbo.rawValue)
         }
     }
 
@@ -176,13 +180,17 @@ final class FirstRunRecommendationsTests: XCTestCase {
         }
     }
 
-    func testSingleNonQwenLanguageSelectsTurboOnLargeMemoryMacAndRetainsMonolingualPreference() throws {
+    func testSingleNonQwenLanguageSelectsCoveringModelOnLargeMemoryMacAndRetainsMonolingualPreference() throws {
         try withSuite { defaults in
             FirstRunRecommendations.apply(in: defaults, suggestions: ["uk"], physicalMemory: 32 << 30)
             let pairs = try XCTUnwrap(Settings.storedPairs(in: defaults))
             XCTAssertEqual(pairs.count, 1)
             XCTAssertFalse(pairs[0].isComplete)
             XCTAssertEqual(DictationLanguagePreference.identifiers(in: pairs), ["uk"])
+            XCTAssertEqual(defaults.string(forKey: "dictationModel"), DictationModel.fluidSpeechPro.rawValue)
+        }
+        withSuite { defaults in
+            FirstRunRecommendations.apply(in: defaults, suggestions: ["he"], physicalMemory: 32 << 30)
             XCTAssertEqual(defaults.string(forKey: "dictationModel"), DictationModel.turbo.rawValue)
         }
     }

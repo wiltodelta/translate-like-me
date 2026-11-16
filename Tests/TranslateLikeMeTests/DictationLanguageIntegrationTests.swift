@@ -23,13 +23,16 @@ final class DictationLanguageIntegrationTests: XCTestCase {
         let cache = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support/com.wiltodelta.translatelikeme.dev/Dictation")
         var rows: [[String: String]] = []
+        var expectedRows = 0
         for model in DictationModel.allCases {
+            let supportedExamples = examples.filter { model.unsupported([$0.language]).isEmpty }
+            expectedRows += supportedExamples.count * 2
             for identifiers in [[], ["ru", "en"]] {
                 let engine = DictationEngine(directory: cache, languageIdentifiers: { identifiers })
                 try await engine.prepare(model: model, download: false) { _ in }
                 let loaded = await engine.loadedModel
                 XCTAssertEqual(loaded, model)
-                for example in examples {
+                for example in supportedExamples {
                     let text = try await engine.transcribe(URL(fileURLWithPath: example.file))
                     rows.append(["model": model.rawValue, "arm": identifiers.isEmpty ? "baseline" : "preferred",
                                  "id": example.id, "expected": example.expected, "actual": text,
@@ -42,6 +45,6 @@ final class DictationLanguageIntegrationTests: XCTestCase {
                 XCTAssertNil(unloaded)
             }
         }
-        XCTAssertEqual(rows.count, examples.count * DictationModel.allCases.count * 2)
+        XCTAssertEqual(rows.count, expectedRows)
     }
 }

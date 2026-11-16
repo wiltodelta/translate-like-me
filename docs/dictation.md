@@ -1,9 +1,10 @@
 # Local dictation
 
-> Current catalog: Whisper large-v3-turbo and Qwen3-ASR only. Fresh profiles select
-> Turbo through 16 GiB of memory and Qwen above 16 GiB, unless the other model
-> recognizes more of the suggested pair's languages. Existing valid choices
-> are preserved; saved Small and Large v3 values resolve to Turbo. Earlier
+> Current catalog: Fluid Speech Pro (8-bit), Whisper large-v3-turbo, and
+> Qwen3-ASR 1.7B (8-bit). Fresh profiles select Fluid Speech Pro through 16 GiB
+> of memory and Qwen above 16 GiB, unless another model recognizes more of the
+> suggested pair's languages. Existing valid choices are preserved; absent,
+> Small, Large v3 and Parakeet Ultra values resolve to Turbo. Earlier
 > four-model catalog and recommendation descriptions below are historical.
 
 
@@ -29,28 +30,31 @@ system input, resolved each time recording starts.
 
 ## Runtime and data
 
-WhisperKit 1.1.1 runs Whisper large-v3-turbo; MLX Audio Swift 0.1.6 runs Qwen.
-`DictationModel` offers Whisper large-v3-turbo
-(`openai_whisper-large-v3-v20240930_626MB`) and Qwen3-ASR 1.7B 8-bit for 30 languages.
-Turbo downloads about 627 MB, excluding tokenizer and shared speech-detector
-assets. Qwen downloads about 2.5 GB, including its tokenizer inputs.
-Fresh profiles choose Turbo through 16 GiB of memory and Qwen above 16 GiB,
-unless the other model recognizes more of the suggested pair's languages
-(`DictationModel.covering`); existing valid choices remain unchanged. The
+WhisperKit 1.1.1 runs Whisper large-v3-turbo; MLX Audio Swift 0.1.7 runs Fluid
+Speech Pro and Qwen. `DictationModel` offers Fluid Speech Pro 8-bit (`751 MB`,
+25 European languages, verbatim mode), Whisper large-v3-turbo
+(`openai_whisper-large-v3-v20240930_626MB`, 99 languages) and Qwen3-ASR 1.7B
+8-bit (`2.5 GB`, 30 languages). Fresh profiles choose Fluid Speech Pro through
+16 GiB of memory and Qwen above 16 GiB, unless another model recognizes more of
+the suggested pair's languages (`DictationModel.covering`, ordering
+`[.fluidSpeechPro, .turbo, .qwen3ASR]` so non-European pairs at `<= 16 GiB`
+select Turbo rather than Qwen); existing valid choices remain unchanged. The
 Speech model section names pair languages the selected model cannot recognize
-and offers the model that recognizes more of them. Qwen's inventory is its
-pinned `support_languages`, Whisper's is WhisperKit's `Constants.languageCodes`;
-`DictationLanguageAuditTests` checks both against the downloaded files. Saved Small and Large v3 choices resolve
-to Turbo. Whisper large-v3-turbo has four decoder layers and 32 encoder layers. Recognition uses automatic language
-detection, without a Russian/English allowlist, and transcription rather than
-translation. This is an initial integrated configuration, not a claim of model
-superiority or production quality across every supported language.
+and offers the model that recognizes more of them. Fluid Speech Pro's inventory
+is its 25 European ISO codes (`fluidSpeechCodes`), Qwen's is its pinned
+`support_languages`, Whisper's is WhisperKit's `Constants.languageCodes`;
+`DictationLanguageAuditTests` checks all three. Saved Small, Large v3 and
+Parakeet Ultra choices resolve to Turbo.
 
-`DictationEngine.swift` pins the shared model repository revision;
+`DictationEngine.swift` pins the shared Whisper repository revision;
 `DictationModel.swift` pins each Whisper tokenizer revision and file hashes.
-`DictationQwen.swift` pins the MLX export and verifies the required weights and
-input tokenizer files. Qwen runs natively on the GPU; its derived tokenizer is
-kept outside the verified snapshot. See [Qwen integration](qwen-integration.md)
+`DictationFluidSpeech.swift` pins `FluidVoice-Labs/fluid-speech-pro-mlx`
+(`aeb1d4e43487`), loads its 8-bit base weights through `ParakeetModel` with
+NeMo valid-frame mel normalization and strided subsampling masks, and attaches
+its `FrameCleaner` block (`fv_insert`) on the GPU without Clean-mode filler
+removal. `DictationQwen.swift` pins the Qwen MLX export and verifies the
+required weights and input tokenizer files. Both MLX runtimes stage derived
+configs/tokenizers outside the verified snapshot. See [Qwen integration](qwen-integration.md)
 for lifecycle, cancellation and verification details.
 WhisperKit's downloader maintains partial transfers: each file in flight stays
 as `.incomplete` under `.cache/huggingface/download` and resumes with a Range

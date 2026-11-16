@@ -18,9 +18,9 @@ final class EngineHealthTests: XCTestCase {
     }
 
     func testLocalReadinessRejectsAnInstalledModelThatDoesNotFit() {
-        XCTAssertEqual(EngineStatus.localReadiness(model: .translateGemma12B, installed: true,
+        XCTAssertEqual(EngineStatus.localReadiness(model: .gemma4Model12B, installed: true,
                                                    physicalMemory: 8 << 30),
-                       .failed(LocalModelError.insufficientMemory(.translateGemma12B).localizedDescription))
+                       .failed(LocalModelError.insufficientMemory(.gemma4Model12B).localizedDescription))
         XCTAssertEqual(EngineStatus.localReadiness(model: .gemma4E2B, installed: true,
                                                    physicalMemory: 8 << 30), .ready)
         XCTAssertEqual(EngineStatus.localReadiness(model: .gemma4E2B, installed: false,

@@ -1,7 +1,7 @@
-# Local model candidates (October 22-23, 2026)
+# Local model candidates (October-November 2026)
 
-> Research snapshot. The shipping catalog is in [dictation](dictation.md) and
-> [local translation](local-translation.md); nothing here changed it.
+> Research and benchmark record. The shipping catalog is in [dictation](dictation.md) and
+> [local translation](local-translation.md).
 
 A follow-up to the [dictation survey](dictation-research.md) and the
 [local translation benchmark](local-translation.md): what changed upstream
@@ -334,3 +334,118 @@ speech has no public benchmark for these models
 ([CS-FLEURS](https://arxiv.org/abs/2509.14161) evaluates Whisper only).
 Transcripts, outputs and summaries are kept outside the repository under
 `~/.local/state/agent-artifacts/translate-like-me/local-model-candidates-2026-10-22/`.
+
+---
+
+## November 15, 2026 follow-up
+
+A second sweep over Hugging Face speech-recognition and text/multimodal releases
+created or ported to MLX between October 22 and November 15 evaluated every open
+checkpoint supporting both Russian and English that fits a 16-32 GB Mac under a
+commercial-compatible license. After these runs, `Fluid Speech Pro (8-bit)` was
+added to `DictationModel` (verbatim mode, alongside `Whisper large-v3-turbo` and
+`Qwen3-ASR 1.7B`), and `TranslateGemma 12B` was retired from `LocalModel`,
+leaving `Gemma 4 12B` and `Gemma 4 E2B`.
+
+### Screened out before live runs
+
+- **No Russian speech or text:** `LiquidAI/LFM3-Audio-2B` and `LFM3-Omni-2B`
+  (Russian is listed among the 16 text languages, not in the speech locales),
+  `salesforce-sovereign-intelligence/SOV-Transcribe-1` (7 Western European
+  languages, 15.6 GB in 4-bit), `IndexTeam/Index-Translate-omni` (zh/en speech),
+  `AlmawaveLabs/Velvet2-3B-Speech`, `FluidInference/nemotron-3.5-transcribe-lite-coreml`,
+  `Musci-research/Musci-ASR-2.4B` (`en` only).
+- **License or size:** `pfnet/plamo-3-translate` (`PLaMo Community License`
+  registration, revenue cap and mandatory UI badge; MT-only),
+  `translated/Lara-4-Mini-Base` and `ConwayResearch/Underdog-*` (`CC-BY-NC*`),
+  `nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B` (~18 GB 4-bit),
+  `FermionResearch/Phonon-2.5` (8.67% Russian FLEURS WER on its own card).
+
+### Dictation benchmark
+
+Same 100 scored clips (`audioSha256` verified identical to October 22), same
+normalization and production padding (`>= 1 s` plus `500 ms` quiet tail), plus
+an 8-clip synthetic mixed-term set (`4` Russian Milena, `4` English Samantha,
+`16` total occurrences of `Veedma`, `Veryfi`, `Wiltodelta`, `Rota`, `Qwen3-ASR`,
+`WhisperKit`, `Claude Code`, `Antigravity`), Python `mlx-audio` 0.6.5 on M-series
+Apple silicon (`vm.loadavg` `{3.83, 12.45, 22.17}`, GPU utilization `80%` at
+start). The APFS-cloned shipping `Qwen3-ASR 1.7B 8-bit` reproduced its October
+WER to two decimals in the same batch.
+
+| Arm | Download | Peak | Russian reading | English reading | Russian podcast | Podcast Latin terms | Empty of 100 | Median ru / podcast |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| `Qwen3-ASR 1.7B` 8-bit (shipping, plain) | 2.47 GB | 3.89 GB | 2.64 | 3.83 | 7.98 | 6 / 16 | 0 | 3.36 / 6.33 s |
+| `Qwen3-ASR 1.7B` 8-bit, 8-term glossary | 2.47 GB | 3.89 GB | 2.37 | 3.94 | 8.24 | 6 / 16 | 0 | 2.99 / 6.26 s |
+| [`Fluid Speech Pro` 8-bit](https://huggingface.co/FluidVoice-Labs/fluid-speech-pro-mlx) (`aeb1d4e43487`), verbatim | 0.75 GB | 1.55 GB | 4.22 | 5.26 | 7.12 | 11 / 16 | 0 | 0.53 / 1.06 s |
+| `Fluid Speech Pro` 8-bit, Clean mode | 0.81 GB | 1.49 GB | 3.30 | 5.70 | 7.81 | 11 / 16 | 0 | 0.67 / 1.00 s |
+| [`Nemotron Unified 0.6B` 8-bit](https://huggingface.co/mlx-community/nemotron-labs-unified-asr-0.6b-8bit) (`b7108f135cd7`), `auto` | 0.74 GB | 1.55 GB | 5.80 | 5.48 | 9.79 | 10 / 16 | 2 | 0.47 / 1.13 s |
+| `Nemotron Unified 0.6B` 8-bit, oracle language | 0.74 GB | 1.51 GB | 3.56 | 5.48 | 9.01 | 9 / 16 | 0 | 0.38 / 0.63 s |
+| [`Musci-ASR-qwen-1019`](https://huggingface.co/Musci-research/Musci-ASR-qwen-1019) 8-bit, plain | 2.48 GB | 3.89 GB | 13.59 | 5.81 | 8.76 | 8 / 16 | 3 | 1.97 / 4.57 s |
+| `Musci-ASR-qwen-1019` 8-bit, 8-term glossary | 2.48 GB | 3.89 GB | 4.22 | 7.78 | 8.33 | 7 / 16 | 0 | 2.26 / 4.08 s |
+
+- **`Fluid Speech Pro` 8-bit** (`CC-BY-4.0`, 25 European languages) beat
+  `Whisper large-v3-turbo` (`5.41 / 7.01 / 7.98`) and `Whisper large-v3`
+  (`4.88 / 5.91 / 10.30`) across all three groups at `RTF = 0.047` (about 6x
+  faster than Qwen in the same run), and matched Qwen's oracle Latin-term recall
+  (`11/16`) on Podlodka without a glossary. Clean mode lowered Russian reading
+  WER to `3.30%` while deleting conversational fillers (`"ну"`, `"там"`) that
+  verbatim Podlodka references count as omissions (`7.81%`). Like Parakeet, TDT
+  takes no text glossary (`2/8` on custom English names against Qwen+glossary's
+  `8/8` at `0.00%` WER), so custom spellings rely on post-ASR `spoken -> written`
+  replacements, and `Whisper large-v3-turbo` remains necessary for the 74
+  non-European languages.
+- **`Musci-ASR-qwen-1019`** (GRPO fine-tune of `Qwen3-ASR 1.7B`, `Apache-2.0`)
+  regressed severely: it returned `""` on 3 of 40 Russian FLEURS sentences,
+  conjugated `"течут"`, spelled numbers out in words (`"fifty three"`, `"six
+  thirty"`), leaked a capitalized `Language English<asr_text>` header on
+  glossary input, and on `en_us-1853` regurgitated the entire system glossary in
+  place of the spoken sentence.
+- **`Nemotron Unified 0.6B` 8-bit** (`OpenMDW-1.1`) corrupted sentence-initial
+  Russian tokens (`"Timotно"`, `"Na vidimo"`) and returned `""` on 2 of 100
+  clips (`ru_ru-1821`, `podlodka-0`) when `language="auto"` was used.
+
+### Translation and Rewrite benchmark
+
+Same 23 cases as the October 23 second round (`17` translations, `6` Rewrites),
+3 runs each (`69` decodes per arm), shipping `Translator.systemPrompt` (with the
+rule (5) single-version clause and echo retry) and `Rewrite.systemPrompt`,
+`temperature = 0.3`, `top_p = 0.95`, Python `mlx-lm` 0.32.3.dev18 and `mlx-vlm`
+0.7.12 without prompt-head KV reuse.
+
+| Arm | Download / Peak | License | Translation, of 17 | Rewrite, of 6 | 3rd lang -> `ru`, of 12 | Median / p90 |
+|---|---|---|---:|---:|---:|---|
+| `Gemma 4 12B` + mask + drafter (Oct 23 Swift ref.) | 7.01 / 7.58 GB | Apache-2.0 | 16 | 6 | 12 | 2.83 / 5.84 s (Swift) |
+| `TranslateGemma 12B` + style fix (retired) | 6.65 / 7.49 GB | Gemma Terms | 15 | 3 | 12 | 3.63 / 6.85 s (Swift) |
+| `Gemma 4 E2B` (shipping light tier) | 3.58 / 3.27 GB | Apache-2.0 | 13 (with retry) | 3 | 0 | 0.49 / 0.83 s |
+| [`Qwen3.5-9B` 4-bit](https://huggingface.co/mlx-community/Qwen3.5-9B-4bit) (`<think>` closed + masked) | 5.98 / 5.90 GB | Apache-2.0 | 13-14 | 6 | 9 | 1.86 / 2.78 s |
+| [`Nemotron 3.5 Bolt E4B` 4-bit](https://huggingface.co/lmstudio-community/NVIDIA-Nemotron-3.5-Bolt-E4B-MLX-4bit) (`thinking=False` + mask) | 4.23 / 4.80 GB | OpenMDW-1.1 | 9 | 5 | 9 | 0.93 / 1.49 s |
+| [`Qwen3.5-4B` 4-bit](https://huggingface.co/mlx-community/Qwen3.5-4B-4bit) (`<think>` closed + masked) | 3.06 / 3.29 GB | Apache-2.0 | 7 | 4 | 5 | 1.14 / 1.95 s |
+| [`LiquidAI LFM3-1.7B` 8-bit](https://huggingface.co/LiquidAI/LFM3-1.7B-MLX-8bit) (`<think>` closed + masked) | 1.86 / 2.31 GB | LFM 1.0 | 1 | 1 | 0 | 1.00 / 6.62 s |
+| [`Index-Translate-2B` 4-bit](https://huggingface.co/zerodegress/Index-Translate-2B-MLX-4bit), app prompt | 1.08 / 1.87 GB | Apache-2.0 | 7 (13 retries) | 0 | 0 | 0.40 / 0.61 s |
+| `Index-Translate-2B` 4-bit, native Chinese MT prompt (oracle target) | 1.08 / 1.87 GB | Apache-2.0 | 13 | 0 | 12 (oracle) | 0.26 / 0.55 s |
+
+- **`Qwen3.5-9B` 4-bit** matched `Gemma 4 12B`'s `6/6` in Rewrite with zero
+  reasoning loops and zero styled duplicates (`t-en-de-style` included) at
+  `5.90 GB` peak, but trailed in Russian translation morphology (`"я очистю"`,
+  `"Построение завершается с ошибкой"`, `"на следующую четверг"`, and `3/3`
+  French echoes on `t-fr-third`).
+- **`Nemotron 3.5 Bolt E4B` 4-bit** improved substantially over `Gemma 4 E2B` on
+  Rewrite (`5/6` vs `3/6`) and third-language routing (`9/12` vs `0/12`), but
+  under `enable_thinking=False` still emitted two-line `<literal>\n<restyled>`
+  duplicates on `15/15` styled runs and mistranslated `"Could you send me the
+  signed contract"` as `"Подтвердите мне подписанный контракт"`. Appending
+  Gemma 4 12B's `<|channel>thought\n<channel|>` leaked English reasoning into
+  the visible answer; enabling `<|think|>` fixed the styled duplicates and the
+  request phrasing at the cost of `6.8-14.0 s` (`210-392` reasoning tokens) per
+  sentence, 2.4-5x slower than `Gemma 4 12B + drafter`.
+- **`LiquidAI LFM3-1.7B` 8-bit** leaked plain-text chain-of-thought into its
+  answers up to the token cap, answered input questions as a chatbot, inverted
+  the Russian spoken self-correction (`"в три часа, а не в четыре"` in `3/3`),
+  and translated Russian Rewrite notes into English.
+- **`Index-Translate-2B` 4-bit** scored `0/6` on Rewrite (translating English
+  notes into Russian and copying the prompt's one-shot `"Петя, отчёт..."`
+  example verbatim), and even under its native Chinese MT template leaked hanzi
+  into Russian (`"Три季度льные показатели"` in `3/3`).
+
+Receipts, scripts and raw outputs for the November 15 runs are kept under
+`~/.local/state/agent-artifacts/translate-like-me/local-model-candidates-2026-11-15/`.

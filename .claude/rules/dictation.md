@@ -27,13 +27,17 @@ Dictation pane. Model selection is a user decision; keep it.
 Compute-policy findings and the reproducible synthetic benchmark:
 `docs/dictation-model-efficiency.md`.
 
-- `DictationModel` lists Whisper large-v3-turbo (the upstream model name, including its version)
-  and Qwen3-ASR 1.7B 8-bit (30 languages). Fresh profiles select Turbo through
-  16 GiB and Qwen above 16 GiB, unless `DictationModel.covering` finds the other
-  model recognizes more of the suggested pair; existing valid choices remain
-  authoritative. The Speech model section names pair languages the selected
-  model cannot recognize and offers the better-covering model; Qwen's static
-  inventory must match its pinned `support_languages` (audit test).
+- `DictationModel` lists Fluid Speech Pro 8-bit (`fluid-speech-pro`, 25 European
+  languages, verbatim mode), Whisper large-v3-turbo (99 languages, the upstream
+  model name including its version) and Qwen3-ASR 1.7B 8-bit (30 languages), in
+  coverage tie-break order. Fresh profiles select Fluid Speech Pro through 16 GiB
+  and Qwen above 16 GiB, unless `DictationModel.covering` finds another model
+  recognizes more of the suggested pair (such as Turbo for `ja/en` at 16 GiB,
+  Fluid Speech Pro for `uk/en` above 16 GiB, or Turbo for `am/en`); existing
+  valid choices remain authoritative. The Speech model section names pair
+  languages the selected model cannot recognize and offers the better-covering
+  model; Fluid Speech Pro's `fluidSpeechCodes` and Qwen's `qwenLanguages` are
+  checked by `DictationLanguageAuditTests`.
   `DictationLanguagePreference.identifiers` includes partial single-language
   rows for model recommendations, Settings warnings and recognition, falling back to
   `Languages.systemSuggestions` when no pair language is configured. Canonicalize
@@ -62,7 +66,12 @@ Compute-policy findings and the reproducible synthetic benchmark:
   preparation cancels and unwinds before preparing the latest selection. Block
   changes during capture, recognition and cancellation. Keep old downloads, but
   unload the old runtime before loading another model.
-- `DictationEngine` owns WhisperKit and delegates Qwen to its own actor. Qwen
+- `DictationEngine` owns WhisperKit and delegates Fluid Speech Pro
+  (`DictationFluidSpeech`) and Qwen (`DictationQwen`) to their own actors.
+  Fluid Speech Pro stages its patched Parakeet runtime config and split 8-bit
+  base weights in disposable temporary storage, installs its `FrameCleaner`
+  (`fv_insert`) and pointwise subsampling frame masks on `ParakeetModel`, warms
+  up on one second of silence, and decodes low-energy 30-second chunks. Qwen
   weights and tokenizer inputs share the pinned snapshot checks. The SDK's
   derived tokenizer.json stays in disposable staging outside that snapshot.
   Qwen's greedy loop runs in the calling task, checks cancellation per token,
@@ -85,7 +94,7 @@ Compute-policy findings and the reproducible synthetic benchmark:
   terms. `DictationVocabulary` feeds user terms into Qwen's `Vocabulary:` header and Whisper's
   `DecodingOptions.promptTokens` (`< specialTokenBegin`, capped at 64 tokens; never feed window/app
   metadata into `promptTokens`), and applies `spoken -> written` / `spoken → written` rules in one
-  longest-match word-boundary/CJK-aware pass after ASR on both models. `DictationContext.live()` reads only the current destination snapshot
+  longest-match word-boundary/CJK-aware pass after ASR on all three models. `DictationContext.live()` reads only the current destination snapshot
   concurrently with speech detection and retains no user text across utterances; only
   `DictationContext.chunkContext` carries preceding
   chunks within one `>30 s` recording. Installation and offline checks:

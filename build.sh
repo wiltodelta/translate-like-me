@@ -55,6 +55,8 @@ cp .build/checkouts/mlx-audio-swift/LICENSE "$APP/Contents/Resources/MLX Audio L
 cp .build/checkouts/mlx-swift/LICENSE "$APP/Contents/Resources/MLX Swift LICENSE.txt"
 cp Resources/Qwen-NOTICES.txt "$APP/Contents/Resources/Qwen NOTICES.txt"
 cp Resources/Qwen-LICENSE.txt "$APP/Contents/Resources/Qwen LICENSE.txt"
+cp Resources/FluidSpeech-NOTICES.txt "$APP/Contents/Resources/FluidSpeech NOTICES.txt"
+cp Resources/FluidSpeech-LICENSE.txt "$APP/Contents/Resources/FluidSpeech LICENSE.txt"
 # Read the current build graph: globbing *.bundle would revive stale resources
 # from removed dependencies such as FluidAudio.
 python3 - "$BIN_DIR" "$APP/Contents/Resources" <<'PYTHON'

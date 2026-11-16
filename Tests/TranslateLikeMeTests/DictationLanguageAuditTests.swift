@@ -16,6 +16,7 @@ final class DictationLanguageAuditTests: XCTestCase {
         let name: String
         let pairs: [LanguagePair]
         let example: Example
+        let language: String
     }
 
     func testLiveConfigurationInventoriesSilenceAndCancellation() async throws {
@@ -31,6 +32,7 @@ final class DictationLanguageAuditTests: XCTestCase {
         let cache = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support/com.wiltodelta.translatelikeme.dev/Dictation")
         var report: [[String: Any]] = []
+        var expectedRows = 0
         for model in DictationModel.allCases {
             let reads = OSAllocatedUnfairLock(initialState: 0)
             let engine = DictationEngine(directory: cache, languageIdentifiers: {
@@ -40,7 +42,9 @@ final class DictationLanguageAuditTests: XCTestCase {
             try await engine.prepare(model: model, download: false) { _ in }
             XCTAssertEqual(reads.withLock { $0 }, 0)
             report.append(try inventory(model: model, cache: cache))
-            for profile in profiles {
+            let supportedProfiles = profiles.filter { model.unsupported([$0.language]).isEmpty }
+            expectedRows += supportedProfiles.count + 2
+            for profile in supportedProfiles {
                 let example = profile.example
                 var domain = saved
                 domain["languagePairs"] = try JSONEncoder().encode(profile.pairs)
@@ -64,7 +68,7 @@ final class DictationLanguageAuditTests: XCTestCase {
             report.append(["model": model.rawValue, "checks": checks])
             try write(report, root: root)
         }
-        XCTAssertEqual(report.count, DictationModel.allCases.count * (profiles.count + 2))
+        XCTAssertEqual(report.count, expectedRows)
     }
 
     private func profiles(root: URL) throws -> [Profile] {
@@ -77,13 +81,14 @@ final class DictationLanguageAuditTests: XCTestCase {
             expected: "Today we are checking how dictation works. " +
                 "Please save the document and send the completed report tomorrow morning.")
         return [
-            Profile(name: "no-pairs", pairs: [], example: yes),
-            Profile(name: "incomplete", pairs: [pair("ru", "")], example: yes),
+            Profile(name: "no-pairs", pairs: [], example: yes, language: "en"),
+            Profile(name: "incomplete", pairs: [pair("ru", "")], example: yes, language: "en"),
             Profile(name: "three-pairs",
-                    pairs: [pair("ru", "en"), pair("zh-Hans", "zh-Hant"), pair("pt-BR", "pt-PT")], example: russian),
-            Profile(name: "unsupported", pairs: [pair("zz", "en")], example: chinese),
-            Profile(name: "outside-language", pairs: [pair("de", "zh-Hans")], example: english),
-            Profile(name: "changed-back", pairs: [pair("ru", "en")], example: russian)
+                    pairs: [pair("ru", "en"), pair("zh-Hans", "zh-Hant"), pair("pt-BR", "pt-PT")],
+                    example: russian, language: "ru"),
+            Profile(name: "unsupported", pairs: [pair("zz", "en")], example: chinese, language: "zh-Hans"),
+            Profile(name: "outside-language", pairs: [pair("de", "zh-Hans")], example: english, language: "en"),
+            Profile(name: "changed-back", pairs: [pair("ru", "en")], example: russian, language: "ru")
         ]
     }
 
@@ -113,17 +118,22 @@ final class DictationLanguageAuditTests: XCTestCase {
         let native: Set<String>
         let covered: Set<String>
         let offered: Set<String>
-        if let tokenizer = model.tokenizer {
-            let config = ModelDownloadConfig(modelRepo: tokenizer.repository, revision: tokenizer.revision)
-            let root = ModelDownloader(config: config).localRepoLocation(downloadBase: cache)
-            let data = try Data(contentsOf: root.appendingPathComponent("tokenizer_config.json"))
-            let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
-            let added = try XCTUnwrap(object["added_tokens_decoder"] as? [String: [String: Any]])
-            native = Set(added.values.compactMap { token in
-                guard let text = token["content"] as? String else { return nil }
-                let code = text.trimmingCharacters(in: CharacterSet(charactersIn: "<|>"))
-                return Constants.languageCodes.contains(code) ? code : nil
-            })
+        switch model {
+        case .fluidSpeechPro, .turbo:
+            if let tokenizer = model.tokenizer {
+                let config = ModelDownloadConfig(modelRepo: tokenizer.repository, revision: tokenizer.revision)
+                let root = ModelDownloader(config: config).localRepoLocation(downloadBase: cache)
+                let data = try Data(contentsOf: root.appendingPathComponent("tokenizer_config.json"))
+                let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+                let added = try XCTUnwrap(object["added_tokens_decoder"] as? [String: [String: Any]])
+                native = Set(added.values.compactMap { token in
+                    guard let text = token["content"] as? String else { return nil }
+                    let code = text.trimmingCharacters(in: CharacterSet(charactersIn: "<|>"))
+                    return Constants.languageCodes.contains(code) ? code : nil
+                })
+            } else {
+                native = DictationModel.fluidSpeechCodes
+            }
             covered = Set(identifiers.flatMap {
                 DictationLanguagePreference(identifiers: [$0]).resolvedCodes(supported: native)
             })
@@ -131,8 +141,8 @@ final class DictationLanguageAuditTests: XCTestCase {
             offered = Set(native.filter {
                 !DictationLanguagePreference(identifiers: [$0]).codes.isDisjoint(with: identities)
             })
-        } else {
-            let root = ModelDownloader(config: DictationQwen.source).localRepoLocation(downloadBase: cache)
+        case .qwen3ASR:
+            let root = DictationModelFiles(base: cache).root(for: model)
             let data = try Data(contentsOf: root.appendingPathComponent("config.json"))
             let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
             let names = try XCTUnwrap(object["support_languages"] as? [String])

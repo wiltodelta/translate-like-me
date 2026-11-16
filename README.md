@@ -110,7 +110,7 @@ Screenshots use sample settings and include light and dark versions.
 
 ## Use a local model or an account you already have
 
-Dictation runs locally with Whisper or Qwen3-ASR, with no account or API key.
+Dictation runs locally with Fluid Speech Pro, Whisper, or Qwen3-ASR, with no account or API key.
 For translation and Rewrite, choose a local model or use Claude Code, Codex,
 Grok Build, or Antigravity through its official CLI.
 
@@ -134,10 +134,10 @@ retention; supported defaults and isolation limits are described in the
 | Local translation | MLX, inside the app |
 
 Fresh profiles select **Gemma 4 E2B** on Macs with **8-16 GB** of memory and
-**Gemma 4 12B** above **16 GB**. Dictation selects **Whisper large-v3-turbo**
-through **16 GB** and **Qwen3-ASR** above that. Existing model choices are
-preserved. Gemma 4 12B and TranslateGemma 12B can also be selected manually on
-a 16 GB Mac.
+**Gemma 4 12B** above **16 GB**. Dictation selects **Fluid Speech Pro** through
+**16 GB** (or **Whisper large-v3-turbo** when your languages need broader
+coverage) and **Qwen3-ASR** above that. Existing model choices are preserved.
+Gemma 4 12B can also be selected manually on a 16 GB Mac.
 The lighter model has more limitations in translation and Rewrite. See the
 [setup instructions and model comparison](docs/user-guide.md#providers).
 

@@ -25,8 +25,8 @@ protocol LocalLoading: Sendable {
 // Runs translations on this Mac. One model is resident at a time: loading
 // takes 2-6 s from a warm disk cache (docs/local-translation.md), so it stays
 // loaded between runs until memory pressure, a configuration change or removal.
-// Memory pressure releases it once the active operation drains, since
-// TranslateGemma holds 7.5 GB.
+// Memory pressure releases it once the active operation drains, since Gemma 4
+// 12B holds about 8.2 GB.
 actor LocalEngine {
     static let shared = LocalEngine()
     static let promptHeadLimit = 3
@@ -258,11 +258,10 @@ struct MLXLoader: LocalLoading {
         mutating func didSample(token: MLXArray) {}
     }
 
-    // The instructions open every prompt, about 360 of TranslateGemma's 380
-    // tokens. Their cache is computed once per pair or preset and copied into
-    // each run, which took 1.7-3.7 s off the first token with identical output
-    // (docs/local-translation.md). Each costs 141 MB on TranslateGemma, so only
-    // the latest three are kept. Used only inside `ModelContainer.perform`,
+    // The instructions open every prompt. Their cache is computed once per pair
+    // or preset and copied into each run, which took 1.7-3.7 s off the first
+    // token with identical output (docs/local-translation.md); only the latest
+    // three are kept. Used only inside `ModelContainer.perform`,
     // which runs one generation at a time.
     final class PromptHeads: @unchecked Sendable {
         private var entries: [(head: [Int], cache: [KVCache])] = []

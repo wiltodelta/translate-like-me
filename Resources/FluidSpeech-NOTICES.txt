@@ -1,0 +1,16 @@
+Fluid Speech Pro (8-bit)
+
+Fluid Speech Pro by FluidVoice. Built on NVIDIA Parakeet TDT 0.6B v3 and Moondream Parakeet Ultra.
+Copyright (c) 2026 FluidVoice. Licensed under CC BY 4.0 (see FluidSpeech LICENSE.txt).
+
+This model is built on:
+- NVIDIA Parakeet TDT 0.6B v3 (https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3), CC BY 4.0, NVIDIA Corporation.
+- Moondream Parakeet Ultra (https://huggingface.co/moondream/parakeet-ultra), CC BY 4.0, Moondream.
+
+Original model: https://huggingface.co/FluidVoice-Labs/fluid-speech-pro
+MLX export: https://huggingface.co/FluidVoice-Labs/fluid-speech-pro-mlx
+Pinned model revision: aeb1d4e43487586b15d86c0a1dd4511e1cf6b7a0
+Runtime: https://github.com/Blaizzy/mlx-audio-swift
+Array runtime: https://github.com/ml-explore/mlx-swift
+
+The Creative Commons Attribution 4.0 International license text is included in FluidSpeech LICENSE.txt.

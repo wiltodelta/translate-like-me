@@ -46,12 +46,12 @@ final class LocalPreparationTests: XCTestCase {
         }, release: { events.withLock { $0.append("release") } }, sleep: {})
         preparation.update(model: .gemma4E2B, pairs: [], presets: [])
         await started.wait()
-        preparation.update(model: .translateGemma12B, pairs: [], presets: [])
+        preparation.update(model: .gemma4Model12B, pairs: [], presets: [])
         XCTAssertEqual(events.withLock { $0 }, ["start gemma-4-e2b"])
         await drain.open()
         await preparation.operation?.value
         XCTAssertEqual(events.withLock { $0 }, ["start gemma-4-e2b", "end gemma-4-e2b",
-                                               "start translategemma-12b", "end translategemma-12b"])
+                                               "start gemma-4-12b", "end gemma-4-12b"])
         preparation.update(model: nil, pairs: [], presets: [])
         await preparation.operation?.value
         XCTAssertEqual(events.withLock { $0.last }, "release")

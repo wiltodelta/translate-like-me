@@ -26,8 +26,9 @@ The runner generates English and Russian speech with installed macOS voices,
 mixes a weaker English background into Russian speech, and adds digital silence.
 It never plays these files or opens a microphone. Full Xcode, the installed
 Samantha and Milena voices, and an already prepared development Turbo cache are
-required by default. `--model qwen3ASR` checks the prepared Qwen cache after
-its installation check. Model downloading is disabled. Missing prerequisites fail the run.
+required by default. `--model fluid-speech-pro` and `--model qwen3ASR` check the
+prepared Fluid Speech Pro and Qwen caches after their installation checks. Model
+downloading is disabled. Missing prerequisites fail the run.
 `--skip-build` reuses a test bundle containing `DictationAudioValidationTests`.
 
 To verify the full software delivery loop (`DictationController`, streaming
@@ -35,9 +36,9 @@ To verify the full software delivery loop (`DictationController`, streaming
 snapshots and child-element timeouts across `NSTextView`, `NSTextField`,
 `NSSecureTextField`, `>32k` buffers, stalled children, and unknown-length views,
 promised `NSPasteboard` delivery on an isolated named pasteboard,
-Qwen3-ASR contextual/quiet/multilingual decoding, and Whisper Turbo) without
-microphone access, audio playback, focus changes, or `NSPasteboard.general`
-mutation:
+Qwen3-ASR contextual/quiet/multilingual decoding, Fluid Speech Pro, and Whisper
+Turbo) without microphone access, audio playback, focus changes, or
+`NSPasteboard.general` mutation:
 
 ```bash
 python3 scripts/check-dictation-e2e.py

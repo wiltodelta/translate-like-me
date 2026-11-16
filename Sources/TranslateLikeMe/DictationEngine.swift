@@ -45,13 +45,27 @@ actor DictationEngine: DictationRecognizing {
         self.vocabulary = vocabulary
     }
 
-    private var kit: WhisperKit?
-    private var qwen: DictationQwen?
-    var loadedModel: DictationModel? {
-        if qwen != nil { return .qwen3ASR }
-        guard let folder = kit?.modelFolder?.lastPathComponent else { return nil }
-        return DictationModel.allCases.first { $0.variant == folder }
+    private enum Runtime {
+        case fluidSpeech(DictationFluidSpeech)
+        case whisper(DictationModel, WhisperKit)
+        case qwen(DictationQwen)
+
+        var model: DictationModel {
+            switch self {
+            case .fluidSpeech: .fluidSpeechPro
+            case .whisper(let model, _): model
+            case .qwen: .qwen3ASR
+            }
+        }
+
+        var isQwen: Bool {
+            if case .qwen = self { return true }
+            return false
+        }
     }
+
+    private var runtime: Runtime?
+    var loadedModel: DictationModel? { runtime?.model }
     private var speechDetector: DictationSpeechDetector?
     private var working = false
 
@@ -90,42 +104,46 @@ actor DictationEngine: DictationRecognizing {
     }
 
     private func loadRuntime(model: DictationModel, root: URL, tokenizer: URL?) async throws {
-        if model == .qwen3ASR {
-            let loaded = try await DictationQwen(root: root)
-            do { try Task.checkCancellation() } catch {
-                await loaded.unload()
-                throw error
-            }
-            qwen = loaded
-            return
+        let loaded: Runtime
+        switch model {
+        case .fluidSpeechPro:
+            loaded = .fluidSpeech(try await DictationFluidSpeech(root: root))
+        case .qwen3ASR:
+            loaded = .qwen(try await DictationQwen(root: root))
+        case .turbo:
+            guard let tokenizer else { throw DictationError.notReady }
+            let kit = try await WhisperKit(WhisperKitConfig(
+                modelFolder: root.appendingPathComponent(model.variant).path, tokenizerFolder: tokenizer,
+                computeOptions: ModelComputeOptions(audioEncoderCompute: .cpuAndNeuralEngine,
+                                                   textDecoderCompute: .cpuAndNeuralEngine),
+                verbose: false, logLevel: .none, prewarm: false, load: true, download: false))
+            loaded = .whisper(model, kit)
         }
-        guard let tokenizer else { throw DictationError.notReady }
-        let loaded = try await WhisperKit(WhisperKitConfig(
-            modelFolder: root.appendingPathComponent(model.variant).path, tokenizerFolder: tokenizer,
-            computeOptions: ModelComputeOptions(audioEncoderCompute: .cpuAndNeuralEngine,
-                                               textDecoderCompute: .cpuAndNeuralEngine),
-            verbose: false, logLevel: .none, prewarm: false, load: true, download: false))
-        try Task.checkCancellation()
-        kit = loaded
+        do { try Task.checkCancellation() } catch {
+            await unload(loaded)
+            throw error
+        }
+        runtime = loaded
     }
 
     func prepareModels(model: DictationModel = .turbo, in base: URL, download: Bool,
                        progress: @escaping @Sendable (Double) -> Void) async throws -> URL {
-        if model == .qwen3ASR {
-            return try await prepareQwen(in: base, download: download, progress: progress)
-        }
-        let required = Self.requiredFiles(for: model)
-        return try await prepareSnapshot(source: Self.modelSource, variant: (model.variant, required),
-                                         in: base, download: download) { progress($0 * 0.85) }
+        let weight = model.tokenizer == nil ? 0.95 : 0.85
+        return try await prepareSnapshot(source: model.source, variant: (model.variant, Self.requiredFiles(for: model)),
+                                         in: base, download: download) { progress($0 * weight) }
     }
 
     static let detectorModel = "silero-vad-unified-256ms-v6.2.1.mlmodelc"
     static let detectorSource = ModelDownloadConfig(modelRepo: "FluidInference/silero-vad-coreml",
                                                     revision: "b419383c55c110e2c9271fa6ee0ea83d03c70d96")
     static func requiredFiles(for model: DictationModel) -> [String] {
-        if model == .qwen3ASR { return DictationQwen.files }
-        return ["MelSpectrogram", "AudioEncoder", "TextDecoder"].flatMap { component in
-            coreMLParts.map { component + ".mlmodelc/" + $0 }
+        switch model {
+        case .fluidSpeechPro: DictationFluidSpeech.files
+        case .qwen3ASR: DictationQwen.files
+        case .turbo:
+            ["MelSpectrogram", "AudioEncoder", "TextDecoder"].flatMap { component in
+                coreMLParts.map { component + ".mlmodelc/" + $0 }
+            }
         }
     }
 
@@ -143,10 +161,11 @@ actor DictationEngine: DictationRecognizing {
         let root = downloader.localRepoLocation(downloadBase: base)
         let snapshot = ModelSnapshot(root: root, revision: source.revision,
                                      variant: variant.name, required: variant.files)
+        let matching = variant.name.isEmpty ? variant.files : [variant.name + "/*"]
         return try await snapshot.prepareForDictation(download: download) {
             let hub = HubApiWrapper(downloadBase: base, endpoint: source.endpoint)
             _ = try await hub.snapshot(from: .init(id: source.modelRepo), revision: source.revision,
-                                       matching: [variant.name + "/*"]) { progress($0.fractionCompleted) }
+                                       matching: matching) { progress($0.fractionCompleted) }
         }
     }
 
@@ -181,7 +200,7 @@ actor DictationEngine: DictationRecognizing {
     }
 
     func transcribe(_ audio: URL) async throws -> String {
-        guard kit != nil || qwen != nil, let speechDetector else { throw DictationError.notReady }
+        guard let runtime, let speechDetector else { throw DictationError.notReady }
         working = true
         defer { working = false }
         var samples = try loadAudio(audio)
@@ -195,7 +214,7 @@ actor DictationEngine: DictationRecognizing {
             return ""
         }
         let activeVocabulary = vocabulary()
-        let contextTask = qwen != nil ? Task.detached { [destinationContext] in destinationContext() } : nil
+        let contextTask = runtime.isQwen ? Task.detached { [destinationContext] in destinationContext() } : nil
         defer { contextTask?.cancel() }
         let normalized = DictationAudioGain.normalize(samples, peak: metrics.peak)
         samples = normalized.samples
@@ -208,23 +227,24 @@ actor DictationEngine: DictationRecognizing {
             return ""
         }
         let isShort = speech.activeSamples <= DictationLanguagePreference.shortSpeechSamples
-        if qwen != nil || samples.count - speech.bounds.count >= 16_000 {
+        if runtime.isQwen || samples.count - speech.bounds.count >= 16_000 {
             samples = Array(samples[speech.bounds])
         }
         if samples.count < 16_000 { samples += Array(repeating: 0, count: 16_000 - samples.count) }
-        // Whisper can omit a short utterance that ends at the buffer boundary.
-        // Provide a trailing quiet tail after checking the complete clip for speech.
-        if qwen == nil { samples += Array(repeating: 0, count: 8_000) }
+        // Whisper and Fluid Speech's lookahead cleaner benefit from a trailing
+        // quiet tail after checking the complete clip for speech.
+        if !runtime.isQwen { samples += Array(repeating: 0, count: 8_000) }
         try Task.checkCancellation()
-        return try await recognize(samples, isShortUtterance: isShort,
+        return try await recognize(samples, runtime: runtime, isShortUtterance: isShort,
                                    contextTask: contextTask, vocabulary: activeVocabulary)
     }
 
-    private func recognize(_ samples: [Float], isShortUtterance: Bool, contextTask: Task<String, Never>?,
-                           vocabulary: DictationVocabulary) async throws -> String {
+    private func recognize(_ samples: [Float], runtime: Runtime, isShortUtterance: Bool,
+                           contextTask: Task<String, Never>?, vocabulary: DictationVocabulary) async throws -> String {
         let preference = DictationLanguagePreference(identifiers: await languageIdentifiers())
         let cleaned: String
-        if let qwen {
+        switch runtime {
+        case .qwen(let qwen):
             let context = await contextTask?.value ?? ""
             let hasContext = !context.isEmpty || !vocabulary.glossaryPrompt.isEmpty
             recognitionLog.notice(
@@ -234,8 +254,12 @@ actor DictationEngine: DictationRecognizing {
                                                 vocabulary: vocabulary, isShortUtterance: isShortUtterance)
             try Task.checkCancellation()
             cleaned = Self.cleanedTranscript(raw)
-        } else {
-            guard let kit else { throw DictationError.notReady }
+        case .fluidSpeech(let fluid):
+            recognitionLog.notice("Dictation Fluid Speech decoding started")
+            let raw = try await fluid.transcribe(samples)
+            try Task.checkCancellation()
+            cleaned = Self.cleanedTranscript(raw)
+        case .whisper(_, let kit):
             let decoder = (kit.textDecoder as? DictationWhisperLanguage)?.base ?? (kit.textDecoder as? TextDecoder)
             guard let decoder else { throw DictationError.notReady }
             kit.textDecoder = DictationWhisperLanguage(base: decoder, preference: preference,
@@ -272,13 +296,19 @@ actor DictationEngine: DictationRecognizing {
 
     func unload() async {
         guard !working else { return }
-        let previous = kit
-        let previousQwen = qwen
-        qwen = nil
-        kit = nil
+        let previous = runtime
+        runtime = nil
         speechDetector = nil
-        await previous?.unloadModels()
-        await previousQwen?.unload()
+        await unload(previous)
+    }
+
+    private func unload(_ target: Runtime?) async {
+        switch target {
+        case .fluidSpeech(let fluid): await fluid.unload()
+        case .whisper(_, let kit): await kit.unloadModels()
+        case .qwen(let qwen): await qwen.unload()
+        case nil: break
+        }
     }
 }
 

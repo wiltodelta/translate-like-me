@@ -416,18 +416,3 @@ private struct ShortChunkRescorer {
         return probSum > 0 ? log(min(1, probSum)) : -99
     }
 }
-
-extension DictationEngine {
-    func prepareQwen(in base: URL, download: Bool,
-                     progress: @escaping @Sendable (Double) -> Void) async throws -> URL {
-        let source = DictationQwen.source
-        let root = ModelDownloader(config: source).localRepoLocation(downloadBase: base)
-        let snapshot = ModelSnapshot(root: root, revision: source.revision,
-                                     variant: "", required: DictationQwen.files)
-        return try await snapshot.prepareForDictation(download: download) {
-            let hub = HubApiWrapper(downloadBase: base, endpoint: source.endpoint)
-            _ = try await hub.snapshot(from: .init(id: source.modelRepo), revision: source.revision,
-                                       matching: DictationQwen.files) { progress($0.fractionCompleted * 0.95) }
-        }
-    }
-}

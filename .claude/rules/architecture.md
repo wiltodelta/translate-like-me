@@ -208,11 +208,10 @@ Read before editing this domain.
   special cases.
 - The fifth engine, `Provider.local` ("Local model"), runs a model on this Mac
   with MLX in process (`LocalEngine`); `usesCLI` is false and the CLI facts are
-  never read for it. `LocalModel` pins Gemma 4 12B and TranslateGemma 12B (16 GB
-  minimum) and Gemma 4 E2B with their turn formats. Fresh profiles recommend E2B
-  through 16 GiB and Gemma 4 12B above 16 GiB; TranslateGemma stays
-  `LocalModel.default` for profiles that never stored a pick, since earlier
-  installs downloaded it. Gemma 4 12B loads through MLXVLM, masks its channel
+  never read for it. `LocalModel` pins Gemma 4 12B (16 GB minimum) and Gemma 4
+  E2B with their turn formats (`TranslateGemma 12B` was retired; `LocalModel.default`
+  resolves to Gemma 4 12B at `>= 16 GiB` and Gemma 4 E2B below that). Fresh profiles recommend E2B
+  through 16 GiB and Gemma 4 12B above 16 GiB. Gemma 4 12B loads through MLXVLM, masks its channel
   tokens (`LocalModel.maskedTokens`; a `LogitProcessor` stays a struct, since
   the speculative iterator copies it and a class's default `copy()` traps) and
   decodes with its MTP drafter

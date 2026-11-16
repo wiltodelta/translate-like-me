@@ -24,7 +24,10 @@ final class DictationEndToEndSyntheticTests: XCTestCase {
 
         try verifyDirectAXSnapshotsAndTimeouts(helper: helper)
         try await verifyQwenControllerFlow(root: root, helper: helper, board: board)
-        try await verifyTurboControllerFlow(root: root, helper: helper, board: board)
+        try await verifyControllerFlow(model: .fluidSpeechPro, softLeadToken: "сес",
+                                       root: root, helper: helper, board: board)
+        try await verifyControllerFlow(model: .turbo, softLeadToken: "сессия",
+                                       root: root, helper: helper, board: board)
     }
 
     private func verifyDirectAXSnapshotsAndTimeouts(helper: OffscreenAXHelper) throws {
@@ -137,27 +140,30 @@ final class DictationEndToEndSyntheticTests: XCTestCase {
         XCTAssertEqual(board.string(forType: .string), "user original clipboard")
     }
 
-    private func verifyTurboControllerFlow(root: URL, helper: OffscreenAXHelper, board: NSPasteboard) async throws {
-        let state = E2EHarness(root: root, model: .turbo, helper: helper, board: board)
+    private func verifyControllerFlow(
+        model: DictationModel, softLeadToken: String, root: URL, helper: OffscreenAXHelper, board: NSPasteboard
+    ) async throws {
+        let state = E2EHarness(root: root, model: model, helper: helper, board: board)
         defer { state.controller.shutdown() }
         await state.prepare()
         try helper.configure(mode: "textview", title: "Notes", text: "Готово.")
         try await state.dictate(wav: "prodolzhay_padded.wav")
         let text = try helper.readBuffer()
-        XCTAssertTrue(text.hasPrefix("Готово. "), "Missing leading space on Turbo delivery: \(text)")
-        XCTAssertTrue(text.localizedCaseInsensitiveContains("продолжай"), "Unexpected Turbo output: \(text)")
+        XCTAssertTrue(text.hasPrefix("Готово. "), "Missing leading space on \(model) delivery: \(text)")
+        XCTAssertTrue(text.localizedCaseInsensitiveContains("продолжай"), "Unexpected \(model) output: \(text)")
         XCTAssertEqual(board.string(forType: .string), "user original clipboard")
-        try await verifyBoundaryAndGainNoiseZeroEcho(root: root, engine: state.engine, helper: helper)
+        try await verifyBoundaryAndGainNoiseZeroEcho(root: root, engine: state.engine, helper: helper,
+                                                     softLeadToken: softLeadToken)
         await state.unload()
     }
 
     private func verifyBoundaryAndGainNoiseZeroEcho(
-        root: URL, engine: DictationEngine, helper: OffscreenAXHelper
+        root: URL, engine: DictationEngine, helper: OffscreenAXHelper, softLeadToken: String = "сессия"
     ) async throws {
         try helper.configure(mode: "textview", title: "Deploy - translate-like-me",
                              text: "Коммит и пуш завершены. Сессия активна. Продолжай релиз.")
         let softLead = try await engine.transcribe(root.appendingPathComponent("soft_lead_pause_ru.wav"))
-        XCTAssertTrue(softLead.localizedCaseInsensitiveContains("сессия"), "Clipped soft lead in: \(softLead)")
+        XCTAssertTrue(softLead.localizedCaseInsensitiveContains(softLeadToken), "Clipped soft lead in: \(softLead)")
         XCTAssertTrue(softLead.localizedCaseInsensitiveContains("продолжай"), "Clipped tail in: \(softLead)")
         for name in ["noise_white_006.wav", "noise_pink_035.wav", "noise_clicks_090.wav"] {
             let output = try await engine.transcribe(root.appendingPathComponent(name))

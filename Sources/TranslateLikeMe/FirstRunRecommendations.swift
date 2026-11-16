@@ -53,7 +53,7 @@ enum FirstRunRecommendations {
     }
 
     static func dictationModel(physicalMemory: UInt64, languages: [String]) -> DictationModel {
-        DictationModel.covering(languages, preferring: physicalMemory <= 16 << 30 ? .turbo : .qwen3ASR)
+        DictationModel.covering(languages, preferring: physicalMemory <= 16 << 30 ? .fluidSpeechPro : .qwen3ASR)
     }
 
     // The existing quality comparison covers en/ru/de only.

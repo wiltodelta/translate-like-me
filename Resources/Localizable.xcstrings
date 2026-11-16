@@ -4897,6 +4897,64 @@
         }
       }
     },
+    "Fast dictation in 25 European languages. About 751 MB to download." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schnelles Diktieren in 25 europäischen Sprachen. Etwa 751 MB Download."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dictado rápido en 25 idiomas europeos. Unos 751 MB de descarga."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dictée rapide dans 25 langues européennes. Environ 751 Mo à télécharger."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dettatura rapida in 25 lingue europee. Download di circa 751 MB."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ヨーロッパの25言語での高速な音声入力。ダウンロードは約751 MBです。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "25개 유럽 언어 고속 받아쓰기. 다운로드 크기 약 751MB."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ditado rápido em 25 idiomas europeus. Cerca de 751 MB para baixar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Быстрая диктовка на 25 европейских языках. Загрузка около 751 МБ."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支持 25 种欧洲语言的快速听写。需下载约 751 MB。"
+          }
+        }
+      }
+    },
     "Finish Dictation Setup…" : {
       "localizations" : {
         "de" : {
@@ -9559,60 +9617,60 @@
         }
       }
     },
-    "Runs on this Mac: the text never leaves it, and translation works offline. The model downloads once from Hugging Face. TranslateGemma is provided under the Gemma Terms of Use, Gemma 4 under the Apache 2.0 license." : {
+    "Runs on this Mac: the text never leaves it, and translation works offline. The model downloads once from Hugging Face. Gemma 4 is provided under the Apache 2.0 license." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Läuft auf diesem Mac: Der Text verlässt ihn nie, und die Übersetzung funktioniert offline. Das Modell wird einmal von Hugging Face geladen. TranslateGemma wird unter den Gemma-Nutzungsbedingungen bereitgestellt, Gemma 4 unter der Apache-2.0-Lizenz."
+            "value" : "Läuft auf diesem Mac: Der Text verlässt ihn nie, und die Übersetzung funktioniert offline. Das Modell wird einmal von Hugging Face geladen. Gemma 4 wird unter der Apache-2.0-Lizenz bereitgestellt."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Funciona en este Mac: el texto nunca sale de él y la traducción funciona sin conexión. El modelo se descarga una vez desde Hugging Face. TranslateGemma se ofrece bajo los Términos de uso de Gemma, y Gemma 4 bajo la licencia Apache 2.0."
+            "value" : "Funciona en este Mac: el texto nunca sale de él y la traducción funciona sin conexión. El modelo se descarga una vez desde Hugging Face. Gemma 4 se ofrece bajo la licencia Apache 2.0."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fonctionne sur ce Mac : le texte ne le quitte jamais, et la traduction marche hors ligne. Le modèle se télécharge une fois depuis Hugging Face. TranslateGemma est fourni selon les conditions d’utilisation de Gemma, Gemma 4 sous licence Apache 2.0."
+            "value" : "Fonctionne sur ce Mac : le texte ne le quitte jamais, et la traduction marche hors ligne. Le modèle se télécharge une fois depuis Hugging Face. Gemma 4 est fourni sous licence Apache 2.0."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Funziona su questo Mac: il testo non lo lascia mai e la traduzione funziona offline. Il modello si scarica una volta da Hugging Face. TranslateGemma è fornito secondo i Termini di utilizzo di Gemma, Gemma 4 con licenza Apache 2.0."
+            "value" : "Funziona su questo Mac: il testo non lo lascia mai e la traduzione funziona offline. Il modello si scarica una volta da Hugging Face. Gemma 4 è fornito con licenza Apache 2.0."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "このMac上で動作します。テキストがMacの外に出ることはなく、オフラインでも翻訳できます。モデルはHugging Faceから一度だけダウンロードします。TranslateGemmaはGemma利用規約、Gemma 4はApache 2.0ライセンスに基づいて提供されています。"
+            "value" : "このMac上で動作します。テキストがMacの外に出ることはなく、オフラインでも翻訳できます。モデルはHugging Faceから一度だけダウンロードします。Gemma 4はApache 2.0ライセンスに基づいて提供されています。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "이 Mac에서 실행됩니다. 텍스트가 Mac 밖으로 나가지 않으며 오프라인에서도 번역됩니다. 모델은 Hugging Face에서 한 번만 다운로드합니다. TranslateGemma는 Gemma 이용 약관, Gemma 4는 Apache 2.0 라이선스에 따라 제공됩니다."
+            "value" : "이 Mac에서 실행됩니다. 텍스트가 Mac 밖으로 나가지 않으며 오프라인에서도 번역됩니다. 모델은 Hugging Face에서 한 번만 다운로드합니다. Gemma 4는 Apache 2.0 라이선스에 따라 제공됩니다."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Funciona neste Mac: o texto nunca sai dele, e a tradução funciona offline. O modelo é baixado uma vez do Hugging Face. O TranslateGemma é fornecido sob os Termos de Uso do Gemma, e o Gemma 4 sob a licença Apache 2.0."
+            "value" : "Funciona neste Mac: o texto nunca sai dele, e a tradução funciona offline. O modelo é baixado uma vez do Hugging Face. O Gemma 4 é fornecido sob a licença Apache 2.0."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Работает на этом Mac: текст не покидает его, и перевод работает без интернета. Модель загружается один раз с Hugging Face. TranslateGemma распространяется на условиях Gemma Terms of Use, Gemma 4 по лицензии Apache 2.0."
+            "value" : "Работает на этом Mac: текст не покидает его, и перевод работает без интернета. Модель загружается один раз с Hugging Face. Gemma 4 распространяется по лицензии Apache 2.0."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在这台 Mac 上运行：文本不会离开这台 Mac，离线也能翻译。模型从 Hugging Face 下载一次。TranslateGemma 依据 Gemma 使用条款提供，Gemma 4 依据 Apache 2.0 许可证提供。"
+            "value" : "在这台 Mac 上运行：文本不会离开这台 Mac，离线也能翻译。模型从 Hugging Face 下载一次。Gemma 4 依据 Apache 2.0 许可证提供。"
           }
         }
       }
@@ -12819,64 +12877,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "翻译所选内容"
-          }
-        }
-      }
-    },
-    "Translates almost as well, but is slower and weaker in Rewrite. About 6.7 GB to download, needs 16 GB of memory." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Übersetzt fast genauso gut, ist aber langsamer und schwächer beim Umschreiben. Etwa 6,7 GB Download, braucht 16 GB Arbeitsspeicher."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Traduce casi igual de bien, pero es más lento y flojea al reescribir. Unos 6,7 GB de descarga; necesita 16 GB de memoria."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Traduit presque aussi bien, mais il est plus lent et moins bon pour la réécriture. Environ 6,7 Go à télécharger, nécessite 16 Go de mémoire."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Traduce quasi altrettanto bene, ma è più lento e meno efficace nella riscrittura. Download di circa 6,7 GB, richiede 16 GB di memoria."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "翻訳の精度はほぼ同等ですが、速度が遅く、書き直しは苦手です。ダウンロードは約6.7 GB、16 GBのメモリが必要です。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "번역은 거의 비슷하게 잘하지만 더 느리고 다시 쓰기에는 약합니다. 다운로드 크기 약 6.7GB, 메모리 16GB가 필요합니다."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Traduz quase tão bem, mas é mais lento e mais fraco ao reescrever. Cerca de 6,7 GB para baixar; precisa de 16 GB de memória."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Переводит почти так же хорошо, но медленнее и слабее при переписывании. Загрузка около 6,7 ГБ, нужно 16 ГБ памяти."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "翻译质量几乎相同，但速度较慢，改写能力较弱。需下载约 6.7 GB，需要 16 GB 内存。"
           }
         }
       }

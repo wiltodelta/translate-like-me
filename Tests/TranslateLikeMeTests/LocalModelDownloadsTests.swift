@@ -54,13 +54,13 @@ final class LocalModelDownloadsTests: XCTestCase {
         defer { UserDefaults.standard.set(saved, forKey: "localModel") }
         let downloads = LocalModelDownloads(removeModel: { _ in XCTFail("A newly selected model must stay protected") })
         Settings.localModel = .gemma4E2B
-        XCTAssertTrue(downloads.canRemove(.translateGemma12B, selected: Settings.localModel))
-        let state = downloads.state(of: .translateGemma12B)
+        XCTAssertTrue(downloads.canRemove(.gemma4Model12B, selected: Settings.localModel))
+        let state = downloads.state(of: .gemma4Model12B)
 
         // The selection changes after opening a confirmation for the other model.
-        Settings.localModel = .translateGemma12B
-        XCTAssertEqual(Settings.localModel, .translateGemma12B)
-        downloads.remove(.translateGemma12B)
-        XCTAssertEqual(downloads.state(of: .translateGemma12B), state)
+        Settings.localModel = .gemma4Model12B
+        XCTAssertEqual(Settings.localModel, .gemma4Model12B)
+        downloads.remove(.gemma4Model12B)
+        XCTAssertEqual(downloads.state(of: .gemma4Model12B), state)
     }
 }

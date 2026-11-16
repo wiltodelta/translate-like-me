@@ -12,9 +12,8 @@ Translate Like Me.
   temporary Core ML compilation files.
 - For translation and Rewrite, the provider's official CLI installed and signed in: `claude`
   (Claude Code), `codex` (Codex), `grok` (Grok Build) or `agy` (Antigravity);
-  or, for the local model, 16 GB of memory for Gemma 4 12B or TranslateGemma 12B
-  (8 GB for Gemma 4 E2B) and room for its download (7 GB, 6.7 GB or 3.6 GB) with
-  2 GB to spare.
+  or, for the local model, 16 GB of memory for Gemma 4 12B (8 GB for Gemma 4
+  E2B) and room for its download (7 GB or 3.6 GB) with 2 GB to spare.
 
 ## First run
 
@@ -113,15 +112,17 @@ immediately.
 - **Dictation**: enable local speech recognition, choose the Option hold key and
   the microphone (**System default** follows macOS; a chosen microphone that is
   disconnected falls back to the system input until it returns), and select
-  Whisper large-v3-turbo or Qwen3-ASR 1.7B (8-bit, 30 languages). Fresh profiles select
-  Turbo through 16 GB of memory and Qwen above 16 GB, unless your languages need
-  Whisper. When the selected model cannot recognize one of your pair languages,
-  the pane names it and offers the model that can. Removed Small and
-  Large v3 preferences fall back to Turbo. Model
-  preparation starts automatically while enabled. Downloaded models stay cached;
-  switching is unavailable during recording or recognition. **Edit Vocabulary…**
-  lets you list custom names or technical terms (separated by commas or new lines)
-  and `spoken -> written` phrase replacements shared by all speech models.
+  Fluid Speech Pro (8-bit, 25 European languages), Whisper large-v3-turbo, or
+  Qwen3-ASR 1.7B (8-bit, 30 languages). Fresh profiles select Fluid Speech Pro
+  through 16 GB of memory and Qwen above 16 GB, switching automatically when
+  another model recognizes more of your pair languages. When the selected model
+  cannot recognize one of your pair languages, the pane names it and offers the
+  model that can. Removed Small and Large v3 preferences fall back to Turbo.
+  Model preparation starts automatically while enabled. Downloaded models stay
+  cached; switching is unavailable during recording or recognition. **Edit
+  Vocabulary…** lets you list custom names or technical terms (passed as hints
+  to Qwen3-ASR and Whisper) and `spoken -> written` phrase replacements shared
+  by all speech models.
 
 - **Languages** (General): up to three pairs, and none is fine too (the menu
   then offers to add one). Each row has the two languages,
@@ -176,30 +177,28 @@ Antigravity rules, skills or MCP servers.
 
 **Local model** runs on your Mac with [MLX](https://github.com/ml-explore/mlx-swift),
 in the app's own process: no CLI, account or network after the download.
-Settings > Translation offers three models, downloaded once from Hugging Face
+Settings > Translation offers two models, downloaded once from Hugging Face
 and checked against their published hashes:
 
 | Model | Download | Memory | Notes |
 |---|---|---|---|
 | Gemma 4 12B | 7 GB | 16 GB Mac | The most accurate, writing styles and Rewrite included |
-| TranslateGemma 12B | 6.7 GB | 16 GB Mac | Translates almost as well; slower and weaker in Rewrite |
 | Gemma 4 E2B | 3.6 GB | 8 GB Mac | About three times faster; less accurate (below) |
 
 Fresh profiles select Gemma 4 E2B on 8-16 GB Macs and Gemma 4 12B above
-16 GB. Existing selections are preserved.
+16 GB. Existing selections are preserved; retired TranslateGemma 12B choices
+resolve to Gemma 4 12B on 16 GB+ Macs and Gemma 4 E2B on 8 GB Macs.
 
 In a 23-case test on an M5 ([local model candidates](local-model-candidates.md)), Gemma 4 12B
-passed 16 of 17 translations and all 6 Rewrites, against TranslateGemma 12B's 15
-and 3, and answered about 1.2 times faster with its draft model. In an earlier
-15-case test ([local translation evaluation](local-translation.md)), TranslateGemma 12B
-translated every case and resolved spoken self-corrections in Rewrite; Gemma 4
-E2B kept the corrected-away detail in every Rewrite run and translated a third
-language into the pair's second language. Either can return a sentence
-unchanged; the app then asks once more, which fixed every such case in testing.
+passed 16 of 17 translations and all 6 Rewrites, answering in a 2.8 s median
+with its draft model; Gemma 4 E2B kept corrected-away details in Rewrite and
+translated a third language into the pair's second language. Either can return a
+sentence unchanged; the app then asks once more, which fixed every such case in
+testing.
 The selected installed model and its instruction cache are prepared in the
 background when the app starts. The model stays in memory until memory pressure,
-a model change or switching away from the local engine. TranslateGemma is
-provided under the Gemma Terms of Use, Gemma 4 under the Apache 2.0 license.
+a model change or switching away from the local engine. Gemma 4 is provided
+under the Apache 2.0 license.
 
 The app invokes each official CLI as a subprocess. It never extracts subscription
 OAuth tokens for use in a separate API client. Provider plan limits and terms apply.

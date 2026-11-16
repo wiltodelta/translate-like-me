@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run end-to-end synthetic dictation verification across AX, PasteDelivery, and both ASR models."""
+"""Run end-to-end synthetic dictation verification across AX, PasteDelivery, and all three ASR models."""
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -405,7 +405,7 @@ def main():
             "cross-process AppKit AXUIElement snapshots and child-element timeouts "
             "(NSTextView, NSTextField, NSSecureTextField, >32k buffer, stalled child, "
             "unknown count), promised NSPasteboard delivery, Qwen3-ASR contextual/quiet/"
-            "multilingual/boundary/noise-echo decoding, and Whisper Turbo"
+            "multilingual/boundary/noise-echo decoding, Fluid Speech Pro, and Whisper Turbo"
         ),
     }
     args.report.write_text(json.dumps(dict(report, status="running"), indent=2) + "\n")

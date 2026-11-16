@@ -77,8 +77,7 @@ struct DictationModelFiles: Sendable {
         .appendingPathComponent("Dictation", isDirectory: true))
 
     func root(for model: DictationModel) -> URL {
-        ModelDownloader(config: model == .qwen3ASR ? DictationQwen.source : DictationEngine.modelSource)
-            .localRepoLocation(downloadBase: base)
+        ModelDownloader(config: model.source).localRepoLocation(downloadBase: base)
     }
 
     func folder(for model: DictationModel) -> URL {
@@ -115,7 +114,7 @@ struct DictationModelFiles: Sendable {
         // Whisper variants share their repository, and every model shares VAD.
         // Delete only this variant and its own tokenizer, keeping neighbors.
         var targets = [folder(for: model)]
-        if model != .qwen3ASR {
+        if !model.variant.isEmpty {
             targets.append(root(for: model).appendingPathComponent(".cache/huggingface/download/" + model.variant))
         }
         if let tokenizer = model.tokenizer {

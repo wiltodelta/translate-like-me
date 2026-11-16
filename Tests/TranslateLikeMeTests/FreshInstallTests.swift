@@ -62,7 +62,7 @@ final class FreshInstallTests: XCTestCase {
             _ = try await Translator.translate("Hello", pair: EngineProbe.samplePair, provider: .local)
             XCTFail("A missing local model must never silently succeed")
         } catch LocalModelError.notDownloaded(let model) {
-            XCTAssertEqual(model, .translateGemma12B)
+            XCTAssertEqual(model, .default)
         }
     }
 

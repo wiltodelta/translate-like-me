@@ -65,7 +65,7 @@ struct LocalModelFiles: Sendable {
     }
 
     // One file at a time, so progress follows bytes: the Hub client weighs each
-    // file equally, and one TranslateGemma file is 5.4 of its 6.7 GB.
+    // file equally, and one Gemma 4 12B shard is 5.4 of its 7.0 GB.
     func download(_ model: LocalModel, progress: @escaping @Sendable (Double) -> Void) async throws {
         try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         let needed = remainingBytes(model)

@@ -75,13 +75,15 @@ preparation, preview, approval and live verification.
   Accessibility and Screen Recording inside the separate macOS VM. The script
   refuses the host unless `--host` is explicitly selected for agreed diagnostics.
   The script builds in place unless `CAPTURE_SKIP_BUILD=1` is set. In a stock
-  Cua guest (Command Line Tools only), set `lume set <vm> --display 2880x1800`
-  and select `1440x900` HiDPI (`2.0x`), transfer the host-built bundle and
-  host-compiled helper, wrap the backdrop window in an `LSUIElement` `.app`
-  launched via `open -n` (`SCRunningApplication` omits raw Mach-O children of
-  `cua-spacesd`), reopen the app via `open` to show Settings, and flip system
-  appearance via SkyLight `SLSSetAppearanceThemeLegacy` when `cua-spacesd` lacks
-  System Events Automation permission.
+  Cua guest (Command Line Tools only), set `lume set <vm> --memory 16GB
+  --display 2880x1800` (16 GB keeps Gemma 4 12B `Ready`), persist `1440x900`
+  HiDPI (`2.0x`) via `CGConfigureDisplayWithDisplayMode(..., .permanently)`, set
+  `-g AppleKeyboardUIMode 0` so sheets open without Full Keyboard Access rings,
+  transfer the host-built bundle and host-compiled helper, wrap the backdrop
+  window in an `LSUIElement` `.app` launched via `open -n` (`SCRunningApplication`
+  omits raw Mach-O children of `cua-spacesd`), reopen the app via `open` to show
+  Settings, and flip system appearance via SkyLight `SLSSetAppearanceThemeLegacy`
+  when `cua-spacesd` lacks System Events Automation permission.
 - Check a change with the `CAPTURE_*_ONLY` mode it reaches (listed at the top
   of the script); the full run is only for a screen without a mode or the
   script's shared steps. A failed capture saves the screen, the app's

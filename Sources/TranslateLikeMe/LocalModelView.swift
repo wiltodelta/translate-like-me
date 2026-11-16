@@ -10,8 +10,7 @@ struct LocalModelControls: View {
     static var footer: String {
         String(localized: """
             Runs on this Mac: the text never leaves it, and translation works offline. The model downloads \
-            once from Hugging Face. TranslateGemma is provided under the Gemma Terms of Use, Gemma 4 under \
-            the Apache 2.0 license.
+            once from Hugging Face. Gemma 4 is provided under the Apache 2.0 license.
             """)
     }
 

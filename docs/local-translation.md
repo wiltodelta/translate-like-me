@@ -15,17 +15,19 @@ all models and download, cancel or confirm removal without changing the selectio
 
 ## Models
 
-Three 4-bit MLX conversions from `mlx-community`, pinned in `LocalModel`:
+Two 4-bit MLX conversions from `mlx-community`, pinned in `LocalModel`
+(`TranslateGemma 12B` was retired on 2026-11-15 after `Gemma 4 12B` beat it in
+accuracy, Rewrite and speed; historical measurements below retain its rows):
 
 | Model | Revision | Download | Peak memory | Minimum Mac |
 |---|---|---|---|---|
 | Gemma 4 12B, with its drafter | `73bcf09092aa`, drafter `537797012376` | 7.01 GB | 8.2 GB | 16 GB |
-| TranslateGemma 12B (fallback default) | `f3dcfd54df14` | 6.65 GB | 7.5 GB | 16 GB |
 | Gemma 4 E2B | `238767527555` | 3.58 GB | 3.3 GB | 8 GB |
 
-TranslateGemma stays `LocalModel.default`, the model a profile without a stored
-pick reads, so an install that downloaded it before Gemma 4 12B existed keeps
-working; first-run recommendations write their pick explicitly.
+`LocalModel.default` resolves to `Gemma 4 12B` on Macs with at least 16 GB of
+memory and `Gemma 4 E2B` below that, so profiles without a stored pick or with
+the retired `translategemma-12b` value migrate cleanly without selecting a model
+the Mac cannot run; first-run recommendations write their pick explicitly.
 
 Gemma 4 12B (`gemma4_unified`) loads through MLXVLM, which needs its
 `processor_config.json` although no image is passed. Its prompt closes the
@@ -37,12 +39,10 @@ downloaded, verified and removed with it, recorded on the same marker; decoding
 runs `MTPSpeculativeTokenIterator` with blocks of 3 over the reused prompt
 head. Measurements: [local model candidates](local-model-candidates.md).
 
-Licenses: TranslateGemma is under the Gemma Terms of Use (gated by manual
-approval on `google/translategemma-12b-it`, not on the `mlx-community`
-conversion); Gemma 4 E2B is Apache 2.0 at `google/gemma-4-E2B-it` (the
-conversion's card says `gemma`). The app downloads from Hugging Face on the
-user's request and does not redistribute weights; the Translation pane's footer
-names both licenses.
+License: Gemma 4 is under the Apache 2.0 license (`google/gemma-4-12B-it` and
+`google/gemma-4-E2B-it`). The app downloads from Hugging Face on the user's
+request and does not redistribute weights; the Translation pane's footer names
+the license.
 
 ## Benchmark (2026-10-20)
 

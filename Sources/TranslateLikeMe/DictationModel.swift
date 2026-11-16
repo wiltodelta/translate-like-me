@@ -3,12 +3,15 @@ import WhisperKit
 
 // Local multilingual speech models with pinned weights and tokenizer assets.
 enum DictationModel: String, CaseIterable, Identifiable, Sendable {
-    case turbo, qwen3ASR
+    case fluidSpeechPro = "fluid-speech-pro"
+    case turbo
+    case qwen3ASR
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
+        case .fluidSpeechPro: "Fluid Speech Pro (8-bit)"
         case .turbo: "Whisper large-v3-turbo"
         case .qwen3ASR: "Qwen3-ASR 1.7B (8-bit)"
         }
@@ -16,16 +19,28 @@ enum DictationModel: String, CaseIterable, Identifiable, Sendable {
 
     var summary: String {
         switch self {
-        case .turbo: String(localized: "For everyday dictation. About 627 MB to download.")
-        case .qwen3ASR: String(localized: "Supports 30 languages. About 2.5 GB to download.")
+        case .fluidSpeechPro:
+            String(localized: "Fast dictation in 25 European languages. About 751 MB to download.")
+        case .turbo:
+            String(localized: "For everyday dictation. About 627 MB to download.")
+        case .qwen3ASR:
+            String(localized: "Supports 30 languages. About 2.5 GB to download.")
         }
     }
 
     // Directory inside the pinned repository.
     var variant: String {
         switch self {
+        case .fluidSpeechPro, .qwen3ASR: ""
         case .turbo: "openai_whisper-large-v3-v20240930_626MB"
-        case .qwen3ASR: ""
+        }
+    }
+
+    var source: ModelDownloadConfig {
+        switch self {
+        case .fluidSpeechPro: DictationFluidSpeech.source
+        case .turbo: DictationEngine.modelSource
+        case .qwen3ASR: DictationQwen.source
         }
     }
 
@@ -37,7 +52,7 @@ enum DictationModel: String, CaseIterable, Identifiable, Sendable {
 
     var tokenizer: Tokenizer? {
         switch self {
-        case .qwen3ASR: nil
+        case .fluidSpeechPro, .qwen3ASR: nil
         case .turbo:
             Tokenizer(repository: "openai/whisper-large-v3-turbo", revision: "41f01f3fe87f28c78e2fbf8b568835947dd65ed9",
                       files: [
@@ -47,9 +62,14 @@ enum DictationModel: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    // Qwen's list is `support_languages` in the pinned config; Whisper's is its
-    // tokenizer's language tokens. DictationLanguageAuditTests checks both against
-    // the downloaded files.
+    // Fluid Speech Pro's 25 European languages from its model card, Qwen's
+    // `support_languages` in its pinned config, and Whisper's tokenizer language
+    // tokens. DictationLanguageAuditTests checks these inventories.
+    static let fluidSpeechCodes: Set<String> = [
+        "bg", "cs", "da", "de", "el", "en", "es", "et", "fi", "fr", "hr", "hu", "it",
+        "lt", "lv", "mt", "nl", "pl", "pt", "ro", "ru", "sk", "sl", "sv", "uk"
+    ]
+
     static let qwenLanguages = [
         "Chinese", "English", "Cantonese", "Arabic", "German", "French", "Spanish", "Portuguese", "Indonesian",
         "Italian", "Korean", "Russian", "Thai", "Vietnamese", "Japanese", "Turkish", "Hindi", "Malay", "Dutch",
@@ -60,6 +80,7 @@ enum DictationModel: String, CaseIterable, Identifiable, Sendable {
     private func recognizes(_ identifier: String) -> Bool {
         let preference = DictationLanguagePreference(identifiers: [identifier])
         return switch self {
+        case .fluidSpeechPro: !preference.resolvedCodes(supported: Self.fluidSpeechCodes).isEmpty
         case .turbo: !preference.resolvedCodes(supported: Constants.languageCodes).isEmpty
         case .qwen3ASR: !preference.resolvedNames(supported: Self.qwenLanguages).isEmpty
         }

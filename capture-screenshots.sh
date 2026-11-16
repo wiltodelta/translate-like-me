@@ -491,7 +491,7 @@ launch() {
         speech_model="${CAPTURE_DICTATION_MODEL:-qwen3ASR}"
     fi
     if [ "${CAPTURE_EMPTY_PAIRS:-0}" = 1 ]; then pairs_json='[]'; fi
-    local arguments=(-settingsSelectedPane "$1" -provider "${3:-anthropic}" -localModel "${CAPTURE_LOCAL_MODEL:-translategemma-12b}"
+    local arguments=(-settingsSelectedPane "$1" -provider "${3:-anthropic}" -localModel "${CAPTURE_LOCAL_MODEL:-gemma-4-12b}"
         -dictationEnabled "$dictation_enabled" -dictationModel "$speech_model" -didCompleteFirstRun "$completed_first_run"
         -dictationShortcut '<7b226b6579436f6465223a36312c226d6f64696669657273223a323034387d>'
         -dictationVocabulary "${CAPTURE_VOCABULARY:-}"
@@ -809,12 +809,12 @@ capture_models() {
             if [ "$kind" = speech ]; then
                 helper expect-disabled "$PID" "remove-${CAPTURE_DICTATION_MODEL:-turbo}"
             else
-                helper expect-disabled "$PID" "remove-${CAPTURE_LOCAL_MODEL:-translategemma-12b}"
+                helper expect-disabled "$PID" "remove-${CAPTURE_LOCAL_MODEL:-gemma-4-12b}"
             fi
         fi
         if [ "${CAPTURE_MODEL_INTERACTIONS:-1}" = 0 ]; then continue; fi
         local removal_status=0
-        helper press-remove "$PID" remove-gemma-4-e2b remove-translategemma-12b remove-turbo remove-qwen3ASR \
+        helper press-remove "$PID" remove-gemma-4-e2b remove-gemma-4-12b remove-fluid-speech-pro remove-turbo remove-qwen3ASR \
             || removal_status=$?
         if [ "$removal_status" = 0 ]; then
             sleep 0.5
