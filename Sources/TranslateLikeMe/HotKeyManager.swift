@@ -12,15 +12,15 @@ final class HotKeyManager {
     static let shared = HotKeyManager()
 
     private var actions: [UInt32: @MainActor () -> Void] = [:]
+    private var releaseActions: [UInt32: @MainActor () -> Void] = [:]
     private var refs: [EventHotKeyRef] = []
     // Never reuse an id: a queued event from a removed shortcut
     // registration must not run a different action after reload.
     private var nextID: UInt32 = 1
     private var handlerInstalled = false
     private var paused = false
-    private var optionGesture: OptionKeyGesture?
-    private var optionMonitors: [Any] = []
-    private var optionMonitorID: UUID?
+    private let optionMonitor = OptionHoldMonitor()
+    private var bridgeOptionActive = false
 
     private init() {}
 
@@ -43,17 +43,38 @@ final class HotKeyManager {
             })
         }
         var registered: [KeyCombo] = []
-        if Settings.dictationEnabled, let combo = Settings.dictationShortcut {
+        if Settings.dictationEnabled, let combo = Settings.activeDictationShortcut {
             registered.append(combo)
-            if Shortcut.isOptionOnly(combo) {
-                monitorOption(keyCode: combo.keyCode)
-            }
+            registerDictation(combo: combo)
         }
         for case let (combo?, action) in entries where !registered.contains(combo) {
             registered.append(combo)
             register(keyCode: UInt32(combo.keyCode), modifiers: UInt32(combo.modifiers), action: action)
         }
         log.notice("Shortcuts registered: \(self.refs.count), Accessibility \(AXIsProcessTrusted())")
+    }
+
+    private func registerDictation(combo: KeyCombo) {
+        if Shortcut.isOptionOnly(combo) {
+            if AppEdition.current == .appStore {
+                bridgeOptionActive = true
+                BridgeClient.shared.setOptionHoldKey(combo.keyCode)
+            } else {
+                monitorOption(keyCode: combo.keyCode)
+            }
+            return
+        }
+        register(
+            keyCode: UInt32(combo.keyCode),
+            modifiers: UInt32(combo.modifiers),
+            action: { DictationController.shared.shortcutPressed() },
+            onRelease: { DictationController.shared.shortcutReleased() }
+        )
+    }
+
+    func handleBridgeOptionAction(_ action: OptionKeyGesture.Action) {
+        guard bridgeOptionActive, !paused else { return }
+        apply(action)
     }
 
     // Hotkeys are registered on the app's own event target, so the CURRENTLY
@@ -72,14 +93,15 @@ final class HotKeyManager {
     }
 
     private func unregisterAll() {
-        let cancelled = optionGesture?.cancel() == .cancel
-        optionMonitorID = nil
-        for monitor in optionMonitors { NSEvent.removeMonitor(monitor) }
-        optionMonitors.removeAll()
-        optionGesture = nil
+        let cancelled = optionMonitor.stop() == .cancel
+        if bridgeOptionActive {
+            bridgeOptionActive = false
+            BridgeClient.shared.setOptionHoldKey(nil)
+        }
         for ref in refs { UnregisterEventHotKey(ref) }
         refs.removeAll()
         actions.removeAll()
+        releaseActions.removeAll()
         if cancelled {
             log.notice("Dictation hold cancelled by shortcut reload")
             DictationController.shared.shortcutCancelled()
@@ -87,40 +109,18 @@ final class HotKeyManager {
     }
 
     private func monitorOption(keyCode: Int) {
-        let id = UUID()
-        optionMonitorID = id
-        optionGesture = OptionKeyGesture(keyCode: keyCode, initialFlags: NSEvent.modifierFlags)
-        let observe: @Sendable (NSEvent) -> Void = { event in
-            let type = event.type
-            let code = type == .flagsChanged ? Int(event.keyCode) : 0
-            let flags = event.modifierFlags
-            let momentum = type == .scrollWheel ? event.momentumPhase : []
-            MainActor.assumeIsolated {
-                let manager = HotKeyManager.shared
-                guard manager.optionMonitorID == id else { return }
-                let action = manager.optionGesture?.handle(type: type, keyCode: code, flags: flags,
-                                                          momentumPhase: momentum)
-                if action == .cancel {
-                    // Classify cancellation without logging typed keys or characters.
-                    log.notice("""
-                        Dictation input cancellation: event type \(type.rawValue), modifiers \(flags.rawValue), \
-                        momentum \(momentum.rawValue)
-                        """)
-                }
-                manager.apply(action)
-            }
-        }
-        let global = NSEvent.addGlobalMonitorForEvents(matching: OptionKeyGesture.events, handler: observe)
-        if let global {
-            optionMonitors.append(global)
-        }
-        if let local = NSEvent.addLocalMonitorForEvents(matching: OptionKeyGesture.events, handler: { event in
-            observe(event)
-            return event
-        }) { optionMonitors.append(local) }
-        log.notice("""
-            Dictation hold monitor: key \(keyCode), global \(global != nil), monitors \(self.optionMonitors.count)
-            """)
+        let info = optionMonitor.start(
+            keyCode: keyCode,
+            onCancellationEvent: { type, flags, momentum in
+                // Classify cancellation without logging typed keys or characters.
+                log.notice("""
+                    Dictation input cancellation: event type \(type.rawValue), modifiers \(flags.rawValue), \
+                    momentum \(momentum.rawValue)
+                    """)
+            },
+            onAction: { [weak self] action in self?.apply(action) }
+        )
+        log.notice("Dictation hold monitor: key \(keyCode), global \(info.global), monitors \(info.count)")
     }
 
     private func apply(_ action: OptionKeyGesture.Action?) {
@@ -133,11 +133,13 @@ final class HotKeyManager {
     }
 
     private func register(keyCode: UInt32, modifiers: UInt32,
-                          action: @escaping @MainActor () -> Void) {
+                          action: @escaping @MainActor () -> Void,
+                          onRelease: (@MainActor () -> Void)? = nil) {
         installHandlerIfNeeded()
         let id = nextID
         nextID += 1
         actions[id] = action
+        if let onRelease { releaseActions[id] = onRelease }
 
         let hotKeyID = EventHotKeyID(signature: OSType(0x544C_4D45), id: id) // 'TLME'
         var ref: EventHotKeyRef?
@@ -147,6 +149,7 @@ final class HotKeyManager {
             refs.append(ref)
         } else {
             actions.removeValue(forKey: id)
+            releaseActions.removeValue(forKey: id)
             log.error("Failed to register hotkey \(keyCode) \(modifiers): status \(status)")
         }
     }
@@ -155,8 +158,10 @@ final class HotKeyManager {
         guard !handlerInstalled else { return }
         handlerInstalled = true
 
-        var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
-                                 eventKind: UInt32(kEventHotKeyPressed))
+        var specs = [
+            EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed)),
+            EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased))
+        ]
         InstallEventHandler(GetApplicationEventTarget(), { _, event, _ -> OSStatus in
             var hotKeyID = EventHotKeyID()
             GetEventParameter(event,
@@ -166,18 +171,29 @@ final class HotKeyManager {
                               MemoryLayout<EventHotKeyID>.size,
                               nil,
                               &hotKeyID)
+            let kind = GetEventKind(event)
             // Handlers on the application event target run on the main thread.
-            MainActor.assumeIsolated { HotKeyManager.shared.fire(id: hotKeyID.id) }
+            MainActor.assumeIsolated {
+                if kind == UInt32(kEventHotKeyReleased) {
+                    HotKeyManager.shared.fireRelease(id: hotKeyID.id)
+                } else {
+                    HotKeyManager.shared.fire(id: hotKeyID.id)
+                }
+            }
             return noErr
-        }, 1, &spec, nil, nil)
+        }, specs.count, &specs, nil, nil)
     }
 
     private func fire(id: UInt32) {
         // Carbon consumes our registered combinations before NSEvent monitors
         // receive the key, so explicitly disqualify that Option press too.
-        let cancelled = optionGesture?.cancel()
+        let cancelled = optionMonitor.cancelCurrentHold()
         if cancelled == .cancel { log.notice("Dictation hold cancelled by another registered shortcut") }
         apply(cancelled)
         actions[id]?()
+    }
+
+    private func fireRelease(id: UInt32) {
+        releaseActions[id]?()
     }
 }

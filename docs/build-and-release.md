@@ -30,10 +30,38 @@ release `ModuleCache` and the `.build/mlx-metal/` CMake cache. Recreate those
 generated caches in the destination before building; keep the source
 checkout's caches intact.
 
-- **Build and assemble the app bundle:** `./build.sh`. It builds an arm64-only
-  release binary, copies it and `Resources/` into `Translate Like Me Dev.app`
-  (`Translate Like Me.app` with `RELEASE=1`),
+- **Build and assemble the app bundle:** `./build.sh` (`EDITION=direct`, the
+  default). It builds an arm64-only release binary, copies it and `Resources/`
+  into `Translate Like Me Dev.app` (`Translate Like Me.app` with `RELEASE=1`),
   compiles the Icon Composer icon, and code-signs the bundle.
+- **Mac App Store and Bridge editions:** `EDITION=mas ./build.sh` compiles the
+  app target with `TLM_EDITION=mas` (`-DAPP_STORE`, excluding `Updater.swift`
+  and omitting `Sparkle.framework` linkage), strips `SU*` keys from `Info.plist`,
+  embeds `Resources/PrivacyInfo.xcprivacy` (declaring `UserDefaults`,
+  `FileTimestamp`, `DiskSpace`, and `SystemBootTime`),
+  registers `NSServices` (`translateSelectionService`, `rewriteSelectionService`),
+  stamps `com.wiltodelta.translatelikeme.mas` (`.mas.dev` when `RELEASE` is unset),
+  normalizes bundle file permissions (`chmod -R a+rX`, avoiding `ITMS-90255` on
+  `0600` provisioning profiles),
+  signs with `Resources/Entitlements-MAS.plist` (`com.apple.security.app-sandbox`,
+  `audio-input`, `network.client`, and App Group `K2GT9Q4S6U.tlm`, plus
+  `com.apple.application-identifier` and `com.apple.developer.team-identifier`
+  when `RELEASE=1`), embeds `MAS_PROVISIONING_PROFILE` when supplied
+  (`~/.appstoreconnect/profiles/Translate_Like_Me_MAS.provisionprofile`), and
+  builds an installer `.pkg` via `productbuild` when `PACKAGE_MAS=1` is set
+  (`Apple Distribution` and `3rd Party Mac Developer Installer` in the login
+  keychain, backed up under `~/.appstoreconnect/signing/`). Validate or upload
+  to App Store Connect (app ID `6836458723`) with
+  `xcrun altool --validate-app -f Translate-Like-Me-MAS.pkg --type macos` and
+  `xcrun altool --upload-package Translate-Like-Me-MAS.pkg --type macos`.
+  `EDITION=bridge ./build.sh` builds the lightweight `Translate Like Me Bridge.app`
+  companion (`com.wiltodelta.translatelikeme.bridge`, Developer ID, `LSUIElement`,
+  `Resources/Entitlements-Bridge.plist`), which listens on the App Group UNIX
+  socket (`~/Library/Group Containers/K2GT9Q4S6U.tlm/s`), verifies connecting
+  peers' `audit_token_t` against Team `K2GT9Q4S6U`, and upgrades an installed
+  Mac App Store copy in place with `AXUIElement`/`CGEvent` text replacement,
+  cursor-aware dictation, `Option` hold, and speaker muting without reinstalling
+  the main app.
 - **Localization:** the app target compiles with `-emit-localized-strings`
   (`Package.swift`), so the compiler lists every localizable string;
   `build.sh` runs `scripts/sync-strings.py`, which syncs them into
@@ -113,7 +141,9 @@ checkout's caches intact.
 - **Notarization:** `RELEASE=1 ./build.sh && ./notarize.sh` signs with a secure
   timestamp (everyday builds skip it, so they work offline), submits the bundle,
   staples the ticket, checks it with `spctl` and writes
-  `Translate-Like-Me-vX.Y.Z-macOS.zip`. It reads the team-wide notarytool profile
+  `Translate-Like-Me-vX.Y.Z-macOS.zip` (`EDITION=bridge` does the same for
+  `Translate Like Me Bridge.app` -> `Translate-Like-Me-Bridge-vX.Y.Z-macOS.zip`).
+  It reads the team-wide notarytool profile
   `notary-K2GT9Q4S6U` from the login keychain (`xcrun notarytool
   store-credentials`, command in the script header); other apps of the same
   team reuse it. `build.sh` passes `Resources/Entitlements.plist` to the final
@@ -133,17 +163,22 @@ Automated via GitHub Actions ([`.github/workflows/build.yml`](../.github/workflo
    line, is the release notes in Markdown. The workflow refuses a tag that is
    not `vX.Y.Z` or not above every earlier tag: Sparkle offers only a higher
    version, so a lower number never reaches anybody on the newer release.
-3. The workflow runs SwiftLint and tests, imports the Developer ID
+3. The workflow runs SwiftLint and tests, verifies `EDITION=mas ./build.sh`
+   compiles cleanly without Sparkle linkage, imports the Developer ID
    identity and the notarytool profile into a temporary keychain, builds and
-   signs via `RELEASE=1 build.sh` (which stamps `X.Y.Z` from the tag), notarizes
-   and staples via `notarize.sh`, and publishes
-   a GitHub Release with `Translate-Like-Me-vX.Y.Z-macOS.zip` attached. The keychain
-   is deleted at the end.
-4. It also generates `appcast.xml` with Sparkle's `generate_appcast`: this
-   release only, its EdDSA signature, and the tag body embedded as Markdown
-   release notes (also the GitHub release body). The app's `SUFeedURL` is
-   `releases/latest/download/appcast.xml`, so publishing the release is what
-   offers it to installed copies.
+   signs both `RELEASE=1 ./build.sh` and `RELEASE=1 EDITION=bridge ./build.sh`
+   (which stamp `X.Y.Z` from the tag), notarizes and staples both via
+   `./notarize.sh` and `EDITION=bridge ./notarize.sh`, and publishes a GitHub
+   Release with `Translate-Like-Me-vX.Y.Z-macOS.zip` and
+   `Translate-Like-Me-Bridge-vX.Y.Z-macOS.zip` attached. The keychain is deleted
+   at the end.
+4. It also generates `appcast.xml` (for Direct) and `bridge-appcast.xml` (for
+   Bridge) with Sparkle's `generate_appcast`: this release only, its EdDSA
+   signature, and the tag body embedded as Markdown release notes (also the
+   GitHub release body). Direct's `SUFeedURL` is
+   `releases/latest/download/appcast.xml` and Bridge's is
+   `releases/latest/download/bridge-appcast.xml`, so publishing the release is
+   what offers updates to installed copies of both.
 5. A second job, `homebrew`, points the cask in
    [wiltodelta/homebrew-tap](https://github.com/wiltodelta/homebrew-tap)
    (`Casks/translate-like-me.rb`) at the new release, committing the new

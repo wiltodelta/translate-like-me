@@ -38,6 +38,12 @@ struct TranslationInteraction {
 
     private static func runSelection(kind: PopupController.ResultKind,
                                      transform: SelectionTransform) async throws -> SelectionOutcome {
+        if AppEdition.current == .appStore {
+            return try await BridgeClient.shared.runSelection(
+                recordResult: { await LastResults.shared.record($0, kind: kind) },
+                transform: transform
+            )
+        }
         // Text Input Sources and the event monitors belong on the main thread.
         let copyKey = KeyboardLayout.copyKey
         let pasteKey = KeyboardLayout.pasteKey
@@ -119,6 +125,9 @@ final class TranslationController {
                 case .noSelection:
                     interaction.showError(
                         String(localized: "No text selected. Select some text first, then try again."))
+                case .emptyClipboard:
+                    interaction.showError(
+                        String(localized: "Copy text first (⌘C) or use Services from the context menu."))
                 case .pasted:
                     log.info("\(action, privacy: .public) done, selection replaced")
                 case .result(let result):

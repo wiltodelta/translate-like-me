@@ -14,7 +14,10 @@ Shared rules for our macOS apps: `~/Documents/GitHub/claude-config/docs/macos-ap
 
 Assemble the bundle with `./build.sh` (needs Xcode 26+: `actool` compiles the
 Icon Composer icon); `swift build` alone leaves a stale binary inside
-`Translate Like Me Dev.app`. The app has a cask, which release CI bumps in
+`Translate Like Me Dev.app`. `EDITION=mas ./build.sh` (`PACKAGE_MAS=1` for the
+installer `.pkg`) builds the sandboxed Mac App Store edition without Sparkle,
+and `EDITION=bridge ./build.sh` builds the Developer ID `Translate Like Me
+Bridge.app` companion. The app has a cask, which release CI bumps in
 `wiltodelta/homebrew-tap`. The
 product page is on Victor's personal website; `translatelikeme.com` only
 redirects there and forwards mail, both in Cloudflare. Full
@@ -112,6 +115,12 @@ preparation, preview, approval and live verification.
 - The dev bundle id is `com.wiltodelta.translatelikeme.dev`, with its own
   Accessibility grant (granted once); if it and the installed app have the
   same shortcuts set, quit one before testing them.
+- Inside App Sandbox, `SecCodeCopyGuestWithAttributes` on an external
+  `AF_UNIX` peer fails when that peer's binary lives in a TCC-protected folder
+  (`~/Documents`, `~/Downloads`); enforce full `LOCAL_PEERTOKEN` + `TeamID`
+  verification on the unsandboxed `BridgeServer` side, and let the sandboxed
+  client accept same-UID peers bound inside the Team-scoped App Group container
+  (`K2GT9Q4S6U.tlm`) when Seatbelt blocks reading the server path.
 - Override a setting for one launch with the argument domain
   (`open -n "Translate Like Me Dev.app" --args -provider grok`). Onboarding
   opens with `-didCompleteFirstRun NO -languagePairs '<5b5d>'` (no pairs).

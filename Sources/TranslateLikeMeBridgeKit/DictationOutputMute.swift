@@ -4,8 +4,14 @@ import os
 
 private let muteLog = Logger.app("dictation")
 
+public protocol DictationMuting {
+    func engage()
+    func release()
+    func recoverInterrupted()
+}
+
 // Core Audio access to the default output device's master mute.
-protocol DictationOutputControl {
+public protocol DictationOutputControl {
     func defaultOutput() -> AudioObjectID?
     func isMuted(_ device: AudioObjectID) -> Bool?
     func setMuted(_ device: AudioObjectID, _ muted: Bool) -> Bool
@@ -18,18 +24,18 @@ protocol DictationOutputControl {
 // crash is undone at the next launch. Only a mute this hold applied is
 // undone; a device the user unmuted meanwhile is left alone.
 // Not thread-safe: the capture worker's serial queue owns it.
-final class DictationOutputMute {
-    static let key = "dictationMutedOutputDevice"
+public final class DictationOutputMute: DictationMuting {
+    public static let key = "dictationMutedOutputDevice"
     private let control: DictationOutputControl
     private let store: UserDefaults
     private var holding = false
 
-    init(control: DictationOutputControl = CoreAudioOutputControl(), store: UserDefaults = .standard) {
+    public init(control: DictationOutputControl = CoreAudioOutputControl(), store: UserDefaults = .standard) {
         self.control = control
         self.store = store
     }
 
-    func engage() {
+    public func engage() {
         guard !holding else { return }
         recoverInterrupted()
         guard store.string(forKey: Self.key) == nil, let device = control.defaultOutput(),
@@ -43,7 +49,7 @@ final class DictationOutputMute {
         holding = true
     }
 
-    func release() {
+    public func release() {
         guard holding else { return }
         holding = false
         recoverInterrupted()
@@ -51,7 +57,7 @@ final class DictationOutputMute {
 
     // Keep a failed or disconnected restoration pending. Resolve by UID, since
     // Core Audio can reuse a numeric device id after a device disappears.
-    func recoverInterrupted() {
+    public func recoverInterrupted() {
         guard !holding, let uid = store.string(forKey: Self.key),
               let device = control.device(uid: uid), let muted = control.isMuted(device) else { return }
         if muted {
@@ -63,17 +69,18 @@ final class DictationOutputMute {
         }
         store.removeObject(forKey: Self.key)
     }
-
 }
 
-struct CoreAudioOutputControl: DictationOutputControl {
+public struct CoreAudioOutputControl: DictationOutputControl {
+    public init() {}
+
     private static var mute: AudioObjectPropertyAddress {
         audioAddress(kAudioDevicePropertyMute, kAudioDevicePropertyScopeOutput)
     }
 
-    func defaultOutput() -> AudioObjectID? { defaultAudioDevice(kAudioHardwarePropertyDefaultOutputDevice) }
+    public func defaultOutput() -> AudioObjectID? { defaultAudioDevice(kAudioHardwarePropertyDefaultOutputDevice) }
 
-    func isMuted(_ device: AudioObjectID) -> Bool? {
+    public func isMuted(_ device: AudioObjectID) -> Bool? {
         var address = Self.mute
         var value: UInt32 = 0
         var size = UInt32(MemoryLayout<UInt32>.size)
@@ -82,7 +89,7 @@ struct CoreAudioOutputControl: DictationOutputControl {
         return value != 0
     }
 
-    func setMuted(_ device: AudioObjectID, _ muted: Bool) -> Bool {
+    public func setMuted(_ device: AudioObjectID, _ muted: Bool) -> Bool {
         var address = Self.mute
         var settable: DarwinBoolean = false
         guard AudioObjectIsPropertySettable(device, &address, &settable) == noErr, settable.boolValue else {
@@ -93,7 +100,7 @@ struct CoreAudioOutputControl: DictationOutputControl {
                                           UInt32(MemoryLayout<UInt32>.size), &value) == noErr
     }
 
-    func uid(of device: AudioObjectID) -> String? { audioDeviceUID(device) }
+    public func uid(of device: AudioObjectID) -> String? { audioDeviceUID(device) }
 
-    func device(uid: String) -> AudioObjectID? { audioDevice(uid: uid) }
+    public func device(uid: String) -> AudioObjectID? { audioDevice(uid: uid) }
 }

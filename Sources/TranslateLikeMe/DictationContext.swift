@@ -16,29 +16,21 @@ enum DictationAudioGain {
     }
 }
 
-struct DictationDestinationSnapshot: Sendable, Equatable {
-    var appName: String?
-    var windowTitle: String?
-    var surroundingText: String?
-}
-
 // Ephemeral destination metadata for contextual speech decoding. Never logged or persisted.
 enum DictationContext {
-    static let beforeCaretLimit = 180
-    static let afterCaretLimit = 60
+    static let beforeCaretLimit = TextCaretSlices.beforeCaretLimit
+    static let afterCaretLimit = TextCaretSlices.afterCaretLimit
     private static let vocabularyPrefix = "Vocabulary: "
 
-    static func live() -> String {
-        summary(destination: SelectionTarget.dictationSnapshot())
+    static func live() async -> String {
+        if AppEdition.current == .appStore {
+            return summary(destination: await BridgeClient.shared.fetchDictationSnapshot())
+        }
+        return summary(destination: SelectionTarget.dictationSnapshot())
     }
 
     static func sanitized(_ text: String) -> String {
-        // Remove angle brackets unconditionally so nested or truncated text can
-        // never form Qwen chat-template or ASR control tokens (`<|...|>` / `<asr_text>`).
-        String(text.filter { $0 != "<" && $0 != ">" })
-            .components(separatedBy: .whitespacesAndNewlines)
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
+        TextCaretSlices.sanitized(text)
     }
 
     static func combined(vocabulary: DictationVocabulary = .empty, destination: String, limit: Int = 360) -> String {
@@ -110,39 +102,11 @@ enum DictationContext {
 
     static func insertionContext(in value: String, selection: NSRange,
                                  limit: Int = DictationInsertionContext.sliceLimit) -> DictationInsertionContext {
-        guard selection.length == 0, selection.location >= 0,
-              let caret = scalarBoundary(at: selection.location, in: value) else {
-            return DictationInsertionContext()
-        }
-        let beforePrefix = value[..<caret]
-        let beforeSuffix = beforePrefix.suffix(limit)
-        let beforeSlice = String(beforeSuffix)
-        let afterSlice = String(value[caret...].prefix(limit))
-        let completeLine = beforeSuffix.startIndex == value.startIndex || beforeSuffix.contains(where: \.isNewline)
-        return DictationInsertionContext(beforeSlice: beforeSlice, afterSlice: afterSlice,
-                                         hasCompleteLinePrefix: completeLine)
+        TextCaretSlices.insertionContext(in: value, selection: selection, limit: limit)
     }
 
     static func surroundingText(in value: String, selection: NSRange) -> String? {
-        guard selection.location >= 0, selection.length >= 0 else { return nil }
-        let (endOffset, overflow) = selection.location.addingReportingOverflow(selection.length)
-        guard !overflow,
-              let start = scalarBoundary(at: selection.location, in: value),
-              let end = scalarBoundary(at: endOffset, in: value) else { return nil }
-        let prefix = String(value[..<start].suffix(beforeCaretLimit))
-        let suffix = String(value[end...].prefix(afterCaretLimit))
-        let joined = [prefix, suffix].map { cleaned($0, limit: 240, keepTail: true) }.filter { !$0.isEmpty }
-            .joined(separator: " ")
-        return joined.isEmpty ? nil : joined
-    }
-
-    private static func scalarBoundary(at utf16Offset: Int, in value: String) -> String.Index? {
-        guard utf16Offset >= 0 else { return nil }
-        let utf16 = value.utf16
-        guard let position = utf16.index(utf16.startIndex, offsetBy: utf16Offset, limitedBy: utf16.endIndex) else {
-            return nil
-        }
-        return String.Index(position, within: value)
+        TextCaretSlices.surroundingText(in: value, selection: selection)
     }
 
     private static func capped(_ text: String, limit: Int = 360) -> String {
@@ -150,10 +114,7 @@ enum DictationContext {
     }
 
     private static func cleaned(_ text: String?, limit: Int, keepTail: Bool) -> String {
-        guard let text else { return "" }
-        let compact = sanitized(text)
-        guard compact.count > limit else { return compact }
-        return keepTail ? String(compact.suffix(limit)) : String(compact.prefix(limit))
+        TextCaretSlices.cleaned(text, limit: limit, keepTail: keepTail)
     }
 }
 

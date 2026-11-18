@@ -210,13 +210,26 @@ enum Settings {
 
     static var dictationShortcut: KeyCombo? {
         get {
+            let edition = AppEdition.current
             if let data = defaults.data(forKey: "dictationShortcut") {
                 guard let saved = try? JSONDecoder().decode(KeyCombo?.self, from: data) else { return nil }
-                return Shortcut.isOptionOnly(saved) ? saved : KeyCombo(keyCode: 61, modifiers: Int(optionKey))
+                if edition == .appStore {
+                    let validChord = (saved.modifiers & ~Int(shiftKey)) != 0
+                    return (Shortcut.isOptionOnly(saved) || validChord) ? saved : edition.defaultDictationShortcut
+                }
+                return Shortcut.isOptionOnly(saved) ? saved : edition.defaultDictationShortcut
             }
-            return KeyCombo(keyCode: 61, modifiers: Int(optionKey))
+            return edition.defaultDictationShortcut
         }
         set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "dictationShortcut") }
+    }
+
+    @MainActor
+    static var activeDictationShortcut: KeyCombo? {
+        AppEdition.current.activeDictationShortcut(
+            for: dictationShortcut,
+            canInsertDirectly: BridgeClient.shared.canInsertDirectly
+        )
     }
 
     static var dictationVocabulary: String {
@@ -324,7 +337,10 @@ enum Settings {
     }
 
     static var provider: Provider {
-        get { Provider(rawValue: defaults.string(forKey: Key.provider) ?? "") ?? .anthropic }
+        get {
+            guard AppEdition.current.supportsCLIEngines else { return .local }
+            return Provider(rawValue: defaults.string(forKey: Key.provider) ?? "") ?? .anthropic
+        }
         set {
             defaults.set(newValue.rawValue, forKey: Key.provider)
             defaults.set(false, forKey: "automaticallySelectedProvider")

@@ -15,14 +15,17 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let dictation: () -> DictationController
     // Read lazily: touching Updater starts Sparkle, which alerts without an app bundle.
     private let pendingUpdate: () -> String?
+    private let showsUpdates: Bool
     private let copyResult: (String) -> Void
 
     init(results: LastResults = .shared, dictation: @escaping () -> DictationController = { .shared },
-         pendingUpdate: @escaping () -> String? = { Updater.shared.pendingVersion },
+         pendingUpdate: @escaping () -> String? = { AppUpdater.shared.pendingVersion },
+         showsUpdates: Bool = AppUpdater.shared.isAvailable,
          copyResult: @escaping (String) -> Void = { SelectionService.copyToClipboard($0) }) {
         self.results = results
         self.dictation = dictation
         self.pendingUpdate = pendingUpdate
+        self.showsUpdates = showsUpdates
         self.copyResult = copyResult
         super.init()
         menu.delegate = self
@@ -68,7 +71,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         // icon on every item (HIG: uniform treatment within a group).
         menu.addItem(.separator())
         menu.addItem(item(String(localized: "Settings…"), key: ",", action: #selector(openSettings)))
-        menu.addItem(updatesItem())
+        if showsUpdates {
+            menu.addItem(updatesItem())
+        }
 
         // The standard terminate(_:) selector, so the system treats it as Quit.
         menu.addItem(.separator())
@@ -150,7 +155,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         if dictation.isActive {
             return item(String(localized: "Cancel Dictation"), action: #selector(cancelDictation))
         }
-        let shortcut = Settings.dictationShortcut
+        let shortcut = Settings.activeDictationShortcut
         if dictation.enabled, dictation.phase != .failed, let shortcut {
             let hint = item(String(localized: "Hold \(Shortcut.display(shortcut)) to dictate",
                                    comment: "Menu item; the placeholder is a key, such as Right Option"),
@@ -205,7 +210,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         NotificationCenter.default.post(name: .openSettings, object: SettingsPane.rewrite)
     }
 
-    @objc private func checkForUpdates() { Updater.shared.checkForUpdates() }
+    @objc private func checkForUpdates() { AppUpdater.shared.checkForUpdates() }
 
     // Also the gentle reminder for an update a scheduled check found (Updater):
     // the title changes rather than a window taking focus.

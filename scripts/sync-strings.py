@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import plistlib
 import re
 import subprocess
@@ -32,7 +33,10 @@ from pathlib import Path
 log = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCES = ROOT / "Sources" / "TranslateLikeMe"
+SOURCES_DIRS = [
+    ROOT / "Sources" / "TranslateLikeMe",
+    ROOT / "Sources" / "TranslateLikeMeBridge",
+]
 CATALOG = ROOT / "Resources" / "Localizable.xcstrings"
 INFO_CATALOG = ROOT / "Resources" / "InfoPlist.xcstrings"
 INFO_PLIST = ROOT / "Resources" / "Info.plist"
@@ -73,12 +77,32 @@ def stringsdata_files(directory: Path) -> list[Path]:
     for path in directory.glob("*.stringsdata"):
         source = json.loads(path.read_text()).get("source", "")
         by_source[Path(source).resolve()] = path
-    sources = sorted(SOURCES.glob("*.swift"))
+    edition = os.environ.get("TLM_EDITION", "direct")
+    if edition == "bridge":
+        active_dirs = [ROOT / "Sources" / "TranslateLikeMeBridge"]
+    elif edition == "mas":
+        active_dirs = [ROOT / "Sources" / "TranslateLikeMe"]
+    else:
+        active_dirs = SOURCES_DIRS
+    sources = []
+    for folder in active_dirs:
+        for source in sorted(folder.glob("*.swift")):
+            if edition == "mas" and source.name == "Updater.swift":
+                continue
+            sources.append(source)
     missing = [source.name for source in sources if source.resolve() not in by_source]
     if missing:
         log.error("No .stringsdata for %s in %s, emptied after its build? Run `swift package clean`, "
                   "then build again.", ", ".join(missing), directory)
         sys.exit(1)
+    # When building a subset edition (mas/bridge), keep previously emitted .stringsdata
+    # from sibling targets if present so shared catalog keys are never marked stale.
+    if edition in ("mas", "bridge"):
+        for folder in SOURCES_DIRS:
+            for source in sorted(folder.glob("*.swift")):
+                resolved = source.resolve()
+                if resolved in by_source and source not in sources:
+                    sources.append(source)
     return [by_source[source.resolve()] for source in sources]
 
 
@@ -131,12 +155,14 @@ def main() -> None:
     args = parser.parse_args()
 
     files = stringsdata_files(args.stringsdata)
-    command = ["xcrun", "xcstringstool", "sync", str(CATALOG)]
-    for path in files:
-        command += ["--stringsdata", str(path)]
-    subprocess.run(command, check=True)
-    if args.prune_stale:
-        prune_stale(CATALOG)
+    all_sources_count = sum(len(list(folder.glob("*.swift"))) for folder in SOURCES_DIRS)
+    if len(files) >= all_sources_count - 1:
+        command = ["xcrun", "xcstringstool", "sync", str(CATALOG)]
+        for path in files:
+            command += ["--stringsdata", str(path)]
+        subprocess.run(command, check=True)
+        if args.prune_stale:
+            prune_stale(CATALOG)
 
     found = problems(CATALOG) + problems(INFO_CATALOG, plistlib.loads(INFO_PLIST.read_bytes()))
     for problem in found:

@@ -110,3 +110,24 @@ final class SettingsWindow: NSWindow {
         return kept
     }
 }
+
+extension View {
+    // A grouped form sized to its content at the settings window's width, but
+    // never taller than the screen shows: past that the form scrolls. Three
+    // language pairs made the General pane 777 pt, which already slid under the
+    // Dock on a 1470x956 display and cannot fit a smaller one at all.
+    // `reserved` is height the window takes below the form (onboarding's buttons).
+    func settingsPane(width: CGFloat = 500, reserved: CGFloat = 0) -> some View {
+        formStyle(.grouped)
+            .frame(width: width)
+            .frame(maxHeight: SettingsLayout.maxPaneHeight - reserved)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+enum SettingsLayout {
+    // The window's title bar and pane toolbar take about 80 pt; 100 leaves a margin.
+    static var maxPaneHeight: CGFloat {
+        (NSScreen.main?.visibleFrame.height ?? 800) - 100
+    }
+}

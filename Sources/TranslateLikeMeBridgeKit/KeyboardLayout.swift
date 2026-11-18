@@ -5,21 +5,21 @@ import CoreGraphics
 // key codes for C and V send Cmd+J and Cmd+K under Dvorak, where C and V sit on
 // the I and . keys. Non-Latin layouts such as Russian match shortcuts through
 // that same ASCII-capable layout.
-enum KeyboardLayout {
+public enum KeyboardLayout {
     // The ANSI codes stand in when the layout cannot be read.
-    @MainActor static var copyKey: CGKeyCode { keyCode(typing: "c", fallback: CGKeyCode(kVK_ANSI_C)) }
-    @MainActor static var pasteKey: CGKeyCode { keyCode(typing: "v", fallback: CGKeyCode(kVK_ANSI_V)) }
+    @MainActor public static var copyKey: CGKeyCode { keyCode(typing: "c", fallback: CGKeyCode(kVK_ANSI_C)) }
+    @MainActor public static var pasteKey: CGKeyCode { keyCode(typing: "v", fallback: CGKeyCode(kVK_ANSI_V)) }
 
     // Text Input Sources must be read on the main thread.
     @MainActor
-    static func keyCode(typing character: Character, fallback: CGKeyCode) -> CGKeyCode {
+    public static func keyCode(typing character: Character, fallback: CGKeyCode) -> CGKeyCode {
         guard let source = TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue(),
               let code = keyCode(typing: character, in: source) else { return fallback }
         return code
     }
 
     @MainActor
-    static func keyCode(typing character: Character, in source: TISInputSource) -> CGKeyCode? {
+    public static func keyCode(typing character: Character, in source: TISInputSource) -> CGKeyCode? {
         guard let raw = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else { return nil }
         let data = Unmanaged<CFData>.fromOpaque(raw).takeUnretainedValue() as Data
         let target = String(character)

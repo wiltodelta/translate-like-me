@@ -2,14 +2,19 @@ import CoreAudio
 
 // Core Audio device lookups shared by dictation's input choice and output mute.
 
-func audioAddress(_ selector: AudioObjectPropertySelector,
-                  _ scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal) -> AudioObjectPropertyAddress {
+public func audioAddress(
+    _ selector: AudioObjectPropertySelector,
+    _ scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal
+) -> AudioObjectPropertyAddress {
     AudioObjectPropertyAddress(mSelector: selector, mScope: scope, mElement: kAudioObjectPropertyElementMain)
 }
 
-func audioPropertyValue<T: BitwiseCopyable>(_ device: AudioObjectID, _ selector: AudioObjectPropertySelector,
-                                            scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal,
-                                            initial: T) -> T? {
+public func audioPropertyValue<T: BitwiseCopyable>(
+    _ device: AudioObjectID,
+    _ selector: AudioObjectPropertySelector,
+    scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal,
+    initial: T
+) -> T? {
     var address = audioAddress(selector, scope)
     var value = initial
     var size = UInt32(MemoryLayout<T>.size)
@@ -20,22 +25,22 @@ func audioPropertyValue<T: BitwiseCopyable>(_ device: AudioObjectID, _ selector:
 }
 
 // The system's current default input or output device.
-func defaultAudioDevice(_ selector: AudioObjectPropertySelector) -> AudioObjectID? {
+public func defaultAudioDevice(_ selector: AudioObjectPropertySelector) -> AudioObjectID? {
     guard let device = audioPropertyValue(AudioObjectID(kAudioObjectSystemObject), selector,
                                           initial: AudioObjectID(kAudioObjectUnknown)),
           device != kAudioObjectUnknown else { return nil }
     return device
 }
 
-func audioDeviceName(_ device: AudioObjectID) -> String? {
+public func audioDeviceName(_ device: AudioObjectID) -> String? {
     audioDeviceString(device, kAudioObjectPropertyName)
 }
 
-func audioDeviceUID(_ device: AudioObjectID) -> String? {
+public func audioDeviceUID(_ device: AudioObjectID) -> String? {
     audioDeviceString(device, kAudioDevicePropertyDeviceUID)
 }
 
-enum AudioInputTransport: String, Equatable, Sendable {
+public enum AudioInputTransport: String, Equatable, Sendable {
     case builtIn = "built-in"
     case bluetooth
     case usb
@@ -65,7 +70,7 @@ private let audioTransportByType: [UInt32: AudioInputTransport] = [
 ]
 
 // Transport metadata does not open the input or change its format.
-func audioInputTransport(_ device: AudioObjectID) -> AudioInputTransport {
+public func audioInputTransport(_ device: AudioObjectID) -> AudioInputTransport {
     guard let raw = audioPropertyValue(device, kAudioDevicePropertyTransportType, initial: UInt32(0)) else {
         return .unknown
     }
@@ -73,7 +78,7 @@ func audioInputTransport(_ device: AudioObjectID) -> AudioInputTransport {
 }
 
 // Non-hidden Core Audio devices; engines and other apps create private aggregates.
-func visibleAudioDevices() -> [AudioDeviceID] {
+public func visibleAudioDevices() -> [AudioDeviceID] {
     var address = audioAddress(kAudioHardwarePropertyDevices)
     let system = AudioObjectID(kAudioObjectSystemObject)
     var size: UInt32 = 0
@@ -97,7 +102,7 @@ private func audioDeviceString(_ device: AudioObjectID, _ selector: AudioObjectP
 }
 
 // The connected device with this UID; nil once it is disconnected.
-func audioDevice(uid: String) -> AudioObjectID? {
+public func audioDevice(uid: String) -> AudioObjectID? {
     var address = audioAddress(kAudioHardwarePropertyTranslateUIDToDevice)
     var uid = uid as CFString
     var device = AudioObjectID(kAudioObjectUnknown)

@@ -64,11 +64,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // Render enabled settings for native capture without loading a model or
         // requesting microphone access. This launch-only fixture never records.
         let dictationPreview = UserDefaults.standard.string(forKey: "dictationPreview")
+        configureSystemIntegration()
         restoreLocalModels(preview: dictationPreview)
         registerHotKeys()
-        if Settings.didCompleteFirstRun { ensureAccessibilityPermission() }
+        if Settings.didCompleteFirstRun && AppEdition.current.requiresOwnAccessibility {
+            ensureAccessibilityPermission()
+        }
         showOnboardingOnFirstRun()
-        Updater.shared.start()
+        AppUpdater.shared.start()
+        applyLaunchPreviews(dictationPreview: dictationPreview)
+    }
+
+    private func configureSystemIntegration() {
+        NSApp.servicesProvider = SystemServicesProvider.shared
+        guard AppEdition.current == .appStore else { return }
+        BridgeClient.shared.onAvailabilityChanged = { HotKeyManager.shared.reload() }
+        BridgeClient.shared.onOptionAction = { HotKeyManager.shared.handleBridgeOptionAction($0) }
+        BridgeClient.shared.startIfNeeded()
+    }
+
+    private func applyLaunchPreviews(dictationPreview: String?) {
         if Bundle.main.bundleIdentifier == "com.wiltodelta.translatelikeme.dev",
            let preview = UserDefaults.standard.string(forKey: "activityPreview") {
             ActivityIndicator.translation.show(kind: preview == "rewrite" ? .message : .translation) {

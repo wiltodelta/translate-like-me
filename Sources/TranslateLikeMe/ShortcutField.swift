@@ -9,12 +9,18 @@ import Carbon
 // pair's) is refused, so one shortcut never triggers two translations.
 // Dictation requires a standalone left or right Option binding.
 struct ShortcutField: View {
+    enum Mode {
+        case chordOnly
+        case chordOrOption
+        case optionOnly
+    }
+
     @Binding var combo: KeyCombo?
     let usedBy: (KeyCombo) -> ShortcutOwner?
     // What the shortcut runs: VoiceOver read the bare combo, with nothing
     // saying whose shortcut it was.
     let owner: ShortcutOwner
-    var requiresOptionOnly = false
+    var mode: Mode = .chordOnly
 
     @State private var recording = false
     @State private var monitor: Any?
@@ -64,8 +70,10 @@ struct ShortcutField: View {
     }
 
     private var recordingHint: String {
-        requiresOptionOnly ? String(localized: "Press left or right Option. Delete clears, Esc cancels.")
-            : String(localized: "Needs ⌘, ⌥, or ⌃. Delete clears, Esc cancels.")
+        if mode == .optionOnly {
+            return String(localized: "Press left or right Option. Delete clears, Esc cancels.")
+        }
+        return String(localized: "Needs ⌘, ⌥, or ⌃. Delete clears, Esc cancels.")
     }
 
     var body: some View {
@@ -99,7 +107,7 @@ struct ShortcutField: View {
             if event.type == .flagsChanged {
                 let left = leftOption.flagsChanged(keyCode: Int(event.keyCode), flags: event.modifierFlags)
                 let right = rightOption.flagsChanged(keyCode: Int(event.keyCode), flags: event.modifierFlags)
-                if requiresOptionOnly && (left == .release || right == .release) {
+                if mode != .chordOnly && (left == .release || right == .release) {
                     accept(KeyCombo(keyCode: left == .release ? 58 : 61, modifiers: Int(optionKey)))
                 }
                 return event
@@ -113,7 +121,7 @@ struct ShortcutField: View {
                 stop()
                 return nil
             }
-            guard !requiresOptionOnly else { NSSound.beep(); return nil }
+            guard mode != .optionOnly else { NSSound.beep(); return nil }
             let mods = Shortcut.carbonModifiers(from: event.modifierFlags)
             // Shift alone isn't a usable global-hotkey modifier on macOS (it doesn't
             // reliably work), so require at least one of Cmd/Option/Control too -

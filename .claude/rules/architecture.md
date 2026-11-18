@@ -302,8 +302,25 @@ Read before editing this domain.
   and `PopupController.showLimitReached` shows the engine's reset time with an
   Open Settings action. `EngineStatus` stays
   sign-in-based: `claude usage` is too slow for proactive checks.
-- Updates are Sparkle (`Updater`, the family's shared file). Packaging and keys:
-  `docs/build-and-release.md`.
+- Updates are Sparkle (`Updater`, the family's shared file, wrapped by
+  `AppUpdater` so `TLM_EDITION=mas` omits Sparkle linkage cleanly). Packaging and
+  keys: `docs/build-and-release.md`.
+- Two shipping editions (`AppEdition`: `.direct` and `.appStore`) share the
+  codebase plus `TranslateLikeMeBridgeKit` (shared `SelectionTarget`,
+  `SelectionService`, `PasteDelivery`, `SelectionWorkflow`, `OptionKeyGesture`,
+  `DictationOutputMute`, `KeyboardLayout`, and the `AF_UNIX` App Group IPC
+  `BridgeServer` / `BridgeConnectionClient` / `BridgeHostCoordinator`).
+  `.direct` stays a single unsandboxed Developer ID bundle. `.appStore`
+  (`com.wiltodelta.translatelikeme.mas`, `App Sandbox`) uses local models only,
+  hides Sparkle and CLI pickers, never prompts for Accessibility itself
+  (`OnboardingFlow.requiresAccessibility == false`), defaults dictation to `⌥⌘K`
+  via Carbon `kEventHotKeyPressed`/`kEventHotKeyReleased`, exposes `NSServices`
+  (`SystemServicesProvider`), and falls back to clipboard/popup without a helper;
+  when the Developer ID companion `Translate Like Me Bridge.app` (`EDITION=bridge`)
+  connects over `~/Library/Group Containers/K2GT9Q4S6U.tlm/s` (server-verified
+  via `LOCAL_PEERTOKEN` + `TeamID K2GT9Q4S6U`), `BridgeClient` hot-plugs in-place
+  selection copy/paste, cursor-aware dictation insertion, `Option` hold, and
+  speaker muting without reinstalling the App Store app.
 - Logging goes through `Logger.app(category)`, one subsystem.
 - Isolated first-run checks and native permission verification:
   `docs/fresh-install-testing.md`. `scripts/check-fresh-install.py` gives each

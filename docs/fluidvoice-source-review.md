@@ -155,18 +155,18 @@ validation and rich clipboard snapshots.
   release handling and cancellation; shortcut collision checks must include
   dictation. Ordinary Carbon combinations do not require replacing all hotkeys
   with FluidVoice's broader event-tap machinery.
-- [SelectionTarget](../Sources/TranslateLikeMe/SelectionTarget.swift) requires
+- [SelectionTarget](../Sources/TranslateLikeMeBridgeKit/SelectionTarget.swift) requires
   `range.length > 0`. A new caret-capable delivery target is needed; weakening
   selection requirements globally would change translation and Rewrite behavior.
 - The same file's `SelectionActivity` invalidates on keyboard, mouse, and app
   changes. Its current lifetime is for a selection transformation. Dictation must
   distinguish its own start/stop keys from real destination changes and reject
   stale asynchronous output deliberately.
-- [SelectionService](../Sources/TranslateLikeMe/SelectionService.swift) already
+- [SelectionService](../Sources/TranslateLikeMeBridgeKit/SelectionService.swift) already
   preserves rich clipboard data, uses change counts, and posts paste to the original
   PID. Reuse these safeguards. Snapshot the clipboard near delivery rather than
   overwriting clipboard activity that happened during a long recording.
-- [SelectionWorkflow](../Sources/TranslateLikeMe/SelectionWorkflow.swift) expects
+- [SelectionWorkflow](../Sources/TranslateLikeMeBridgeKit/SelectionWorkflow.swift) expects
   selected text and a copied-selection marker. Dictation needs a different input
   path sharing delivery primitives, not a fake selection passed into that workflow.
 - [Translator](../Sources/TranslateLikeMe/Translator.swift) accepts text directly

@@ -22,7 +22,9 @@ protocol DictationRecording: AnyObject {
 // without opening the microphone; a press enqueues only the hardware start.
 @MainActor
 final class DictationRecorder: DictationRecording {
-    private let worker = DictationCaptureWorker()
+    private let worker = DictationCaptureWorker(
+        mute: AppEdition.current == .appStore ? BridgeDictationMute() : DictationOutputMute()
+    )
     private var request: DictationCaptureRequest?
     var onEnd: ((Bool) -> Void)?
 

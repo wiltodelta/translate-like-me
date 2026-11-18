@@ -3,8 +3,8 @@ import SwiftUI
 
 // Keep the system accent, choosing the more readable text color for its backing.
 // Selection colors can still be bright (notably yellow), even in Dark Mode.
-enum PrimaryActionColors {
-    static let text = Color(nsColor: NSColor(name: nil) { appearance in
+public enum PrimaryActionColors {
+    public static let text = Color(nsColor: NSColor(name: nil) { appearance in
         var foreground = NSColor.white
         appearance.performAsCurrentDrawingAppearance {
             foreground = textColor(on: .selectedContentBackgroundColor)
@@ -12,7 +12,7 @@ enum PrimaryActionColors {
         return foreground
     })
 
-    static func textColor(on background: NSColor) -> NSColor {
+    public static func textColor(on background: NSColor) -> NSColor {
         guard let rgb = background.usingColorSpace(.sRGB) else { return .white }
         let channels = [rgb.redComponent, rgb.greenComponent, rgb.blueComponent].map { component in
             component <= 0.04045 ? component / 12.92 : pow((component + 0.055) / 1.055, 2.4)
@@ -34,7 +34,7 @@ private struct PrimaryActionText: ViewModifier {
     }
 }
 
-extension View {
+public extension View {
     func primaryActionText(enabled: Bool = true) -> some View {
         modifier(PrimaryActionText(enabled: enabled))
     }

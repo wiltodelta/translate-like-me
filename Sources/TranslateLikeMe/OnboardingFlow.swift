@@ -35,13 +35,17 @@ final class OnboardingFlow {
     private(set) var microphoneDenied = false
     private(set) var error: String?
     private(set) var running = false
+    let requiresAccessibility: Bool
     @ObservationIgnored private let effects: Effects
     @ObservationIgnored private(set) var operation: Task<Void, Never>?
 
-    init(effects: Effects) { self.effects = effects }
+    init(effects: Effects, requiresAccessibility: Bool = AppEdition.current.requiresOwnAccessibility) {
+        self.effects = effects
+        self.requiresAccessibility = requiresAccessibility
+    }
 
     var modelsReady: Bool { speech == .ready && translation == .ready }
-    var permissionsReady: Bool { microphone && accessibility }
+    var permissionsReady: Bool { microphone && (!requiresAccessibility || accessibility) }
     var localDownloadState: LocalModelDownloads.State { effects.translationState() }
 
     func prepare() {
@@ -102,7 +106,7 @@ final class OnboardingFlow {
 
     func refreshPermissions() {
         microphone = effects.microphoneGranted()
-        accessibility = effects.accessibilityGranted()
+        accessibility = requiresAccessibility ? effects.accessibilityGranted() : true
         if microphone {
             microphoneDenied = false
         } else if effects.microphoneNeedsSettings() {
@@ -115,7 +119,7 @@ final class OnboardingFlow {
         guard step == .permissions, modelsReady, operation == nil else { return }
         refreshPermissions()
         if !microphone && microphoneDenied { effects.openMicrophoneSettings(); return }
-        if microphone && !accessibility { effects.openAccessibilitySettings(); return }
+        if requiresAccessibility && microphone && !accessibility { effects.openAccessibilitySettings(); return }
         running = true
         error = nil
         operation = Task {
@@ -181,11 +185,8 @@ extension OnboardingFlow.Effects {
              },
              accessibilityGranted: { AXIsProcessTrusted() },
              requestMicrophone: { await DictationRecorder().requestPermission() },
-             openMicrophoneSettings: { openPrivacy("Microphone") },
-             openAccessibilitySettings: {
-                 SelectionService.promptForAccessibility()
-                 openPrivacy("Accessibility")
-             },
+             openMicrophoneSettings: { SelectionService.openPrivacySettings("Microphone") },
+             openAccessibilitySettings: { SelectionService.openAccessibilitySettings() },
              activateDictation: {
                  let dictation = DictationController.shared
                  guard DictationMicrophone.resolve(dictation.microphone?.uid) != nil else {
@@ -212,12 +213,6 @@ extension OnboardingFlow.Effects {
         case .checking:
             throw OnboardingFailure(message: String(localized: "The local translation test failed. Try Again."))
         }
-    }
-
-    private static func openPrivacy(_ pane: String) {
-        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_\(pane)")
-        else { return }
-        NSWorkspace.shared.open(url)
     }
 }
 

@@ -24,10 +24,16 @@ struct DictationInteraction {
        deliver: { try await deliverAtFocus($0) })
 
     private static func deliverAtFocus(_ text: String) async throws -> Bool {
-        try await PasteDelivery(access: LiveDictationAccess(pasteKey: KeyboardLayout.pasteKey)).insert(
+        let vocabulary = DictationVocabulary.cached(for: Settings.dictationVocabulary)
+        let languages = DictationLanguagePreference.configuredIdentifiers
+        if AppEdition.current == .appStore {
+            return try await BridgeClient.shared.deliverDictation(text, vocabulary: vocabulary,
+                                                                  languageIdentifiers: languages)
+        }
+        return try await PasteDelivery(access: LiveDictationAccess(pasteKey: KeyboardLayout.pasteKey)).insert(
             text,
-            vocabulary: DictationVocabulary.cached(for: Settings.dictationVocabulary),
-            languageIdentifiers: DictationLanguagePreference.configuredIdentifiers
+            vocabulary: vocabulary,
+            languageIdentifiers: languages
         )
     }
 }
@@ -91,7 +97,7 @@ final class DictationController {
         self.init(enabled: Settings.dictationEnabled, model: Settings.dictationModel,
                   engine: DictationEngine(
                       waitForFiles: { await DictationModelDownloads.shared.waitUntilIdle() },
-                      destinationContext: { DictationContext.live() },
+                      destinationContext: { await DictationContext.live() },
                       vocabulary: { DictationVocabulary.cached(for: Settings.dictationVocabulary) }
                   ),
                   recorder: DictationRecorder(),

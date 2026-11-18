@@ -21,7 +21,7 @@ actor DictationEngine: DictationRecognizing {
     private let availableStorage: @Sendable (URL) throws -> Int64
     private let languageIdentifiers: @Sendable () async -> [String]
     private let loadAudio: @Sendable (URL) throws -> [Float]
-    private let destinationContext: @Sendable () -> String
+    private let destinationContext: @Sendable () async -> String
     private let vocabulary: @Sendable () -> DictationVocabulary
 
     init(directory: URL? = nil, waitForFiles: @escaping @Sendable () async -> Void = {},
@@ -34,7 +34,7 @@ actor DictationEngine: DictationRecognizing {
              guard let bytes = attributes[.systemFreeSize] as? NSNumber else { throw CocoaError(.fileReadUnknown) }
              return bytes.int64Value
          },
-         destinationContext: @escaping @Sendable () -> String = { "" },
+         destinationContext: @escaping @Sendable () async -> String = { "" },
          vocabulary: @escaping @Sendable () -> DictationVocabulary = { .empty }) {
         self.directory = directory
         self.waitForFiles = waitForFiles
@@ -214,7 +214,7 @@ actor DictationEngine: DictationRecognizing {
             return ""
         }
         let activeVocabulary = vocabulary()
-        let contextTask = runtime.isQwen ? Task.detached { [destinationContext] in destinationContext() } : nil
+        let contextTask = runtime.isQwen ? Task.detached { [destinationContext] in await destinationContext() } : nil
         defer { contextTask?.cancel() }
         let normalized = DictationAudioGain.normalize(samples, peak: metrics.peak)
         samples = normalized.samples

@@ -128,9 +128,11 @@ struct OnboardingView: View {
                 permissionRow("mic", title: "Microphone",
                               detail: "For speech recognition while you hold the dictation key.",
                               ready: flow.microphone)
-                permissionRow("hand.raised", title: "Accessibility",
-                              detail: "To read selected text and insert results in the app you're using.",
-                              ready: flow.accessibility, waiting: !flow.microphone)
+                if flow.requiresAccessibility {
+                    permissionRow("hand.raised", title: "Accessibility",
+                                  detail: "To read selected text and insert results in the app you're using.",
+                                  ready: flow.accessibility, waiting: !flow.microphone)
+                }
             }.padding(.top, 34)
             errorMessage
             if flow.running {
@@ -156,7 +158,12 @@ struct OnboardingView: View {
             heading("Dictate, rewrite and translate",
                     detail: "Dictate into text fields. Rewrite rough notes and translate selected passages.")
             VStack(spacing: 28) {
-                if let shortcut = store.dictationShortcut {
+                if let shortcut = store.dictationShortcut.map({ combo in
+                    AppEdition.current == .appStore && Shortcut.isOptionOnly(combo)
+                        && !BridgeClient.shared.canInsertDirectly
+                        ? AppEdition.appStoreDefaultDictationShortcut
+                        : combo
+                }) {
                     instruction("mic", title: "Dictate", shortcut: Shortcut.display(shortcut),
                                 detail: """
                                     Place the cursor in a text field. Hold your dictation key, speak, then release it.
@@ -300,7 +307,11 @@ struct OnboardingView: View {
     }
 
     private var permissionExplanation: LocalizedStringKey {
-        if flow.permissionsReady { return "Both permissions are granted. Continue to see how to use the app." }
+        if flow.permissionsReady {
+            return flow.requiresAccessibility
+                ? "Both permissions are granted. Continue to see how to use the app."
+                : "Microphone access is granted. Continue to see how to use the app."
+        }
         if !flow.microphone && !flow.microphoneDenied {
             return "Continue opens the macOS microphone prompt. You decide whether to allow access."
         }

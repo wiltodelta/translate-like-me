@@ -191,40 +191,46 @@ jobs:
         security find-identity -v -p codesigning "$KEYCHAIN"
         echo "NOTARY_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
 
+    # Verify the sandboxed Mac App Store edition compiles cleanly with zero Sparkle
+    # linkage before assembling the shipping Direct and Bridge bundles (running
+    # Direct + Bridge afterwards leaves .build warm for the Direct target cache).
+    - name: Verify Mac App Store edition build
+      run: |
+        EDITION=mas ./build.sh
+        rm -rf "Translate Like Me MAS Dev.app"
+
     # build.sh stamps the version from the tag (git describe), so the checkout
     # needs the tags fetched above.
-    - name: Build app bundle (Developer ID with timestamp on tag, ad hoc otherwise)
+    - name: Build Direct and Bridge app bundles (Developer ID with timestamp on tag, ad hoc otherwise)
       run: |
         if [[ "$GITHUB_REF" == refs/tags/v* ]]; then export RELEASE=1; fi
         ./build.sh
+        EDITION=bridge ./build.sh
 
-    - name: Notarize and zip (on tag)
+    - name: Notarize and zip Direct and Bridge bundles (on tag)
       if: startsWith(github.ref, 'refs/tags/v')
       run: |
         ./notarize.sh
+        EDITION=bridge ./notarize.sh
         # Nothing after this needs the Developer ID; lock it before third-party
         # steps run.
         security lock-keychain "$SIGNING_KEYCHAIN"
 
-    # The released zip's checksum, for the cask bump (the homebrew job).
+    # The released Direct zip's checksum, for the cask bump (the homebrew job).
     - name: Hash the zip (on tag)
       id: zip
       if: startsWith(github.ref, 'refs/tags/v')
       run: echo "sha256=$(shasum -a 256 Translate-Like-Me-v*-macOS.zip | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
-    # The Sparkle feed installed apps read (SUFeedURL points at the latest
-    # release's appcast.xml). It holds this release only, signed with the EdDSA
+    # The Sparkle feeds installed Direct and Bridge apps read (appcast.xml and
+    # bridge-appcast.xml). Each holds this release only, signed with the EdDSA
     # key, and embeds the release notes: the tag annotation's body, which is also
     # the GitHub release body, so the notes are written once, in `git tag -a`.
-    - name: Generate the Sparkle appcast (on tag)
+    - name: Generate the Sparkle appcasts (on tag)
       if: startsWith(github.ref, 'refs/tags/v')
       env:
         SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
       run: |
-        FEED="$RUNNER_TEMP/appcast"
-        mkdir -p "$FEED"
-        ZIP=$(ls Translate-Like-Me-v*-macOS.zip)
-        cp "$ZIP" "$FEED/"
         # Release notes are the annotated tag's body; refuse a lightweight tag or
         # an empty body rather than publish a release without notes.
         [[ $(git cat-file -t "$GITHUB_REF_NAME") == tag ]] ||
@@ -234,6 +240,11 @@ jobs:
         echo "RELEASE_TITLE=$(git tag -l --format='%(contents:subject)' "$GITHUB_REF_NAME")" >> "$GITHUB_ENV"
         grep -q '[^[:space:]]' release-notes.md ||
           { echo "::error::the $GITHUB_REF_NAME annotation has no body; it is the release notes"; exit 1; }
+
+        FEED="$RUNNER_TEMP/appcast"
+        mkdir -p "$FEED"
+        ZIP=$(ls Translate-Like-Me-v*-macOS.zip)
+        cp "$ZIP" "$FEED/"
         cp release-notes.md "$FEED/${ZIP%.zip}.md"
         echo "$SPARKLE_PRIVATE_KEY" | .build/artifacts/sparkle/Sparkle/bin/generate_appcast \
           --ed-key-file - --embed-release-notes --maximum-deltas 0 \
@@ -242,15 +253,31 @@ jobs:
         grep -q 'sparkle:edSignature' appcast.xml
         cat appcast.xml
 
-    - name: Zip unsigned build (not a tag)
-      if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-      run: ./notarize.sh --zip-only
+        BRIDGE_FEED="$RUNNER_TEMP/bridge-appcast"
+        mkdir -p "$BRIDGE_FEED"
+        BRIDGE_ZIP=$(ls Translate-Like-Me-Bridge-v*-macOS.zip)
+        cp "$BRIDGE_ZIP" "$BRIDGE_FEED/"
+        cp release-notes.md "$BRIDGE_FEED/${BRIDGE_ZIP%.zip}.md"
+        echo "$SPARKLE_PRIVATE_KEY" | .build/artifacts/sparkle/Sparkle/bin/generate_appcast \
+          --ed-key-file - --embed-release-notes --maximum-deltas 0 \
+          --download-url-prefix "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/" \
+          -o "$PWD/bridge-appcast.xml" "$BRIDGE_FEED"
+        grep -q 'sparkle:edSignature' bridge-appcast.xml
+        cat bridge-appcast.xml
 
-    - name: Upload app bundle
+    - name: Zip unsigned builds (not a tag)
+      if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+      run: |
+        ./notarize.sh --zip-only
+        EDITION=bridge ./notarize.sh --zip-only
+
+    - name: Upload app bundles
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       with:
         name: Translate-Like-Me-macOS
-        path: Translate-Like-Me-v*-macOS.zip
+        path: |
+          Translate-Like-Me-v*-macOS.zip
+          Translate-Like-Me-Bridge-v*-macOS.zip
         retention-days: 30
 
     - name: Create release (on tag)
@@ -259,7 +286,9 @@ jobs:
       with:
         files: |
           Translate-Like-Me-v*-macOS.zip
+          Translate-Like-Me-Bridge-v*-macOS.zip
           appcast.xml
+          bridge-appcast.xml
         name: ${{ env.RELEASE_TITLE }}
         body_path: release-notes.md
         draft: false

@@ -9,11 +9,15 @@ struct GeneralSettingsView: View {
     @Bindable var store: SettingsStore
     @State private var launchAtLogin = LoginItem.isEnabled
     @State private var loginItemError: String?
-    @State private var updater = Updater.shared
+    @State private var updater = AppUpdater.shared
+    @State private var bridge = BridgeClient.shared
 
     var body: some View {
         Form {
             languagesSection
+            if AppEdition.current == .appStore && bridge.isConnected {
+                BridgeIntegrationSection(bridge: bridge)
+            }
             startupSection
             updatesSection
         }
@@ -28,9 +32,14 @@ struct GeneralSettingsView: View {
         } header: {
             Text("Languages")
         } footer: {
-            Text("\(LanguagePairList.explanation) Needs Accessibility permission (macOS will ask).",
-                 comment: "The placeholder is the explanation of language pairs, a few sentences")
-                .foregroundStyle(Color.secondaryText)
+            if AppEdition.current.requiresOwnAccessibility {
+                Text("\(LanguagePairList.explanation) Needs Accessibility permission (macOS will ask).",
+                     comment: "The placeholder is the explanation of language pairs, a few sentences")
+                    .foregroundStyle(Color.secondaryText)
+            } else {
+                Text(LanguagePairList.explanation)
+                    .foregroundStyle(Color.secondaryText)
+            }
         }
     }
 
@@ -66,18 +75,28 @@ struct GeneralSettingsView: View {
             LabeledContent("Version") {
                 Text(updater.version).foregroundStyle(Color.secondaryText)
             }
-            Toggle("Check for updates automatically", isOn: Binding(
-                get: { updater.automaticallyChecks },
-                set: { updater.automaticallyChecks = $0 }
-            ))
-            .toggleStyle(.switch)
-            .controlSize(.mini)
-            Button("Check for Updates…") { updater.checkForUpdates() }
+            if updater.isAvailable {
+                Toggle("Check for updates automatically", isOn: Binding(
+                    get: { updater.automaticallyChecks },
+                    set: { updater.automaticallyChecks = $0 }
+                ))
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                Button("Check for Updates…") { updater.checkForUpdates() }
+            } else if let privacyURL = URL(string: "https://wiltodelta.com/projects/translate-like-me/privacy/") {
+                Link("Privacy Policy", destination: privacyURL)
+            }
         } header: {
-            Text("Updates")
+            if updater.isAvailable {
+                Text("Updates")
+            } else {
+                Text("About")
+            }
         } footer: {
-            Text("Checks once a day and installs a new version when you choose to.")
-                .foregroundStyle(Color.secondaryText)
+            if updater.isAvailable {
+                Text("Checks once a day and installs a new version when you choose to.")
+                    .foregroundStyle(Color.secondaryText)
+            }
         }
     }
 }
@@ -96,10 +115,12 @@ struct TranslationSettingsView: View {
 
     private var engineSection: some View {
         Section {
-            Picker("Service", selection: $store.provider) {
-                ForEach(Provider.allCases, id: \.self) { Text($0.name).tag($0) }
+            if AppEdition.current.supportsCLIEngines {
+                Picker("Service", selection: $store.provider) {
+                    ForEach(Provider.allCases, id: \.self) { Text($0.name).tag($0) }
+                }
+                .accessibilityIdentifier("translation-service")
             }
-            .accessibilityIdentifier("translation-service")
             if store.provider.usesCLI {
                 modelPickers
             } else {
@@ -458,32 +479,5 @@ struct StyleEditor: View {
         }
         .padding(20)
         .frame(width: 460)
-    }
-}
-
-extension View {
-    // A grouped form sized to its content at the settings window's width, but
-    // never taller than the screen shows: past that the form scrolls. Three
-    // language pairs made the General pane 777 pt, which already slid under the
-    // Dock on a 1470x956 display and cannot fit a smaller one at all.
-    // `reserved` is height the window takes below the form (onboarding's buttons).
-    func settingsPane(width: CGFloat = 500, reserved: CGFloat = 0) -> some View {
-        formStyle(.grouped)
-            .frame(width: width)
-            .frame(maxHeight: SettingsLayout.maxPaneHeight - reserved)
-            .fixedSize(horizontal: false, vertical: true)
-    }
-}
-
-extension Color {
-    // Secondary text the app draws, at 4.5:1 or more where `.secondary` is not
-    // (CLAUDE.md, Interface; claude-config docs/macos-apps.md).
-    static let secondaryText = Color.primary.opacity(0.66)
-}
-
-enum SettingsLayout {
-    // The window's title bar and pane toolbar take about 80 pt; 100 leaves a margin.
-    static var maxPaneHeight: CGFloat {
-        (NSScreen.main?.visibleFrame.height ?? 800) - 100
     }
 }

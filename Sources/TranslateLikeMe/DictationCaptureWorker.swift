@@ -74,7 +74,7 @@ final class DictationCaptureWorker: @unchecked Sendable {
     typealias ObserveInputs = @Sendable (@escaping @Sendable () -> Void) -> any DictationInputWatching
     private let resolveInput: @Sendable (String?) -> DictationInputRoute?
     private var inputObserver: (any DictationInputWatching)?
-    private let mute: DictationOutputMute
+    private let mute: any DictationMuting
     private var engine: (any DictationInputGraph)?
     private var format: AVAudioFormat?
     private var inputRoute: DictationInputRoute?
@@ -87,7 +87,7 @@ final class DictationCaptureWorker: @unchecked Sendable {
     private var startupRestarts = 0
     private var stoppedForRelease = false
 
-    init(mute: DictationOutputMute = DictationOutputMute(),
+    init(mute: any DictationMuting = DictationOutputMute(),
          resolveInput: @escaping @Sendable (String?) -> DictationInputRoute? = { DictationInputRoute.resolve($0) },
          observeInputs: @escaping ObserveInputs = { DictationInputObserver(changed: $0) },
          firstBufferLimit: DispatchTimeInterval = .seconds(1),

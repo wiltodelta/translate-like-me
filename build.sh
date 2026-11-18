@@ -1,12 +1,41 @@
 #!/bin/bash
-# Build TranslateLikeMe and assemble a macOS .app bundle.
+# Build TranslateLikeMe (EDITION=direct or EDITION=mas) or TranslateLikeMeBridge
+# (EDITION=bridge) and assemble a signed macOS .app bundle (plus .pkg when PACKAGE_MAS=1).
 set -euo pipefail
 
 cd "$(dirname "$0")"
 
-APP="Translate Like Me.app"
-[[ "${RELEASE:-}" == 1 ]] || APP="Translate Like Me Dev.app"
-BIN="TranslateLikeMe"
+EDITION="${EDITION:-direct}"
+case "$EDITION" in
+    direct)
+        APP="Translate Like Me.app"
+        [[ "${RELEASE:-}" == 1 ]] || APP="Translate Like Me Dev.app"
+        BIN="TranslateLikeMe"
+        EMBED_SPARKLE=1
+        NEEDS_MLX=1
+        ;;
+    mas)
+        APP="Translate Like Me MAS.app"
+        [[ "${RELEASE:-}" == 1 ]] && APP="${MAS_APP_NAME:-Translate Like Me.app}"
+        [[ "${RELEASE:-}" == 1 ]] || APP="Translate Like Me MAS Dev.app"
+        BIN="TranslateLikeMe"
+        EMBED_SPARKLE=0
+        NEEDS_MLX=1
+        export TLM_EDITION="mas"
+        ;;
+    bridge)
+        APP="Translate Like Me Bridge.app"
+        [[ "${RELEASE:-}" == 1 ]] || APP="Translate Like Me Bridge Dev.app"
+        BIN="TranslateLikeMeBridge"
+        EMBED_SPARKLE=1
+        NEEDS_MLX=0
+        export TLM_EDITION="bridge"
+        ;;
+    *)
+        echo "error: unknown EDITION '$EDITION' (expected direct, mas, or bridge)" >&2
+        exit 1
+        ;;
+esac
 
 # Apple silicon only: macOS 27 dropped Intel, and the app supports the three
 # latest macOS releases (15+).
@@ -17,10 +46,18 @@ BIN="TranslateLikeMe"
 # AppKit reads that stamp to decide which SDK the app was linked on - an old stamp
 # risks the pre-Liquid Glass compatibility look on macOS 26+.
 BUILD=(swift build -c release --arch arm64 --build-system native)
-echo "Building (release, arm64)..."
+if [[ "$EDITION" == "bridge" ]]; then
+    BUILD+=(--product TranslateLikeMeBridge)
+elif [[ "$EDITION" == "mas" ]]; then
+    BUILD+=(--product TranslateLikeMe)
+fi
+
+echo "Building $EDITION (release, arm64)..."
 "${BUILD[@]}" 2> >(grep -v "build-system native' has been deprecated" >&2)
 BIN_DIR="$("${BUILD[@]}" --show-bin-path 2>/dev/null)"
-bash scripts/build-mlx-metallib.sh "$BIN_DIR"
+if [[ "$NEEDS_MLX" == 1 ]]; then
+    bash scripts/build-mlx-metallib.sh "$BIN_DIR"
+fi
 # Merges the strings the compiler listed (Package.swift) into the String
 # Catalog, as Xcode does on each build, and fails, before anything is
 # assembled, on a string missing a translation.
@@ -30,40 +67,46 @@ echo "Assembling $APP..."
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 cp "$BIN_DIR/$BIN" "$APP/Contents/MacOS/$BIN"
-# Sparkle, found through @rpath: SwiftPM links it with @loader_path only, which
-# is the build directory, so the bundle's Frameworks folder is added. Its XPC
-# services exist for sandboxed apps; this app is not sandboxed, so Sparkle's
-# docs allow removing them (and there is less to sign).
-ditto "$BIN_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
-rm -rf "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices" \
-    "$APP/Contents/Frameworks/Sparkle.framework/XPCServices"
 install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/$BIN"
+
+if [[ "$EMBED_SPARKLE" == 1 ]]; then
+    # Sparkle, found through @rpath: SwiftPM links it with @loader_path only, which
+    # is the build directory, so the bundle's Frameworks folder is added. Its XPC
+    # services exist for sandboxed apps; Direct and Bridge are not sandboxed.
+    ditto "$BIN_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
+    rm -rf "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices" \
+        "$APP/Contents/Frameworks/Sparkle.framework/XPCServices"
+    cp ".build/artifacts/sparkle/Sparkle/LICENSE" "$APP/Contents/Resources/Sparkle LICENSE.txt"
+fi
+
 # SwiftPM does not embed backdeployment libraries when assembling an app by hand.
 xcrun swift-stdlib-tool --copy --scan-executable "$APP/Contents/MacOS/$BIN" \
     --scan-folder "$APP/Contents/Frameworks" --platform macosx \
     --destination "$APP/Contents/Frameworks"
-# Sparkle is MIT licensed, which asks for its notice to ship with it.
-cp ".build/artifacts/sparkle/Sparkle/LICENSE" "$APP/Contents/Resources/Sparkle LICENSE.txt"
-# Local speech runtime and models retain their upstream MIT notices.
-cp .build/checkouts/argmax-oss-swift/LICENSE "$APP/Contents/Resources/WhisperKit LICENSE.txt"
-cp .build/checkouts/argmax-oss-swift/NOTICES "$APP/Contents/Resources/WhisperKit NOTICES.txt"
-cp Resources/Whisper-LICENSE.txt "$APP/Contents/Resources/Whisper LICENSE.txt"
-cp Resources/Silero-LICENSE.txt "$APP/Contents/Resources/Silero LICENSE.txt"
-# MLX uses native Metal kernels; SwiftPM does not compile them itself.
-cp "$BIN_DIR/mlx.metallib" "$APP/Contents/Resources/mlx.metallib"
-cp .build/checkouts/mlx-audio-swift/LICENSE "$APP/Contents/Resources/MLX Audio LICENSE.txt"
-cp .build/checkouts/mlx-swift/LICENSE "$APP/Contents/Resources/MLX Swift LICENSE.txt"
-cp Resources/Qwen-NOTICES.txt "$APP/Contents/Resources/Qwen NOTICES.txt"
-cp Resources/Qwen-LICENSE.txt "$APP/Contents/Resources/Qwen LICENSE.txt"
-cp Resources/FluidSpeech-NOTICES.txt "$APP/Contents/Resources/FluidSpeech NOTICES.txt"
-cp Resources/FluidSpeech-LICENSE.txt "$APP/Contents/Resources/FluidSpeech LICENSE.txt"
-# Read the current build graph: globbing *.bundle would revive stale resources
-# from removed dependencies such as FluidAudio.
-python3 - "$BIN_DIR" "$APP/Contents/Resources" <<'PYTHON'
+
+if [[ "$NEEDS_MLX" == 1 ]]; then
+    # Local speech runtime and models retain their upstream MIT/Apache notices.
+    cp .build/checkouts/argmax-oss-swift/LICENSE "$APP/Contents/Resources/WhisperKit LICENSE.txt"
+    cp .build/checkouts/argmax-oss-swift/NOTICES "$APP/Contents/Resources/WhisperKit NOTICES.txt"
+    cp Resources/Whisper-LICENSE.txt "$APP/Contents/Resources/Whisper LICENSE.txt"
+    cp Resources/Silero-LICENSE.txt "$APP/Contents/Resources/Silero LICENSE.txt"
+    # MLX uses native Metal kernels; SwiftPM does not compile them itself.
+    cp "$BIN_DIR/mlx.metallib" "$APP/Contents/Resources/mlx.metallib"
+    cp .build/checkouts/mlx-audio-swift/LICENSE "$APP/Contents/Resources/MLX Audio LICENSE.txt"
+    cp .build/checkouts/mlx-swift/LICENSE "$APP/Contents/Resources/MLX Swift LICENSE.txt"
+    cp Resources/Qwen-NOTICES.txt "$APP/Contents/Resources/Qwen NOTICES.txt"
+    cp Resources/Qwen-LICENSE.txt "$APP/Contents/Resources/Qwen LICENSE.txt"
+    cp Resources/FluidSpeech-NOTICES.txt "$APP/Contents/Resources/FluidSpeech NOTICES.txt"
+    cp Resources/FluidSpeech-LICENSE.txt "$APP/Contents/Resources/FluidSpeech LICENSE.txt"
+    # Read the current build graph: globbing *.bundle would revive stale resources
+    # from removed dependencies such as FluidAudio.
+    python3 - "$BIN_DIR" "$APP/Contents/Resources" <<'PYTHON'
 import json
 from pathlib import Path
 import subprocess
 import sys
+import shutil
+import os
 build = Path(sys.argv[1])
 destination = Path(sys.argv[2])
 graph = json.loads((build / "description.json").read_text())
@@ -74,18 +117,15 @@ for command in graph["copyCommands"].values():
         for candidate in (file, *file.parents):
             if candidate.suffix == ".bundle" and candidate.parent == build:
                 bundles.add(candidate)
-# The graph also describes resources of targets inactive on this platform.
-# A successful SwiftPM build materializes the active bundles.
 for bundle in sorted(bundle for bundle in bundles if bundle.is_dir()):
     subprocess.run(["ditto", str(bundle), str(destination / bundle.name)], check=True)
-# Include notices from the resolved source checkouts, including vendored code.
-import shutil
-import os
 pins = {pin["identity"] for pin in json.loads(Path("Package.resolved").read_text())["pins"]}
 workspace = json.loads(Path(".build/workspace-state.json").read_text())["object"]
 for dependency in workspace["dependencies"]:
     identity = dependency["packageRef"]["identity"]
     if identity not in pins:
+        continue
+    if os.environ.get("TLM_EDITION") == "mas" and identity.lower() == "sparkle":
         continue
     checkout = Path(".build/checkouts") / dependency["subpath"]
     for directory, folders, filenames in os.walk(checkout):
@@ -100,6 +140,8 @@ for dependency in workspace["dependencies"]:
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(file, target)
 PYTHON
+fi
+
 # Fail loudly, before anything is signed, if the linked-on SDK ever drops back
 # to the deployment target.
 SDK_STAMP="$(vtool -show-build "$APP/Contents/MacOS/$BIN" | awk '/ sdk /{print $2}')"
@@ -107,20 +149,61 @@ if [[ "$SDK_STAMP" != "$(xcrun --show-sdk-version)" ]]; then
     echo "error: binary is stamped sdk $SDK_STAMP, expected $(xcrun --show-sdk-version)" >&2
     exit 1
 fi
-cp "Resources/Info.plist" "$APP/Contents/Info.plist"
-# Only a release build is com.wiltodelta.translatelikeme. Every other build is
-# com.wiltodelta.translatelikeme.dev, a separate app with its own settings, login
-# item and Accessibility grant, so building and checking never touch the copy
-# someone relies on. It does not check for updates.
-if [[ "${RELEASE:-}" != 1 ]]; then
-    /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.wiltodelta.translatelikeme.dev" \
-        -c "Set :CFBundleName Translate Like Me Dev" -c "Set :CFBundleDisplayName Translate Like Me Dev" \
-        -c "Set :SUEnableAutomaticChecks false" "$APP/Contents/Info.plist"
+
+if [[ "$EDITION" == "bridge" ]]; then
+    cp "Resources/Info-Bridge.plist" "$APP/Contents/Info.plist"
+    if [[ "${RELEASE:-}" != 1 ]]; then
+        /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.wiltodelta.translatelikeme.bridge.dev" \
+            -c "Set :CFBundleName Translate Like Me Bridge Dev" \
+            -c "Set :CFBundleDisplayName Translate Like Me Bridge Dev" \
+            -c "Delete :SUFeedURL" -c "Set :SUEnableAutomaticChecks false" "$APP/Contents/Info.plist"
+    fi
+elif [[ "$EDITION" == "mas" ]]; then
+    cp "Resources/Info.plist" "$APP/Contents/Info.plist"
+    # Strip Sparkle keys (Guideline 2.4.5(iv)) and stamp MAS bundle id + NSServices.
+    python3 - "$APP/Contents/Info.plist" "${RELEASE:-0}" <<'PYTHON'
+import plistlib, sys
+plist_path, release = sys.argv[1], sys.argv[2] == "1"
+with open(plist_path, "rb") as f:
+    data = plistlib.load(f)
+for key in list(data.keys()):
+    if key.startswith("SU"):
+        del data[key]
+if release:
+    data["CFBundleIdentifier"] = "com.wiltodelta.translatelikeme.mas"
+else:
+    data["CFBundleIdentifier"] = "com.wiltodelta.translatelikeme.mas.dev"
+    data["CFBundleName"] = "Translate Like Me MAS Dev"
+    data["CFBundleDisplayName"] = "Translate Like Me MAS Dev"
+port_name = data["CFBundleName"]
+data["NSServices"] = [
+    {
+        "NSMenuItem": {"default": "Translate with Translate Like Me"},
+        "NSMessage": "translateSelectionService",
+        "NSPortName": port_name,
+        "NSSendTypes": ["public.utf8-plain-text", "NSStringPboardType"],
+        "NSReturnTypes": ["public.utf8-plain-text", "NSStringPboardType"],
+    },
+    {
+        "NSMenuItem": {"default": "Rewrite with Translate Like Me"},
+        "NSMessage": "rewriteSelectionService",
+        "NSPortName": port_name,
+        "NSSendTypes": ["public.utf8-plain-text", "NSStringPboardType"],
+        "NSReturnTypes": ["public.utf8-plain-text", "NSStringPboardType"],
+    },
+]
+with open(plist_path, "wb") as f:
+    plistlib.dump(data, f, sort_keys=True)
+PYTHON
+else
+    cp "Resources/Info.plist" "$APP/Contents/Info.plist"
+    if [[ "${RELEASE:-}" != 1 ]]; then
+        /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.wiltodelta.translatelikeme.dev" \
+            -c "Set :CFBundleName Translate Like Me Dev" -c "Set :CFBundleDisplayName Translate Like Me Dev" \
+            -c "Set :SUEnableAutomaticChecks false" "$APP/Contents/Info.plist"
+    fi
 fi
-# Stamp the latest release tag, as CI stamps the tag it builds, so a local build
-# never reports an older version than the release (which would make Sparkle
-# offer the release over it). --abbrev=0: the tag itself, not "2.0-5-gabc".
-# CI must have the tag; a local checkout without one keeps the 0.0.0 placeholder.
+
 VERSION="$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || true)"
 if [[ -n "$VERSION" ]]; then
     /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" \
@@ -129,61 +212,109 @@ elif [[ -n "${GITHUB_ACTIONS:-}" ]]; then
     echo "error: no git tag to take the version from" >&2
     exit 1
 fi
-# The oldest supported macOS lives in Info.plist; Package.swift must say the same.
+
 MIN_MACOS="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' Resources/Info.plist)"
 grep -q ".macOS(\"$MIN_MACOS\")" Package.swift ||
     { echo "error: Package.swift platform differs from LSMinimumSystemVersion $MIN_MACOS" >&2; exit 1; }
-# The Icon Composer icon: Assets.car for macOS 26+ (system glass, dark and tinted
-# appearances) plus a flat AppIcon.icns for older releases. Needs Xcode 26+
-# (actool). Regenerate its layers and icon.json with scripts/make-icon-layers.py.
-# Absolute paths: actool resolves relative ones against the working directory of
-# its long-lived agent, which is wherever it first started, not this script's.
+
 ICON_INFO="$(mktemp -t tlm-icon)"
-trap 'rm -f "$ICON_INFO"' EXIT
+ENTITLEMENTS_TMP="$(mktemp -t tlm-ent)"
+trap 'rm -f "$ICON_INFO" "$ENTITLEMENTS_TMP"' EXIT
+
 xcrun actool "$PWD/Resources/AppIcon.icon" --compile "$PWD/$APP/Contents/Resources" \
     --platform macosx --minimum-deployment-target "$MIN_MACOS" --app-icon AppIcon \
     --output-partial-info-plist "$ICON_INFO" >/dev/null
-# One <language>.lproj per localization, English included: without en.lproj an
-# English-first Mac would resolve to its second preferred language.
+
 for CATALOG in Localizable InfoPlist; do
     xcrun xcstringstool compile "Resources/$CATALOG.xcstrings" --output-directory "$APP/Contents/Resources" >/dev/null
 done
-cp "Resources/MenuBarIcon.png" "$APP/Contents/Resources/MenuBarIcon.png"
-cp "Resources/MenuBarBusy.png" "$APP/Contents/Resources/MenuBarBusy.png"
+cp "Resources/PrivacyInfo.xcprivacy" "$APP/Contents/Resources/PrivacyInfo.xcprivacy"
+if [[ "$EDITION" != "bridge" ]]; then
+    cp "Resources/MenuBarIcon.png" "$APP/Contents/Resources/MenuBarIcon.png"
+    cp "Resources/MenuBarBusy.png" "$APP/Contents/Resources/MenuBarBusy.png"
+fi
 
-# Sign with the team's Developer ID Application identity when the keychain has it:
-# its stable designated requirement keeps the Accessibility (TCC) grant across
-# rebuilds and releases, and with the hardened runtime and (RELEASE=1) a secure
-# timestamp it is what notarization requires (notarize.sh). The timestamp needs
-# Apple's server, so everyday builds skip it and still work offline. Without the
-# identity (contributors, CI branch builds) the bundle is signed ad hoc, which
-# runs but re-prompts for Accessibility after every rebuild.
+if [[ "$EDITION" == "mas" && -n "${MAS_PROVISIONING_PROFILE:-}" ]]; then
+    cp "$MAS_PROVISIONING_PROFILE" "$APP/Contents/embedded.provisionprofile"
+fi
+
+# productbuild installs /Applications owned by root:wheel; any 0600 file (such as
+# a copied .provisionprofile) fails App Store Connect validation with ITMS-90255.
+chmod -R a+rX "$APP"
+
+if [[ "$EDITION" == "mas" ]]; then
+    cp "Resources/Entitlements-MAS.plist" "$ENTITLEMENTS_TMP"
+    if [[ "${RELEASE:-}" == 1 ]]; then
+        /usr/libexec/PlistBuddy \
+            -c "Add :com.apple.application-identifier string K2GT9Q4S6U.com.wiltodelta.translatelikeme.mas" \
+            -c "Add :com.apple.developer.team-identifier string K2GT9Q4S6U" \
+            "$ENTITLEMENTS_TMP"
+    else
+        /usr/libexec/PlistBuddy -c "Set :com.apple.security.application-groups:0 K2GT9Q4S6U.tlm.dev" "$ENTITLEMENTS_TMP"
+    fi
+elif [[ "$EDITION" == "bridge" ]]; then
+    cp "Resources/Entitlements-Bridge.plist" "$ENTITLEMENTS_TMP"
+    if [[ "${RELEASE:-}" != 1 ]]; then
+        /usr/libexec/PlistBuddy -c "Set :com.apple.security.application-groups:0 K2GT9Q4S6U.tlm.dev" "$ENTITLEMENTS_TMP"
+    fi
+else
+    cp "Resources/Entitlements.plist" "$ENTITLEMENTS_TMP"
+fi
+
 TEAM_ID="K2GT9Q4S6U"
-SIGN_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null \
-    | awk -F'"' -v team="($TEAM_ID)" '/Developer ID Application:/ && index($2, team) {print $2; exit}')"
+if [[ "$EDITION" == "mas" && "${RELEASE:-}" == 1 && -n "${MAS_APP_IDENTITY:-}" ]]; then
+    SIGN_IDENTITY="$MAS_APP_IDENTITY"
+elif [[ "$EDITION" == "mas" && "${RELEASE:-}" == 1 ]]; then
+    SIGN_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null \
+        | awk -F'"' -v team="($TEAM_ID)" '/(3rd Party Mac Developer Application|Apple Distribution):/ && index($2, team) {print $2; exit}')"
+else
+    SIGN_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null \
+        | awk -F'"' -v team="($TEAM_ID)" '/Developer ID Application:/ && index($2, team) {print $2; exit}')"
+fi
+
 if [[ -n "$SIGN_IDENTITY" ]]; then
     TIMESTAMP="--timestamp=none"
     [[ "${RELEASE:-}" == 1 ]] && TIMESTAMP="--timestamp"
     SIGN=(codesign --force --options runtime "$TIMESTAMP" --sign "$SIGN_IDENTITY")
 elif [[ "${RELEASE:-}" == 1 ]]; then
-    echo "error: RELEASE=1 but no Developer ID Application identity for team $TEAM_ID" >&2
+    echo "error: RELEASE=1 ($EDITION) but no matching signing identity for team $TEAM_ID" >&2
     exit 1
 else
-    echo "warning: no Developer ID Application identity, signing ad hoc (Accessibility will re-prompt)"
+    echo "warning: no signing identity found, signing ad hoc"
     SIGN=(codesign --force --sign -)
 fi
-# Inside out, in the order Sparkle's docs give: its helpers, the framework, then
-# the app (no --deep, which would re-sign the helpers without their options).
+
 for LIBRARY in "$APP/Contents/Frameworks/"*.dylib; do
     [[ -f "$LIBRARY" ]] || continue
     "${SIGN[@]}" "$LIBRARY"
 done
-SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
-"${SIGN[@]}" "$SPARKLE/Versions/B/Autoupdate"
-"${SIGN[@]}" "$SPARKLE/Versions/B/Updater.app"
-"${SIGN[@]}" "$SPARKLE"
-"${SIGN[@]}" --entitlements Resources/Entitlements.plist "$APP"
+if [[ "$EMBED_SPARKLE" == 1 ]]; then
+    SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
+    "${SIGN[@]}" "$SPARKLE/Versions/B/Autoupdate"
+    "${SIGN[@]}" "$SPARKLE/Versions/B/Updater.app"
+    "${SIGN[@]}" "$SPARKLE"
+fi
+"${SIGN[@]}" --entitlements "$ENTITLEMENTS_TMP" "$APP"
 bash scripts/check-swift-runtime.sh "$APP"
+
+if [[ "$EDITION" == "mas" ]]; then
+    if otool -L "$APP/Contents/MacOS/$BIN" | grep -qi Sparkle; then
+        echo "error: MAS binary still links Sparkle" >&2
+        exit 1
+    fi
+fi
+
+if [[ "$EDITION" == "mas" && "${PACKAGE_MAS:-0}" == 1 ]]; then
+    PKG_OUT="${MAS_PKG_PATH:-Translate-Like-Me-MAS.pkg}"
+    INSTALLER_ID="${MAS_INSTALLER_IDENTITY:-$(security find-identity -v 2>/dev/null \
+        | awk -F'"' -v team="($TEAM_ID)" '/3rd Party Mac Developer Installer:/ && index($2, team) {print $2; exit}')}"
+    if [[ -n "$INSTALLER_ID" ]]; then
+        productbuild --component "$APP" /Applications --sign "$INSTALLER_ID" "$PKG_OUT"
+    else
+        productbuild --component "$APP" /Applications "$PKG_OUT"
+    fi
+    echo "Packaged MAS installer: $PWD/$PKG_OUT"
+fi
 
 echo "Done: $PWD/$APP"
 echo "Launch with: open \"$PWD/$APP\""

@@ -5,7 +5,7 @@ private let deliveryLog = Logger.app("selection")
 
 // The adapter owns AX, key posting and the pasteboard, so tests run the whole
 // destination/paste/receipt/restore flow without real input.
-protocol PasteAccess: Sendable {
+public protocol PasteAccess: Sendable {
     associatedtype Snapshot: Sendable
     var changeCount: Int { get }
     func snapshot() -> Snapshot
@@ -17,7 +17,7 @@ protocol PasteAccess: Sendable {
     func paste(_ text: String, to pid: pid_t, ifUnchangedSince mark: Int) -> PromisedPaste?
 }
 
-extension PasteAccess {
+public extension PasteAccess {
     func dictationTarget() -> DictationInsertionTarget? {
         destination().map { DictationInsertionTarget(pid: $0) }
     }
@@ -27,45 +27,45 @@ extension PasteAccess {
 // read of the promised clipboard string is the delivery proof: AX cannot see into
 // custom renderers, and a fixed wait restored the clipboard before a busy app
 // read it, so the app pasted the user's older clipboard.
-struct PasteDelivery<Access: PasteAccess>: Sendable {
-    static var readDeadline: Duration { .seconds(3) }
+public struct PasteDelivery<Access: PasteAccess>: Sendable {
+    public static var readDeadline: Duration { .seconds(3) }
     // Hold our clipboard briefly after the read: an app may read it more than once.
-    static var holdAfterRead: Duration { .milliseconds(300) }
-    static var minimumHold: Duration { .milliseconds(700) }
-    static var step: Duration { .milliseconds(50) }
+    public static var holdAfterRead: Duration { .milliseconds(300) }
+    public static var minimumHold: Duration { .milliseconds(700) }
+    public static var step: Duration { .milliseconds(50) }
 
-    let access: Access
-    var pause: @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) }
+    public let access: Access
+    public var pause: @Sendable (Duration) async -> Void
 
-    // Dictation: the clipboard is snapshotted just before writing.
-    func insert(_ text: String, vocabulary: DictationVocabulary = .empty,
-                languageIdentifiers: [String] = []) async throws -> Bool {
+    public init(access: Access,
+                pause: @escaping @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) }) {
+        self.access = access
+        self.pause = pause
+    }
+
+    // Pastes preformatted text to `pid` after snapshotting the clipboard right before writing.
+    public func insertPreformatted(_ formatted: String, to pid: pid_t) async throws -> Bool {
         try Task.checkCancellation()
-        guard let target = access.dictationTarget() else { return false }
-        try Task.checkCancellation()
-        let formatted = DictationInsertion.format(text, context: target.context,
-                                                  vocabulary: vocabulary,
-                                                  languageIdentifiers: languageIdentifiers)
         let mark = access.changeCount
         let snapshot = access.snapshot()
         try Task.checkCancellation()
-        return try await deliver(formatted, to: target.pid, restoring: snapshot, ifUnchangedSince: mark)
+        return try await deliver(formatted, to: pid, restoring: snapshot, ifUnchangedSince: mark)
     }
 
     // Pastes once into the current destination, then restores `original` unless
     // a newer copy took the clipboard. Returns whether the destination read the
     // text; an unread paste is never retried. Writes nothing when there is no
     // destination or the clipboard changed after `mark`.
-    func deliver(_ text: String, restoring original: Access.Snapshot,
-                 ifUnchangedSince mark: Int) async throws -> Bool {
+    public func deliver(_ text: String, restoring original: Access.Snapshot,
+                        ifUnchangedSince mark: Int) async throws -> Bool {
         try Task.checkCancellation()
         guard let pid = access.destination() else { return false }
         try Task.checkCancellation()
         return try await deliver(text, to: pid, restoring: original, ifUnchangedSince: mark)
     }
 
-    private func deliver(_ text: String, to pid: pid_t, restoring original: Access.Snapshot,
-                         ifUnchangedSince mark: Int) async throws -> Bool {
+    public func deliver(_ text: String, to pid: pid_t, restoring original: Access.Snapshot,
+                        ifUnchangedSince mark: Int) async throws -> Bool {
         guard let paste = access.paste(text, to: pid, ifUnchangedSince: mark) else {
             deliveryLog.notice("Paste skipped: the clipboard changed before writing")
             return false

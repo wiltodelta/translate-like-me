@@ -1,20 +1,21 @@
 import AppKit
 import os
+import Synchronization
 
 private let targetLog = Logger.app("selection")
 
 // Text goes to whichever process holds keyboard focus, field or custom renderer
 // alike, except a password field. Translation also requires it to be the process
 // the selection was copied from.
-enum SelectionTarget {
+public enum SelectionTarget {
     private static let rpcTimeout: Float = 0.2
-    static let snapshotBudget: Duration = .milliseconds(250)
+    public static let snapshotBudget: Duration = .milliseconds(250)
 
     private enum SecurityClassification {
         case nonSecure, secure, unknown
     }
 
-    static var destination: pid_t? {
+    public static var destination: pid_t? {
         resolveDestination(pid: focusedPID, deadline: nil)?.pid
     }
 
@@ -41,12 +42,12 @@ enum SelectionTarget {
     // AX decides whenever it answers, since it names a nonactivating panel
     // holding focus over the frontmost app; frontmost Slack once left it
     // unanswered, and every run read as no selection.
-    static var focusedPID: pid_t? {
+    public static var focusedPID: pid_t? {
         focusedPID(accessibility: accessibilityFocusedPID,
                    frontmost: NSWorkspace.shared.frontmostApplication?.processIdentifier)
     }
 
-    static func focusedPID(accessibility: pid_t?, frontmost: pid_t?) -> pid_t? {
+    public static func focusedPID(accessibility: pid_t?, frontmost: pid_t?) -> pid_t? {
         accessibility ?? frontmost
     }
 
@@ -61,8 +62,8 @@ enum SelectionTarget {
         return pid
     }
 
-    static func dictationSnapshot(pid: pid_t? = focusedPID,
-                                  budget: Duration = snapshotBudget) -> DictationDestinationSnapshot {
+    public static func dictationSnapshot(pid: pid_t? = focusedPID,
+                                         budget: Duration = snapshotBudget) -> DictationDestinationSnapshot {
         guard let pid else { return DictationDestinationSnapshot() }
         let deadline = ContinuousClock.now.advanced(by: budget)
         let app = AXUIElementCreateApplication(pid)
@@ -87,8 +88,8 @@ enum SelectionTarget {
                                             surroundingText: surrounding)
     }
 
-    static func dictationTarget(pid: pid_t? = focusedPID,
-                                budget: Duration = snapshotBudget) -> DictationInsertionTarget? {
+    public static func dictationTarget(pid: pid_t? = focusedPID,
+                                       budget: Duration = snapshotBudget) -> DictationInsertionTarget? {
         let deadline = ContinuousClock.now.advanced(by: budget)
         guard let resolved = resolveDestination(pid: pid, deadline: deadline) else { return nil }
         let context = resolved.verifiedFocused.map { insertionContext(in: $0, deadline: deadline) }
@@ -179,7 +180,7 @@ private extension SelectionTarget {
                 ? DictationInsertionContext(beforeSlice: "", afterSlice: nil, hasCompleteLinePrefix: true)
                 : DictationInsertionContext()
         }
-        return DictationContext.insertionContext(in: value, selection: selection)
+        return TextCaretSlices.insertionContext(in: value, selection: selection)
     }
 
     static func rangedSliceBefore(caret: Int, limit: Int, in element: AXUIElement,
@@ -288,14 +289,14 @@ private extension SelectionTarget {
         }
         guard let value = boundedValue(in: element, knownCount: count, deadline: deadline) else { return nil }
         let fallbackRange = selection ?? NSRange(location: value.utf16.count, length: 0)
-        return DictationContext.surroundingText(in: value, selection: fallbackRange)
+        return TextCaretSlices.surroundingText(in: value, selection: fallbackRange)
     }
 
     private static func surroundingSlice(in element: AXUIElement, selection: NSRange,
                                          knownCount: Int?, deadline: ContinuousClock.Instant) -> RangedQuery {
         var before: String?
         if selection.location > 0 {
-            switch rangedSliceBefore(caret: selection.location, limit: DictationContext.beforeCaretLimit,
+            switch rangedSliceBefore(caret: selection.location, limit: TextCaretSlices.beforeCaretLimit,
                                      in: element, deadline: deadline) {
             case .slice(let text): before = text
             case .aborted: return .aborted
@@ -324,7 +325,7 @@ private extension SelectionTarget {
                                               deadline: ContinuousClock.Instant) -> RangedQuery {
         let (afterStart, overflow) = selection.location.addingReportingOverflow(selection.length)
         guard !overflow else { return .slice("") }
-        return rangedSliceAfter(caret: afterStart, limit: DictationContext.afterCaretLimit,
+        return rangedSliceAfter(caret: afterStart, limit: TextCaretSlices.afterCaretLimit,
                                 knownCount: knownCount, in: element, deadline: deadline)
     }
 
@@ -348,16 +349,19 @@ private extension SelectionTarget {
 // Any typing, click or app activation while the engine runs invalidates the
 // selection, even if the user switches away and back. Own synthetic Copy/Paste
 // events carry a marker and do not count as user activity.
-final class SelectionActivity: Sendable {
-    enum Invalidation: String, Sendable { case keyboard, pointer, application, unspecified }
-    static let eventMarker: Int64 = 0x544C4D
+public final class SelectionActivity: Sendable {
+    public enum Invalidation: String, Sendable { case keyboard, pointer, application, unspecified }
+    public static let eventMarker: Int64 = 0x544C4D
     private let changed = OSAllocatedUnfairLock<Invalidation?>(initialState: nil)
-    var isUnchanged: Bool { changed.withLock { $0 == nil } }
-    var invalidationReason: String { changed.withLock { $0?.rawValue ?? "none" } }
-    func invalidate(_ reason: Invalidation = .unspecified) { changed.withLock { if $0 == nil { $0 = reason } } }
+    public var isUnchanged: Bool { changed.withLock { $0 == nil } }
+    public var invalidationReason: String { changed.withLock { $0?.rawValue ?? "none" } }
+    public init() {}
+    public func invalidate(_ reason: Invalidation = .unspecified) {
+        changed.withLock { if $0 == nil { $0 = reason } }
+    }
 
     @MainActor
-    func monitor() -> () -> Void {
+    public func monitor() -> () -> Void {
         let events: NSEvent.EventTypeMask = [.keyDown, .leftMouseDown, .rightMouseDown, .otherMouseDown]
         let observe: @Sendable (NSEvent) -> Void = { [self] event in
             if event.cgEvent?.getIntegerValueField(.eventSourceUserData) != Self.eventMarker {
@@ -368,7 +372,7 @@ final class SelectionActivity: Sendable {
         let local = NSEvent.addLocalMonitorForEvents(matching: events) { event in observe(event); return event }
         let workspace = NSWorkspace.shared.notificationCenter
         let activation = workspace.addObserver(forName: NSWorkspace.didActivateApplicationNotification,
-                                                object: nil, queue: .main) { [self] _ in invalidate(.application) }
+                                               object: nil, queue: .main) { [self] _ in invalidate(.application) }
         return {
             if let global { NSEvent.removeMonitor(global) }
             if let local { NSEvent.removeMonitor(local) }
@@ -378,11 +382,11 @@ final class SelectionActivity: Sendable {
 }
 
 // The real pasteboard and Paste key, shared by translation and dictation.
-protocol LivePasteAccess: PasteAccess where Snapshot == SelectionService.Snapshot {
+public protocol LivePasteAccess: PasteAccess where Snapshot == SelectionService.Snapshot {
     var pasteKey: CGKeyCode { get }
 }
 
-extension LivePasteAccess {
+public extension LivePasteAccess {
     var changeCount: Int { SelectionService.changeCount }
     func snapshot() -> SelectionService.Snapshot { SelectionService.snapshot() }
     func restore(_ snapshot: SelectionService.Snapshot, ifUnchangedSince mark: Int) {
@@ -393,15 +397,24 @@ extension LivePasteAccess {
     }
 }
 
-struct LiveSelectionAccess: SelectionAccess, LivePasteAccess {
-    let pid: pid_t
-    let activity: SelectionActivity
-    let copyKey: CGKeyCode
-    let pasteKey: CGKeyCode
-    func copySelection() -> CopiedSelection {
+public struct LiveSelectionAccess: SelectionAccess, LivePasteAccess {
+    public let pid: pid_t
+    public let activity: SelectionActivity
+    public let copyKey: CGKeyCode
+    public let pasteKey: CGKeyCode
+
+    public init(pid: pid_t, activity: SelectionActivity, copyKey: CGKeyCode, pasteKey: CGKeyCode) {
+        self.pid = pid
+        self.activity = activity
+        self.copyKey = copyKey
+        self.pasteKey = pasteKey
+    }
+
+    public func copySelection() -> CopiedSelection {
         SelectionService.copySelection(from: pid, keyCode: copyKey, activity: activity)
     }
-    func destination() -> pid_t? {
+
+    public func destination() -> pid_t? {
         guard activity.isUnchanged else {
             targetLog.notice("Insertion invalidated by \(activity.invalidationReason, privacy: .public) activity")
             return nil
@@ -415,8 +428,9 @@ struct LiveSelectionAccess: SelectionAccess, LivePasteAccess {
     }
 }
 
-struct LiveDictationAccess: LivePasteAccess {
-    let pasteKey: CGKeyCode
-    func destination() -> pid_t? { SelectionTarget.destination }
-    func dictationTarget() -> DictationInsertionTarget? { SelectionTarget.dictationTarget() }
+public struct LiveDictationAccess: LivePasteAccess {
+    public let pasteKey: CGKeyCode
+    public init(pasteKey: CGKeyCode) { self.pasteKey = pasteKey }
+    public func destination() -> pid_t? { SelectionTarget.destination }
+    public func dictationTarget() -> DictationInsertionTarget? { SelectionTarget.dictationTarget() }
 }

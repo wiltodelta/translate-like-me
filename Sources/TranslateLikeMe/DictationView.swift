@@ -30,18 +30,27 @@ private struct DictationControlsSection: View {
     let store: SettingsStore
     let dictation: DictationController
     let introductory: Bool
+    @State private var bridge = BridgeClient.shared
 
     var body: some View {
+        let directEdition = AppEdition.current == .direct
+        let activeCombo = store.dictationShortcut.map { combo in
+            !directEdition && Shortcut.isOptionOnly(combo) && !bridge.canInsertDirectly
+                ? AppEdition.appStoreDefaultDictationShortcut
+                : combo
+        }
+        let shortcutMode: ShortcutField.Mode = directEdition ? .optionOnly
+            : (bridge.canInsertDirectly ? .chordOrOption : .chordOnly)
         Section {
             Toggle("Enable dictation", isOn: Binding(get: { dictation.enabled }, set: { dictation.setEnabled($0) }))
                 .toggleStyle(.switch)
                 .controlSize(.mini)
             LabeledContent("Hold key") {
-                ShortcutField(combo: Binding(get: { store.dictationShortcut },
+                ShortcutField(combo: Binding(get: { activeCombo },
                                              set: { store.dictationShortcut = $0 }),
                               usedBy: { store.owner(of: $0, except: Settings.dictationID) },
                               owner: .dictation,
-                              requiresOptionOnly: true)
+                              mode: shortcutMode)
                     .disabled(!dictation.enabled || dictation.isActive)
             }
             DictationMicrophonePicker(dictation: dictation)
@@ -59,7 +68,11 @@ private struct DictationControlsSection: View {
                         up later in Settings.
                         """)
                 }
-                Text("Hold Option while speaking, then release to insert. Languages are detected automatically.")
+                if activeCombo.map(Shortcut.isOptionOnly) ?? directEdition {
+                    Text("Hold Option while speaking, then release to insert. Languages are detected automatically.")
+                } else {
+                    Text("Hold your shortcut while speaking, then release. Languages are detected automatically.")
+                }
             }
             .foregroundStyle(Color.secondaryText)
         }

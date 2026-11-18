@@ -1,38 +1,17 @@
 import Foundation
 import NaturalLanguage
 
-struct DictationInsertionContext: Sendable, Equatable {
-    static let sliceLimit = 24
-
-    var beforeSlice: String?
-    var afterSlice: String?
-    var hasCompleteLinePrefix: Bool
-
-    var beforeCaret: Character? { beforeSlice?.last }
-    var afterCaret: Character? { afterSlice?.first }
-
-    init(beforeSlice: String? = nil, afterSlice: String? = nil, hasCompleteLinePrefix: Bool = true) {
-        self.beforeSlice = beforeSlice
-        self.afterSlice = afterSlice
-        self.hasCompleteLinePrefix = hasCompleteLinePrefix
-    }
-
-    init(beforeCaret: Character?) {
-        self.beforeSlice = beforeCaret.map(String.init)
-        self.afterSlice = nil
-        self.hasCompleteLinePrefix = false
-    }
-}
-
-struct DictationInsertionTarget: Sendable, Equatable {
-    let pid: pid_t
-    let context: DictationInsertionContext
-
-    var beforeCaret: Character? { context.beforeCaret }
-
-    init(pid: pid_t, context: DictationInsertionContext = DictationInsertionContext()) {
-        self.pid = pid
-        self.context = context
+extension PasteDelivery {
+    // Dictation: the clipboard is snapshotted just before writing.
+    func insert(_ text: String, vocabulary: DictationVocabulary = .empty,
+                languageIdentifiers: [String] = []) async throws -> Bool {
+        try Task.checkCancellation()
+        guard let target = access.dictationTarget() else { return false }
+        try Task.checkCancellation()
+        let formatted = DictationInsertion.format(text, context: target.context,
+                                                  vocabulary: vocabulary,
+                                                  languageIdentifiers: languageIdentifiers)
+        return try await insertPreformatted(formatted, to: target.pid)
     }
 }
 
