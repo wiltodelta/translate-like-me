@@ -294,23 +294,32 @@ final class DictationCaptureWorker: @unchecked Sendable {
         // Old tap callbacks must never see a replacement graph's recording.
         let relay = DictationTapRelay()
         self.relay = relay
-        let engine = try makeGraph(device, route.uid != preferredInput, relay) { [weak self] in
+        let engine = try makeGraph(device, route.followsSystem, relay) { [weak self] in
             self?.queue.async { [weak self] in self?.configurationChanged(generation) }
         }
         let format = engine.format
         relay.prepare(format: format)
-        let selection = preferredInput == nil ? "system" : route.uid == preferredInput ? "chosen" : "fallback"
+        let selection = selectionLabel(for: route)
         captureLog.notice("""
-            Dictation input prepared: transport=\(audioDeviceTransport(device), privacy: .public) \
+            Dictation input prepared: transport=\(route.transport.rawValue, privacy: .public) \
             selection=\(selection, privacy: .public) rate=\(format.sampleRate) channels=\(format.channelCount)
             """)
         // Building the graph can move a Bluetooth input's nominal rate (AirPods flipped
         // 24/48 kHz, 2026-10-25); a pre-build snapshot made every idle graph stale at once.
         var built = route
-        if let current = resolveInput(preferredInput), current.uid == route.uid { built = current }
+        if let current = resolveInput(preferredInput),
+           current.uid == route.uid, current.followsSystem == route.followsSystem {
+            built = current
+        }
         (self.engine, self.format, inputRoute) = (engine, format, built)
         inputObserver?.watch(built)
         return (engine, format)
+    }
+
+    private func selectionLabel(for route: DictationInputRoute) -> String {
+        if route.uid == preferredInput { return "chosen" }
+        if !route.followsSystem { return preferredInput == nil ? "automatic-bypass" : "fallback-bypass" }
+        return preferredInput == nil ? "system" : "fallback"
     }
 
     // AirPods graphs built while the headset changed mode started without error and

@@ -9,63 +9,81 @@ struct DictationMicrophone: Codable, Hashable, Sendable {
     let uid: String
     let name: String
 
-    // The chosen device while it is connected, otherwise the system input:
-    // a disconnected choice falls back silently and returns when reconnected.
-    static func resolve(_ preferred: String?, device: (String) -> AudioDeviceID? = audioDevice(uid:),
-                        system: () -> AudioDeviceID? = {
-                            defaultAudioDevice(kAudioHardwarePropertyDefaultInputDevice)
-                        }) -> AudioDeviceID? {
-        preferred.flatMap(device) ?? system()
+    // The chosen device while it is connected, otherwise the automatic input:
+    // non-Bluetooth system inputs win, Bluetooth falls back to built-in or wired
+    // local hardware when available, and a disconnected choice returns on reconnect.
+    static func resolve(_ preferred: String?) -> AudioDeviceID? {
+        DictationInputRoute.resolve(preferred)?.device
     }
 }
 
 // Visible devices with input streams, as the Settings picker lists them, and
-// the current system input. Core Audio notifies on its own queue.
+// the current automatic input. Core Audio notifies on its own queue.
 @MainActor
 @Observable
 final class DictationMicrophones {
+    private struct Registration {
+        let device: AudioObjectID
+        var address: AudioObjectPropertyAddress
+    }
     static let shared = DictationMicrophones()
     private(set) var available: [DictationMicrophone] = []
-    private(set) var systemName: String?
+    private(set) var automaticName: String?
+    @ObservationIgnored private var watchedIDs: [AudioDeviceID] = []
+    @ObservationIgnored private var deviceListeners: [Registration] = []
+    @ObservationIgnored private let listener: AudioObjectPropertyListenerBlock = { _, _ in
+        MainActor.assumeIsolated { DictationMicrophones.shared.refresh() }
+    }
 
     private init() {
         refresh()
         for selector in [kAudioHardwarePropertyDevices, kAudioHardwarePropertyDefaultInputDevice] {
             var address = audioAddress(selector)
-            AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &address, .main) { _, _ in
-                MainActor.assumeIsolated { DictationMicrophones.shared.refresh() }
-            }
+            AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &address, .main, listener)
         }
     }
 
     // Engine builds add and remove private aggregates, so most notifications
     // change nothing visible; assign only real changes to spare the picker.
     private func refresh() {
-        let devices = audioDevices().filter { !isHidden($0) && DictationInputRoute.read($0) != nil }
-        let available = devices.compactMap { device -> DictationMicrophone? in
-            guard let uid = audioDeviceUID(device), let name = audioDeviceName(device) else { return nil }
-            return DictationMicrophone(uid: uid, name: name)
+        let devices = visibleAudioDevices()
+        watchDevices(devices)
+        var routesByID: [AudioDeviceID: DictationInputRoute] = [:]
+        var namesByID: [AudioDeviceID: String] = [:]
+        var available: [DictationMicrophone] = []
+        for device in devices {
+            guard let route = DictationInputRoute.read(device), let name = audioDeviceName(device) else { continue }
+            routesByID[device] = route
+            namesByID[device] = name
+            available.append(DictationMicrophone(uid: route.uid, name: name))
         }
-        let systemName = defaultAudioDevice(kAudioHardwarePropertyDefaultInputDevice).flatMap(audioDeviceName)
+        let resolved = DictationInputRoute.resolve(
+            nil, candidates: { devices }, snapshot: { routesByID[$0] ?? DictationInputRoute.read($0) }
+        )
+        let automaticName = resolved.flatMap { namesByID[$0.device] ?? audioDeviceName($0.device) }
         if available != self.available { self.available = available }
-        if systemName != self.systemName { self.systemName = systemName }
+        if automaticName != self.automaticName { self.automaticName = automaticName }
     }
 
-    private func audioDevices() -> [AudioDeviceID] {
-        var address = audioAddress(kAudioHardwarePropertyDevices)
-        let system = AudioObjectID(kAudioObjectSystemObject)
-        var size: UInt32 = 0
-        guard AudioObjectGetPropertyDataSize(system, &address, 0, nil, &size) == noErr else { return [] }
-        var devices = [AudioDeviceID](repeating: 0, count: Int(size) / MemoryLayout<AudioDeviceID>.size)
-        guard AudioObjectGetPropertyData(system, &address, 0, nil, &size, &devices) == noErr else { return [] }
-        return devices
-    }
-
-    // Engines and other apps create private aggregate devices; never list them.
-    private func isHidden(_ device: AudioDeviceID) -> Bool {
-        var address = audioAddress(kAudioDevicePropertyIsHidden)
-        var hidden: UInt32 = 0
-        var size = UInt32(MemoryLayout<UInt32>.size)
-        return AudioObjectGetPropertyData(device, &address, 0, nil, &size, &hidden) == noErr && hidden != 0
+    private func watchDevices(_ devices: [AudioDeviceID]) {
+        guard devices != watchedIDs else { return }
+        for var entry in deviceListeners {
+            AudioObjectRemovePropertyListenerBlock(entry.device, &entry.address, .main, listener)
+        }
+        deviceListeners.removeAll()
+        watchedIDs = devices
+        let properties: [(AudioObjectPropertySelector, AudioObjectPropertyScope)] = [
+            (kAudioDevicePropertyDeviceIsAlive, kAudioObjectPropertyScopeGlobal),
+            (kAudioObjectPropertyName, kAudioObjectPropertyScopeGlobal),
+            (kAudioDevicePropertyStreamConfiguration, kAudioObjectPropertyScopeInput),
+        ]
+        for device in devices {
+            for (selector, scope) in properties {
+                var address = audioAddress(selector, scope)
+                guard AudioObjectHasProperty(device, &address),
+                      AudioObjectAddPropertyListenerBlock(device, &address, .main, listener) == noErr else { continue }
+                deviceListeners.append(Registration(device: device, address: address))
+            }
+        }
     }
 }

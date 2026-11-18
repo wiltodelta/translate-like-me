@@ -112,8 +112,10 @@ Four panes, **General**, **Dictation**, **Translation** and **Rewrite**. Changes
 immediately.
 
 - **Dictation**: enable local speech recognition, choose the Option hold key and
-  the microphone (**System default** follows macOS; a chosen microphone that is
-  disconnected falls back to the system input until it returns), and select
+  the microphone (**Automatic** follows non-Bluetooth macOS inputs such as wired
+  or built-in microphones and skips Bluetooth headsets when a built-in or wired
+  microphone is available; a chosen microphone that is disconnected falls back
+  to the automatic input until it returns), and select
   Fluid Speech Pro (8-bit, 25 European languages), Whisper large-v3-turbo, or
   Qwen3-ASR 1.7B (8-bit, 30 languages). Fresh profiles select Fluid Speech Pro
   by default, switching automatically when another model recognizes more of your

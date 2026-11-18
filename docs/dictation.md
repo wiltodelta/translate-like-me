@@ -26,7 +26,9 @@ ordinary-combination preferences are read as right Option. Other input during a
 hold cancels that recording, including Option combinations. Inertial scrolling
 from a previous gesture does not cancel it. Recording uses the
 Microphone chosen in Settings > Dictation while it is connected, otherwise the
-system input, resolved each time recording starts.
+automatic input (following non-Bluetooth system inputs, or bypassing a Bluetooth
+system input to built-in or wired local hardware when available), resolved each
+time recording starts.
 
 ## Runtime and data
 
@@ -187,12 +189,13 @@ hold's sink is attached. Stop and discard re-prepare the engine; disabling
 dictation releases it. Wake, an idle configuration change, a microphone choice,
 or a different resolved input or format rebuilds it. The engine's I/O unit
 reports its own aggregate device, so the worker compares the input it resolved
-at build. An explicit microphone choice is bound with
+at build. An explicit microphone choice, or a local built-in/wired input chosen
+automatically to bypass a Bluetooth system default, is bound with
 `kAudioOutputUnitProperty_CurrentDevice` on the input node's unit before its
-format is read, including when it equals the current system default. Only a
-system-following or disconnected-choice fallback remains unbound.
-`DictationInputRoute` validates a live input and compares UID, native rate,
-channel count and data source. The worker observes device/default changes
+format is read, including when it equals the current system default. Only an
+unbypassed system-following path remains unbound.
+`DictationInputRoute` validates a live input and compares UID, binding mode,
+transport, native rate, channel count and data source. The worker observes device/default changes
 separately from engine notifications, re-prepares a returning idle input and
 rechecks the route/running state at drain. Compatibility policy and physical
 coverage are documented in [microphone compatibility](dictation-device-compatibility.md).

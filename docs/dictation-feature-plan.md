@@ -57,12 +57,14 @@ choose a model during setup. Shared language behavior applies to both runtimes.
 - Default to right Option, with left Option available in the same binding field.
   No tap-to-toggle mode, push-to-start menu command, or ordinary combination is
   part of dictation. Translation and Rewrite keep their existing shortcuts.
-- Follow the system input microphone by default. Detect device changes and
-  recover without requiring the user to manage an application-specific
-  microphone preference. Settings (not first-run setup) offers an optional
-  Microphone picker, user decision 2026-10-21: a chosen device keeps dictation
-  off a Bluetooth headset that macOS makes the default input, without changing
-  the input of other apps. A disconnected choice falls back to the system input.
+- Select the microphone automatically by default: follow non-Bluetooth system
+  inputs (such as built-in, 3.5 mm or USB microphones), and when macOS switches
+  the system default input to a Bluetooth headset, bind to a live built-in or
+  wired local microphone without changing the input of other apps (user decision
+  2026-11-18). Settings (not first-run setup) offers an optional Microphone
+  picker, user decision 2026-10-21, so any specific device, Bluetooth included,
+  can still be chosen explicitly; a disconnected choice falls back to the
+  automatic input until it returns.
 - Once ready, normal use requires no Settings visit. Preparation is a one-time
   dependency on network access; recognition after installation works offline.
 

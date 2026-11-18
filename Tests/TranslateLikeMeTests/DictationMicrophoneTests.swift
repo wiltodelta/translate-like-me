@@ -5,19 +5,60 @@ import XCTest
 final class DictationMicrophoneTests: XCTestCase {
     private let builtIn: AudioDeviceID = 77
     private let usb: AudioDeviceID = 90
+    private let secondUSB: AudioDeviceID = 91
+    private let airPods: AudioDeviceID = 95
+    private let continuity: AudioDeviceID = 82
+    private let loopback: AudioDeviceID = 84
 
-    func testNoChoiceFollowsTheSystemInput() {
-        XCTAssertEqual(DictationMicrophone.resolve(nil, device: { _ in self.usb }, system: { self.builtIn }), builtIn)
+    func testNoChoiceFollowsNonBluetoothSystemInputIncludingWiredUSB() {
+        XCTAssertEqual(resolve(nil, system: builtIn), builtIn)
+        XCTAssertEqual(resolve(nil, system: usb, candidates: [builtIn, usb]), usb)
     }
 
-    func testConnectedChoiceIsUsed() {
-        let device = DictationMicrophone.resolve("usb-uid", device: { $0 == "usb-uid" ? self.usb : nil },
-                                                 system: { self.builtIn })
-        XCTAssertEqual(device, usb)
+    func testNoChoiceSkipsBluetoothSystemInputForBuiltInOverContinuityVirtualAndUSB() {
+        let chosen = resolve(nil, system: airPods, candidates: [continuity, loopback, usb, builtIn, airPods])
+        XCTAssertEqual(chosen, builtIn)
     }
 
-    func testDisconnectedChoiceFallsBackToTheSystemInput() {
-        XCTAssertEqual(DictationMicrophone.resolve("usb-uid", device: { _ in nil }, system: { self.builtIn }), builtIn)
+    func testNoChoiceUsesWiredMicrophoneWhenBluetoothIsSystemAndBuiltInIsUnavailable() {
+        let chosen = resolve(nil, system: airPods, candidates: [continuity, loopback, airPods, usb, secondUSB])
+        XCTAssertEqual(chosen, usb)
+    }
+
+    func testNoChoiceFallsBackToBluetoothWhenNoLocalAlternativeExists() {
+        let chosen = resolve(nil, system: airPods, candidates: [continuity, loopback, airPods])
+        XCTAssertEqual(chosen, airPods)
+    }
+
+    func testExplicitChoiceHonorsBluetoothAndWiredSelections() {
+        XCTAssertEqual(resolve("airpods-uid", system: builtIn, candidates: [builtIn, airPods]), airPods)
+        XCTAssertEqual(resolve("usb-uid", system: builtIn, candidates: [builtIn, usb]), usb)
+    }
+
+    func testDisconnectedChoiceBypassesBluetoothSystemInputWhenBuiltInIsAvailable() {
+        let chosen = resolve("usb-uid", connected: [builtIn, airPods], system: airPods,
+                             candidates: [continuity, builtIn, airPods])
+        XCTAssertEqual(chosen, builtIn)
+    }
+
+    private func resolve(_ preferred: String?, connected: Set<AudioDeviceID>? = nil,
+                         system: AudioDeviceID, candidates: [AudioDeviceID]? = nil) -> AudioDeviceID? {
+        let routes: [AudioDeviceID: DictationInputRoute] = [
+            builtIn: DictationInputRoute(device: builtIn, uid: "built-in", transport: .builtIn),
+            usb: DictationInputRoute(device: usb, uid: "usb-uid", transport: .usb),
+            secondUSB: DictationInputRoute(device: secondUSB, uid: "usb-2-uid", transport: .usb),
+            airPods: DictationInputRoute(device: airPods, uid: "airpods-uid", transport: .bluetooth),
+            continuity: DictationInputRoute(device: continuity, uid: "iphone-uid", transport: .continuity),
+            loopback: DictationInputRoute(device: loopback, uid: "loopback-uid", transport: .virtual),
+        ]
+        let live = connected ?? Set(routes.keys)
+        return DictationInputRoute.resolve(
+            preferred,
+            device: { uid in routes.values.first { $0.uid == uid && live.contains($0.device) }?.device },
+            system: { system },
+            candidates: { candidates ?? [self.builtIn] },
+            snapshot: { live.contains($0) ? routes[$0] : nil }
+        )?.device
     }
 }
 

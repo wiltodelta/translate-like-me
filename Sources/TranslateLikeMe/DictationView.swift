@@ -66,8 +66,8 @@ private struct DictationControlsSection: View {
     }
 }
 
-// System default first; a chosen device that is disconnected stays listed so
-// the choice is visible, and recording uses the system input until it returns.
+// Automatic choice first; a chosen device that is disconnected stays listed so
+// the choice is visible, and recording uses the automatic input until it returns.
 private struct DictationMicrophonePicker: View {
     let dictation: DictationController
     private let microphones = DictationMicrophones.shared
@@ -78,10 +78,10 @@ private struct DictationMicrophonePicker: View {
                 microphones.available.first { $0.uid == uid } ?? dictation.microphone
             })
         })) {
-            if let name = microphones.systemName {
-                Text("System default (\(name))").tag(String?.none)
+            if let name = microphones.automaticName {
+                Text("Automatic (\(name))").tag(String?.none)
             } else {
-                Text("System default").tag(String?.none)
+                Text("Automatic").tag(String?.none)
             }
             ForEach(microphones.available, id: \.uid) { Text($0.name).tag(Optional($0.uid)) }
             if let chosen = dictation.microphone, !microphones.available.contains(where: { $0.uid == chosen.uid }) {

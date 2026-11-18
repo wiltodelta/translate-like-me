@@ -22,7 +22,7 @@ description: "Minimal local dictation: model, recording lifecycle, cancellation,
 
 Product scope: `docs/dictation-feature-plan.md`. Implementation and verification:
 `docs/dictation.md`. A small curated local ASR catalog, automatic detection within each model's languages,
-one Option hold key, system microphone unless one is chosen in Settings, no cleanup LLM. Settings has a dedicated
+one Option hold key, automatic microphone selection (following non-Bluetooth system inputs and bypassing Bluetooth to built-in or wired local hardware when available) unless one is chosen in Settings, no cleanup LLM. Settings has a dedicated
 Dictation pane. Model selection is a user decision; keep it.
 Compute-policy findings and the reproducible synthetic benchmark:
 `docs/dictation-model-efficiency.md`.
@@ -162,11 +162,17 @@ Compute-policy findings and the reproducible synthetic benchmark:
   preparation's permission check; rebuild after wake, on an idle configuration
   change, on a microphone choice, or when the resolved input or its format
   differs from the one the engine was built on. `DictationInputRoute.resolve`
-  validates the chosen UID, liveness and input channels, else uses a usable
-  default without overwriting the preference. Explicit choices are bound even
-  when they equal the current default; only the system/fallback path is unbound.
-  Compare UID and native rate/channels/data source as well as numeric ID.
-  Snapshot the route after building the graph, never before.
+  validates the chosen UID, liveness and input channels, else follows a usable
+  non-Bluetooth system input, bypassing a Bluetooth system input to a live
+  built-in or wired (`usb`/`thunderbolt`/`pci`/`firewire`) local microphone
+  before falling back to Bluetooth, without overwriting the saved preference
+  (never auto-select Continuity or virtual/aggregate inputs during that bypass). Explicit choices
+  and Bluetooth-bypassed local inputs are bound (`followsSystem == false`) even
+  when the same UID was previously unbound; only a direct system/Bluetooth-fallback
+  path stays unbound (`followsSystem == true`). Compare UID, `followsSystem` and
+  native rate/channels/data source/transport as well as numeric ID.
+  Snapshot the route after building the graph, never before, keeping the built
+  `followsSystem` policy intact.
   `DictationInputObserver` forwards topology and selected-device property events
   to the capture queue, unregisters on shutdown and ignores unchanged snapshots.
   Re-prepare an absent idle input when hardware returns. Drain rechecks the route
@@ -265,9 +271,12 @@ Compute-policy findings and the reproducible synthetic benchmark:
   states so the text does not shift when the symbol changes. Native previews
   render those states without opening the microphone; they do not verify recording.
 - Bluetooth microphones dictate much less accurately than the Mac's built-in
-  microphone. Dictation follows the system input
-  unless a microphone is chosen in Settings, and the Dictation pane always says
-  so under the microphone picker; nothing warns during dictation (user decision
+  microphone. Automatic mode (`dictationMicrophone == nil`, shown as
+  `Automatic (<name>)`) follows non-Bluetooth system inputs and bypasses
+  Bluetooth to built-in or wired local hardware when available (user decision
+  2026-11-18); explicit selections in Settings still honor any chosen device,
+  including Bluetooth, and the Dictation pane keeps the permanent warning under
+  the microphone picker with no indicator tip during dictation (user decision
   2026-10-25).
 
 Native capture restores the complete backed-up development preference domain

@@ -68,9 +68,16 @@ be chosen or used as fallback. The picker uses the same qualification.
 
 An explicit microphone is bound even when it happens to equal the current
 system default. Changing that default must not turn an explicit choice into
-an implicit default-following connection. An absent choice falls back to a
-usable system input without overwriting the saved UID; returning hardware is
-resolved again. Without a usable input, preparation fails before opening a graph.
+an implicit default-following connection. Automatic selection (`preferred == nil`)
+and disconnected-choice fallback follow any usable non-Bluetooth system input
+(including wired USB/Thunderbolt/3.5 mm microphones), but when macOS sets the
+default input to Bluetooth (`kAudioDeviceTransportTypeBluetooth` /
+`kAudioDeviceTransportTypeBluetoothLE`), they bind to a live built-in microphone
+first, then a wired local interface (`USB`, `Thunderbolt`, `PCI`, `FireWire`),
+ignoring Continuity iPhone and virtual/aggregate inputs, and fall back to the
+Bluetooth default only when no local physical microphone is available. Returning
+hardware is resolved again without overwriting a saved UID. Without a usable
+input, preparation fails before opening a graph.
 
 `DictationInputObserver` watches system device/default-input changes plus the
 selected device's liveness, nominal rate, input stream configuration and
@@ -117,11 +124,15 @@ in Standard mode gave a coherent Russian transcript; Voice Isolation made both
 inputs worse. Wispr Flow, Willow, Spokenly and six other dictation products
 document worse accuracy from AirPods and recommend the built-in microphone, and
 none ships processing that fixes it; speech-enhancement artifacts are a known
-cause of ASR errors ([Iwamoto et al.](https://arxiv.org/abs/2201.06685)). The
-user kept the system input as the default, with a manual choice in Settings,
-and chose one permanent note under the microphone picker: dictation from any
-Bluetooth microphone is much less accurate than from the Mac's built-in one.
-A tip in the dictation indicator was built and then removed at their request. After nonzero audio, a changed route fails
+cause of ASR errors ([Iwamoto et al.](https://arxiv.org/abs/2201.06685)). On
+October 25, 2026, the user initially kept the system input as the default with a
+manual choice in Settings and one permanent note under the microphone picker
+(dictation from any Bluetooth microphone is much less accurate than from the
+Mac's built-in one; a tip in the dictation indicator was built and removed at
+their request). On November 18, 2026, automatic mode (**Automatic**) was updated
+to follow non-Bluetooth system inputs while bypassing Bluetooth system defaults
+to a live built-in or wired local microphone unless the user explicitly selects
+the Bluetooth device in Settings. After nonzero audio, a changed route fails
 rather than joining microphones or accepting a partial recording. Release and
 cancellation forbid another start. Drain rechecks the current route and engine
 running state even if a notification has not yet arrived. If release arrives

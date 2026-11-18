@@ -65,6 +65,28 @@ final class DictationInputRouteTests: XCTestCase {
         }
     }
 
+    func testConnectingBluetoothHeadsetRebindsIdleGraphToBuiltInMicrophone() async {
+        let prepared = expectation(description: "Initial unbound graph prepared")
+        let rebound = expectation(description: "Bound built-in graph prepared")
+        let scenario = RouteScenario(
+            route: DictationInputRoute(device: 77, uid: "built-in", transport: .builtIn, followsSystem: true),
+            created: { index in
+                if index == 1 { prepared.fulfill() }
+                if index == 2 { rebound.fulfill() }
+            }
+        )
+        let worker = scenario.worker()
+        worker.prepare(rebuild: false)
+        await fulfillment(of: [prepared], timeout: 2)
+        scenario.change(to: DictationInputRoute(device: 77, uid: "built-in", transport: .builtIn, followsSystem: false))
+        await fulfillment(of: [rebound], timeout: 2)
+        worker.shutdown()
+        XCTAssertEqual(scenario.graphCount, 2)
+        XCTAssertEqual(scenario.startCount, 0)
+        XCTAssertEqual(scenario.bindingPolicies, [true, false],
+                       "Bypassing a Bluetooth default input must bind the input unit to the local microphone")
+    }
+
     func testStartupRouteSwitchDiscardsOnlySilenceAndUsesTheNewNativeFormat() async throws {
         let initial = expectation(description: "Startup silence delivered")
         let recovered = expectation(description: "Replacement input delivered")
@@ -286,8 +308,9 @@ private final class RouteScenario: @unchecked Sendable {
 
     func worker() -> DictationCaptureWorker {
         DictationCaptureWorker(mute: DictationOutputMute(control: UnavailableCaptureOutput()),
-            resolveInput: { _ in
-                let route = self.lock.withLock { self.route }
+            resolveInput: { preferred in
+                var route = self.lock.withLock { self.route }
+                if let preferred, route?.uid == preferred { route?.followsSystem = false }
                 self.resolved(route)
                 return route
             },
@@ -315,23 +338,23 @@ private final class RouteScenario: @unchecked Sendable {
 
 final class DictationInputResolutionTests: XCTestCase {
     func testIneligibleOrReusedChosenDeviceFallsBackToAUsableInput() {
-        let builtIn = DictationInputRoute(device: 77, uid: "built-in")
-        let usb = DictationInputRoute(device: 90, uid: "usb")
+        let builtIn = DictationInputRoute(device: 77, uid: "built-in", transport: .builtIn)
+        let usb = DictationInputRoute(device: 90, uid: "usb", transport: .usb, followsSystem: false)
         let reused = DictationInputRoute(device: 90, uid: "other-device")
         // A dead, output-only or zero-input-channel device has no usable snapshot.
         for snapshot in [usb, reused, nil] {
             let route = DictationInputRoute.resolve("usb", device: { _ in 90 }, system: { 77 },
-                snapshot: { $0 == 77 ? builtIn : snapshot })
+                candidates: { [77] }, snapshot: { $0 == 77 ? builtIn : snapshot })
             XCTAssertEqual(route, snapshot == usb ? usb : builtIn)
         }
     }
 
     func testChosenDeviceReturnsAfterReconnectWithoutOverwritingThePreference() {
-        let usb = DictationInputRoute(device: 90, uid: "usb")
-        let builtIn = DictationInputRoute(device: 77, uid: "built-in")
+        let usb = DictationInputRoute(device: 90, uid: "usb", transport: .usb, followsSystem: false)
+        let builtIn = DictationInputRoute(device: 77, uid: "built-in", transport: .builtIn)
         for connected in [true, false, true] {
             let route = DictationInputRoute.resolve("usb", device: { _ in connected ? 90 : nil }, system: { 77 },
-                snapshot: { $0 == 77 ? builtIn : usb })
+                candidates: { [77] }, snapshot: { $0 == 77 ? builtIn : usb })
             XCTAssertEqual(route, connected ? usb : builtIn)
         }
     }
@@ -341,11 +364,31 @@ final class DictationInputResolutionTests: XCTestCase {
         let route = DictationInputRoute.resolve("usb", device: { _ in 90 },
             system: { systemReads += 1; return 77 }, snapshot: { DictationInputRoute(device: $0, uid: "usb") })
         XCTAssertEqual(route?.device, 90)
+        XCTAssertEqual(route?.followsSystem, false)
         XCTAssertEqual(systemReads, 0)
     }
 
+    func testBluetoothDefaultBypassesToBoundLocalInputUnlessNoneExists() {
+        let builtIn = DictationInputRoute(device: 77, uid: "built-in", transport: .builtIn)
+        let airPods = DictationInputRoute(device: 95, uid: "airpods", transport: .bluetooth)
+        let bypassed = DictationInputRoute.resolve(
+            nil, device: { _ in nil }, system: { 95 }, candidates: { [77, 95] },
+            snapshot: { $0 == 77 ? builtIn : airPods }
+        )
+        XCTAssertEqual(bypassed, DictationInputRoute(device: 77, uid: "built-in",
+                                                     transport: .builtIn, followsSystem: false))
+        let bluetoothOnly = DictationInputRoute.resolve(
+            nil, device: { _ in nil }, system: { 95 }, candidates: { [95] },
+            snapshot: { $0 == 95 ? airPods : nil }
+        )
+        XCTAssertEqual(bluetoothOnly, airPods)
+        XCTAssertEqual(bluetoothOnly?.followsSystem, true)
+    }
+
     func testNoUsableDefaultReturnsNoInput() {
-        XCTAssertNil(DictationInputRoute.resolve("usb", device: { _ in nil }, system: { nil }, snapshot: { _ in nil }))
-        XCTAssertNil(DictationInputRoute.resolve(nil, device: { _ in 90 }, system: { 77 }, snapshot: { _ in nil }))
+        XCTAssertNil(DictationInputRoute.resolve("usb", device: { _ in nil }, system: { nil },
+                                                 candidates: { [] }, snapshot: { _ in nil }))
+        XCTAssertNil(DictationInputRoute.resolve(nil, device: { _ in 90 }, system: { 77 },
+                                                 candidates: { [77, 90] }, snapshot: { _ in nil }))
     }
 }
