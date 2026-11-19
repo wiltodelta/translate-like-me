@@ -13,7 +13,10 @@ final class AppUpdater {
 
     #if canImport(Sparkle)
     private var sparkle: Updater? { AppEdition.current.supportsSelfUpdate ? .shared : nil }
-    var isAvailable: Bool { sparkle != nil }
+    // Read AppEdition directly without touching Updater.shared: StatusMenu's
+    // default showsUpdates evaluates this in xctest, where starting Sparkle
+    // raises a modal SUFeedURL alert during later tests.
+    var isAvailable: Bool { AppEdition.current.supportsSelfUpdate }
     var pendingVersion: String? { sparkle?.pendingVersion }
     var automaticallyChecks: Bool {
         get { sparkle?.automaticallyChecks ?? false }

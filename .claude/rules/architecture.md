@@ -26,7 +26,9 @@ Read before editing this domain.
   Native pane-identity tests inject synthetic General content: constructing
   `GeneralSettingsView` starts Sparkle, whose missing XCTest bundle configuration
   can show a modal alert during later async tests. For the same reason `StatusMenu` reads the
-  pending update through its injected `pendingUpdate`; a menu test passes one.
+  pending update through its injected `pendingUpdate` (a menu test passes one) and
+  `AppUpdater.isAvailable` checks `AppEdition.current.supportsSelfUpdate` without
+  touching `Updater.shared`.
   Tab identifiers must be strings: toolbar mode sends `isEqualToString:` to
   this untyped property. Explicit pane selection persists even when already selected.
   The standard app-menu Settings command and ⌘, call
