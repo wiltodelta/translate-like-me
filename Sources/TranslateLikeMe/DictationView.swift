@@ -67,14 +67,21 @@ private struct DictationControlsSection: View {
                         Enable dictation to allow microphone access and download a speech model. You can also set it \
                         up later in Settings.
                         """)
+                        .foregroundStyle(Color.secondaryText)
                 }
                 if activeCombo.map(Shortcut.isOptionOnly) ?? directEdition {
                     Text("Hold Option while speaking, then release to insert. Languages are detected automatically.")
+                        .foregroundStyle(Color.secondaryText)
                 } else {
                     Text("Hold your shortcut while speaking, then release. Languages are detected automatically.")
+                        .foregroundStyle(Color.secondaryText)
+                }
+                if !introductory && AppEdition.current.showsDirectInsertionHelp(
+                    canInsertDirectly: bridge.canInsertDirectly
+                ) {
+                    Link("Inserting Text in Place", destination: AppEdition.supportURL)
                 }
             }
-            .foregroundStyle(Color.secondaryText)
         }
     }
 }

@@ -238,7 +238,9 @@ gh release download vX.Y.Z -p "*.zip" -D /tmp/asset-check && \
 ## Website
 
 The product page is <https://wiltodelta.com/projects/translate-like-me/> on
-Victor's personal website. `website-content.json` supplies its introduction and
+Victor's personal website, alongside `/projects/translate-like-me/support/` and
+`/projects/translate-like-me/privacy/` (`AppEdition.supportURL`,
+`AppEdition.privacyURL`, and App Store Connect's Support and Privacy Policy URLs). `website-content.json` supplies its introduction and
 feature sections from the published release tag, alongside the General settings
 screenshots. The site's icon is generated separately from
 `assets/brand-sources/translate-like-me.png` by `pnpm run assets:build`;

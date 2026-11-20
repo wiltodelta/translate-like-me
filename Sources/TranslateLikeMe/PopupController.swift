@@ -69,7 +69,9 @@ private final class PopupPanel: NSPanel {
 final class PopupController {
     static let shared = PopupController()
 
-    private let model = PopupModel()
+    let model = PopupModel()
+    private let showsWindow: Bool
+    private let openURL: @MainActor (URL) -> Void
     private var panel: PopupPanel?
     private var clickMonitor: Any?
 
@@ -79,12 +81,27 @@ final class PopupController {
     private let bodyChrome: CGFloat = 44
     private let bodyChromeWithAction: CGFloat = 80
 
-    private init() {}
+    init(showsWindow: Bool = true,
+         openURL: @escaping @MainActor (URL) -> Void = { NSWorkspace.shared.open($0) }) {
+        self.showsWindow = showsWindow
+        self.openURL = openURL
+    }
 
     func showError(_ message: String) {
         model.header = String(localized: "Error", comment: "Popup header")
         model.body = message
         model.action = nil
+        present()
+    }
+
+    func showEmptyClipboardHelp() {
+        model.header = String(localized: "Shortcut needs copied text", comment: "Popup header")
+        model.body = String(localized: "Copy text first (⌘C) or use Services from the context menu.")
+        model.action = (String(localized: "Replacing Text in Place"), { [weak self] in
+            guard let self else { return }
+            self.hide()
+            self.openURL(AppEdition.supportURL)
+        })
         present()
     }
 
@@ -149,6 +166,7 @@ final class PopupController {
     }
 
     private func present() {
+        guard showsWindow else { return }
         let panel = ensurePanel()
 
         let bodyHeight = measuredBodyHeight(model.body)

@@ -6583,6 +6583,64 @@
         }
       }
     },
+    "Inserting Text in Place" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text direkt einfügen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insertar texto directamente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insérer le texte sur place"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserire il testo direttamente"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "テキストをその場に挿入する"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "제자리에 텍스트 삽입"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserir Texto no Local"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вставка текста на месте"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "就地插入文本"
+          }
+        }
+      }
+    },
     "Install Update…" : {
       "localizations" : {
         "de" : {
@@ -10252,6 +10310,64 @@
         }
       }
     },
+    "Replacing Text in Place" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text direkt ersetzen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reemplazar texto directamente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remplacer le texte sur place"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sostituire il testo direttamente"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "テキストをその場で置き換える"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "제자리에서 텍스트 대치"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Substituir Texto no Local"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Замена текста на месте"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "就地替换文本"
+          }
+        }
+      }
+    },
     "Required to read selected text and paste results into the active window." : {
       "localizations" : {
         "de" : {
@@ -11828,6 +11944,65 @@
         }
       }
     },
+    "Shortcut needs copied text" : {
+      "comment" : "Popup header",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kurzbefehl benötigt kopierten Text"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El atajo requiere texto copiado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le raccourci nécessite du texte copié"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'abbreviazione richiede testo copiato"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ショートカットにはコピー済みのテキストが必要です"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "단축키를 사용하려면 복사한 텍스트가 필요함"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O atalho requer texto copiado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Для сочетания клавиш нужен скопированный текст"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "快捷键需要先复制文本"
+          }
+        }
+      }
+    },
     "Space" : {
       "comment" : "Key name",
       "localizations" : {
@@ -12347,6 +12522,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在停止上一个操作…"
+          }
+        }
+      }
+    },
+    "Support" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Support"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Soporte"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assistance"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supporto"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サポート"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "지원"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suporte"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поддержка"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支持"
           }
         }
       }
@@ -14618,6 +14851,122 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "使用 %@"
+          }
+        }
+      }
+    },
+    "Use Services in the context menu on rough notes, or copy them and press a preset's shortcut, to turn them into a clear, finished message in the same language, in the preset's style. Every fact is kept, and questions stay questions for the recipient. Include a received message with your notes to reply to it. To send the message in another language, translate it afterwards. Uses the translation engine." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verwende „Dienste“ im Kontextmenü für grobe Notizen oder kopiere sie und drücke den Kurzbefehl eines Presets, um sie in eine klare, fertige Nachricht in derselben Sprache im Stil des Presets zu verwandeln. Alle Fakten bleiben erhalten, und Fragen bleiben Fragen an den Empfänger. Nimm eine erhaltene Nachricht zu deinen Notizen hinzu, um darauf zu antworten. Um die Nachricht in einer anderen Sprache zu senden, übersetze sie danach. Verwendet die Übersetzungs-Engine."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa «Servicios» en el menú contextual sobre notas en borrador, o cópialas y pulsa el atajo de un preajuste, para convertirlas en un mensaje claro y terminado en el mismo idioma, con el estilo del preajuste. Se conservan todos los datos, y las preguntas siguen siendo preguntas para el destinatario. Incluye un mensaje recibido junto con tus notas para responderlo. Para enviar el mensaje en otro idioma, tradúcelo después. Usa el motor de traducción."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisez « Services » dans le menu contextuel sur des notes brutes, ou copiez-les et appuyez sur le raccourci d’un préréglage, pour en faire un message clair et abouti dans la même langue, dans le style du préréglage. Tous les faits sont conservés, et les questions restent des questions pour le destinataire. Incluez un message reçu avec vos notes pour y répondre. Pour envoyer le message dans une autre langue, traduisez-le ensuite. Utilise le moteur de traduction."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa «Servizi» dal menu contestuale sugli appunti grezzi, oppure copiali e premi l'abbreviazione di un preset, per trasformarli in un messaggio chiaro e completo nella stessa lingua, nello stile del preset. Ogni informazione viene mantenuta e le domande restano domande per il destinatario. Includi un messaggio ricevuto con i tuoi appunti per rispondere. Per inviare il messaggio in un'altra lingua, traducilo dopo. Usa il motore di traduzione."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下書きメモにコンテキストメニューの「サービス」を使うか、コピーしてプリセットのショートカットを押すと、同じ言語のまま、プリセットの文体でわかりやすく仕上げたメッセージに整えます。事実はすべて保持され、質問は相手への質問のまま残ります。受け取ったメッセージをメモに含めると、返信を作成できます。別の言語で送るには、その後で翻訳してください。翻訳エンジンを使用します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "초안 메모에 보조 메뉴의 ‘서비스’를 사용하거나, 메모를 복사한 뒤 프리셋 단축키를 누르면 같은 언어로 된 명확하고 완성된 메시지로 프리셋 스타일에 맞게 다듬어집니다. 모든 사실은 유지되며, 질문은 수신자에게 묻는 질문으로 남습니다. 받은 메시지를 메모에 포함하면 그 메시지에 대한 답장을 작성합니다. 메시지를 다른 언어로 보내려면 그다음 번역하십시오. 번역 엔진을 사용합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use “Serviços” no menu contextual em anotações rápidas, ou copie-as e pressione o atalho de uma predefinição, para transformá-las em uma mensagem clara e finalizada no mesmo idioma, no estilo da predefinição. Todos os fatos são mantidos, e perguntas continuam sendo perguntas para o destinatário. Inclua uma mensagem recebida junto com suas anotações para respondê-la. Para enviar a mensagem em outro idioma, traduza-a depois. Usa o mecanismo de tradução."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Используйте «Службы» в контекстном меню для черновых заметок или скопируйте их и нажмите сочетание клавиш пресета, чтобы превратить их в четкое готовое сообщение на том же языке в стиле пресета. Все факты сохраняются, а вопросы остаются вопросами к получателю. Включите полученное сообщение вместе со своими заметками, чтобы ответить на него. Чтобы отправить сообщение на другом языке, переведите его после этого. Используется движок перевода."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对粗略的笔记使用上下文菜单中的“服务”，或将其复制后按预设的快捷键，即可将其整理为同一语言、符合该预设风格的清晰完整消息。所有事实都会保留，问题仍是向收件人提出的问题。将收到的消息连同你的笔记一起包含，即可回复该消息。若要用另一种语言发送，之后再翻译即可。使用翻译引擎。"
+          }
+        }
+      }
+    },
+    "Use Services in the context menu to replace selected text, or copy text and press a pair's shortcut. The source language is detected automatically; text in neither language is translated into the first one. A pair's writing style makes its translations sound like you; two pairs can share languages, one with your style and one without, for someone else's text." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verwende „Dienste“ im Kontextmenü, um ausgewählten Text zu ersetzen, oder kopiere Text und drücke den Kurzbefehl eines Paars. Die Ausgangssprache wird automatisch erkannt; Text in keiner der beiden Sprachen wird in die erste übersetzt. Der Schreibstil eines Paars lässt seine Übersetzungen nach dir klingen; zwei Paare können dieselben Sprachen nutzen, eins mit deinem Stil und eins ohne, für Texte anderer."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa «Servicios» en el menú contextual para reemplazar el texto seleccionado, o copia texto y pulsa el atajo de un par. El idioma de origen se detecta automáticamente; el texto que no está en ninguno de los dos idiomas se traduce al primero. El estilo de redacción de un par hace que sus traducciones suenen como tú; dos pares pueden compartir idiomas, uno con tu estilo y otro sin él, para textos de otra persona."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisez « Services » dans le menu contextuel pour remplacer le texte sélectionné, ou copiez du texte et appuyez sur le raccourci d’une paire. La langue source est détectée automatiquement ; un texte qui n’est dans aucune des deux langues est traduit dans la première. Le style d’écriture d’une paire donne à ses traductions un ton qui vous ressemble ; deux paires peuvent partager les mêmes langues, l’une avec votre style et l’autre sans, pour le texte de quelqu’un d’autre."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa «Servizi» dal menu contestuale per sostituire il testo selezionato, oppure copia il testo e premi l'abbreviazione di una coppia. La lingua di partenza viene rilevata automaticamente; il testo in un'altra lingua viene tradotto nella prima. Lo stile di scrittura di una coppia fa sembrare tue le sue traduzioni; due coppie possono avere le stesse lingue, una con il tuo stile e una senza, per il testo di qualcun altro."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選択したテキストを置き換えるにはコンテキストメニューの「サービス」を使うか、テキストをコピーしてペアのショートカットを押します。元の言語は自動的に検出され、どちらの言語でもないテキストは1つ目の言語に翻訳されます。ペアに文体を設定すると、翻訳があなたらしい文章になります。同じ言語の組み合わせで、自分の文体を使うペアと、他人の文章用に文体を使わないペアを両方作ることもできます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "보조 메뉴의 ‘서비스’를 사용하여 선택한 텍스트를 대치하거나, 텍스트를 복사한 뒤 쌍의 단축키를 누르십시오. 원본 언어는 자동으로 감지되며, 두 언어 중 어느 것도 아닌 텍스트는 첫 번째 언어로 번역됩니다. 쌍의 글쓰기 스타일을 지정하면 번역이 내 말투처럼 됩니다. 두 쌍이 같은 언어를 사용하여 하나는 내 스타일로, 다른 하나는 다른 사람의 텍스트용으로 스타일 없이 설정할 수 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use “Serviços” no menu contextual para substituir o texto selecionado, ou copie o texto e pressione o atalho de um par. O idioma de origem é detectado automaticamente; um texto que não esteja em nenhum dos dois idiomas é traduzido para o primeiro. O estilo de escrita de um par faz as traduções soarem como você; dois pares podem usar os mesmos idiomas, um com o seu estilo e outro sem, para textos de outras pessoas."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Используйте «Службы» в контекстном меню, чтобы заменить выделенный текст, или скопируйте текст и нажмите сочетание клавиш пары. Исходный язык определяется автоматически; текст на любом другом языке переводится на первый. Стиль письма пары делает ее переводы похожими на ваши; у двух пар могут быть одни и те же языки, одна с вашим стилем, другая без него, для чужого текста."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用上下文菜单中的“服务”来替换所选文本，或先复制文本再按语言对的快捷键。源语言会自动检测；不属于这两种语言的文本会译为第一种语言。语言对的写作风格会让译文听起来像你本人；两个语言对可以使用相同的语言，一个带你的风格，一个不带，用于翻译他人的文字。"
           }
         }
       }

@@ -317,7 +317,11 @@ Read before editing this domain.
   hides Sparkle and CLI pickers, never prompts for Accessibility itself
   (`OnboardingFlow.requiresAccessibility == false`), defaults dictation to `⌥⌘K`
   via Carbon `kEventHotKeyPressed`/`kEventHotKeyReleased`, exposes `NSServices`
-  (`SystemServicesProvider`), and falls back to clipboard/popup without a helper;
+  (`SystemServicesProvider`), and falls back to clipboard/popup without a helper
+  (showing `Support` and `Privacy Policy` in `General > About`, calm support
+  links to `AppEdition.supportURL` in the `Languages`, `Rewrite` and `Dictation`
+  footers while `showsDirectInsertionHelp` is true, and `PopupController`'s
+  `showEmptyClipboardHelp()` action on an empty-clipboard shortcut);
   when the Developer ID companion `Translate Like Me Bridge.app` (`EDITION=bridge`)
   connects over `~/Library/Group Containers/K2GT9Q4S6U.tlm/s` (server-verified
   via `LOCAL_PEERTOKEN` + `TeamID K2GT9Q4S6U`), `BridgeClient` hot-plugs in-place

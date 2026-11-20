@@ -24,6 +24,7 @@ struct TranslationInteraction {
     var showProgress: (PopupController.ResultKind, @escaping () -> Void) -> Void
     var hideProgress: () -> Void
     var showError: (String) -> Void
+    var showEmptyClipboard: () -> Void
     var showLimit: (String) -> Void
     var showResult: (String, PopupController.ResultKind) -> Void
     var run: @MainActor (PopupController.ResultKind, SelectionTransform) async throws -> SelectionOutcome
@@ -32,6 +33,7 @@ struct TranslationInteraction {
         showProgress: { ActivityIndicator.translation.show(kind: $0, cancel: $1) },
         hideProgress: { ActivityIndicator.translation.hide() },
         showError: { PopupController.shared.showError($0) },
+        showEmptyClipboard: { PopupController.shared.showEmptyClipboardHelp() },
         showLimit: { PopupController.shared.showLimitReached($0) },
         showResult: { PopupController.shared.showResult($0, kind: $1) },
         run: { try await runSelection(kind: $0, transform: $1) })
@@ -126,8 +128,7 @@ final class TranslationController {
                     interaction.showError(
                         String(localized: "No text selected. Select some text first, then try again."))
                 case .emptyClipboard:
-                    interaction.showError(
-                        String(localized: "Copy text first (⌘C) or use Services from the context menu."))
+                    interaction.showEmptyClipboard()
                 case .pasted:
                     log.info("\(action, privacy: .public) done, selection replaced")
                 case .result(let result):

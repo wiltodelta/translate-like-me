@@ -52,6 +52,27 @@ final class AppEditionAndBridgeTests: XCTestCase {
                        rightOption)
     }
 
+    func testSupportLinksAndEmptyClipboardPopupHelp() {
+        XCTAssertEqual(AppEdition.privacyURL.absoluteString,
+                       "https://wiltodelta.com/projects/translate-like-me/privacy/")
+        XCTAssertEqual(AppEdition.supportURL.absoluteString,
+                       "https://wiltodelta.com/projects/translate-like-me/support/")
+        XCTAssertTrue(AppEdition.appStore.showsDirectInsertionHelp(canInsertDirectly: false))
+        XCTAssertFalse(AppEdition.appStore.showsDirectInsertionHelp(canInsertDirectly: true))
+        XCTAssertFalse(AppEdition.direct.showsDirectInsertionHelp(canInsertDirectly: false))
+        XCTAssertFalse(AppEdition.direct.showsDirectInsertionHelp(canInsertDirectly: true))
+
+        var openedURLs: [URL] = []
+        let popup = PopupController(showsWindow: false, openURL: { openedURLs.append($0) })
+        popup.showEmptyClipboardHelp()
+        XCTAssertEqual(popup.model.header, String(localized: "Shortcut needs copied text"))
+        XCTAssertEqual(popup.model.body,
+                       String(localized: "Copy text first (⌘C) or use Services from the context menu."))
+        XCTAssertEqual(popup.model.action?.title, String(localized: "Replacing Text in Place"))
+        popup.model.action?.handler()
+        XCTAssertEqual(openedURLs, [AppEdition.supportURL])
+    }
+
     func testStatusMenuOmitsCheckForUpdatesInAppStoreMode() {
         let controller = DictationController(
             enabled: false,

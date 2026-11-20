@@ -5,7 +5,7 @@ import XCTest
 final class TranslationControllerTests: XCTestCase {
     func testProgressCoversSelectionAndDeliveryForBothActionsAndEveryOutcome() async {
         for kind in [PopupController.ResultKind.translation, .message] {
-            for outcome in [SelectionOutcome.pasted, .result("ready"), .noSelection] {
+            for outcome in [SelectionOutcome.pasted, .result("ready"), .noSelection, .emptyClipboard] {
                 let probe = TranslationProbe()
                 let entered = expectation(description: "Workflow entered")
                 let gate = TestGate()
@@ -30,6 +30,7 @@ final class TranslationControllerTests: XCTestCase {
                 XCTAssertNil(controller.operation)
                 XCTAssertEqual(probe.results, outcome == .result("ready") ? ["ready"] : [])
                 XCTAssertEqual(probe.errors.count, outcome == .noSelection ? 1 : 0)
+                XCTAssertEqual(probe.emptyClipboards, outcome == .emptyClipboard ? 1 : 0)
             }
         }
     }
@@ -102,6 +103,7 @@ private final class TranslationProbe {
     var hidden = 0
     var cancel: (() -> Void)?
     var errors: [String] = []
+    var emptyClipboards = 0
     var limits: [String] = []
     var results: [String] = []
 
@@ -109,6 +111,7 @@ private final class TranslationProbe {
         TranslationInteraction(showProgress: { self.shown.append($0); self.cancel = $1 },
                                hideProgress: { self.hidden += 1 },
                                showError: { self.errors.append($0) },
+                               showEmptyClipboard: { self.emptyClipboards += 1 },
                                showLimit: { self.limits.append($0) },
                                showResult: { text, _ in self.results.append(text) },
                                run: { _, _ in .pasted })

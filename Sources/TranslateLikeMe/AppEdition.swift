@@ -37,6 +37,13 @@ enum AppEdition: String, Equatable, Sendable {
     var supportsSelfUpdate: Bool { self == .direct }
     var requiresOwnAccessibility: Bool { self == .direct }
 
+    static let privacyURL = URL(string: "https://wiltodelta.com/projects/translate-like-me/privacy/")!
+    static let supportURL = URL(string: "https://wiltodelta.com/projects/translate-like-me/support/")!
+
+    func showsDirectInsertionHelp(canInsertDirectly: Bool) -> Bool {
+        self == .appStore && !canInsertDirectly
+    }
+
     // ⌥⌘K sits beside ⌥⌘J (Improve Text) and avoids macOS Dock's ⌥⌘D symbolic hotkey.
     static let appStoreDefaultDictationShortcut = KeyCombo(keyCode: 40, modifiers: Int(cmdKey | optionKey))
 
