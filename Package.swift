@@ -43,7 +43,7 @@ let package = Package(
         .package(url: "https://github.com/Blaizzy/mlx-audio-swift", exact: "0.1.7"),
         .package(url: "https://github.com/ml-explore/mlx-swift", exact: "0.32.3"),
         // Collections 1.7 supports Swift 6.2.4+ through its versioned manifest.
-        .package(url: "https://github.com/apple/swift-collections.git", exact: "1.7.5"),
+        .package(url: "https://github.com/apple/swift-collections.git", exact: "1.7.6"),
         // The local translation engine: MLX runs the model on the GPU in this
         // process, with no server or Python. Its tokenizer is WhisperKit's.
         // Traits off: the default FoundationModels adapter needs the macOS 27 SDK.
