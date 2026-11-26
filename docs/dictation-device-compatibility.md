@@ -8,12 +8,16 @@ The earlier product comparison and conversion measurements remain in
 
 ## Primary evidence
 
-- Apple's [AVAudioEngine configuration contract](https://developer.apple.com/documentation/avfaudio/avaudioengineconfigurationchangenotification)
-  is also present in the installed macOS 27 SDK's `AVAudioEngine.h`, lines
-  1036-1060. Hardware rate/channel changes stop the engine; connections retain
-  their old formats. Teardown must not run synchronously on the notification
-  handler's internal queue. This notification alone is not a complete device
-  topology or identity monitor.
+- Apple's [TN2091 input-only AUHAL contract](https://developer.apple.com/library/archive/technotes/tn2091/_index.html)
+  specifies disabling output bus 0 (`kAudioOutputUnitProperty_EnableIO`) and
+  enabling input bus 1 before binding `kAudioOutputUnitProperty_CurrentDevice`,
+  and matching the client stream format's sample rate on `(kAudioUnitScope_Output, 1)`
+  to the hardware stream format on `(kAudioUnitScope_Input, 1)`. On November 24,
+  2026, `HALDictationInputGraph` replaced `AVAudioEngine`, whose `inputNode`
+  created a `CADefaultDeviceAggregate` with the system default input and output
+  before binding, triggering AirPods HFP switches (`kBluetoothAudioDevicePropertyFormat`),
+  output-driven configuration rebuild loops, and 24/44.1 kHz aggregate rate
+  mismatch on the 48 kHz built-in microphone.
 - Apple's [Core Audio property listener contract](https://developer.apple.com/documentation/coreaudio/audioobjectaddpropertylistenerblock(_:_:_:_:))
   is verified against `AudioHardware.h`, lines 374-423. Registrations retain
   their queue/block until removed with the matching object, address, queue and
@@ -52,30 +56,35 @@ remain outside the app's direct control.
 | Output-only, dead or zero-input-channel device | No usable input snapshot; do not construct a capture graph for it | Resolver fallback and real Core Audio metadata checks; physical transport inventory remains limited |
 | Hardware-muted microphone | Keep an uninterrupted zero stream valid; never change input mute or treat silence alone as disconnection | Existing zero-stream and startup-recovery tests; physical mute synchronization not established |
 
-AVAudioEngine's processing format is the boundary read by the recorder. The
-Float32 WAV preserves that graph's samples, rate and channels; it is not a raw
+`HALDictationInputGraph`'s non-interleaved Float32 AUHAL output format (matching
+bus 1's hardware sample rate and channel count) is the boundary read by the recorder. The
+Float32 WAV preserves that unit's samples, rate and channels; it is not a raw
 copy of Bluetooth packets or a USB interface's physical 16/24-bit wire format.
 No application-level codec selection, system sample-rate write, automatic input
 gain, voice-processing enablement or external driver installation is added.
 
 ## Route identity and recovery
 
-`DictationInputRoute` snapshots device ID, UID, input channel count, nominal rate
-and optional input data source. A numeric ID alone is insufficient after
+`DictationInputRoute` snapshots device ID, UID, input channel count, nominal rate,
+transport and optional input data source. A numeric ID alone is insufficient after
 unplugging because Core Audio can reuse it. A chosen UID must still match the
 snapshot read from that ID. Only a live device with actual input channels can
 be chosen or used as fallback. The picker uses the same qualification.
 
-An explicit microphone is bound even when it happens to equal the current
-system default. Changing that default must not turn an explicit choice into
-an implicit default-following connection. Automatic selection (`preferred == nil`)
+Every prepared input-only AUHAL binds `kAudioOutputUnitProperty_CurrentDevice`
+directly to its resolved `AudioDeviceID` after disabling output bus 0, so Core
+Audio never routes an idle or active local unit through a newly connected
+Bluetooth headset or system output aggregate. Automatic selection (`preferred == nil`)
 and disconnected-choice fallback follow any usable non-Bluetooth system input
-(including wired USB/Thunderbolt/3.5 mm microphones), but when macOS sets the
+(including wired USB/Thunderbolt/3.5 mm microphones), and when macOS sets the
 default input to Bluetooth (`kAudioDeviceTransportTypeBluetooth` /
-`kAudioDeviceTransportTypeBluetoothLE`), they bind to a live built-in microphone
+`kAudioDeviceTransportTypeBluetoothLE`), they resolve to a live built-in microphone
 first, then a wired local interface (`USB`, `Thunderbolt`, `PCI`, `FireWire`),
 ignoring Continuity iPhone and virtual/aggregate inputs, and fall back to the
-Bluetooth default only when no local physical microphone is available. Returning
+Bluetooth default only when no local physical microphone is available. Because
+`DictationInputRoute.hardware` compares the resolved hardware identity rather than selection
+provenance, connecting or disconnecting Bluetooth headphones leaves an idle or
+recording local microphone uninterrupted. Returning
 hardware is resolved again without overwriting a saved UID. Without a usable
 input, preparation fails before opening a graph.
 

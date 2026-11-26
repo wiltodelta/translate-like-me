@@ -135,7 +135,7 @@ Compute-policy findings and the reproducible synthetic benchmark:
   before preparing the next session. Enqueue capture on press; the press reads
   no AX target;
   `DictationCaptureWorker` serializes all engine access and teardown off the UI,
-  capturing 512-frame (`~10.67 ms`) `AVAudioSinkNode` cycles through a pre-allocated
+  capturing real-time AUHAL input slices through a pre-allocated
   lock-free SPSC ring buffer (`DictationSinkStream`) and accumulating 100 ms energy
   windows in `DictationAudioFile` so stop-consonant closures cannot set a false room
   floor; stopping flushes pending sink cycles synchronously before closing the WAV.
@@ -155,25 +155,27 @@ Compute-policy findings and the reproducible synthetic benchmark:
   reports ready with missing assets, and does not restart during termination.
   Do not reintroduce timed
   eviction without measuring reload latency.
-- Capture uses raw `AVAudioEngine` input, without voice processing (user
-  decision). Between holds the worker keeps the engine
-  prepared but stopped, with the relay tap and a first-audio sink node
-  installed; it opens no microphone
-  (process input-running reads zero). Warm up only with an existing grant, after
+- Capture uses an input-only AUHAL (`HALDictationInputGraph`, `kAudioUnitSubType_HALOutput`),
+  without voice processing (user decision) and with output bus 0 disabled before binding
+  `kAudioOutputUnitProperty_CurrentDevice` to the resolved `AudioDeviceID` (Apple TN2091), so
+  Core Audio never constructs a default-device aggregate with the system output or switches a
+  Bluetooth headset into HFP while a local microphone is used. Between holds the worker keeps
+  the unit initialized (`AudioUnitInitialize`) but stopped (`AudioOutputUnitStop`), with a
+  pre-allocated non-interleaved Float32 render context feeding `DictationTapRelay`; it opens no
+  microphone (process input-running reads zero). Warm up only with an existing grant, after
   preparation's permission check; rebuild after wake, on an idle configuration
-  change, on a microphone choice, or when the resolved input or its format
-  differs from the one the engine was built on. `DictationInputRoute.resolve`
+  change, on a microphone choice, or when the resolved input hardware or its format
+  differs from the one the unit was built on. `DictationInputRoute.resolve`
   validates the chosen UID, liveness and input channels, else follows a usable
   non-Bluetooth system input, bypassing a Bluetooth system input to a live
   built-in or wired (`usb`/`thunderbolt`/`pci`/`firewire`) local microphone
   before falling back to Bluetooth, without overwriting the saved preference
-  (never auto-select Continuity or virtual/aggregate inputs during that bypass). Explicit choices
-  and Bluetooth-bypassed local inputs are bound (`followsSystem == false`) even
-  when the same UID was previously unbound; only a direct system/Bluetooth-fallback
-  path stays unbound (`followsSystem == true`). Compare UID, `followsSystem` and
-  native rate/channels/data source/transport as well as numeric ID.
-  Snapshot the route after building the graph, never before, keeping the built
-  `followsSystem` policy intact.
+  (never auto-select Continuity or virtual/aggregate inputs during that bypass). Every
+  prepared graph binds its resolved `AudioDeviceID` directly; `followsSystem` records only
+  selection provenance, and `DictationInputRoute.hardware` normalizes it so synthesized
+  `Equatable` compares numeric ID, UID, native rate, channels, data source and transport,
+  leaving a bound local microphone uninterrupted when Bluetooth headphones connect or disconnect.
+  Snapshot the route after building the graph, never before.
   `DictationInputObserver` forwards topology and selected-device property events
   to the capture queue, unregisters on shutdown and ignores unchanged snapshots.
   Re-prepare an absent idle input when hardware returns. Drain rechecks the route
@@ -181,18 +183,16 @@ Compute-policy findings and the reproducible synthetic benchmark:
   Release during startup records its intentional stop so the queued drain can
   still finalize captured audio. Details and
   hardware coverage: `docs/dictation-device-compatibility.md`.
-  The I/O unit's current device is the engine's aggregate, not the input;
-  compare the input resolved at build. Re-prepare after
+  Compare the input route resolved at build and the unit's live hardware stream format on bus 1. Re-prepare after
   every stop or discard and drop a graph that failed to start; disabling
-  dictation releases the engine, after a hold in progress ends.
+  dictation releases the unit, after a hold in progress ends.
   The press mutes the default output (`DictationOutputMute`) only if it was
   unmuted, persisting the device UID until release; release unmutes only if it is
   still muted, resolving its stable UID rather than a potentially reused device id.
   Keep the recovery record if the device is disconnected or unmuting fails;
   retry on launch, idle preparation and before another hold. Never lower volume or
-  change it otherwise. Install the tap with a nil format and read the format
-  after it: AirPods changed format between a read and the tap, and a stale tap
-  format raises an uncatchable Objective-C exception. Write native PCM.
+  change it otherwise. Read the hardware stream format from bus 1 input scope and match its
+  native sample rate and channel count in Float32 non-interleaved client PCM (TN2091). Write native PCM.
   `DictationAudioLoader` selects one stable channel by non-DC energy and drains finite AVAudioConverter input fully to 16 kHz mono; never
   sum arbitrary input channels or relabel their rate. Tap
   callbacks are explicitly `@Sendable` and never enter the main actor for audio
@@ -209,11 +209,13 @@ Compute-policy findings and the reproducible synthetic benchmark:
   are distinct: a zero PCM buffer proves capture activity but must not close
   the recovery window. Do not infer a broken route from silence alone, since a
   hardware-muted headset can deliver a stable zero stream.
-- In configuration callbacks, read the current engine from worker state
-  inside the capture queue, guarded by the engine generation. Do not capture
-  `AVAudioEngine` across a Sendable closure: the CI SDK does not mark it
-  Sendable, even when the newer local SDK accepts that capture. Offline tests
-  create and use their engine inside one task, returning only sample values.
+- In configuration callbacks, read the current graph from worker state
+  inside the capture queue, guarded by the graph generation. `HALDictationInputGraph`
+  stays confined to the capture queue and releases its `Unmanaged<HALRenderContext>`
+  only after removing property listeners, stopping I/O and disposing the `AudioUnit`.
+  Offline tests exercise `HALRenderContext` through its custom render closure rather than
+  calling `AudioUnitInitialize` on a `HALOutput` input unit, which triggers a preflight
+  `kTCCServiceMicrophone` check in `coreaudiod`.
 - Delivery goes wherever keyboard focus is when recognition finishes, in any
   app (user decision 2026-10-20): typing, clicks and app switches during
   recognition no longer retain the result. Translation and Rewrite deliver the

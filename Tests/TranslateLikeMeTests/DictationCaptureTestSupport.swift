@@ -5,22 +5,21 @@ import XCTest
 
 // Capture fixtures stay on the worker queue and never open real audio devices.
 final class SyntheticCaptureGraph: DictationInputGraph {
-    var format: AVAudioFormat
+    var format: AVAudioFormat?
     var isRunning = false
     private let onStart: (SyntheticCaptureGraph) throws -> Void
 
     init(rate: Double, channels: UInt32 = 1, start: @escaping (SyntheticCaptureGraph) throws -> Void) {
-        let layout = AVAudioChannelLayout(layoutTag: kAudioChannelLayoutTag_DiscreteInOrder | channels)!
-        format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: rate,
-                               interleaved: false, channelLayout: layout)
+        format = HALDictationInputGraph.makePCMFormat(rate: rate, channels: channels)
         onStart = start
     }
 
-    func prepare() {}
+    func prepare() throws {}
     func start() throws { isRunning = true; try onStart(self) }
     func stop() { isRunning = false }
     func shutdown() { stop() }
     func deliver(to relay: DictationTapRelay, sample: Float = 0.25) throws {
+        let format = try XCTUnwrap(format)
         let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 160))
         buffer.frameLength = 160
         let channels = try XCTUnwrap(buffer.floatChannelData)

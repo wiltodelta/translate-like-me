@@ -28,7 +28,10 @@ final class DictationInputObserver: DictationInputWatching {
     }
 
     func watch(_ route: DictationInputRoute?) {
-        guard route != self.route else { return }
+        guard route?.hardware != self.route?.hardware else {
+            self.route = route
+            return
+        }
         remove(&selected)
         self.route = route
         guard let route else { return }

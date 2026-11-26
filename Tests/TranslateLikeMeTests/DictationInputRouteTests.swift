@@ -51,7 +51,7 @@ final class DictationInputRouteTests: XCTestCase {
         XCTAssertEqual(scenario.graphCount, 2, "Device ID equality is not device identity")
     }
 
-    func testExplicitSelectionIsPinnedEvenWhenItMatchesTheSystemInput() async {
+    func testEverySelectionBindsItsResolvedDeviceDirectly() async {
         for preferred in [nil, "built-in", "disconnected-usb"] {
             let started = expectation(description: "Selected input started")
             let scenario = RouteScenario(started: { _ in started.fulfill() })
@@ -61,30 +61,40 @@ final class DictationInputRouteTests: XCTestCase {
             worker.start(request) { _ in }
             await fulfillment(of: [started], timeout: 2)
             worker.shutdown()
-            XCTAssertEqual(scenario.bindingPolicies, [preferred != "built-in"])
+            XCTAssertEqual(scenario.boundDevices, [77])
         }
     }
 
-    func testConnectingBluetoothHeadsetRebindsIdleGraphToBuiltInMicrophone() async {
-        let prepared = expectation(description: "Initial unbound graph prepared")
-        let rebound = expectation(description: "Bound built-in graph prepared")
+    func testBluetoothHeadsetConnectingOrDisconnectingKeepsBoundLocalMicrophoneUninterrupted() async throws {
+        let prepared = expectation(description: "Initial bound local graph prepared")
+        let started = expectation(description: "Local capture started")
+        let systemBuiltIn = DictationInputRoute(device: 77, uid: "built-in", transport: .builtIn, followsSystem: true)
+        let bypassedBuiltIn = DictationInputRoute(device: 77, uid: "built-in",
+                                                  transport: .builtIn, followsSystem: false)
         let scenario = RouteScenario(
-            route: DictationInputRoute(device: 77, uid: "built-in", transport: .builtIn, followsSystem: true),
-            created: { index in
-                if index == 1 { prepared.fulfill() }
-                if index == 2 { rebound.fulfill() }
-            }
+            route: systemBuiltIn,
+            created: { index in if index == 1 { prepared.fulfill() } },
+            started: { _ in started.fulfill() }
         )
         let worker = scenario.worker()
+        defer { worker.shutdown() }
         worker.prepare(rebuild: false)
         await fulfillment(of: [prepared], timeout: 2)
-        scenario.change(to: DictationInputRoute(device: 77, uid: "built-in", transport: .builtIn, followsSystem: false))
-        await fulfillment(of: [rebound], timeout: 2)
-        worker.shutdown()
-        XCTAssertEqual(scenario.graphCount, 2)
-        XCTAssertEqual(scenario.startCount, 0)
-        XCTAssertEqual(scenario.bindingPolicies, [true, false],
-                       "Bypassing a Bluetooth default input must bind the input unit to the local microphone")
+        // Bluetooth connects while idle (followsSystem: true -> false), then disconnects mid-utterance
+        // (followsSystem: false -> true) and stays disconnected through drain.
+        scenario.change(to: bypassedBuiltIn)
+        let request = DictationCaptureRequest()
+        worker.start(request) { _ in XCTFail("Headset topology changes must not interrupt local capture") }
+        await fulfillment(of: [started], timeout: 2)
+        scenario.change(to: systemBuiltIn)
+        request.end()
+        let url = try await worker.stop(request).value
+        let file = try AVAudioFile(forReading: url)
+        XCTAssertEqual(file.length, 160)
+        XCTAssertNil(request.failure)
+        XCTAssertEqual(scenario.graphCount, 1)
+        XCTAssertEqual(scenario.startCount, 1)
+        XCTAssertEqual(scenario.boundDevices, [77])
     }
 
     func testStartupRouteSwitchDiscardsOnlySilenceAndUsesTheNewNativeFormat() async throws {
@@ -281,8 +291,8 @@ private final class RouteScenario: @unchecked Sendable {
     private let firstSample: Float
     private let stopAfterDelivery: Bool
     private let resolved: @Sendable (DictationInputRoute?) -> Void
-    private var followsSystem: [Bool] = []
-    var bindingPolicies: [Bool] { lock.withLock { followsSystem } }
+    private var devices: [AudioDeviceID] = []
+    var boundDevices: [AudioDeviceID] { lock.withLock { devices } }
     var inputCallback: (@Sendable () -> Void)? { lock.withLock { changed } }
     var graphCount: Int { lock.withLock { graphs } }
     var startCount: Int { lock.withLock { starts } }
@@ -318,10 +328,10 @@ private final class RouteScenario: @unchecked Sendable {
                 self.lock.withLock { self.changed = callback }
                 return RouteTestObservation(stop: { self.lock.withLock { self.stopped = true; self.changed = nil } })
             },
-            makeGraph: { _, followsSystem, relay, _ in
+            makeGraph: { device, relay, _ in
                 let (index, route) = self.lock.withLock {
                     self.graphs += 1
-                    self.followsSystem.append(followsSystem)
+                    self.devices.append(device)
                     return (self.graphs, self.route)
                 }
                 self.created(index)

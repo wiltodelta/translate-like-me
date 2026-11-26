@@ -66,8 +66,9 @@ final class DictationTapRelay: @unchecked Sendable {
 // (`docs/dictation-startup.md`).
 final class DictationCaptureWorker: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.wiltodelta.translatelikeme.capture", qos: .userInitiated)
-    private var relay = DictationTapRelay()
-    typealias MakeGraph = @Sendable (AudioDeviceID?, Bool, DictationTapRelay,
+    private let pendingInputCheck = Atomic(false)
+    private var relay: DictationTapRelay?
+    typealias MakeGraph = @Sendable (AudioDeviceID, DictationTapRelay,
                                     @escaping @Sendable () -> Void) throws -> any DictationInputGraph
     private let makeGraph: MakeGraph
     private let firstBufferLimit: DispatchTimeInterval
@@ -91,8 +92,7 @@ final class DictationCaptureWorker: @unchecked Sendable {
          resolveInput: @escaping @Sendable (String?) -> DictationInputRoute? = { DictationInputRoute.resolve($0) },
          observeInputs: @escaping ObserveInputs = { DictationInputObserver(changed: $0) },
          firstBufferLimit: DispatchTimeInterval = .seconds(1),
-         makeGraph: @escaping MakeGraph = { try AVDictationInputGraph(device: $0, followsSystem: $1,
-                                                                     relay: $2, changed: $3) }) {
+         makeGraph: @escaping MakeGraph = { try HALDictationInputGraph(device: $0, relay: $1, changed: $2) }) {
         self.resolveInput = resolveInput
         self.mute = mute
         self.makeGraph = makeGraph
@@ -100,7 +100,9 @@ final class DictationCaptureWorker: @unchecked Sendable {
         queue.async { [self] in
             self.mute.recoverInterrupted()
             inputObserver = observeInputs { [weak self] in
-                self?.queue.async { [weak self] in self?.inputDevicesChanged() }
+                guard let self,
+                      !self.pendingInputCheck.exchange(true, ordering: .acquiringAndReleasing) else { return }
+                self.queue.async { [weak self] in self?.inputDevicesChanged() }
             }
         }
     }
@@ -192,7 +194,7 @@ final class DictationCaptureWorker: @unchecked Sendable {
         let capture = try DictationAudioFile(url: request.url, format: format)
         self.capture = capture
         request.publish(capture)
-        relay.attach(capture, ended: ended)
+        relay?.attach(capture, ended: ended)
         mute.engage()
         try request.startIfActive { try engine.start() }
         let generation = generation
@@ -263,7 +265,7 @@ final class DictationCaptureWorker: @unchecked Sendable {
     private func stopCapture(flush: Bool = true) {
         // Stopping also releases what `prepare()` allocated; spare an idle graph.
         if engine?.isRunning == true { engine?.stop() }
-        relay.detach(flush: flush)
+        relay?.detach(flush: flush)
         mute.release()
     }
 
@@ -278,7 +280,7 @@ final class DictationCaptureWorker: @unchecked Sendable {
         mute.recoverInterrupted()
         do {
             let (engine, _) = try prepared()
-            engine.prepare()
+            try engine.prepare()
         } catch {
             captureLog.error("Microphone preparation failed: \(String(describing: error), privacy: .public)")
             tearDown()
@@ -294,10 +296,14 @@ final class DictationCaptureWorker: @unchecked Sendable {
         // Old tap callbacks must never see a replacement graph's recording.
         let relay = DictationTapRelay()
         self.relay = relay
-        let engine = try makeGraph(device, route.followsSystem, relay) { [weak self] in
+        let engine = try makeGraph(device, relay) { [weak self] in
             self?.queue.async { [weak self] in self?.configurationChanged(generation) }
         }
-        let format = engine.format
+        guard let format = engine.format else {
+            engine.shutdown()
+            self.relay = nil
+            throw DictationError.microphone
+        }
         relay.prepare(format: format)
         let selection = selectionLabel(for: route)
         captureLog.notice("""
@@ -307,8 +313,7 @@ final class DictationCaptureWorker: @unchecked Sendable {
         // Building the graph can move a Bluetooth input's nominal rate (AirPods flipped
         // 24/48 kHz, 2026-10-25); a pre-build snapshot made every idle graph stale at once.
         var built = route
-        if let current = resolveInput(preferredInput),
-           current.uid == route.uid, current.followsSystem == route.followsSystem {
+        if let current = resolveInput(preferredInput), current.uid == route.uid {
             built = current
         }
         (self.engine, self.format, inputRoute) = (engine, format, built)
@@ -332,17 +337,18 @@ final class DictationCaptureWorker: @unchecked Sendable {
     }
 
     private func inputDevicesChanged() {
+        pendingInputCheck.store(false, ordering: .releasing)
         if engine == nil {
             if keepsPrepared, capture == nil { prepareIdle() }
         } else if isStale {
-            configurationChanged(generation)
+            configurationChanged(generation, knownStale: true)
         }
     }
 
-    private func configurationChanged(_ generation: Int) {
+    private func configurationChanged(_ generation: Int, knownStale: Bool = false) {
         guard generation == self.generation, let engine else { return }
         if let current, capture != nil {
-            guard !engine.isRunning || isStale else { return }
+            guard !engine.isRunning || knownStale || isStale else { return }
             failRunning(current, after: "an input configuration change")
         } else {
             // A device or format change while idle invalidates the prepared graph.
@@ -351,20 +357,18 @@ final class DictationCaptureWorker: @unchecked Sendable {
         }
     }
 
-    // A prepared engine stays bound to the input it was built on: the chosen
-    // microphone, or the system input when none is chosen or it is disconnected.
-    // Its I/O unit reports the engine's own aggregate device, not that input.
+    // Every prepared input-only AUHAL stays bound to the device it was built on.
     private var isStale: Bool {
         guard let engine, let format else { return false }
-        return resolveInput(preferredInput) != inputRoute
+        return resolveInput(preferredInput)?.hardware != inputRoute?.hardware
             || engine.format != format
     }
 
     private func tearDown() {
         generation += 1
-        relay.detach()
+        relay?.detach()
         inputObserver?.watch(nil)
         engine?.shutdown()
-        (engine, format, inputRoute) = (nil, nil, nil)
+        (engine, format, inputRoute, relay) = (nil, nil, nil, nil)
     }
 }

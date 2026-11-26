@@ -11,6 +11,13 @@ struct DictationInputRoute: Equatable, Sendable {
     var transport: AudioInputTransport = .unknown
     var followsSystem = true
 
+    // Normalizes selection provenance so synthesized Equatable compares hardware identity.
+    var hardware: Self {
+        var copy = self
+        copy.followsSystem = true
+        return copy
+    }
+
     static func resolve(_ preferred: String?, device: (String) -> AudioDeviceID? = audioDevice(uid:),
                         system: () -> AudioDeviceID? = {
                             defaultAudioDevice(kAudioHardwarePropertyDefaultInputDevice)
@@ -35,10 +42,11 @@ struct DictationInputRoute: Equatable, Sendable {
 
     static func read(_ device: AudioDeviceID) -> Self? {
         guard audioPropertyValue(device, kAudioDevicePropertyDeviceIsAlive, initial: UInt32(0)) == 1,
-              let uid = audioDeviceUID(device), let channels = channelCount(device), channels > 0 else { return nil }
+              let channels = channelCount(device), channels > 0,
+              let uid = audioDeviceUID(device) else { return nil }
         var route = Self(device: device, uid: uid, channels: channels, transport: audioInputTransport(device))
         if let rate = audioPropertyValue(device, kAudioDevicePropertyNominalSampleRate, initial: 0.0),
-           rate.isFinite, rate > 0 {
+            rate.isFinite, rate > 0 {
             route.sampleRate = rate
         }
         route.dataSource = audioPropertyValue(device, kAudioDevicePropertyDataSource,
@@ -70,14 +78,15 @@ struct DictationInputRoute: Equatable, Sendable {
         guard AudioObjectGetPropertyDataSize(device, &address, 0, nil, &size) == noErr,
               size >= MemoryLayout<AudioBufferList>.size else { return nil }
         let capacity = Int(size)
-        let memory = UnsafeMutableRawPointer.allocate(byteCount: capacity,
-                                                       alignment: MemoryLayout<AudioBufferList>.alignment)
-        defer { memory.deallocate() }
-        guard AudioObjectGetPropertyData(device, &address, 0, nil, &size, memory) == noErr,
-              size >= MemoryLayout<AudioBufferList>.size, size <= capacity else { return nil }
-        let list = memory.assumingMemoryBound(to: AudioBufferList.self)
-        let maximum = 1 + (Int(size) - MemoryLayout<AudioBufferList>.size) / MemoryLayout<AudioBuffer>.stride
-        guard list.pointee.mNumberBuffers <= maximum else { return nil }
-        return UnsafeMutableAudioBufferListPointer(list).reduce(0) { $0 + $1.mNumberChannels }
+        return withUnsafeTemporaryAllocation(byteCount: capacity,
+                                             alignment: MemoryLayout<AudioBufferList>.alignment) { buffer in
+            guard let memory = buffer.baseAddress,
+                  AudioObjectGetPropertyData(device, &address, 0, nil, &size, memory) == noErr,
+                  size >= MemoryLayout<AudioBufferList>.size, size <= capacity else { return nil }
+            let list = memory.assumingMemoryBound(to: AudioBufferList.self)
+            let maximum = 1 + (Int(size) - MemoryLayout<AudioBufferList>.size) / MemoryLayout<AudioBuffer>.stride
+            guard list.pointee.mNumberBuffers <= maximum else { return nil }
+            return UnsafeMutableAudioBufferListPointer(list).reduce(0) { $0 + $1.mNumberChannels }
+        }
     }
 }

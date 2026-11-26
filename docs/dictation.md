@@ -161,57 +161,64 @@ comparison. The historical [Parakeet integration](parakeet-ultra-integration.md)
 installation, lifecycle, native UI and build checks.
 
 `DictationRecorder` queues capture immediately and publishes metering through a
-locked request. `DictationCaptureWorker` owns every engine operation on a serial
+locked request. `DictationCaptureWorker` owns every input-unit operation on a serial
 user-initiated queue, including configuration callbacks and teardown. Its
-`DictationInputGraph` adapter holds the AVAudioEngine graph; synthetic graphs
+`DictationInputGraph` adapter (`HALDictationInputGraph`) owns an input-only AUHAL
+(`kAudioUnitSubType_HALOutput`); synthetic graphs
 exercise the same worker lifecycle without opening real audio devices. No indicator
 is shown before the first audio; the press reads no AX target. After the
 post-release capture tail, stopping marks the request inactive without waiting
 for hardware initialization. A queued
 start checks that flag before opening the microphone. If release arrives during
-`AVAudioEngine.start()`, the worker stops the engine as soon as startup returns;
+`AudioOutputUnitStart()`, the worker stops the unit as soon as startup returns;
 the stop task then drains and finalizes the WAV before recognition. Cancellation
 queues discard before a later start. The request lock never spans a hardware
 operation. See the [code review fixes](code-review-fixes.md) for regression coverage and the
 [startup investigation](dictation-startup.md) for the remaining hardware latency.
 
-The worker captures raw `AVAudioEngine` input, without Apple's voice processing.
+The worker captures raw input through an input-only AUHAL (Apple TN2091), without
+Apple's voice processing. `AVAudioEngine` was replaced on November 24, 2026:
+accessing `AVAudioEngine.inputNode` constructed a `CADefaultDeviceAggregate` on the
+system default input and output before `kAudioOutputUnitProperty_CurrentDevice`
+could bind a local microphone, switching connected AirPods into 24 kHz HFP/SCO
+mode, looping on output profile changes, and latching 24 kHz or 44.1 kHz aggregate
+formats onto the 48 kHz built-in microphone. `HALDictationInputGraph` disables
+output bus 0 and enables input bus 1 before binding `kAudioOutputUnitProperty_CurrentDevice`
+to every resolved `AudioDeviceID`, isolating dictation input from the system output.
 VoiceProcessingIO initialization took about 1.2 s per press, so speech that began
 with the press was lost, and a prepared voice-processing unit kept other audio
 ducked while idle. The user chose raw prepared input on October 20, 2026; the
 measurements are in the [startup investigation](dictation-startup.md#raw-prepared-input-october-20-2026).
 Echo cancellation and noise suppression are therefore gone. Their earlier
 benefit was not established (see the comparison below).
-Between holds the engine is prepared but stopped, with its tap installed. It
-opens no microphone: the process input-running property reads zero. A press
-only starts the hardware. The tap forwards audio through a relay only while a
-hold's sink is attached. Stop and discard re-prepare the engine; disabling
-dictation releases it. Wake, an idle configuration change, a microphone choice,
-or a different resolved input or format rebuilds it. The engine's I/O unit
-reports its own aggregate device, so the worker compares the input it resolved
-at build. An explicit microphone choice, or a local built-in/wired input chosen
-automatically to bypass a Bluetooth system default, is bound with
-`kAudioOutputUnitProperty_CurrentDevice` on the input node's unit before its
-format is read, including when it equals the current system default. Only an
-unbypassed system-following path remains unbound.
-`DictationInputRoute` validates a live input and compares UID, binding mode,
-transport, native rate, channel count and data source. The worker observes device/default changes
-separately from engine notifications, re-prepares a returning idle input and
-rechecks the route/running state at drain. Compatibility policy and physical
-coverage are documented in [microphone compatibility](dictation-device-compatibility.md).
-The tap is installed with a nil format, because a stale explicit format raised
-an uncatchable exception when AirPods changed format. Bluetooth can still change
-format after `start()`: Yealink BH74 switched from 44.1 kHz to 16 kHz as its
-microphone opened, stopping the engine and invalidating the prepared tap.
+Between holds the unit is initialized (`AudioUnitInitialize`) but stopped
+(`AudioOutputUnitStop`), with its pre-allocated non-interleaved Float32 render
+buffer installed. It opens no microphone: the process input-running property
+reads zero. A press only calls `AudioOutputUnitStart`. The input callback forwards
+audio through a relay only while a hold's sink is attached. Stop and discard keep
+the unit prepared; disabling dictation disposes it. Wake, an idle configuration
+change, a microphone choice, or a different resolved input hardware or stream format
+rebuilds it. Every resolved input (explicit choice, automatic Bluetooth bypass, or
+non-Bluetooth system default) is bound with `kAudioOutputUnitProperty_CurrentDevice`
+after output bus 0 is disabled, so Core Audio never reroutes a prepared local unit
+onto a newly connected Bluetooth headset. `DictationInputRoute` validates a live
+input and compares hardware identity (`DictationInputRoute.hardware`: numeric ID, UID, transport,
+native rate, channel count and data source), leaving active or idle local capture
+uninterrupted when Bluetooth headphones connect or disconnect. The worker observes
+device/default changes separately from unit notifications, re-prepares a returning
+idle input and rechecks the route/running state at drain. Compatibility policy and
+physical coverage are documented in [microphone compatibility](dictation-device-compatibility.md).
+The client format on bus 1 output scope matches the native sample rate and channel
+count read from bus 1 input scope (TN2091). Bluetooth can still change format after
+`start()` when explicitly selected or used without a local microphone: Yealink BH74
+switched from 44.1 kHz to 16 kHz as its microphone opened.
 Before any nonzero audio, an active hold can rebuild and restart at most twice,
-closing its old WAV and recreating the tap and file for the new format. Output
+closing its old WAV and recreating the unit and file for the new format. Output
 mute remains owned by the same hold during these restarts.
 Release or cancellation forbids a restart. After nonzero audio arrives, a configuration
 interruption fails the recording instead of recognizing a partial phrase.
 Old graph notifications are rejected by generation, and failed graphs are torn
-down before idle preparation can reuse them. Apple's
-[configuration notification](https://developer.apple.com/documentation/foundation/nsnotification/name-swift.struct/avaudioengineconfigurationchange)
-documents the engine stop on hardware sample-rate or channel-count changes.
+down before idle preparation can reuse them.
 
 During a hold the default output device is muted, if it was unmuted, so media
 does not reach the recording. `DictationOutputMute` records the device UID in

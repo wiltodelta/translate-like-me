@@ -190,7 +190,74 @@ final class DictationCaptureWorkerTests: XCTestCase {
                             firstBufferLimit: DispatchTimeInterval = .seconds(60)) -> DictationCaptureWorker {
         DictationCaptureWorker(mute: DictationOutputMute(control: UnavailableCaptureOutput()),
             resolveInput: resolveInput, observeInputs: observeInputs, firstBufferLimit: firstBufferLimit,
-            makeGraph: { _, _, relay, changed in scenario.makeGraph(relay: relay, changed: changed) })
+            makeGraph: { _, relay, changed in scenario.makeGraph(relay: relay, changed: changed) })
+    }
+}
+
+final class HALDictationInputGraphTests: XCTestCase {
+    func testMakePCMFormatSupportsMonoStereoAndMultichannelDiscreteLayouts() throws {
+        XCTAssertNil(HALDictationInputGraph.makePCMFormat(rate: 0, channels: 1))
+        XCTAssertNil(HALDictationInputGraph.makePCMFormat(rate: .nan, channels: 1))
+        XCTAssertNil(HALDictationInputGraph.makePCMFormat(rate: 48_000, channels: 0))
+        for channels: UInt32 in [1, 2, 3, 8] {
+            let first = try XCTUnwrap(HALDictationInputGraph.makePCMFormat(rate: 48_000, channels: channels))
+            let second = try XCTUnwrap(HALDictationInputGraph.makePCMFormat(rate: 48_000, channels: channels))
+            let different = try XCTUnwrap(HALDictationInputGraph.makePCMFormat(rate: 24_000, channels: channels))
+            XCTAssertEqual(first, second)
+            XCTAssertNotEqual(first, different)
+            XCTAssertEqual(first.commonFormat, .pcmFormatFloat32)
+            XCTAssertFalse(first.isInterleaved)
+            XCTAssertEqual(first.channelCount, channels)
+            XCTAssertEqual(first.sampleRate, 48_000)
+        }
+    }
+
+    func testHALRenderContextDeliversVaryingSlicesAndRejectsInvalidRenders() throws {
+        let format = try XCTUnwrap(HALDictationInputGraph.makePCMFormat(rate: 48_000, channels: 2))
+        let relay = DictationTapRelay()
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tlm-hal-render-\(UUID().uuidString).wav")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let sink = try DictationAudioFile(url: url, format: format)
+        relay.attach(sink, ended: { _ in })
+
+        var nextStatus: OSStatus = noErr
+        let context = HALRenderContext(
+            unit: nil, configuredFormat: format, maxFrames: 512, relay: relay, changed: {},
+            customRender: { _, _, busNumber, frameCount, bufferList in
+                XCTAssertEqual(busNumber, 1)
+                guard nextStatus == noErr else { return nextStatus }
+                let buffers = UnsafeMutableAudioBufferListPointer(bufferList)
+                for channel in 0..<buffers.count {
+                    XCTAssertEqual(buffers[channel].mDataByteSize, frameCount * 4)
+                    let ptr = buffers[channel].mData!.assumingMemoryBound(to: Float.self)
+                    for index in 0..<Int(frameCount) {
+                        ptr[index] = channel == 0 ? 0.25 : -0.25
+                    }
+                    buffers[channel].mDataByteSize = frameCount * UInt32(MemoryLayout<Float>.size)
+                }
+                return noErr
+            }
+        )
+
+        var flags: AudioUnitRenderActionFlags = []
+        var stamp = AudioTimeStamp()
+        XCTAssertEqual(context.render(actionFlags: &flags, timeStamp: &stamp, busNumber: 1, frameCount: 0),
+                       kAudioUnitErr_TooManyFramesToProcess)
+        XCTAssertEqual(context.render(actionFlags: &flags, timeStamp: &stamp, busNumber: 1, frameCount: 513),
+                       kAudioUnitErr_TooManyFramesToProcess)
+        XCTAssertEqual(context.render(actionFlags: &flags, timeStamp: &stamp, busNumber: 1, frameCount: 128), noErr)
+        XCTAssertEqual(context.render(actionFlags: &flags, timeStamp: &stamp, busNumber: 1, frameCount: 512), noErr)
+        nextStatus = kAudioUnitErr_CannotDoInCurrentContext
+        XCTAssertEqual(context.render(actionFlags: &flags, timeStamp: &stamp, busNumber: 1, frameCount: 64),
+                       kAudioUnitErr_CannotDoInCurrentContext)
+
+        relay.detach(flush: true)
+        try sink.finish()
+        let file = try AVAudioFile(forReading: url)
+        XCTAssertEqual(file.length, 640)
+        XCTAssertEqual(file.processingFormat.channelCount, 2)
+        XCTAssertEqual(file.processingFormat.sampleRate, 48_000)
     }
 }
 

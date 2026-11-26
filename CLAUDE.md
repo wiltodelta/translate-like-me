@@ -170,6 +170,9 @@ preparation, preview, approval and live verification.
   survey candidates by sweeping publishers' Hugging Face listings by date.
 - A fresh worktree's first `swift build` or `./build.sh` compiles MLX past the
   10-minute tool timeout; run it detached (`nohup caffeinate -dimu ... > log &`).
+  Run `./build.sh` once before `./maintain.sh` in a fresh worktree: `maintain.sh`
+  runs `swift test` before `./build.sh`, and `DictationQwenTests` requires
+  `Translate Like Me Dev.app/Contents/Resources/mlx.metallib` (or `TLM_QWEN_METALLIB`).
 - A `.build` cloned into another worktree fails release builds until
   `.build/arm64-apple-macosx/release/ModuleCache` is deleted, and `build.sh`
   until `.build/mlx-metal` is, because both embed the old path.

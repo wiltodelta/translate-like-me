@@ -17,7 +17,7 @@ protocol DictationRecording: AnyObject {
     func shutdown()
 }
 
-// The serial capture worker owns every AVAudioEngine access. MainActor owns
+// The serial capture worker owns every input-unit access. MainActor owns
 // callbacks and the current request. Warm-up prepares the input between holds
 // without opening the microphone; a press enqueues only the hardware start.
 @MainActor

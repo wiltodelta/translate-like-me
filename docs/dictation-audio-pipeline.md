@@ -37,8 +37,8 @@ measurements without retaining waveform samples or transcripts in logs.
 
 ```mermaid
 flowchart TD
-    A[Saved microphone UID or system input] --> B[Prepared raw AVAudioEngine input]
-    B --> C[Native Float32 tap and first-signal sink]
+    A[Saved microphone UID or automatic input] --> B[Prepared input-only AUHAL]
+    B --> C[Native Float32 render callback and lock-free ring buffer]
     C --> D[Locked native-rate multichannel WAV]
     D --> E[Stable channel selection and finite 16 kHz conversion]
     E --> F[Silero speech gate and collar bounds]
@@ -54,7 +54,7 @@ flowchart TD
 | Stage | Source and established behavior | Remaining limitation |
 |---|---|---|
 | Device choice | `DictationInputRoute.resolve` validates the UID and live input capabilities, otherwise a usable system input | Explicit choices stay pinned; topology and selected-device properties are observed independently |
-| Hardware graph | `AVDictationInputGraph` installs a nil-format tap, reads its actual format and uses a sink to pull input | Input is coupled to AVAudioEngine I/O configuration, including output changes |
+| Hardware graph | `HALDictationInputGraph` disables output bus 0, binds `CurrentDevice` directly and renders native-rate Float32 slices | Isolated from system output and `CADefaultDeviceAggregate` changes |
 | Startup and stop | Worker serializes operations, bounds pre-signal restarts, rejects interruptions after signal, drains before recognition | A PCM buffer or first nonzero sample is not proof of stable Bluetooth readiness |
 | Native PCM | `DictationAudioFile` writes Float32 at the tap rate/channel count, preserves channel samples, rejects late writes | Before this candidate it ignored sample times and accepted nonfinite samples |
 | Mono and rate conversion | `DictationAudioLoader`, stable channel chosen by non-DC energy, high-quality finite AVAudioConverter drain | The original SDK behavior is retained only as a benchmark baseline |
